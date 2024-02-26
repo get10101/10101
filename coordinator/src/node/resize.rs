@@ -10,8 +10,8 @@ use crate::position::models::PositionState;
 use crate::trade::models::NewTrade;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::TradeParams;
 use diesel::Connection;
@@ -37,7 +37,7 @@ impl Node {
         channel_id: ChannelId,
         trade_params: &TradeParams,
     ) -> Result<()> {
-        let channel_id_hex = channel_id.to_hex();
+        let channel_id_hex = hex::encode(channel_id);
         let peer_id = trade_params.pubkey;
 
         let position = db::positions::Position::get_position_by_trader(
@@ -176,7 +176,7 @@ impl Node {
         let channel_details = self.get_counterparty_channel(peer_id)?;
 
         tracing::info!(
-            channel_id = %channel_details.channel_id.to_hex(),
+            channel_id = %hex::encode(channel_details.channel_id),
             peer_id = %peer_id,
             "Continue resizing position"
         );
@@ -272,7 +272,7 @@ impl Node {
             .context("Could not build contract descriptor")?;
 
             tracing::info!(
-                channel_id = %channel_details.channel_id.to_hex(),
+                channel_id = %hex::encode(channel_details.channel_id),
                 peer_id = %peer_id,
                 event_id,
                 "Proposing DLC channel as part of position resizing"
@@ -304,7 +304,7 @@ impl Node {
                         .await
                 {
                     tracing::error!(
-                        channel_id = %channel_details.channel_id.to_hex(),
+                        channel_id = %hex::encode(channel_details.channel_id),
                         peer_id = %peer_id,
                         "Failed to propose DLC channel as part of position resizing: {e:#}"
                     );
@@ -317,7 +317,7 @@ impl Node {
                     Ok(temporary_contract_id) => temporary_contract_id,
                     Err(e) => {
                         tracing::error!(
-                            channel_id = %channel_details.channel_id.to_hex(),
+                            channel_id = %hex::encode(channel_details.channel_id),
                             "Unable to extract temporary contract id: {e:#}"
                         );
                         return;
@@ -342,7 +342,7 @@ impl Node {
                     temporary_contract_id,
                 ) {
                     tracing::error!(
-                        channel_id = %channel_details.channel_id.to_hex(),
+                        channel_id = %hex::encode(channel_details.channel_id),
                         "Failed to update resized position: {e:#}"
                     )
                 }
@@ -374,7 +374,7 @@ fn compute_margin(
         .to_f64()
         .expect("margin to fit into f64");
 
-    bitcoin::Amount::from_btc(margin_btc)
+    Amount::from_btc(margin_btc)
         .expect("margin to fit into Amount")
         .to_sat()
 }

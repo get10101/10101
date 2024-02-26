@@ -1,9 +1,12 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
+use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::networking;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::Storage;
+use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
 use anyhow::bail;
 use anyhow::Context;
@@ -32,7 +35,10 @@ impl TenTenOneOnionMessageHandler {
 
 /// Copied from the IgnoringMessageHandler
 impl OnionMessageProvider for TenTenOneOnionMessageHandler {
-    fn next_onion_message_for_peer(&self, _peer_node_id: PublicKey) -> Option<OnionMessage> {
+    fn next_onion_message_for_peer(
+        &self,
+        _peer_node_id: bitcoin_old::secp256k1::PublicKey,
+    ) -> Option<OnionMessage> {
         None
     }
 }
@@ -41,33 +47,43 @@ impl OnionMessageProvider for TenTenOneOnionMessageHandler {
 /// once a peer successfully connected. (This also includes that the Init Message has been processed
 /// and the connection is ready to use).
 impl OnionMessageHandler for TenTenOneOnionMessageHandler {
-    fn handle_onion_message(&self, _their_node_id: &PublicKey, _msg: &OnionMessage) {}
+    fn handle_onion_message(
+        &self,
+        _their_node_id: &bitcoin_old::secp256k1::PublicKey,
+        _msg: &OnionMessage,
+    ) {
+    }
     fn peer_connected(
         &self,
-        their_node_id: &PublicKey,
+        their_node_id: &bitcoin_old::secp256k1::PublicKey,
         _init: &msgs::Init,
         inbound: bool,
     ) -> Result<(), ()> {
         tracing::info!(%their_node_id, inbound, "Peer connected!");
 
         if let Err(e) = self.handler.publish(NodeEvent::Connected {
-            peer: *their_node_id,
+            peer: to_secp_pk_30(*their_node_id),
         }) {
             tracing::error!(%their_node_id, "Failed to broadcast connected peer. {e:#}");
         }
 
         Ok(())
     }
-    fn peer_disconnected(&self, _their_node_id: &PublicKey) {}
+    fn peer_disconnected(&self, _their_node_id: &bitcoin_old::secp256k1::PublicKey) {}
     fn provided_node_features(&self) -> NodeFeatures {
         NodeFeatures::empty()
     }
-    fn provided_init_features(&self, _their_node_id: &PublicKey) -> InitFeatures {
+    fn provided_init_features(
+        &self,
+        _their_node_id: &bitcoin_old::secp256k1::PublicKey,
+    ) -> InitFeatures {
         InitFeatures::empty()
     }
 }
 
-impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
+impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
+    Node<D, S, N>
+{
     pub async fn connect(&self, peer: NodeInfo) -> Result<Pin<Box<impl Future<Output = ()>>>> {
         #[allow(clippy::async_yields_async)] // We want to poll this future in a loop elsewhere
         let connection_closed_future = tokio::time::timeout(Duration::from_secs(15), async {
@@ -116,6 +132,6 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         self.peer_manager
             .get_peer_node_ids()
             .iter()
-            .any(|(id, _)| *id == pubkey)
+            .any(|(id, _)| *id == to_secp_pk_29(pubkey))
     }
 }

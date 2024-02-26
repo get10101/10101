@@ -1,6 +1,5 @@
 use crate::calculations;
 use crate::channel_trade_constraints;
-use crate::commons::api::ChannelInfo;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
@@ -18,7 +17,6 @@ use crate::health;
 use crate::ln_dlc;
 use crate::ln_dlc::get_storage;
 use crate::ln_dlc::ChannelOpeningParams;
-use crate::ln_dlc::FUNDING_TX_WEIGHT_ESTIMATE;
 use crate::logger;
 use crate::orderbook;
 use crate::polls;
@@ -32,7 +30,6 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
@@ -42,7 +39,6 @@ use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
-use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
@@ -86,7 +82,7 @@ pub struct WalletInfo {
 
 #[derive(Clone, Debug, Default)]
 pub struct Balances {
-    pub on_chain: Option<u64>,
+    pub on_chain: u64,
     pub off_chain: Option<u64>,
 }
 
@@ -101,6 +97,13 @@ pub async fn refresh_wallet_info() -> Result<()> {
 #[tokio::main(flavor = "current_thread")]
 pub async fn sync_dlc_channels() -> Result<()> {
     ln_dlc::sync_dlc_channels().await?;
+
+    Ok(())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn full_sync(stop_gap: usize) -> Result<()> {
+    ln_dlc::full_sync(stop_gap).await?;
 
     Ok(())
 }
@@ -191,10 +194,6 @@ pub fn reset_all_answered_polls() -> Result<SyncReturn<()>> {
 pub fn ignore_poll(poll_id: i32) -> Result<SyncReturn<()>> {
     polls::ignore_poll(poll_id)?;
     Ok(SyncReturn(()))
-}
-
-pub fn refresh_lightning_wallet() -> Result<()> {
-    ln_dlc::refresh_lightning_wallet()
 }
 
 #[derive(Clone, Debug)]
@@ -509,10 +508,6 @@ fn run_internal(
     )
 }
 
-pub fn get_unused_address() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_unused_address())
-}
-
 pub fn get_new_address() -> Result<String> {
     ln_dlc::get_new_address()
 }
@@ -525,28 +520,6 @@ pub async fn close_channel() -> Result<()> {
 #[tokio::main(flavor = "current_thread")]
 pub async fn force_close_channel() -> Result<()> {
     ln_dlc::close_channel(true).await
-}
-
-/// Returns channel info if we have a channel available already
-///
-/// If no channel is established with the coordinator `None` is returned.
-pub fn channel_info() -> Result<Option<ChannelInfo>> {
-    let channel_details = ln_dlc::get_usable_channel_details()?.first().cloned();
-    let channel_info = match channel_details {
-        Some(channel_details) => {
-            let user_channel_id = UserChannelId::from(channel_details.user_channel_id);
-            let channel = db::get_channel(&user_channel_id.to_string())?
-                .with_context(|| format!("Couldn't find channel for {user_channel_id}!"))?;
-
-            Some(ChannelInfo {
-                channel_capacity: channel_details.channel_value_satoshis,
-                reserve: channel_details.unspendable_punishment_reserve,
-                liquidity_option_id: channel.liquidity_option_id,
-            })
-        }
-        None => None,
-    };
-    Ok(channel_info)
 }
 
 pub struct TradeConstraints {
@@ -576,14 +549,6 @@ pub struct TradeConstraints {
 pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
     Ok(SyncReturn(trade_constraints))
-}
-
-pub fn max_channel_value() -> Result<u64> {
-    ln_dlc::max_channel_value().map(|amount| amount.to_sat())
-}
-
-pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
-    ln_dlc::contract_tx_fee_rate()
 }
 
 #[derive(Debug, Clone)]
@@ -621,14 +586,6 @@ impl From<commons::LiquidityOption> for LiquidityOption {
     }
 }
 
-pub fn create_onboarding_invoice(
-    liquidity_option_id: i32,
-    amount_sats: u64,
-    fee_sats: u64,
-) -> Result<String> {
-    Ok(ln_dlc::create_onboarding_invoice(liquidity_option_id, amount_sats, fee_sats)?.to_string())
-}
-
 pub struct PaymentRequest {
     pub address: String,
     pub bip21: String,
@@ -641,28 +598,12 @@ pub fn create_payment_request(
     let amount_query = amount_sats
         .map(|amt| format!("?amount={}", Amount::from_sat(amt).to_btc()))
         .unwrap_or_default();
-    let addr = ln_dlc::get_unused_address();
+    let addr = ln_dlc::get_unused_address()?;
 
     Ok(PaymentRequest {
         bip21: format!("bitcoin:{addr}{amount_query}"),
         address: addr,
     })
-}
-
-pub fn is_usdp_payment(payment_hash: String) -> SyncReturn<bool> {
-    SyncReturn(ln_dlc::is_usdp_payment(payment_hash))
-}
-
-pub enum SendPayment {
-    Lightning {
-        invoice: String,
-        amount: Option<u64>,
-    },
-    OnChain {
-        address: String,
-        amount: u64,
-        fee: Fee,
-    },
 }
 
 /// The choice of on-chain network fee
@@ -725,15 +666,14 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
         let mut fees = Vec::with_capacity(TARGETS.len());
 
         for confirmation_target in TARGETS {
-            let payment = SendPayment::OnChain {
-                address: address.clone(),
-                amount,
-                fee: Fee::Priority(confirmation_target),
-            };
+            let fee_rate = fee_rate(confirmation_target);
+
+            let fee_config = Fee::Priority(confirmation_target);
+            let absolute_fee = ln_dlc::estimate_payment_fee(amount, &address, fee_config).await?;
 
             fees.push(FeeEstimation {
-                sats_per_vbyte: (fee_rate(confirmation_target)?.ceil()) as u64,
-                total_sats: ln_dlc::estimate_payment_fee_msat(payment).await? / 1000,
+                sats_per_vbyte: fee_rate.ceil() as u64,
+                total_sats: absolute_fee.to_sat(),
             })
         }
 
@@ -741,22 +681,15 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
     })
 }
 
-pub fn fee_rate(confirmation_target: ConfirmationTarget) -> Result<f32> {
-    ln_dlc::get_fee_rate_for_target(confirmation_target.into()).map(|rate| rate.as_sat_per_vb())
+pub fn fee_rate(confirmation_target: ConfirmationTarget) -> f32 {
+    ln_dlc::get_fee_rate_for_target(confirmation_target.into()).as_sat_per_vb()
 }
 
-pub fn send_payment(payment: SendPayment) -> Result<()> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
-    runtime.block_on(async { ln_dlc::send_payment(payment).await })
-}
+#[tokio::main(flavor = "current_thread")]
+pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<String> {
+    let txid = ln_dlc::send_payment(amount, address, fee).await?;
 
-pub fn send_on_chain_payment(address: String, amount: u64, fee: Fee) -> Result<SyncReturn<String>> {
-    ln_dlc::send_on_chain_payment(address, amount, fee).map(|txid| SyncReturn(txid.to_string()))
-}
-
-pub fn send_preflight_probe(payment: SendPayment) -> Result<u64> {
-    let runtime = crate::state::get_or_create_tokio_runtime()?;
-    runtime.block_on(async { ln_dlc::estimate_payment_fee_msat(payment).await })
+    Ok(txid.to_string())
 }
 
 pub struct LastLogin {
@@ -839,13 +772,6 @@ pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_pubkey().to_string())
 }
 
-pub fn get_channel_open_fee_estimate_sat() -> Result<u64> {
-    let fee_rate = ln_dlc::get_fee_rate()?;
-    let estimate = FUNDING_TX_WEIGHT_ESTIMATE as f32 * fee_rate.as_sat_per_vb();
-
-    Ok(estimate.ceil() as u64)
-}
-
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
     SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
@@ -853,7 +779,7 @@ pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
 
 pub fn get_dlc_channel_id() -> Result<Option<String>> {
     let dlc_channel_id =
-        ln_dlc::get_signed_dlc_channel()?.map(|channel| channel.channel_id.to_hex());
+        ln_dlc::get_signed_dlc_channel()?.map(|channel| hex::encode(channel.channel_id));
 
     Ok(dlc_channel_id)
 }
@@ -869,10 +795,6 @@ pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
 pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
     let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
     ln_dlc::delete_dlc_channel(&dlc_channel_id)
-}
-
-pub fn sync_for_addresses(gap: u32) -> Result<bool> {
-    ln_dlc::sync_for_addresses(gap)
 }
 
 pub fn get_new_random_name() -> SyncReturn<String> {

@@ -1,48 +1,20 @@
 import 'package:get_10101/common/domain/model.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
 import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
-import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/logger/logger.dart';
 
 class WalletService {
   const WalletService();
 
-  Future<void> refreshLightningWallet() async {
-    try {
-      await rust.api.refreshLightningWallet();
-    } catch (error) {
-      logger.e("Failed to refresh lightning wallet: $error");
-    }
-  }
-
   Future<void> refreshWalletInfo() async {
     try {
       await rust.api.refreshWalletInfo();
     } catch (error) {
       logger.e("Failed to refresh wallet info: $error");
-    }
-  }
-
-  /// Throws an exception if coordinator cannot provide required liquidity.
-  Future<String?> createOnboardingInvoice(
-      Amount amount, int liquidityOptionId, Amount feeSats) async {
-    try {
-      String invoice = await rust.api.createOnboardingInvoice(
-          amountSats: amount.sats, liquidityOptionId: liquidityOptionId, feeSats: feeSats.sats);
-      logger.i("Successfully created invoice.");
-      return invoice;
-    } catch (error) {
-      if (error is FfiException && error.message.contains("cannot provide required liquidity")) {
-        rethrow;
-      } else {
-        logger.e("Error: $error", error: error);
-        return null;
-      }
     }
   }
 
@@ -62,9 +34,7 @@ class WalletService {
     try {
       rust.Destination result = await rust.api.decodeDestination(destination: destination);
 
-      if (result is rust.Destination_Bolt11) {
-        return LightningInvoice.fromApi(result, destination);
-      } else if (result is rust.Destination_Bip21) {
+      if (result is rust.Destination_Bip21) {
         return OnChainAddress.fromApi(result);
       } else if (result is rust.Destination_OnChainAddress) {
         return OnChainAddress.fromAddress(result);
@@ -89,36 +59,12 @@ class WalletService {
     return map;
   }
 
-  Future<int> estimateFeeMsat(Destination destination, Amount? amount, Fee? fee) async {
-    return switch (fee) {
-      null ||
-      PriorityFee() =>
-        await rust.api.sendPreflightProbe(payment: _createPayment(destination, amount, fee: fee)),
-      CustomFeeRate() => fee.amount.sats * 1000,
-    };
-  }
-
-  String sendOnChainPayment(Destination destination, Amount? amount, {Fee? fee}) {
+  Future<String> sendOnChainPayment(Destination destination, Amount? amount, {Fee? fee}) {
     var feeApi = fee!.toAPI();
     var sats = amount!.sats;
     var address = destination.raw;
     logger.i("Sending payment of $amount to $address with fee $feeApi");
-    return rust.api.sendOnChainPayment(address: address, amount: sats, fee: feeApi);
-  }
 
-  String getUnusedAddress() {
-    return rust.api.getUnusedAddress();
-  }
-}
-
-rust.SendPayment _createPayment(Destination destination, Amount? amount, {Fee? fee}) {
-  switch (destination.getWalletType()) {
-    case WalletType.lightning:
-      return rust.SendPayment_Lightning(invoice: destination.raw, amount: amount?.sats);
-    case WalletType.onChain:
-      return rust.SendPayment_OnChain(
-          address: destination.raw, amount: amount!.sats, fee: fee!.toAPI());
-    default:
-      throw Exception("unsupported wallet type: ${destination.getWalletType().name}");
+    return rust.api.sendPayment(address: address, amount: sats, fee: feeApi);
   }
 }

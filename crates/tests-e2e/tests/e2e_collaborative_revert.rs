@@ -26,7 +26,7 @@ async fn can_revert_channel() {
 
     let dlc_channel_id = get_dlc_channel_id().unwrap();
 
-    let app_balance_before = app.rx.wallet_info().unwrap().balances.on_chain.unwrap();
+    let app_balance_before = app.rx.wallet_info().unwrap().balances.on_chain;
 
     // Act
 
@@ -50,7 +50,7 @@ async fn can_revert_channel() {
         sync_dlc_channels();
         refresh_wallet_info();
 
-        let app_balance = app.rx.wallet_info().unwrap().balances.on_chain.unwrap();
+        let app_balance = app.rx.wallet_info().unwrap().balances.on_chain;
 
         tracing::debug!(
             before = %app_balance_before,

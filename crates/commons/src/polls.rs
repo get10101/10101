@@ -1,5 +1,5 @@
 use anyhow::bail;
-use secp256k1::PublicKey;
+use bitcoin::secp256k1::PublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 

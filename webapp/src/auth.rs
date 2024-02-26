@@ -5,7 +5,6 @@ use axum::Router;
 use axum_login::AuthUser;
 use axum_login::AuthnBackend;
 use axum_login::UserId;
-use bitcoin::hashes::hex::ToHex;
 use serde::Deserialize;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
@@ -52,7 +51,7 @@ impl AuthnBackend for Backend {
     ) -> Result<Option<Self::User>, Self::Error> {
         let mut hasher = Sha256::new();
         hasher.update(creds.password.as_bytes());
-        let hashed_password = hasher.finalize_fixed().to_hex();
+        let hashed_password = hex::encode(hasher.finalize_fixed());
 
         let user = match hashed_password == self.hashed_password {
             true => Some(User {

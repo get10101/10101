@@ -8,8 +8,6 @@ use crate::trade::position::Position;
 use commons::LspConfig;
 use commons::Prices;
 use commons::TradeParams;
-use lightning::ln::ChannelId;
-use lightning::ln::PaymentHash;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
@@ -37,10 +35,6 @@ pub enum EventInternal {
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
     PriceUpdateNotification(Prices),
-    ChannelReady(ChannelId),
-    PaymentClaimed(u64, PaymentHash),
-    PaymentSent,
-    PaymentFailed,
     ServiceHealthUpdate(ServiceUpdate),
     Authenticated(LspConfig),
     BackgroundNotification(BackgroundTask),
@@ -73,10 +67,6 @@ impl fmt::Display for EventInternal {
             EventInternal::PositionUpdateNotification(_) => "PositionUpdateNotification",
             EventInternal::PositionCloseNotification(_) => "PositionCloseNotification",
             EventInternal::PriceUpdateNotification(_) => "PriceUpdateNotification",
-            EventInternal::ChannelReady(_) => "ChannelReady",
-            EventInternal::PaymentClaimed(_, _) => "PaymentClaimed",
-            EventInternal::PaymentSent => "PaymentSent",
-            EventInternal::PaymentFailed => "PaymentFailed",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
             EventInternal::SpendableOutputs => "SpendableOutputs",
@@ -99,10 +89,6 @@ impl From<EventInternal> for EventType {
             EventInternal::PositionUpdateNotification(_) => EventType::PositionUpdateNotification,
             EventInternal::PositionCloseNotification(_) => EventType::PositionClosedNotification,
             EventInternal::PriceUpdateNotification(_) => EventType::PriceUpdateNotification,
-            EventInternal::ChannelReady(_) => EventType::ChannelReady,
-            EventInternal::PaymentClaimed(_, _) => EventType::PaymentClaimed,
-            EventInternal::PaymentSent => EventType::PaymentSent,
-            EventInternal::PaymentFailed => EventType::PaymentFailed,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
             EventInternal::SpendableOutputs => EventType::SpendableOutputs,

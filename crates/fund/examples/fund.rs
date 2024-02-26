@@ -38,7 +38,9 @@ async fn main() -> Result<()> {
 async fn fund_everything(faucet: &str, coordinator: &str) -> Result<()> {
     let client = init_reqwest();
     let coordinator = Coordinator::new(client.clone(), coordinator);
+
     let coord_addr = coordinator.get_new_address().await?;
+    let coord_addr = coord_addr.assume_checked();
 
     let bitcoind = bitcoind::Bitcoind::new(client, faucet.to_string() + "/bitcoin");
 

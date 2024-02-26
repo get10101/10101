@@ -1,6 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::XOnlyPublicKey;
+use bitcoin::key::XOnlyPublicKey;
 use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
 use coordinator::dlc_handler;
@@ -10,8 +10,6 @@ use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
-use coordinator::node;
-use coordinator::node::connection;
 use coordinator::node::expired_positions;
 use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
@@ -29,12 +27,9 @@ use coordinator::storage::CoordinatorTenTenOneStorage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use lightning::events::Event;
 use ln_dlc_node::node::event::NodeEventHandler;
-use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CoordinatorEventHandler;
-use ln_dlc_node::WalletSettings;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -45,7 +40,6 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
-use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
 
@@ -53,9 +47,15 @@ const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
-const CONNECTION_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
 const NODE_ALIAS: &str = "10101.finance";
+
+/// The prefix to the [`bdk_file_store`] database file where BDK persists
+/// [`bdk::wallet::ChangeSet`]s.
+///
+/// We hard-code the prefix so that we can always be sure that we are loading the correct file on
+/// start-up.
+const WALLET_DB_PREFIX: &str = "10101-coordinator";
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -107,33 +107,31 @@ async fn main() -> Result<()> {
     let mut conn = pool.get()?;
     run_migration(&mut conn);
 
-    let (node_event_sender, mut node_event_receiver) = watch::channel::<Option<Event>>(None);
-
     let storage = CoordinatorTenTenOneStorage::new(data_dir.to_string_lossy().to_string());
 
     let node_storage = Arc::new(NodeStorage::new(pool.clone()));
 
     let node_event_handler = Arc::new(NodeEventHandler::new());
+
+    let wallet_storage = bdk_file_store::Store::open_or_create_new(
+        WALLET_DB_PREFIX.as_bytes(),
+        data_dir.join("wallet"),
+    )?;
+
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ln_dlc_node::config::coordinator_config(),
-        scorer::persistent_scorer,
         NODE_ALIAS,
         network,
         data_dir.as_path(),
         storage,
         node_storage,
+        wallet_storage,
         address,
         SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-        opts.p2p_announcement_addresses(),
         opts.electrs.clone(),
         seed,
         ephemeral_randomness,
         settings.ln_dlc.clone(),
-        WalletSettings {
-            max_allowed_tx_fee_rate_when_opening_channel: settings
-                .max_allowed_tx_fee_rate_when_opening_channel,
-            jit_channels_enabled: settings.jit_channels_enabled,
-        },
         opts.get_oracle_infos()
             .into_iter()
             .map(|o| o.into())
@@ -148,7 +146,7 @@ async fn main() -> Result<()> {
         node_event_handler.subscribe(),
     );
 
-    let event_handler = CoordinatorEventHandler::new(node.clone(), Some(node_event_sender));
+    let event_handler = CoordinatorEventHandler::new(node.clone(), None);
     let running = node.start(event_handler, false)?;
     let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
 
@@ -165,7 +163,21 @@ async fn main() -> Result<()> {
         });
     }
 
-    std::thread::spawn(node.inner.sync_on_chain_wallet_periodically());
+    tokio::spawn({
+        let node = node.clone();
+
+        // TODO: Do we still want to be able to update this at runtime?
+        let interval = settings.ln_dlc.on_chain_sync_interval;
+        async move {
+            loop {
+                if let Err(e) = node.inner.sync_on_chain_wallet().await {
+                    tracing::info!("On-chain sync failed: {e:#}");
+                }
+
+                tokio::time::sleep(interval).await;
+            }
+        }
+    });
 
     tokio::spawn({
         let node = node.clone();
@@ -176,23 +188,6 @@ async fn main() -> Result<()> {
                     .await
                     .expect("To spawn blocking thread");
                 tokio::time::sleep(PROCESS_INCOMING_DLC_MESSAGES_INTERVAL).await;
-            }
-        }
-    });
-
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
-                match node_event_receiver.changed().await {
-                    Ok(()) => {
-                        let event = node_event_receiver.borrow().clone();
-                        node::routing_fees::handle(node.clone(), event);
-                    }
-                    Err(e) => {
-                        tracing::error!("Failed to receive event: {e:#}");
-                    }
-                }
             }
         }
     });
@@ -261,6 +256,7 @@ async fn main() -> Result<()> {
         pool.clone(),
         tx_user_feed.clone(),
         auth_users_notifier.clone(),
+        network,
     );
 
     tokio::spawn({
@@ -275,11 +271,6 @@ async fn main() -> Result<()> {
                 }
             }
         }
-    });
-
-    tokio::spawn({
-        let node = node.clone();
-        connection::keep_public_channel_peers_connected(node.inner, CONNECTION_CHECK_INTERVAL)
     });
 
     let user_backup = SledBackup::new(data_dir.to_string_lossy().to_string());

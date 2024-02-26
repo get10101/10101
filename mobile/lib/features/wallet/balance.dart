@@ -70,8 +70,7 @@ class _BalanceBoxState extends State<_BalanceBox> {
   ];
 
   List<BalanceRow> balances = [
-    // TODO(bonomat): this should show the balance from the dlc channel now
-    const BalanceRow(walletType: WalletType.lightning),
+    const BalanceRow(walletType: WalletType.offChain),
     const BalanceRow(walletType: WalletType.onChain),
   ];
 

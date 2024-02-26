@@ -1,6 +1,7 @@
 use crate::tests;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::Amount;
 use reqwest::Response;
 use serde::Deserialize;
 use std::time::Duration;
@@ -11,7 +12,7 @@ struct BitcoindResponse {
     result: String,
 }
 
-pub async fn fund(address: String, amount: bitcoin::Amount) -> Result<Response> {
+pub async fn fund(address: String, amount: Amount) -> Result<Response> {
     query(format!(
         r#"{{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["{}", "{}", "", "", false, false, null, null, false, 1.0]}}"#,
         address,

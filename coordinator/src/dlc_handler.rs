@@ -11,6 +11,7 @@ use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_messages::Message;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node::dlc_channel::send_dlc_message;
@@ -29,14 +30,26 @@ use tokio::sync::broadcast::error::RecvError;
 
 #[derive(Clone)]
 pub struct DlcHandler {
-    node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+    node: Arc<
+        Node<
+            bdk_file_store::Store<bdk::wallet::ChangeSet>,
+            CoordinatorTenTenOneStorage,
+            NodeStorage,
+        >,
+    >,
     pool: Pool<ConnectionManager<PgConnection>>,
 }
 
 impl DlcHandler {
     pub fn new(
         pool: Pool<ConnectionManager<PgConnection>>,
-        node: Arc<Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+        node: Arc<
+            Node<
+                bdk_file_store::Store<bdk::wallet::ChangeSet>,
+                CoordinatorTenTenOneStorage,
+                NodeStorage,
+            >,
+        >,
     ) -> Self {
         DlcHandler { node, pool }
     }
@@ -108,7 +121,9 @@ impl DlcHandler {
                     is_offer: false, ..
                 },
             ..
-        }) = signed_dlc_channels.iter().find(|c| c.counter_party == peer)
+        }) = signed_dlc_channels
+            .iter()
+            .find(|c| c.counter_party == to_secp_pk_29(peer))
         {
             tracing::info!("Accepting pending dlc channel close offer.");
             // Pending dlc channel close offer with the intend to close the dlc channel

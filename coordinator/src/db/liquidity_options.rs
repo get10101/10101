@@ -1,7 +1,5 @@
 use crate::schema::liquidity_options;
-use diesel::ExpressionMethods;
 use diesel::PgConnection;
-use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
@@ -35,16 +33,6 @@ pub(crate) fn get_all(conn: &mut PgConnection) -> QueryResult<Vec<commons::Liqui
         .map(commons::LiquidityOption::from)
         .collect();
     Ok(options)
-}
-
-pub(crate) fn get(
-    conn: &mut PgConnection,
-    liquidity_option_id: i32,
-) -> QueryResult<commons::LiquidityOption> {
-    let option: LiquidityOption = liquidity_options::table
-        .filter(liquidity_options::id.eq(liquidity_option_id))
-        .get_result(conn)?;
-    Ok(option.into())
 }
 
 impl From<LiquidityOption> for commons::LiquidityOption {

@@ -18,8 +18,8 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::MatchState;
 use commons::Message;
@@ -39,6 +39,8 @@ use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
+use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
 use ln_dlc_node::node;
 use ln_dlc_node::node::signed_channel_state_name;
 use rust_decimal::prelude::ToPrimitive;
@@ -70,7 +72,13 @@ pub enum TradeAction {
 }
 
 pub struct TradeExecutor {
-    node: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+    node: Arc<
+        node::Node<
+            bdk_file_store::Store<bdk::wallet::ChangeSet>,
+            CoordinatorTenTenOneStorage,
+            NodeStorage,
+        >,
+    >,
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
     notifier: mpsc::Sender<OrderbookMessage>,
@@ -78,7 +86,13 @@ pub struct TradeExecutor {
 
 impl TradeExecutor {
     pub fn new(
-        node: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+        node: Arc<
+            node::Node<
+                bdk_file_store::Store<bdk::wallet::ChangeSet>,
+                CoordinatorTenTenOneStorage,
+                NodeStorage,
+            >,
+        >,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: Arc<RwLock<NodeSettings>>,
         notifier: mpsc::Sender<OrderbookMessage>,
@@ -223,8 +237,8 @@ impl TradeExecutor {
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
-        collateral_reserve_coordinator: bitcoin::Amount,
-        collateral_reserve_trader: bitcoin::Amount,
+        collateral_reserve_coordinator: Amount,
+        collateral_reserve_trader: Amount,
         stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
@@ -305,7 +319,7 @@ impl TradeExecutor {
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
                 oracles: OracleInput {
-                    public_keys: vec![trade_params.filled_with.oracle_pk],
+                    public_keys: vec![to_xonly_pk_29(trade_params.filled_with.oracle_pk)],
                     event_id: event_id.clone(),
                     threshold: 1,
                 },
@@ -372,7 +386,7 @@ impl TradeExecutor {
         tracing::info!(
             %peer_id,
             order_id = %trade_params.filled_with.order_id,
-            channel_id = %dlc_channel_id.to_hex(),
+            channel_id = %hex::encode(dlc_channel_id),
             ?trade_params,
             "Opening position"
         );
@@ -477,7 +491,7 @@ impl TradeExecutor {
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
                 oracles: OracleInput {
-                    public_keys: vec![trade_params.filled_with.oracle_pk],
+                    public_keys: vec![to_xonly_pk_29(trade_params.filled_with.oracle_pk)],
                     event_id,
                     threshold: 1,
                 },
@@ -583,7 +597,7 @@ impl TradeExecutor {
         tracing::info!(
             %protocol_id,
             ?position,
-            channel_id = %channel_id.to_hex(),
+            channel_id = %hex::encode(channel_id),
             %position_settlement_amount_coordinator,
             ?collateral_reserve_coordinator,
             %dlc_channel_settlement_amount_coordinator,
@@ -671,7 +685,7 @@ impl TradeExecutor {
                         .node
                         .list_dlc_channels()?
                         .iter()
-                        .filter(|c| c.get_counter_party_id() == trader_id)
+                        .filter(|c| c.get_counter_party_id() == to_secp_pk_29(trader_id))
                         .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
                     "Previous DLC Channel offer still pending."
                 );

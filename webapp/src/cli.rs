@@ -1,6 +1,5 @@
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use clap::Parser;
 use sha2::digest::FixedOutput;
 use sha2::Digest;
@@ -81,7 +80,7 @@ impl Opts {
     pub fn password(&self) -> String {
         let mut hasher = Sha256::new();
         hasher.update(self.password.as_bytes());
-        hasher.finalize_fixed().to_hex()
+        hex::encode(hasher.finalize_fixed())
     }
 
     pub fn data_dir(&self) -> Result<PathBuf> {

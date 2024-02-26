@@ -15,8 +15,6 @@ import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
-import 'package:get_10101/features/wallet/send/payment_sent_change_notifier.dart';
-import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/application/candlestick_service.dart';
@@ -65,8 +63,6 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => PaymentClaimedChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => PaymentChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
@@ -95,8 +91,6 @@ void subscribeToNotifiers(BuildContext context) {
   final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
-  final paymentClaimedChangeNotifier = context.read<PaymentClaimedChangeNotifier>();
-  final paymentChangeNotifier = context.read<PaymentChangeNotifier>();
   final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
   final lspConfigChangeNotifier = context.read<LspChangeNotifier>();
 
@@ -136,14 +130,6 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       recoverDlcChangeNotifier, bridge.Event.backgroundNotification(RecoverDlc.apiDummy()));
-
-  eventService.subscribe(
-      paymentClaimedChangeNotifier, const bridge.Event.paymentClaimed(0, "dummy_invoice"));
-  eventService.subscribe(
-      paymentClaimedChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
-
-  eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentSent());
-  eventService.subscribe(paymentChangeNotifier, const bridge.Event.paymentFailed());
 
   eventService.subscribe(
       collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));

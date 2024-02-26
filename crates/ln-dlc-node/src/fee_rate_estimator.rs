@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Network;
+use bitcoin::Weight;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::chaininterface::FEERATE_FLOOR_SATS_PER_KW;
@@ -39,6 +40,7 @@ fn to_mempool_network(value: Network) -> mempool::Network {
         Network::Testnet => mempool::Network::Testnet,
         Network::Signet => mempool::Network::Signet,
         Network::Regtest => mempool::Network::Local,
+        _ => unreachable!(),
     }
 }
 
@@ -102,6 +104,9 @@ impl FeeRateEstimator {
 
 impl FeeEstimator for FeeRateEstimator {
     fn get_est_sat_per_1000_weight(&self, confirmation_target: ConfirmationTarget) -> u32 {
-        (self.estimate(confirmation_target).fee_wu(1000) as u32).max(FEERATE_FLOOR_SATS_PER_KW)
+        (self
+            .estimate(confirmation_target)
+            .fee_wu(Weight::from_wu(1000)) as u32)
+            .max(FEERATE_FLOOR_SATS_PER_KW)
     }
 }

@@ -31,7 +31,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
 
     let trade_constraints = match maybe_channel {
         None => {
-            let balance = ln_dlc::get_onchain_balance()?;
+            let balance = ln_dlc::get_onchain_balance();
             let counterparty_margin_sats = option.trade_up_to_sats;
             TradeConstraints {
                 max_local_margin_sats: balance.confirmed

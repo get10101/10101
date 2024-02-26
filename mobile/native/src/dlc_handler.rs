@@ -6,7 +6,6 @@ use crate::event::TaskStatus;
 use crate::ln_dlc::node::Node;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_messages::Message;
 use ln_dlc_node::dlc_message::DlcMessage;
@@ -114,7 +113,7 @@ impl DlcHandler {
 
         for offered_channel in offered_channels.iter() {
             tracing::info!(
-                channel_id = offered_channel.get_id().to_hex(),
+                channel_id = hex::encode(offered_channel.get_id()),
                 "Rejecting pending dlc channel offer."
             );
             // Pending dlc channel offer not yet confirmed on-chain

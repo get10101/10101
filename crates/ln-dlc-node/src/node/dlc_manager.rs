@@ -1,11 +1,12 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
+use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
@@ -18,22 +19,22 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
-pub type DlcManager<S, N> = dlc_manager::manager::Manager<
-    Arc<LnDlcWallet<S, N>>,
-    Arc<LnDlcWallet<S, N>>,
+pub type DlcManager<D, S, N> = dlc_manager::manager::Manager<
+    Arc<DlcWallet<D, S, N>>,
+    Arc<DlcWallet<D, S, N>>,
     Arc<DlcStorageProvider<S>>,
     Arc<P2PDOracleClient>,
     Arc<SystemTimeProvider>,
     Arc<FeeRateEstimator>,
 >;
 
-pub fn build<S: TenTenOneStorage, N: Storage>(
+pub fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
     data_dir: &Path,
-    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
+    wallet: Arc<DlcWallet<D, S, N>>,
     dlc_storage: Arc<DlcStorageProvider<S>>,
     p2pdoracles: Vec<Arc<P2PDOracleClient>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
-) -> Result<DlcManager<S, N>> {
+) -> Result<DlcManager<D, S, N>> {
     let offers_path = data_dir.join("offers");
     fs::create_dir_all(offers_path)?;
 
@@ -52,8 +53,8 @@ pub fn build<S: TenTenOneStorage, N: Storage>(
     }
 
     DlcManager::new(
-        ln_dlc_wallet.clone(),
-        ln_dlc_wallet,
+        wallet.clone(),
+        wallet,
         dlc_storage,
         oracles,
         Arc::new(SystemTimeProvider {}),
@@ -81,15 +82,16 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
     name.to_string()
 }
 
-impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, N> {
+impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
+    Node<D, S, N>
+{
     pub fn get_signed_channel_by_trader_id(&self, trader_id: PublicKey) -> Result<SignedChannel> {
         let dlc_channels = self.list_signed_dlc_channels()?;
         let signed_channel = dlc_channels
             .iter()
-            .find(|channel| channel.counter_party == trader_id)
+            .find(|channel| channel.counter_party == to_secp_pk_29(trader_id))
             .context(format!(
-                "Could not find a signed dlc channel for trader {:}",
-                trader_id.to_hex()
+                "Could not find a signed dlc channel for trader {trader_id}",
             ))?;
 
         Ok(signed_channel.clone())

@@ -5,7 +5,6 @@ use crate::schema::sql_types::PositionStateType;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
@@ -253,7 +252,7 @@ impl Position {
                 positions::average_entry_price.eq(average_entry_price),
                 positions::trader_liquidation_price.eq(liquidation_price),
                 positions::expiry_timestamp.eq(expiry_timestamp),
-                positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
+                positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
             ))
             .execute(conn)?;
 
@@ -311,7 +310,7 @@ impl Position {
             )
             .set((
                 positions::position_state.eq(PositionState::Open),
-                positions::temporary_contract_id.eq(temporary_contract_id.to_hex()),
+                positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)?;
@@ -451,7 +450,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,
             trader_pubkey: value.trader.to_string(),
-            temporary_contract_id: value.temporary_contract_id.to_hex(),
+            temporary_contract_id: hex::encode(value.temporary_contract_id),
             coordinator_leverage: value.coordinator_leverage,
             trader_margin: value.trader_margin,
             stable: value.stable,

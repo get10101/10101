@@ -1,5 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::address::NetworkUnchecked;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use reqwest::Client;
@@ -99,7 +100,7 @@ impl Coordinator {
         Ok(())
     }
 
-    pub async fn get_new_address(&self) -> Result<Address> {
+    pub async fn get_new_address(&self) -> Result<Address<NetworkUnchecked>> {
         Ok(self.get("/api/newaddress").await?.text().await?.parse()?)
     }
 

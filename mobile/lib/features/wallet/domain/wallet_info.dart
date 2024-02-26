@@ -11,8 +11,7 @@ class WalletInfo {
 
   WalletInfo.fromApi(rust.WalletInfo walletInfo)
       : balances = WalletBalances(
-            onChain:
-                walletInfo.balances.onChain != null ? Amount(walletInfo.balances.onChain!) : null,
+            onChain: Amount(walletInfo.balances.onChain),
             offChain: walletInfo.balances.offChain != null
                 ? Amount(walletInfo.balances.offChain!)
                 : null),

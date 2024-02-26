@@ -1,3 +1,4 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::networking::DynamicSocketDescriptor;
 use crate::node::NodeInfo;
 use anyhow::Context;
@@ -47,7 +48,7 @@ where
     });
 
     if let Ok(initial_send) = peer_manager.as_ref().new_outbound_connection(
-        node_info.pubkey,
+        to_secp_pk_29(node_info.pubkey),
         descriptor.clone(),
         Some(node_info.address.into()),
     ) {

@@ -1,7 +1,6 @@
 use crate::api;
 use crate::api::Fee;
 use crate::api::PaymentFlow;
-use crate::api::SendPayment;
 use crate::api::Status;
 use crate::api::WalletHistoryItem;
 use crate::api::WalletHistoryItemType;
@@ -16,7 +15,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
-use crate::ln_dlc::node::WalletHistories;
+use crate::ln_dlc::node::WalletHistory;
 use crate::state;
 use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
@@ -30,65 +29,48 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin::secp256k1::rand::thread_rng;
-use bdk::bitcoin::secp256k1::rand::RngCore;
-use bdk::bitcoin::secp256k1::SecretKey;
-use bdk::bitcoin::Txid;
-use bdk::bitcoin::XOnlyPublicKey;
-use bdk::Balance;
-use bdk::BlockTime;
+use bdk::wallet::Balance;
 use bdk::FeeRate;
-use bdk::TransactionDetails;
-use bitcoin::hashes::hex::ToHex;
+use bitcoin::address::NetworkUnchecked;
+use bitcoin::key::XOnlyPublicKey;
+use bitcoin::secp256k1::rand::thread_rng;
+use bitcoin::secp256k1::rand::RngCore;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
 use bitcoin::Address;
 use bitcoin::Amount;
-use bitcoin::OutPoint;
-use bitcoin::PackedLockTime;
-use bitcoin::Transaction;
-use bitcoin::TxIn;
-use bitcoin::TxOut;
+use bitcoin::Txid;
 use commons::CollaborativeRevertTraderResponse;
-use commons::LegacyCollaborativeRevertTraderResponse;
-use commons::OnboardingParam;
-use commons::RouteHintHop;
 use commons::TradeAndChannelParams;
 use dlc::PartyParams;
 use dlc_manager::channel::Channel as DlcChannel;
-use dlc_manager::subchannel::LnDlcChannelSigner;
-use dlc_manager::subchannel::LnDlcSignerProvider;
 use itertools::chain;
 use itertools::Itertools;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::events::Event;
-use lightning::ln::channelmanager::ChannelDetails;
 use lightning::ln::ChannelId;
 use lightning::sign::KeysManager;
-use ln_dlc_node::channel::Channel;
-use ln_dlc_node::channel::UserChannelId;
+use ln_dlc_node::bitcoin_conversion::to_ecdsa_signature_30;
+use ln_dlc_node::bitcoin_conversion::to_script_29;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
+use ln_dlc_node::bitcoin_conversion::to_secp_sk_30;
+use ln_dlc_node::bitcoin_conversion::to_tx_30;
+use ln_dlc_node::bitcoin_conversion::to_txid_29;
+use ln_dlc_node::bitcoin_conversion::to_txid_30;
 use ln_dlc_node::config::app_config;
-use ln_dlc_node::lightning_invoice::Bolt11Invoice;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
 use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannel;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::SubChannelState;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::rust_dlc_manager::Signer;
 use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
 use ln_dlc_node::node::GossipSourceConfig;
 use ln_dlc_node::node::LnDlcNodeSettings;
-use ln_dlc_node::node::Storage as LnDlcNodeStorage;
-use ln_dlc_node::scorer;
 use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::util;
 use ln_dlc_node::AppEventHandler;
-use ln_dlc_node::HTLCStatus;
-use ln_dlc_node::WalletSettings;
-use ln_dlc_node::CONFIRMATION_TARGET;
+use ln_dlc_node::ConfirmationStatus;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::net::IpAddr;
@@ -116,17 +98,12 @@ const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 
-/// Defines a constant from which we treat a transaction as confirmed
-const NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED: u64 = 1;
-
-/// The weight estimate of the funding transaction
+/// The prefix to the [`bdk_file_store`] database file where BDK persists
+/// [`bdk::wallet::ChangeSet`]s.
 ///
-/// This weight estimate assumes two inputs.
-/// This value was chosen based on mainnet channel funding transactions with two inputs.
-/// Note that we cannot predict this value precisely, because the app cannot predict what UTXOs the
-/// coordinator will use for the channel opening transaction. Only once the transaction is know the
-/// exact fee will be know.
-pub const FUNDING_TX_WEIGHT_ESTIMATE: u64 = 220;
+/// We hard-code the prefix so that we can always be sure that we are loading the correct file on
+/// start-up.
+const WALLET_DB_PREFIX: &str = "10101-app";
 
 /// Extra information required to open a DLC channel, independent of the [`TradeParams`] associated
 /// with the filled order.
@@ -139,45 +116,24 @@ pub struct ChannelOpeningParams {
     pub trader_reserve: Amount,
 }
 
-/// Triggers an update to the wallet balance and history, without an on-chain sync.
-pub fn refresh_lightning_wallet() -> Result<()> {
-    let node = state::get_node();
-    if let Err(e) = node.inner.sync_lightning_wallet() {
-        tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
-    }
-
-    if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
-        tracing::error!("Failed to keep wallet history up to date: {e:#}");
-    }
-
-    Ok(())
-}
-
 /// Trigger an on-chain sync followed by an update to the wallet balance and history.
 ///
 /// We do not wait for the triggered task to finish, because the effect will be reflected
 /// asynchronously on the UI.
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = state::get_node();
-    let wallet = node.inner.ldk_wallet();
+
+    if let Err(e) = node.inner.sync_on_chain_wallet().await {
+        tracing::error!("On-chain sync failed: {e:#}");
+    }
 
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
     let runtime = state::get_or_create_tokio_runtime()?;
     runtime.spawn_blocking(move || {
-        if let Err(e) = wallet.sync() {
-            tracing::error!("Manually triggered on-chain sync failed: {e:#}");
-        }
-
-        if let Err(e) = node.inner.sync_lightning_wallet() {
-            tracing::error!("Manually triggered Lightning wallet sync failed: {e:#}");
-        }
-
         if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
             tracing::error!("Failed to keep wallet history up to date: {e:#}");
         }
-
-        anyhow::Ok(())
     });
 
     Ok(())
@@ -190,10 +146,29 @@ pub async fn sync_dlc_channels() -> Result<()> {
 
     runtime
         .spawn_blocking(move || {
-            node.inner.dlc_manager.periodic_chain_monitor()?;
-            node.inner.dlc_manager.periodic_check()?;
+            if let Err(e) = node.inner.dlc_manager.periodic_chain_monitor() {
+                tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
+            };
 
-            anyhow::Ok(())
+            if let Err(e) = node.inner.dlc_manager.periodic_check() {
+                tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+            };
+        })
+        .await
+        .expect("task to complete");
+
+    Ok(())
+}
+
+pub async fn full_sync(stop_gap: usize) -> Result<()> {
+    let runtime = state::get_or_create_tokio_runtime()?;
+    runtime
+        .spawn({
+            let node = state::get_node();
+            async move {
+                node.inner.full_sync(stop_gap).await?;
+                anyhow::Ok(())
+            }
         })
         .await
         .expect("task to complete")?;
@@ -227,17 +202,18 @@ fn get_seed() -> Bip39Seed {
 pub fn get_node_key() -> SecretKey {
     match state::try_get_node() {
         Some(node) => node.inner.node_key(),
+        // TODO: This seems pretty suspicious.
         None => {
             let seed = get_seed();
             let time_since_unix_epoch = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("unix epos to not be earlier than now");
-            let keys_manger = KeysManager::new(
+            let keys_manager = KeysManager::new(
                 &seed.lightning_seed(),
                 time_since_unix_epoch.as_secs(),
                 time_since_unix_epoch.subsec_nanos(),
             );
-            keys_manger.get_node_secret_key()
+            to_secp_sk_30(keys_manager.get_node_secret_key())
         }
     }
 }
@@ -259,21 +235,21 @@ pub fn get_funding_transaction(channel_id: &ChannelId) -> Result<Txid> {
     let node = state::get_node();
     let channel_details = node.inner.channel_manager.get_channel_details(channel_id);
 
-    let funding_transaction = match channel_details {
-        Some(channel_details) => match channel_details.funding_txo {
-            Some(funding_txo) => funding_txo.txid,
-            None => bail!(
-                "Could not find funding transaction for channel {}",
-                hex::encode(channel_id.0)
-            ),
-        },
-        None => bail!(
+    let channel_details = channel_details.with_context(|| {
+        format!(
             "Could not find channel details for {}",
             hex::encode(channel_id.0)
-        ),
-    };
+        )
+    })?;
 
-    Ok(funding_transaction)
+    let funding_txo = channel_details.funding_txo.with_context(|| {
+        format!(
+            "Could not find funding transaction for channel {}",
+            hex::encode(channel_id.0)
+        )
+    })?;
+
+    Ok(to_txid_30(funding_txo.txid))
 }
 
 /// Gets the 10101 node storage, initializes the storage if not found yet.
@@ -330,22 +306,26 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
 
         let node_event_handler = Arc::new(NodeEventHandler::new());
+
+        let wallet_storage = {
+            let wallet_dir = Path::new(&config::get_data_dir()).join("wallet");
+            bdk_file_store::Store::open_or_create_new(WALLET_DB_PREFIX.as_bytes(), wallet_dir)?
+        };
+
         let node = ln_dlc_node::node::Node::new(
             app_config(),
-            scorer::in_memory_scorer,
             "10101",
             network,
             Path::new(&storage.data_dir),
             storage.clone(),
             node_storage,
+            wallet_storage,
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-            util::into_socket_addresses(address),
             config::get_electrs_endpoint(),
             seed,
             ephemeral_randomness,
             ln_dlc_node_settings(),
-            WalletSettings::default(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
             node_event_handler.clone(),
@@ -396,14 +376,14 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             }
         });
 
-        std::thread::spawn({
+        runtime.spawn({
             let node = node.clone();
-            move || loop {
-                if let Err(e) = node.inner.sync_on_chain_wallet() {
+            async move {
+                if let Err(e) = node.inner.sync_on_chain_wallet().await {
                     tracing::error!("Failed on-chain sync: {e:#}");
                 }
 
-                std::thread::sleep(ON_CHAIN_SYNC_INTERVAL);
+                tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
             }
         });
 
@@ -475,47 +455,32 @@ pub async fn restore_from_mnemonic(seed_words: &str, target_seed_file: &Path) ->
 fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     let wallet_balances = node.get_wallet_balances();
 
-    let WalletHistories {
-        on_chain,
-        off_chain,
-    } = node
-        .get_wallet_histories()
-        .context("Failed to get wallet histories")?;
+    let WalletHistory { on_chain } = node.get_wallet_history();
 
-    let blockchain_height = node.get_blockchain_height()?;
-
-    // Get all channel related transactions (channel opening/closing). If we have seen a transaction
-    // in the wallet it means the transaction has been published. If so, we remove it from
-    // [`on_chain`] and add it as it's own WalletHistoryItem so that it can be displayed nicely.
+    // If we find fund transactions among the on-chain transactions we are aware of, we treat them
+    // as a special case so that they can be displayed with extra information.
     let dlc_channels = node.inner.list_signed_dlc_channels()?;
-
     let dlc_channel_funding_tx_details = on_chain.iter().filter_map(|details| {
         match dlc_channels
             .iter()
-            .find(|item| item.fund_tx.txid() == details.txid)
+            .find(|item| item.fund_tx.txid() == to_txid_29(details.transaction.txid()))
         {
             None => None,
             Some(channel) => {
-                let (timestamp, n_confirmations) =
-                    extract_timestamp_and_blockheight(blockchain_height, details);
-
-                let status = if n_confirmations >= NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED {
-                    Status::Confirmed
-                } else {
-                    Status::Pending
-                };
+                let (status, timestamp) =
+                    confirmation_status_to_status_and_timestamp(&details.confirmation_status);
 
                 Some(WalletHistoryItem {
                     flow: PaymentFlow::Outbound,
-                    amount_sats: details.sent - details.received,
+                    amount_sats: (details.sent - details.received).to_sat(),
                     timestamp,
                     status,
                     wallet_type: WalletHistoryItemType::DlcChannelFunding {
-                        funding_txid: details.txid.to_string(),
+                        funding_txid: details.transaction.txid().to_string(),
                         // this is not 100% correct as fees are not exactly divided by 2. The fee a
                         // user has to pay depends on his final address.
-                        reserved_fee_sats: details.fee.map(|fee| fee / 2),
-                        confirmations: n_confirmations,
+                        reserved_fee_sats: details.fee.as_ref().map(|fee| (*fee / 2).to_sat()).ok(),
+                        confirmations: details.confirmation_status.n_confirmations() as u64,
                         our_channel_input_amount_sats: channel.own_params.collateral,
                     },
                 })
@@ -523,14 +488,23 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         }
     });
 
-    let on_chain = on_chain.iter().filter(|tx| {
+    let on_chain = on_chain.iter().filter(|details| {
         !dlc_channels
             .iter()
-            .any(|channel| channel.fund_tx.txid() == tx.txid)
+            .any(|channel| channel.fund_tx.txid() == to_txid_29(details.transaction.txid()))
     });
 
-    let on_chain = on_chain.map(|details| {
-        let net_sats = details.received as i64 - details.sent as i64;
+    let on_chain = on_chain.filter_map(|details| {
+        let net_sats = match details.net_amount() {
+            Ok(net_amount) => net_amount.to_sat(),
+            Err(e) => {
+                tracing::error!(
+                    ?details,
+                    "Failed to calculate net amount for transaction: {e:#}"
+                );
+                return None;
+            }
+        };
 
         let (flow, amount_sats) = if net_sats >= 0 {
             (PaymentFlow::Inbound, net_sats as u64)
@@ -538,84 +512,13 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
             (PaymentFlow::Outbound, net_sats.unsigned_abs())
         };
 
-        let (timestamp, n_confirmations) =
-            extract_timestamp_and_blockheight(blockchain_height, details);
-
-        let status = if n_confirmations >= NUMBER_OF_CONFIRMATION_FOR_BEING_CONFIRMED {
-            Status::Confirmed
-        } else {
-            Status::Pending
-        };
+        let (status, timestamp) =
+            confirmation_status_to_status_and_timestamp(&details.confirmation_status);
 
         let wallet_type = WalletHistoryItemType::OnChain {
-            txid: details.txid.to_string(),
-            fee_sats: details.fee,
-            confirmations: n_confirmations,
-        };
-
-        WalletHistoryItem {
-            flow,
-            amount_sats,
-            timestamp,
-            status,
-            wallet_type,
-        }
-    });
-
-    let off_chain = off_chain.iter().filter_map(|details| {
-        tracing::trace!(details = %details, "Off-chain payment details");
-
-        let amount_sats = match details.amount_msat {
-            Some(msat) => msat / 1_000,
-            // Skip payments that don't yet have an amount associated
-            None => return None,
-        };
-
-        let decoded_invoice = match details.invoice.as_deref().map(Bolt11Invoice::from_str) {
-            Some(Ok(inv)) => {
-                tracing::trace!(?inv, "Decoded invoice");
-                Some(inv)
-            }
-            Some(Err(err)) => {
-                tracing::warn!(%err, "Failed to deserialize invoice");
-                None
-            }
-            None => None,
-        };
-
-        let expired = decoded_invoice
-            .as_ref()
-            .map(|inv| inv.is_expired())
-            .unwrap_or(false);
-
-        let status = match details.status {
-            HTLCStatus::Pending if expired => Status::Expired,
-            HTLCStatus::Pending => Status::Pending,
-            HTLCStatus::Succeeded => Status::Confirmed,
-            HTLCStatus::Failed => Status::Failed,
-        };
-
-        let flow = match details.flow {
-            ln_dlc_node::PaymentFlow::Inbound => PaymentFlow::Inbound,
-            ln_dlc_node::PaymentFlow::Outbound => PaymentFlow::Outbound,
-        };
-
-        let timestamp = details.timestamp.unix_timestamp() as u64;
-
-        let payment_hash = hex::encode(details.payment_hash.0);
-
-        let expiry_timestamp = decoded_invoice
-            .and_then(|inv| inv.timestamp().checked_add(inv.expiry_time()))
-            .map(|time| OffsetDateTime::from(time).unix_timestamp() as u64);
-
-        let wallet_type = WalletHistoryItemType::Lightning {
-            payment_hash,
-            description: details.description.clone(),
-            payment_preimage: details.preimage.clone(),
-            invoice: details.invoice.clone(),
-            fee_msat: details.fee_msat,
-            expiry_timestamp,
-            funding_txid: details.funding_txid.clone(),
+            txid: details.transaction.txid().to_string(),
+            fee_sats: details.fee.as_ref().map(|fee| Amount::to_sat(*fee)).ok(),
+            confirmations: details.confirmation_status.n_confirmations() as u64,
         };
 
         Some(WalletHistoryItem {
@@ -663,7 +566,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         }
     });
 
-    let history = chain![on_chain, off_chain, trades, dlc_channel_funding_tx_details]
+    let history = chain![on_chain, trades, dlc_channel_funding_tx_details]
         .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
         .collect();
 
@@ -677,35 +580,10 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
     Ok(())
 }
 
-fn extract_timestamp_and_blockheight(
-    blockchain_height: u64,
-    details: &TransactionDetails,
-) -> (u64, u64) {
-    match details.confirmation_time {
-        Some(BlockTime { timestamp, height }) => (
-            timestamp,
-            // This is calculated manually to avoid wasteful requests to esplora,
-            // since we can just cache the blockchain height as opposed to fetching it
-            // for each block as with
-            // `LnDlcWallet::get_transaction_confirmations`
-            blockchain_height
-                .checked_sub(height as u64)
-                .unwrap_or_default(),
-        ),
+pub fn get_unused_address() -> Result<String> {
+    let address = state::get_node().inner.get_unused_address()?;
 
-        None => {
-            (
-                // Unconfirmed transactions should appear towards the top of the
-                // history
-                OffsetDateTime::now_utc().unix_timestamp() as u64,
-                0,
-            )
-        }
-    }
-}
-
-pub fn get_unused_address() -> String {
-    state::get_node().inner.get_unused_address().to_string()
+    Ok(address.to_string())
 }
 
 pub fn get_new_address() -> Result<String> {
@@ -715,8 +593,7 @@ pub fn get_new_address() -> Result<String> {
 }
 
 pub async fn close_channel(is_force_close: bool) -> Result<()> {
-    tracing::info!(force = is_force_close, "Offering to close a channel");
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::get_node();
 
     let channels = node.inner.list_signed_dlc_channels()?;
     let channel_details = channels.first().context("No channel to close")?;
@@ -727,34 +604,36 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
 }
 
 pub fn get_signed_dlc_channels() -> Result<Vec<SignedChannel>> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::get_node();
     node.inner.list_signed_dlc_channels()
 }
 
-pub fn get_onchain_balance() -> Result<Balance> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+pub fn get_onchain_balance() -> Balance {
+    let node = state::get_node();
     node.inner.get_on_chain_balance()
 }
 
 pub fn get_usable_dlc_channel_balance() -> Result<Amount> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::get_node();
     node.inner.get_dlc_channels_usable_balance()
 }
 
 pub fn get_usable_dlc_channel_balance_counterparty() -> Result<Amount> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::get_node();
     node.inner.get_dlc_channels_usable_balance_counterparty()
 }
 
 pub fn collaborative_revert_channel(
     channel_id: DlcChannelId,
-    coordinator_address: Address,
+    coordinator_address: Address<NetworkUnchecked>,
     coordinator_amount: Amount,
     trader_amount: Amount,
     execution_price: Decimal,
 ) -> Result<()> {
-    let node = state::try_get_node().context("Failed to get Node")?;
+    let node = state::get_node();
     let node = node.inner.clone();
+
+    let coordinator_address = coordinator_address.require_network(node.network)?;
 
     let channel_id_hex = hex::encode(channel_id);
     let dlc_channels = node.list_signed_dlc_channels()?;
@@ -774,13 +653,13 @@ pub fn collaborative_revert_channel(
 
     let close_tx = dlc::channel::create_collaborative_close_transaction(
         &PartyParams {
-            payout_script_pubkey: coordinator_address.script_pubkey(),
+            payout_script_pubkey: to_script_29(coordinator_address.script_pubkey()),
             ..signed_channel.counter_params.clone()
         },
         coordinator_amount.to_sat(),
         &signed_channel.own_params,
         trader_amount.to_sat(),
-        OutPoint {
+        bitcoin_old::OutPoint {
             txid: signed_channel.fund_tx.txid(),
             vout: signed_channel.fund_output_index as u32,
         },
@@ -788,11 +667,11 @@ pub fn collaborative_revert_channel(
     );
 
     let own_fund_sk = node
-        .wallet()
+        .dlc_wallet
         .get_secret_key_for_pubkey(&signed_channel.own_params.fund_pubkey)?;
 
     let close_signature = dlc::util::get_raw_sig_for_tx_input(
-        &Secp256k1::new(),
+        &bitcoin_old::secp256k1::Secp256k1::new(),
         &close_tx,
         0,
         &signed_channel.fund_script_pubkey,
@@ -806,8 +685,8 @@ pub fn collaborative_revert_channel(
 
     let data = CollaborativeRevertTraderResponse {
         channel_id: channel_id_hex,
-        transaction: close_tx.clone(),
-        signature: close_signature,
+        transaction: to_tx_30(close_tx.clone()),
+        signature: to_ecdsa_signature_30(close_signature),
     };
 
     let client = reqwest_client();
@@ -831,7 +710,7 @@ pub fn collaborative_revert_channel(
                             "Received response from confirming reverting a channel"
                         );
                         if let Err(e) =
-                            update_state_after_collab_revert(&signed_channel, execution_price, close_tx.txid())
+                            update_state_after_collab_revert(&signed_channel, execution_price, to_txid_30(close_tx.txid()))
                         {
                             tracing::error!(
                                 "Failed to update state after collaborative revert confirmation: {e:#}"
@@ -859,7 +738,7 @@ fn update_state_after_collab_revert(
     execution_price: Decimal,
     closing_txid: Txid,
 ) -> Result<()> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
+    let node = state::get_node();
     let positions = db::get_positions()?;
 
     let position = match positions.first() {
@@ -928,237 +807,11 @@ fn update_state_after_collab_revert(
                 temporary_channel_id: signed_channel.temporary_channel_id,
                 channel_id: signed_channel.channel_id,
                 reference_id: None,
-                closing_txid,
+                closing_txid: to_txid_29(closing_txid),
             }),
             // The contract doesn't matter anymore
             None,
         )
-        .map_err(|e| anyhow!("{e:#}"))
-}
-
-pub fn legacy_collaborative_revert_channel(
-    channel_id: ChannelId,
-    coordinator_address: Address,
-    coordinator_amount: Amount,
-    trader_amount: Amount,
-    execution_price: Decimal,
-    funding_txo: OutPoint,
-) -> Result<()> {
-    let node = state::try_get_node().context("Failed to get Node")?;
-    let node = node.inner.clone();
-
-    let channel_id_hex = hex::encode(channel_id.0);
-
-    let subchannels = node.list_sub_channels()?;
-    let subchannel = subchannels
-        .iter()
-        .find(|c| c.channel_id == channel_id)
-        .with_context(|| format!("Could not find subchannel {channel_id_hex}"))?;
-
-    let channel_keys_id = subchannel
-        .channel_keys_id
-        .or(node
-            .channel_manager
-            .get_channel_details(&subchannel.channel_id)
-            .map(|details| details.channel_keys_id))
-        .with_context(|| {
-            format!("Could not get channel keys ID for subchannel {channel_id_hex}")
-        })?;
-
-    let mut collab_revert_tx = Transaction {
-        version: 2,
-        lock_time: PackedLockTime::ZERO,
-        input: vec![TxIn {
-            previous_output: funding_txo,
-            script_sig: Default::default(),
-            sequence: Default::default(),
-            witness: Default::default(),
-        }],
-        output: Vec::new(),
-    };
-
-    {
-        let coordinator_script_pubkey = coordinator_address.script_pubkey();
-        let dust_limit = coordinator_script_pubkey.dust_value();
-
-        if coordinator_amount >= dust_limit {
-            let txo = TxOut {
-                value: coordinator_amount.to_sat(),
-                script_pubkey: coordinator_script_pubkey,
-            };
-
-            collab_revert_tx.output.push(txo);
-        } else {
-            tracing::info!(
-                %dust_limit,
-                "Skipping coordinator output for legacy collaborative revert transaction because \
-                 it would be below the dust limit"
-            )
-        }
-    };
-
-    {
-        let trader_script_pubkey = node.get_unused_address().script_pubkey();
-        let dust_limit = trader_script_pubkey.dust_value();
-
-        if trader_amount >= dust_limit {
-            let txo = TxOut {
-                value: trader_amount.to_sat(),
-                script_pubkey: trader_script_pubkey,
-            };
-
-            collab_revert_tx.output.push(txo);
-        } else {
-            tracing::info!(
-                %dust_limit,
-                "Skipping trader output for legacy collaborative revert transaction because \
-                 it would be below the dust limit"
-            )
-        }
-    };
-
-    let own_sig = {
-        let signer = node
-            .keys_manager
-            .derive_ln_dlc_channel_signer(subchannel.fund_value_satoshis, channel_keys_id);
-
-        signer
-            .get_holder_split_tx_signature(
-                &Secp256k1::new(),
-                &collab_revert_tx,
-                &subchannel.original_funding_redeemscript,
-                subchannel.fund_value_satoshis,
-            )
-            .context("Could not get own signature for legacy collaborative revert transaction")?
-    };
-
-    let data = LegacyCollaborativeRevertTraderResponse {
-        channel_id: channel_id_hex,
-        transaction: collab_revert_tx,
-        signature: own_sig,
-    };
-
-    let client = reqwest_client();
-    let runtime = state::get_or_create_tokio_runtime()?;
-    runtime.spawn({
-        let subchannel = subchannel.clone();
-        async move {
-            match client
-                .post(format!(
-                    "http://{}/api/channels/revertconfirm",
-                    config::get_http_endpoint(),
-                ))
-                .json(&data)
-                .send()
-                .await
-            {
-                Ok(response) => match response.text().await {
-                    Ok(response) => {
-                        tracing::info!(
-                            response,
-                            "Received response from confirming reverting a channel"
-                        );
-                        if let Err(e) =
-                            update_state_after_legacy_collab_revert(subchannel, execution_price)
-                        {
-                            tracing::error!(
-                                "Failed to update state after legacy collaborative revert \
-                                 confirmation: {e:#}"
-                            );
-                        }
-                    }
-                    Err(e) => {
-                        tracing::error!(
-                            "Failed to decode legacy collaborative revert confirmation response \
-                             text: {e:#}"
-                        );
-                    }
-                },
-                Err(e) => {
-                    tracing::error!("Failed to confirm legacy collaborative revert: {e:#}");
-                }
-            }
-        }
-    });
-
-    Ok(())
-}
-
-fn update_state_after_legacy_collab_revert(
-    sub_channel: SubChannel,
-    execution_price: Decimal,
-) -> Result<()> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
-    let positions = db::get_positions()?;
-
-    let position = match positions.first() {
-        Some(position) => {
-            tracing::info!(
-                "Channel is legacy-reverted before the position got closed successfully."
-            );
-            position
-        }
-        None => {
-            tracing::info!(
-                "Channel is legacy-reverted before the position got opened successfully."
-            );
-            if let Some(order) = db::get_order_in_filling()? {
-                order::handler::order_failed(
-                    Some(order.id),
-                    FailureReason::CollabRevert,
-                    anyhow!("Order failed due legacy collab revert of the channel"),
-                )?;
-            }
-            return Ok(());
-        }
-    };
-
-    let filled_order = match order::handler::order_filled() {
-        Ok(order) => order,
-        Err(_) => {
-            let order = Order {
-                id: Uuid::new_v4(),
-                leverage: position.leverage,
-                quantity: position.quantity,
-                contract_symbol: position.contract_symbol,
-                direction: position.direction.opposite(),
-                order_type: OrderType::Market,
-                state: OrderState::Filled {
-                    execution_price: execution_price.to_f32().expect("to fit into f32"),
-                },
-                creation_timestamp: OffsetDateTime::now_utc(),
-                order_expiry_timestamp: OffsetDateTime::now_utc(),
-                reason: OrderReason::Expired,
-                stable: position.stable,
-                failure_reason: None,
-            };
-            db::insert_order(order.clone())?;
-            event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
-            order
-        }
-    };
-
-    position::handler::update_position_after_dlc_closure(Some(filled_order))?;
-
-    match db::delete_positions() {
-        Ok(_) => {
-            event::publish(&EventInternal::PositionCloseNotification(
-                ContractSymbol::BtcUsd,
-            ));
-        }
-        Err(error) => {
-            tracing::error!("Could not delete position: {error:#}");
-        }
-    }
-
-    let mut sub_channel = sub_channel;
-    sub_channel.state = SubChannelState::OnChainClosed;
-
-    let node = node.inner.clone();
-
-    node.dlc_manager
-        .get_store()
-        .upsert_sub_channel(&sub_channel)
         .map_err(|e| anyhow!("{e:#}"))
 }
 
@@ -1198,268 +851,34 @@ pub fn is_dlc_channel_confirmed() -> Result<bool> {
     node.inner.is_dlc_channel_confirmed(&dlc_channel.channel_id)
 }
 
-pub fn get_usable_channel_details() -> Result<Vec<ChannelDetails>> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
-    let channels = node.inner.list_usable_channels();
-
-    Ok(channels)
-}
-
-pub fn get_fee_rate() -> Result<FeeRate> {
-    get_fee_rate_for_target(CONFIRMATION_TARGET)
-}
-
-pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> Result<FeeRate> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
-    Ok(node.inner.ldk_wallet().get_fee_rate(target))
-}
-
-/// Returns channel value or zero if there is no channel yet.
-///
-/// This is used when checking max tradeable amount
-pub fn max_channel_value() -> Result<Amount> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
-    if let Some(existing_channel) = node
-        .inner
-        .list_channels()
-        .first()
-        .map(|c| c.channel_value_satoshis)
-    {
-        Ok(Amount::from_sat(existing_channel))
-    } else {
-        Ok(Amount::ZERO)
-    }
-}
-
-pub fn contract_tx_fee_rate() -> Result<Option<u64>> {
-    let node = state::try_get_node().context("failed to get ln dlc node")?;
-    let fee_rate_per_vb = node
-        .inner
-        .list_sub_channels()?
-        .first()
-        .map(|c| c.fee_rate_per_vb);
-
-    Ok(fee_rate_per_vb)
-}
-
-pub fn create_onboarding_invoice(
-    liquidity_option_id: i32,
-    amount_sats: u64,
-    fee_sats: u64,
-) -> Result<Bolt11Invoice> {
-    let runtime = state::get_or_create_tokio_runtime()?;
-
-    runtime.block_on(async {
-        let node = state::get_node();
-        let client = reqwest_client();
-
-        // check if we have already announced a channel before. If so we can reuse the `user_channel_id`
-        // the user navigates to the invoice screen.
-        let channel = db::get_announced_channel(config::get_coordinator_info().pubkey)?;
-
-        let user_channel_id = match channel {
-            Some(channel) => channel.user_channel_id,
-            None => {
-                let user_channel_id = UserChannelId::new();
-                let channel = Channel::new_jit_channel(
-                    user_channel_id,
-                    config::get_coordinator_info().pubkey,
-                    liquidity_option_id,
-                    fee_sats,
-                );
-                node.inner
-                    .node_storage
-                    .upsert_channel(channel)
-                    .with_context(|| {
-                        format!(
-                            "Failed to insert shadow JIT channel with user channel id {user_channel_id}"
-                        )
-                    })?;
-
-                user_channel_id
-            },
-        };
-
-        tracing::info!(
-            %user_channel_id,
-        );
-
-        let final_route_hint_hop : RouteHintHop = match client
-            .post(format!(
-                "http://{}/api/prepare_onboarding_payment",
-                config::get_http_endpoint(),
-            ))
-            .json(&OnboardingParam {
-                target_node: node.inner.info.pubkey.to_string(),
-                user_channel_id: user_channel_id.to_string(),
-                liquidity_option_id,
-                amount_sats,
-            })
-            .send()
-            .await?.error_for_status() {
-                Ok(resp) => resp.json().await?,
-                Err(e) => if e.status() == Some(reqwest::StatusCode::SERVICE_UNAVAILABLE) {
-                    // Hack: Do not change the string below as it's matched in the frontend
-                    bail!("Coordinator cannot provide required liquidity");
-                } else {
-                    bail!("Failed to fetch route hint from coordinator: {e:#}")
-                }
-            };
-
-        node.inner.create_invoice_with_route_hint(
-            Some(amount_sats),
-            None,
-            "Fund your 10101 wallet".to_string(),
-            final_route_hint_hop.into(),
-        )
-    })
-}
-
-pub fn create_invoice(amount_sats: Option<u64>, description: String) -> Result<Bolt11Invoice> {
+pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> FeeRate {
     let node = state::get_node();
-
-    let final_route_hint_hop = node
-        .inner
-        .prepare_payment_with_route_hint(config::get_coordinator_info().pubkey)?;
-
-    node.inner
-        .create_invoice_with_route_hint(amount_sats, None, description, final_route_hint_hop)
+    node.inner.fee_rate_estimator.get(target)
 }
 
-pub fn create_usdp_invoice(amount_sats: Option<u64>, description: String) -> Result<Bolt11Invoice> {
-    let invoice = create_invoice(amount_sats, description)?;
-
-    let node = state::get_node();
-    let mut write_guard = node.pending_usdp_invoices.lock();
-    write_guard.insert(*invoice.payment_hash());
-
-    Ok(invoice)
-}
-
-pub fn is_usdp_payment(payment_hash: String) -> bool {
-    let node = state::get_node();
-    let registered_usdp_invoice = node.pending_usdp_invoices.lock();
-
-    registered_usdp_invoice
-        .iter()
-        .any(|hash| hash.to_string() == payment_hash)
-}
-
-pub async fn send_payment(payment: SendPayment) -> Result<()> {
-    match payment {
-        SendPayment::Lightning { invoice, amount } => {
-            let invoice = Bolt11Invoice::from_str(&invoice)?;
-            let amount = amount.map(Amount::from_sat);
-            let node = state::get_node().inner.clone();
-
-            match node.pay_invoice(&invoice, amount) {
-                Ok(()) => tracing::info!("Successfully triggered payment"),
-                Err(e) => {
-                    // TODO(holzeis): This has been added to debug a users channel details in case
-                    // of a failed payment. Remove the logs if not needed anymore.
-                    for channel in node.channel_manager.list_channels().iter() {
-                        tracing::debug!(
-                            channel_id = channel.channel_id.to_hex(),
-                            short_channel_id = channel.short_channel_id,
-                            unspendable_punishment_reserve = channel.unspendable_punishment_reserve,
-                            balance_msat = channel.balance_msat,
-                            feerate_sat_per_1000_weight = channel.feerate_sat_per_1000_weight,
-                            inbound_capacity_msat = channel.inbound_capacity_msat,
-                            inbound_htlc_maximum_msat = channel.inbound_htlc_maximum_msat,
-                            inbound_htlc_minimum_msat = channel.inbound_htlc_minimum_msat,
-                            is_usable = channel.is_usable,
-                            outbound_capacity_msat = channel.outbound_capacity_msat,
-                            next_outbound_htlc_limit_msat = channel.next_outbound_htlc_limit_msat,
-                            next_outbound_htlc_minimum_msat =
-                                channel.next_outbound_htlc_minimum_msat,
-                            is_channel_ready = channel.is_channel_ready,
-                            "Channel Details"
-                        );
-
-                        let counterparty = channel.counterparty.clone();
-                        tracing::debug!(
-                            counterparty = %counterparty.node_id,
-                            counterparty_unspendable_punishement_reserve =
-                                counterparty.unspendable_punishment_reserve,
-                            counterparty.outbound_htlc_maximum_msat,
-                            counterparty.outbound_htlc_minimum_msat,
-                            "Counterparty");
-
-                        if let Some(forwarding_info) = counterparty.forwarding_info {
-                            tracing::debug!(
-                                forwarding_info.cltv_expiry_delta,
-                                forwarding_info.fee_base_msat,
-                                forwarding_info.fee_proportional_millionths,
-                                "Forwarding info"
-                            );
-                        }
-
-                        if let Some(config) = channel.config {
-                            tracing::debug!(
-                                config.cltv_expiry_delta,
-                                config.forwarding_fee_base_msat,
-                                config.forwarding_fee_proportional_millionths,
-                                config.force_close_avoidance_max_fee_satoshis,
-                                max_dust_htlc_exposure=?config.max_dust_htlc_exposure,
-                                "Channel config"
-                            )
-                        }
-                    }
-                    tracing::error!("{e:#}");
-                    bail!(e)
-                }
-            }
-        }
-        SendPayment::OnChain {
-            address,
-            amount,
-            fee,
-        } => {
-            let address = Address::from_str(&address)?;
-            state::get_node()
-                .inner
-                .send_to_address(&address, amount, fee.into())?;
-        }
-    }
-    Ok(())
-}
-
-pub fn send_on_chain_payment(address: String, amount: u64, fee: Fee) -> Result<Txid> {
+pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<Txid> {
     let address = Address::from_str(&address)?;
-    state::get_node()
+
+    let txid = state::get_node()
         .inner
-        .send_to_address(&address, amount, fee.into())
+        .send_to_address(address, amount, fee.into())
+        .await?;
+
+    Ok(txid)
 }
 
-pub async fn estimate_payment_fee_msat(payment: SendPayment) -> Result<u64> {
-    match payment {
-        SendPayment::Lightning { invoice, amount } => {
-            let invoice = Bolt11Invoice::from_str(&invoice)?;
-            let amount = amount.map(Amount::from_sat);
+pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Amount> {
+    let address = address.parse()?;
 
-            state::get_node()
-                .inner
-                .estimate_payment_fee_msat(invoice, amount, Duration::from_secs(10))
-                .await
-        }
-        SendPayment::OnChain {
-            address,
-            amount,
-            fee,
-        } => {
-            let address = address.parse()?;
+    let fee = match fee {
+        Fee::Priority(target) => state::get_node()
+            .inner
+            .estimate_fee(address, amount, target.into())?
+            .to_sat(),
+        Fee::FeeRate { sats } => sats,
+    };
 
-            let fee = match fee {
-                Fee::Priority(target) => state::get_node()
-                    .inner
-                    .calculate_fee(&address, amount, target.into())?
-                    .to_sat(),
-                Fee::FeeRate { sats } => sats,
-            };
-
-            Ok(fee * 1000)
-        }
-    }
+    Ok(Amount::from_sat(fee))
 }
 
 pub async fn trade(
@@ -1501,7 +920,7 @@ pub async fn rollover(contract_id: Option<String>) -> Result<()> {
 
     let dlc_channel = dlc_channels
         .into_iter()
-        .find(|chan| chan.counter_party == config::get_coordinator_info().pubkey)
+        .find(|chan| chan.counter_party == to_secp_pk_29(config::get_coordinator_info().pubkey))
         .context("Couldn't find dlc channel to rollover")?;
 
     let dlc_channel_id = dlc_channel.channel_id;
@@ -1512,7 +931,7 @@ pub async fn rollover(contract_id: Option<String>) -> Result<()> {
     }
 
     tracing::debug!(
-        channel_id = dlc_channel_id.to_hex(),
+        channel_id = hex::encode(dlc_channel_id),
         "Asking coordinator for rolling over DLC channel"
     );
 
@@ -1521,11 +940,16 @@ pub async fn rollover(contract_id: Option<String>) -> Result<()> {
         .post(format!(
             "http://{}/api/rollover/{}",
             config::get_http_endpoint(),
-            dlc_channel_id.to_hex()
+            hex::encode(dlc_channel_id)
         ))
         .send()
         .await
-        .with_context(|| format!("Failed to rollover dlc with id {}", dlc_channel_id.to_hex()))?;
+        .with_context(|| {
+            format!(
+                "Failed to rollover dlc with id {}",
+                hex::encode(dlc_channel_id)
+            )
+        })?;
 
     if !response.status().is_success() {
         let response_text = match response.text().await {
@@ -1537,7 +961,7 @@ pub async fn rollover(contract_id: Option<String>) -> Result<()> {
 
         bail!(
             "Failed to rollover dlc with id {}. Error: {response_text}",
-            dlc_channel_id.to_hex()
+            hex::encode(dlc_channel_id)
         )
     }
 
@@ -1566,6 +990,26 @@ fn ln_dlc_node_settings() -> LnDlcNodeSettings {
     }
 }
 
-pub(crate) fn sync_for_addresses(gap: u32) -> Result<bool> {
-    state::get_node().inner.sync_for_addresses(gap)
+fn confirmation_status_to_status_and_timestamp(
+    confirmation_status: &ConfirmationStatus,
+) -> (Status, u64) {
+    let (status, timestamp) = match confirmation_status {
+        ConfirmationStatus::Confirmed { timestamp, .. } => (Status::Confirmed, *timestamp),
+        // Unfortunately, the `last_seen` we get from BDK seems to be unreliable. At least on
+        // regtest, it can be 0, which is not a very useful UNIX timestamp.
+        ConfirmationStatus::Mempool { last_seen: _ } => (
+            Status::Pending,
+            // Unconfirmed transactions should appear towards the top of the history.
+            OffsetDateTime::now_utc(),
+        ),
+        ConfirmationStatus::Unknown => {
+            (
+                Status::Pending,
+                // Unconfirmed transactions should appear towards the top of the history.
+                OffsetDateTime::now_utc(),
+            )
+        }
+    };
+
+    (status, timestamp.unix_timestamp() as u64)
 }

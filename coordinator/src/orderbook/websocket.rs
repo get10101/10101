@@ -133,7 +133,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                         }
                     };
 
-                    match signature.verify(&msg, &trader_id) {
+                    match state.secp.verify_ecdsa(&msg, &signature, &trader_id) {
                         Ok(_) => {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();

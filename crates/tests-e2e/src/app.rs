@@ -1,3 +1,4 @@
+use crate::bitcoind::Bitcoind;
 use crate::test_subscriber::TestSubscriber;
 use crate::test_subscriber::ThreadSafeSenders;
 use crate::wait_until;
@@ -90,7 +91,12 @@ pub fn sync_dlc_channels() {
 ///
 /// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
 /// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
-pub fn force_close_dlc_channel() {
+pub async fn force_close_dlc_channel(bitcoind: &Bitcoind) {
+    // We need to move the blockchain time forward to be able to publish the buffer transaction
+    // (there is a timestamp timelock on it).
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    bitcoind.mine(10).await.unwrap();
+
     // We must `block_in_place` because calling `force_close_channel` starts a new runtime and that
     // cannot happen within another runtime.
     block_in_place(move || api::force_close_channel().unwrap());

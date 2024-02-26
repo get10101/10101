@@ -1,14 +1,18 @@
+use crate::bitcoin_conversion::to_script_29;
+use crate::bitcoin_conversion::to_tx_30;
+use crate::bitcoin_conversion::to_txid_30;
+use crate::blockchain::Blockchain;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::Storage;
-use crate::storage::TenTenOneStorage;
+use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::OnChainWallet;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use esplora_client::OutputStatus;
-use esplora_client::TxStatus;
-use lightning::chain::chaininterface::BroadcasterInterface;
+use bdk_esplora::esplora_client;
+use bdk_esplora::esplora_client::OutputStatus;
+use bdk_esplora::esplora_client::TxStatus;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chaininterface::FeeEstimator;
 use lightning::chain::transaction::OutPoint;
@@ -25,12 +29,13 @@ use std::sync::Arc;
 const REQUIRED_CONFIRMATIONS: u32 = 6;
 
 /// Determine what to do with a [`SpendableOutputDescriptor`] and do it.
-pub fn manage_spendable_outputs<S: TenTenOneStorage, N: Storage>(
+pub fn manage_spendable_outputs<D: BdkStorage, N: Storage>(
     node_storage: Arc<N>,
     esplora_client: impl Borrow<esplora_client::BlockingClient>,
-    wallet: impl Borrow<LnDlcWallet<S, N>>,
+    wallet: impl Borrow<OnChainWallet<D>>,
+    blockchain: impl Borrow<Blockchain<N>>,
     fee_rate_estimator: impl Borrow<FeeRateEstimator>,
-    keys_manager: impl Borrow<CustomKeysManager<S, N>>,
+    keys_manager: impl Borrow<CustomKeysManager<D>>,
 ) -> Result<()> {
     let mut outputs_to_spend = Vec::new();
 
@@ -63,7 +68,9 @@ pub fn manage_spendable_outputs<S: TenTenOneStorage, N: Storage>(
         return Ok(());
     }
 
-    let destination_script = wallet.borrow().ldk_wallet().get_last_unused_address()?;
+    let wallet: &OnChainWallet<D> = wallet.borrow();
+    let destination_script = wallet.get_new_address()?;
+
     let tx_feerate = fee_rate_estimator
         .borrow()
         .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
@@ -71,11 +78,14 @@ pub fn manage_spendable_outputs<S: TenTenOneStorage, N: Storage>(
     let spending_tx = keys_manager.borrow().spend_spendable_outputs(
         outputs_to_spend.as_slice(),
         vec![],
-        destination_script.script_pubkey(),
+        to_script_29(destination_script.script_pubkey()),
         tx_feerate,
         &Secp256k1::new(),
     )?;
-    wallet.borrow().broadcast_transactions(&[&spending_tx]);
+
+    blockchain
+        .borrow()
+        .broadcast_transaction_blocking(&to_tx_30(spending_tx))?;
 
     Ok(())
 }
@@ -101,7 +111,7 @@ fn choose_spendable_output_action(
     };
 
     let output_status = esplora_client
-        .get_output_status(&outpoint.txid, outpoint.index.into())
+        .get_output_status(&to_txid_30(outpoint.txid), outpoint.index.into())
         .context("Could not get spendable output status")?;
 
     match output_status {

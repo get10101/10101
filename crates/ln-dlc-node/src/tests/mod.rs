@@ -1,9 +1,10 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
+use crate::bitcoin_conversion::to_xonly_pk_29;
 use crate::config::app_config;
 use crate::config::coordinator_config;
 use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
-use crate::node::peer_manager::alias_as_bytes;
 use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
@@ -11,20 +12,18 @@ use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
 use crate::node::RunningNode;
-use crate::scorer;
+use crate::on_chain_wallet;
 use crate::seed::Bip39Seed;
 use crate::storage::TenTenOneInMemoryStorage;
-use crate::util;
 use crate::AppEventHandler;
 use crate::CoordinatorEventHandler;
 use crate::EventHandlerTrait;
 use crate::EventSender;
-use crate::WalletSettings;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
-use bitcoin::XOnlyPublicKey;
+use bitcoin_old::hashes::hex::ToHex;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -88,7 +87,7 @@ fn init_tracing() {
     })
 }
 
-impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
+impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore> {
     fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
         let app_event_handler = |node, event_sender| {
             Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
@@ -156,7 +155,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
     ) -> Result<(Arc<Self>, RunningNode)>
     where
         EH: Fn(
-            Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+            Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
             Option<EventSender>,
         ) -> Arc<dyn EventHandlerTrait>,
     {
@@ -173,24 +172,23 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         };
 
         let storage = TenTenOneInMemoryStorage::new();
+        let wallet_storage = on_chain_wallet::InMemoryStorage::new();
 
         let event_handler = Arc::new(NodeEventHandler::new());
         let node = Node::new(
             ldk_config,
-            scorer::in_memory_scorer,
             name,
             Network::Regtest,
             data_dir.as_path(),
             storage,
             node_storage,
+            wallet_storage,
             address,
             address,
-            util::into_socket_addresses(address),
             electrs_origin,
             seed,
             ephemeral_randomness,
             settings,
-            WalletSettings::default(),
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             event_handler.clone(),
@@ -239,8 +237,9 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
     async fn sync_wallets(&self) -> Result<()> {
+        self.sync_on_chain_wallet().await?;
+
         block_in_place(|| {
-            self.sync_on_chain_wallet()?;
             self.sync_lightning_wallet()?;
 
             Ok(())
@@ -248,14 +247,14 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
     }
 
     async fn fund(&self, amount: Amount, n_utxos: u64) -> Result<()> {
-        let starting_balance = self.get_confirmed_balance().await?;
+        let starting_balance = self.get_confirmed_balance();
         let expected_balance = starting_balance + amount.to_sat();
 
         // we mine blocks so that the internal wallet in bitcoind has enough utxos to fund the
         // wallet
         bitcoind::mine(n_utxos as u16 + 1).await?;
         for _ in 0..n_utxos {
-            let address = self.wallet.unused_address();
+            let address = self.wallet.get_new_address().unwrap();
             bitcoind::fund(
                 address.to_string(),
                 Amount::from_sat(amount.to_sat() / n_utxos),
@@ -265,7 +264,7 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         bitcoind::mine(1).await?;
 
         tokio::time::timeout(Duration::from_secs(30), async {
-            while self.get_confirmed_balance().await.unwrap() < expected_balance {
+            while self.get_confirmed_balance() < expected_balance {
                 let interval = Duration::from_millis(200);
 
                 self.sync_wallets().await.unwrap();
@@ -282,14 +281,13 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         Ok(())
     }
 
-    async fn get_confirmed_balance(&self) -> Result<u64> {
-        let balance = self.wallet.ldk_wallet().get_balance()?;
-
-        Ok(balance.confirmed)
+    fn get_confirmed_balance(&self) -> u64 {
+        self.get_on_chain_balance().confirmed
     }
 
     pub fn disconnect(&self, peer: NodeInfo) {
-        self.peer_manager.disconnect_by_node_id(peer.pubkey)
+        self.peer_manager
+            .disconnect_by_node_id(to_secp_pk_29(peer.pubkey))
     }
 
     pub async fn reconnect(&self, peer: NodeInfo) -> Result<()> {
@@ -297,16 +295,6 @@ impl Node<TenTenOneInMemoryStorage, InMemoryStore> {
         tokio::time::sleep(Duration::from_secs(1)).await;
         self.connect(peer).await?;
         Ok(())
-    }
-
-    pub fn broadcast_node_announcement(&self) {
-        let alias = alias_as_bytes(&self.alias).expect("alias to be the right length");
-
-        crate::node::peer_manager::broadcast_node_announcement(
-            &self.peer_manager,
-            alias,
-            self.announcement_addresses.clone(),
-        );
     }
 }
 
@@ -335,7 +323,11 @@ fn random_tmp_dir() -> PathBuf {
 }
 
 #[allow(dead_code)]
-fn log_channel_id(node: &Node<TenTenOneInMemoryStorage, InMemoryStore>, index: usize, pair: &str) {
+fn log_channel_id(
+    node: &Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>,
+    index: usize,
+    pair: &str,
+) {
     let details = match node.channel_manager.list_channels().get(index) {
         Some(details) => details.clone(),
         None => {
@@ -538,7 +530,7 @@ fn dummy_contract_input(
                 },
             }),
             oracles: OracleInput {
-                public_keys: vec![oracle_pk],
+                public_keys: vec![to_xonly_pk_29(oracle_pk)],
                 event_id: format!("btcusd{maturity_time}"),
                 threshold: 1,
             },

@@ -2,7 +2,6 @@ use crate::db;
 use crate::node::storage::NodeStorage;
 use crate::node::Node;
 use crate::storage::CoordinatorTenTenOneStorage;
-use dlc_manager::subchannel::SubChannelState;
 use lazy_static::lazy_static;
 use lightning::ln::channelmanager::ChannelDetails;
 use opentelemetry::global;
@@ -86,43 +85,7 @@ pub fn collect(node: Node) {
     position_metrics(&cx, &node);
 
     let inner_node = node.inner;
-    if let Ok(dlc_channels) = inner_node.list_sub_channels() {
-        let (healthy, unhealthy, close_punished) =
-            dlc_channels
-                .iter()
-                .fold(
-                    (0, 0, 0),
-                    |(healthy, unhealthy, close_punished), c| match c.state {
-                        // these are the healthy channels
-                        SubChannelState::Signed(_)
-                        | SubChannelState::OffChainClosed
-                        | SubChannelState::Closing(_) => (healthy + 1, unhealthy, close_punished),
-                        // these are settled already, we don't have to look at them anymore
-                        SubChannelState::OnChainClosed | SubChannelState::CounterOnChainClosed => {
-                            (healthy, unhealthy, close_punished)
-                        }
-                        SubChannelState::Offered(_)
-                        | SubChannelState::Accepted(_)
-                        | SubChannelState::Confirmed(_)
-                        | SubChannelState::Finalized(_)
-                        | SubChannelState::CloseOffered(_)
-                        | SubChannelState::CloseAccepted(_)
-                        | SubChannelState::CloseConfirmed(_)
-                        | SubChannelState::Rejected => (healthy, unhealthy + 1, close_punished),
-                        SubChannelState::ClosedPunished(_) => {
-                            (healthy, unhealthy, close_punished + 1)
-                        }
-                    },
-                );
-        // healthy
-        let key_values = [KeyValue::new("is_healthy", true)];
-        DLC_CHANNELS_AMOUNT.observe(&cx, healthy as u64, &key_values);
-        // unhealthy
-        let key_values = [KeyValue::new("is_healthy", false)];
-        DLC_CHANNELS_AMOUNT.observe(&cx, unhealthy as u64, &key_values);
-        // punished
-        PUNISHED_DLC_CHANNELS_AMOUNT.observe(&cx, close_punished as u64, &[]);
-    }
+
     let channels = inner_node.channel_manager.list_channels();
     channel_metrics(&cx, channels);
     node_metrics(&cx, inner_node);
@@ -231,66 +194,49 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
 
 fn node_metrics(
     cx: &Context,
-    inner_node: Arc<ln_dlc_node::node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+    inner_node: Arc<
+        ln_dlc_node::node::Node<
+            bdk_file_store::Store<bdk::wallet::ChangeSet>,
+            CoordinatorTenTenOneStorage,
+            NodeStorage,
+        >,
+    >,
 ) {
     let connected_peers = inner_node.list_peers().len();
     CONNECTED_PEERS.observe(cx, connected_peers as u64, &[]);
-    let offchain = inner_node.get_ldk_balance();
+
+    let balance = inner_node.get_on_chain_balance();
 
     NODE_BALANCE_SATOSHI.observe(
         cx,
-        offchain.available(),
+        balance.confirmed,
         &[
-            KeyValue::new("type", "off-chain"),
-            KeyValue::new("status", "available"),
+            KeyValue::new("type", "on-chain"),
+            KeyValue::new("status", "confirmed"),
         ],
     );
     NODE_BALANCE_SATOSHI.observe(
         cx,
-        offchain.pending_close(),
+        balance.immature,
         &[
-            KeyValue::new("type", "off-chain"),
-            KeyValue::new("status", "pending_close"),
+            KeyValue::new("type", "on-chain"),
+            KeyValue::new("status", "immature"),
         ],
     );
-
-    match inner_node.get_on_chain_balance() {
-        Ok(onchain) => {
-            NODE_BALANCE_SATOSHI.observe(
-                cx,
-                onchain.confirmed,
-                &[
-                    KeyValue::new("type", "on-chain"),
-                    KeyValue::new("status", "confirmed"),
-                ],
-            );
-            NODE_BALANCE_SATOSHI.observe(
-                cx,
-                onchain.immature,
-                &[
-                    KeyValue::new("type", "on-chain"),
-                    KeyValue::new("status", "immature"),
-                ],
-            );
-            NODE_BALANCE_SATOSHI.observe(
-                cx,
-                onchain.trusted_pending,
-                &[
-                    KeyValue::new("type", "on-chain"),
-                    KeyValue::new("status", "trusted_pending"),
-                ],
-            );
-            NODE_BALANCE_SATOSHI.observe(
-                cx,
-                onchain.untrusted_pending,
-                &[
-                    KeyValue::new("type", "on-chain"),
-                    KeyValue::new("status", "untrusted_pending"),
-                ],
-            );
-        }
-        Err(err) => {
-            tracing::error!("Could not retrieve on-chain balance for metrics {err:#}")
-        }
-    }
+    NODE_BALANCE_SATOSHI.observe(
+        cx,
+        balance.trusted_pending,
+        &[
+            KeyValue::new("type", "on-chain"),
+            KeyValue::new("status", "trusted_pending"),
+        ],
+    );
+    NODE_BALANCE_SATOSHI.observe(
+        cx,
+        balance.untrusted_pending,
+        &[
+            KeyValue::new("type", "on-chain"),
+            KeyValue::new("status", "untrusted_pending"),
+        ],
+    );
 }

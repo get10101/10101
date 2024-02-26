@@ -10,9 +10,9 @@ use tests_e2e::wait_until;
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "need to be run with 'just e2e' command"]
 async fn can_force_close_position() {
-    setup::TestSetup::new_with_open_position().await;
+    let setup = setup::TestSetup::new_with_open_position().await;
 
-    force_close_dlc_channel();
+    force_close_dlc_channel(&setup.bitcoind).await;
 
     let channels = get_dlc_channels();
     let channel = channels.first().unwrap();

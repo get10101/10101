@@ -9,16 +9,17 @@ description = "A common interface for using Lightning and DLC channels side-by-s
 [dependencies]
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1.71"
-bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking", "std"] }
+bdk = { version = "1.0.0-alpha.6", features = ["std"] }
 bdk_coin_select = "0.2.0"
+bdk_esplora = { version = "0.8.0" }
 bip39 = { version = "2", features = ["rand_core"] }
-bitcoin = "0.29.2"
+bitcoin = { version = "0.30" }
+bitcoin_old = { package = "bitcoin", version = "0.29.2" }
 cfg-if = "1.0.0"
 dlc = { version = "0.4.0" }
 dlc-manager = { version = "0.4.0", features = ["use-serde"] }
 dlc-messages = { version = "0.4.0" }
 dlc-trie = { version = "0.4.0" }
-esplora-client = { version = "0.4", default-features = false }
 futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"

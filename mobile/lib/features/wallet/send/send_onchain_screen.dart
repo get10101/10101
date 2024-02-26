@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
@@ -32,8 +31,6 @@ class SendOnChainScreen extends StatefulWidget {
 class _SendOnChainScreenState extends State<SendOnChainScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  ChannelInfo? channelInfo;
-
   // null = max
   Amount? _amount = Amount(1000);
   Fee _fee = PriorityFee(ConfirmationTarget.normal);
@@ -45,9 +42,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   @override
   void initState() {
     super.initState();
-    final ChannelInfoService channelInfoService = context.read<ChannelInfoService>();
     _walletService = context.read<WalletChangeNotifier>().service;
-    init(channelInfoService);
   }
 
   @override
@@ -57,7 +52,6 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   }
 
   Future<void> init(ChannelInfoService channelInfoService) async {
-    channelInfo = await channelInfoService.getChannelInfo();
     final fees = await _walletService.calculateFeesForOnChain(
         widget.destination.address, widget.destination.amount);
 
@@ -162,7 +156,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                               return "Amount cannot be negative";
                             }
 
-                            if (amount.sats + currentFee().sats > (balance?.sats ?? 0)) {
+                            if (amount.sats + currentFee().sats > balance.sats) {
                               return "Not enough funds.";
                             }
 

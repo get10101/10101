@@ -3,11 +3,11 @@ use crate::signature::Signature;
 use crate::trade::FilledWith;
 use crate::LiquidityOption;
 use anyhow::Result;
+use bitcoin::address::NetworkUnchecked;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
-use bitcoin::OutPoint;
 use rust_decimal::Decimal;
-use secp256k1::PublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
@@ -35,25 +35,13 @@ pub enum Message {
         filled_with: FilledWith,
     },
     Rollover(Option<String>),
-    /// Message used to collaboratively revert _legacy_ LN-DLC channels.
-    CollaborativeRevert {
-        channel_id: ChannelId,
-        coordinator_address: Address,
-        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
-        coordinator_amount: Amount,
-        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
-        trader_amount: Amount,
-        #[serde(with = "rust_decimal::serde::float")]
-        execution_price: Decimal,
-        funding_txo: OutPoint,
-    },
     /// Message used to collaboratively revert DLC channels.
     DlcChannelCollaborativeRevert {
         channel_id: DlcChannelId,
-        coordinator_address: Address,
-        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
+        coordinator_address: Address<NetworkUnchecked>,
+        #[serde(with = "bitcoin::amount::serde::as_sat")]
         coordinator_amount: Amount,
-        #[serde(with = "bitcoin::util::amount::serde::as_sat")]
+        #[serde(with = "bitcoin::amount::serde::as_sat")]
         trader_amount: Amount,
         #[serde(with = "rust_decimal::serde::float")]
         execution_price: Decimal,
@@ -127,9 +115,6 @@ impl Display for Message {
             }
             Message::DlcChannelCollaborativeRevert { .. } => {
                 write!(f, "DlcChannelCollaborativeRevert")
-            }
-            Message::CollaborativeRevert { .. } => {
-                write!(f, "LegacyCollaborativeRevert")
             }
             Message::TradeError { .. } => {
                 write!(f, "TradeError")

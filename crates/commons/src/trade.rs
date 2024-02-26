@@ -1,7 +1,7 @@
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
-use secp256k1::PublicKey;
-use secp256k1::XOnlyPublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -12,9 +12,9 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TradeAndChannelParams {
     pub trade_params: TradeParams,
-    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
     pub trader_reserve: Option<Amount>,
-    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
     pub coordinator_reserve: Option<Amount>,
 }
 
@@ -198,9 +198,9 @@ mod test {
 
     use crate::trade::FilledWith;
     use crate::trade::Match;
+    use bitcoin::secp256k1::PublicKey;
+    use bitcoin::secp256k1::XOnlyPublicKey;
     use rust_decimal_macros::dec;
-    use secp256k1::PublicKey;
-    use secp256k1::XOnlyPublicKey;
     use std::str::FromStr;
     use time::OffsetDateTime;
     use uuid::Uuid;

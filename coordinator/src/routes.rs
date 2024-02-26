@@ -1,5 +1,4 @@
 use crate::admin::close_channel;
-use crate::admin::close_ln_dlc_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
 use crate::admin::delete_dlc_channels;
@@ -7,22 +6,15 @@ use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
-use crate::admin::legacy_collaborative_revert;
-use crate::admin::list_channels;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
-use crate::admin::open_channel;
-use crate::admin::send_payment;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::collaborative_revert::confirm_collaborative_revert;
-use crate::collaborative_revert::confirm_legacy_collaborative_revert;
 use crate::db;
-use crate::db::liquidity::LiquidityRequestLog;
 use crate::db::user;
 use crate::db::user::User;
-use crate::is_liquidity_sufficient;
 use crate::leaderboard::generate_leader_board;
 use crate::leaderboard::LeaderBoard;
 use crate::leaderboard::LeaderBoardCategory;
@@ -36,7 +28,6 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::parse_channel_id;
 use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
@@ -56,19 +47,18 @@ use axum::routing::put;
 use axum::Json;
 use axum::Router;
 use bitcoin::consensus::encode::serialize_hex;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::VerifyOnly;
 use commons::Backup;
 use commons::CollaborativeRevertTraderResponse;
 use commons::DeleteBackup;
 use commons::Message;
-use commons::OnboardingParam;
 use commons::Poll;
 use commons::PollAnswers;
 use commons::RegisterParams;
 use commons::Restore;
-use commons::RouteHintHop;
 use commons::TradeAndChannelParams;
 use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
@@ -77,16 +67,10 @@ use diesel::PgConnection;
 use dlc_manager::DlcChannelId;
 use hex::FromHex;
 use lightning::ln::msgs::SocketAddress;
-use ln_dlc_node::channel::UserChannelId;
-use ln_dlc_node::node::peer_manager::alias_as_bytes;
-use ln_dlc_node::node::peer_manager::broadcast_node_announcement;
-use ln_dlc_node::node::LiquidityRequest;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::net::SocketAddr;
@@ -114,6 +98,7 @@ pub struct AppState {
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     pub user_backup: SledBackup,
+    pub secp: Secp256k1<VerifyOnly>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -130,6 +115,8 @@ pub fn router(
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     user_backup: SledBackup,
 ) -> Router {
+    let secp = Secp256k1::verification_only();
+
     let app_state = Arc::new(AppState {
         node,
         pool,
@@ -142,6 +129,7 @@ pub fn router(
         node_alias: node_alias.to_string(),
         auth_users_notifier,
         user_backup,
+        secp,
     });
 
     Router::new()
@@ -154,13 +142,8 @@ pub fn router(
         )
         .route("/api/backup/:node_id", post(back_up).delete(delete_backup))
         .route("/api/restore/:node_id", get(restore))
-        .route(
-            "/api/prepare_onboarding_payment",
-            post(prepare_onboarding_payment),
-        )
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
-        .route("/api/invoice", get(get_invoice))
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
             "/api/orderbook/orders/:order_id",
@@ -177,14 +160,8 @@ pub fn router(
         .route("/api/users/nickname", put(update_nickname))
         .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/wallet/utxos", get(get_utxos))
-        .route("/api/admin/channels", get(list_channels).post(open_channel))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
-        .route(
-            "/api/admin/ln-dlc-channels/:channel_id",
-            delete(close_ln_dlc_channel),
-        )
         .route("/api/admin/peers", get(list_peers))
-        .route("/api/admin/send_payment/:invoice", post(send_payment))
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route(
             "/api/admin/dlc_channels/:channel_id",
@@ -198,25 +175,12 @@ pub fn router(
             "/api/channels/confirm-collab-revert",
             post(collaborative_revert_confirm),
         )
-        .route(
-            "/api/admin/channels/legacy-revert",
-            post(legacy_collaborative_revert),
-        )
-        // This route is backwards compatible with version 1.7.4 of the app.
-        .route(
-            "/api/channels/revertconfirm",
-            post(legacy_collaborative_revert_confirm),
-        )
         .route("/api/admin/is_connected/:target_pubkey", get(is_connected))
         .route(
             "/api/admin/settings",
             get(get_settings).put(update_settings),
         )
         .route("/api/admin/sync", post(post_sync))
-        .route(
-            "/api/admin/broadcast_announcement",
-            post(post_broadcast_announcement),
-        )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
@@ -249,92 +213,14 @@ pub async fn lightning_peer_ws_handler(
     }
 }
 
-#[instrument(skip_all, err(Debug))]
-pub async fn prepare_onboarding_payment(
+pub async fn get_unused_address(
     State(app_state): State<Arc<AppState>>,
-    params: Json<OnboardingParam>,
-) -> Result<Json<RouteHintHop>, AppError> {
-    let Json(OnboardingParam {
-        target_node,
-        user_channel_id,
-        amount_sats,
-        liquidity_option_id,
-    }) = params;
-
-    let target_node: PublicKey = target_node.parse().map_err(|e| {
-        AppError::BadRequest(format!(
-            "Provided public key {target_node} was not valid: {e:#}"
-        ))
+) -> Result<String, AppError> {
+    let address = app_state.node.inner.get_unused_address().map_err(|e| {
+        AppError::InternalServerError(format!("Could not get unused address: {e:#}"))
     })?;
 
-    let user_channel_id = UserChannelId::try_from(user_channel_id.clone()).map_err(|e| {
-        AppError::BadRequest(format!(
-            "Provided user channel id {user_channel_id} was not valid: {e:#}"
-        ))
-    })?;
-
-    let mut conn = app_state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    let balance = app_state
-        .node
-        .inner
-        .get_on_chain_balance()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get balance: {e:#}")))?;
-
-    let have_enough_liquidity =
-        is_liquidity_sufficient(&*app_state.settings.read().await, balance, amount_sats);
-
-    LiquidityRequestLog::insert(
-        &mut conn,
-        target_node,
-        amount_sats,
-        liquidity_option_id,
-        have_enough_liquidity,
-    )
-    .map_err(|e| {
-        AppError::InternalServerError(format!("Could not insert liquidity request: {e:#}"))
-    })?;
-
-    if !have_enough_liquidity {
-        return Err(AppError::ServiceUnavailable(
-            "Coordinator cannot provide required liquidity".to_string(),
-        ));
-    };
-
-    let route_hint_hop = spawn_blocking({
-        let app_state = app_state.clone();
-        move || {
-            let mut conn = app_state.pool.get()?;
-            let liquidity_option = db::liquidity_options::get(&mut conn, liquidity_option_id)?;
-            app_state
-                .node
-                .inner
-                .prepare_onboarding_payment(LiquidityRequest {
-                    user_channel_id,
-                    liquidity_option_id,
-                    trader_id: target_node,
-                    trade_up_to_sats: liquidity_option.trade_up_to_sats,
-                    max_deposit_sats: liquidity_option.max_deposit_sats,
-                    coordinator_leverage: liquidity_option.coordinator_leverage,
-                    fee_sats: liquidity_option
-                        .get_fee(Decimal::from(amount_sats))
-                        .to_u64()
-                        .expect("to fit into u64"),
-                })
-        }
-    })
-    .await
-    .expect("task to complete")
-    .map_err(|e| AppError::InternalServerError(format!("Could not prepare payment: {e:#}")))?;
-
-    Ok(Json(route_hint_hop.into()))
-}
-
-pub async fn get_unused_address(State(app_state): State<Arc<AppState>>) -> impl IntoResponse {
-    app_state.node.inner.get_unused_address().to_string()
+    Ok(address.to_string())
 }
 
 #[instrument(skip_all, err(Debug))]
@@ -357,24 +243,6 @@ pub struct OpenChannelFeeInvoiceParams {
     pub amount: u64,
     pub channel_funding_txid: String,
     pub expiry: Option<u32>,
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn get_invoice(
-    Query(params): Query<InvoiceParams>,
-    State(state): State<Arc<AppState>>,
-) -> Result<String, AppError> {
-    let invoice = state
-        .node
-        .inner
-        .create_invoice(
-            params.amount.unwrap_or_default(),
-            params.description.unwrap_or_default(),
-            params.expiry.unwrap_or(180),
-        )
-        .map_err(|e| AppError::InternalServerError(format!("Failed to create invoice: {e:#}")))?;
-
-    Ok(invoice.to_string())
 }
 
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
@@ -411,28 +279,9 @@ pub async fn rollover(
         .map_err(|e| {
             AppError::InternalServerError(format!(
                 "Failed to rollover dlc channel with id {}: {e:#}",
-                dlc_channel_id.to_hex()
+                hex::encode(dlc_channel_id)
             ))
         })?;
-
-    Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn post_broadcast_announcement(
-    State(state): State<Arc<AppState>>,
-) -> Result<(), AppError> {
-    let node_alias = alias_as_bytes(state.node_alias.as_str()).map_err(|e| {
-        AppError::InternalServerError(format!(
-            "Could not parse node alias {0} due to {e:#}",
-            state.node_alias
-        ))
-    })?;
-    broadcast_node_announcement(
-        &state.node.inner.peer_manager,
-        node_alias,
-        state.announcement_addresses.clone(),
-    );
 
     Ok(())
 }
@@ -440,16 +289,21 @@ pub async fn post_broadcast_announcement(
 /// Internal API for syncing the on-chain wallet and the DLC channels.
 #[instrument(skip_all, err(Debug))]
 pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    spawn_blocking(move || {
-        state.node.inner.sync_on_chain_wallet()?;
-        state.node.inner.dlc_manager.periodic_chain_monitor()?;
-        state.node.inner.dlc_manager.periodic_check()?;
+    state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
+        AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
+    })?;
 
-        anyhow::Ok(())
+    spawn_blocking(move || {
+        if let Err(e) = state.node.inner.dlc_manager.periodic_chain_monitor() {
+            tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
+        }
+
+        if let Err(e) = state.node.inner.dlc_manager.periodic_check() {
+            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+        };
     })
     .await
-    .expect("task to complete")
-    .map_err(|e| AppError::InternalServerError(format!("Could not sync wallets: {e:#}")))?;
+    .expect("task to complete");
 
     Ok(())
 }
@@ -551,21 +405,12 @@ async fn update_settings(
         .await
         .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
 
-    // Forward relevant settings down to the coordinator node.
-    state
-        .node
-        .update_settings(settings.to_node_settings())
-        .await;
-
     // Forward relevant settings down to the LN-DLC node.
     state
         .node
         .inner
         .update_settings(settings.ln_dlc.clone())
         .await;
-
-    // Forward relevant settings down to the LDK node.
-    state.node.update_ldk_settings(settings.to_ldk_settings());
 
     Ok(())
 }
@@ -687,47 +532,6 @@ pub async fn collaborative_revert_confirm(
     Ok(Json(serialize_hex(&raw_tx)))
 }
 
-#[instrument(skip_all, err(Debug))]
-pub async fn legacy_collaborative_revert_confirm(
-    State(state): State<Arc<AppState>>,
-    revert_params: Json<CollaborativeRevertTraderResponse>,
-) -> Result<Json<String>, AppError> {
-    let mut conn = state.pool.clone().get().map_err(|error| {
-        AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
-    })?;
-
-    let channel_id_string = revert_params.channel_id.clone();
-    let channel_id = parse_channel_id(channel_id_string.as_str()).map_err(|error| {
-        tracing::error!(
-            channel_id = channel_id_string,
-            "Invalid channel id provided. {error:#}"
-        );
-        AppError::BadRequest("Invalid channel id provided".to_string())
-    })?;
-
-    tracing::info!(
-        channel_id = channel_id_string,
-        "Confirming legacy collaborative revert"
-    );
-    let inner_node = state.node.inner.clone();
-
-    let raw_tx = confirm_legacy_collaborative_revert(
-        inner_node,
-        &mut conn,
-        channel_id,
-        revert_params.transaction.clone(),
-        revert_params.signature,
-    )
-    .map_err(|error| {
-        tracing::error!(
-            channel_id = channel_id_string,
-            "Could not confirm legacy collaborative revert: {error:#}"
-        );
-        AppError::InternalServerError("Could not confirm legacy collaborative revert".to_string())
-    })?;
-    Ok(Json(serialize_hex(&raw_tx)))
-}
-
 // TODO(holzeis): There is no reason the backup and restore api has to run on the coordinator. On
 // the contrary it would be much more reasonable to have the backup and restore api run separately.
 #[instrument(skip_all, err(Debug))]
@@ -740,7 +544,7 @@ pub async fn back_up(
         .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
 
     backup
-        .verify(&node_id)
+        .verify(&state.secp, &node_id)
         .map_err(|_| AppError::Unauthorized)?;
 
     state
@@ -760,7 +564,7 @@ pub async fn delete_backup(
         .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
 
     backup
-        .verify(&node_id)
+        .verify(&state.secp, &node_id)
         .map_err(|_| AppError::Unauthorized)?;
 
     state
@@ -780,8 +584,9 @@ async fn restore(
 
     let message = node_id.to_string().as_bytes().to_vec();
     let message = commons::create_sign_message(message);
-    signature
-        .verify(&message, &node_id)
+    state
+        .secp
+        .verify_ecdsa(&message, &signature, &node_id)
         .map_err(|_| AppError::Unauthorized)?;
 
     let backup = state

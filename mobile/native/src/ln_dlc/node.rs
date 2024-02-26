@@ -14,19 +14,15 @@ use crate::trade::position::PositionState;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin::secp256k1::PublicKey;
-use bdk::TransactionDetails;
-use bitcoin::hashes::hex::ToHex;
-use bitcoin::Txid;
+use bitcoin::secp256k1::PublicKey;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
-use lightning::ln::PaymentHash;
-use lightning::ln::PaymentPreimage;
-use lightning::ln::PaymentSecret;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::channel::Channel;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
@@ -35,13 +31,9 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::transaction::Transaction;
-use ln_dlc_node::HTLCStatus;
-use ln_dlc_node::MillisatAmount;
-use ln_dlc_node::PaymentFlow;
-use ln_dlc_node::PaymentInfo;
+use ln_dlc_node::TransactionDetails;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,16 +42,28 @@ use tracing::instrument;
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<node::Node<TenTenOneNodeStorage, NodeStorage>>,
+    pub inner: Arc<
+        node::Node<
+            bdk_file_store::Store<bdk::wallet::ChangeSet>,
+            TenTenOneNodeStorage,
+            NodeStorage,
+        >,
+    >,
     _running: Arc<RunningNode>,
     // TODO: we should make this persistent as invoices might get paid later - but for now this is
     // good enough
-    pub pending_usdp_invoices: Arc<parking_lot::Mutex<HashSet<bitcoin::hashes::sha256::Hash>>>,
+    pub pending_usdp_invoices: Arc<parking_lot::Mutex<HashSet<bitcoin_old::hashes::sha256::Hash>>>,
 }
 
 impl Node {
     pub fn new(
-        node: Arc<node::Node<TenTenOneNodeStorage, NodeStorage>>,
+        node: Arc<
+            node::Node<
+                bdk_file_store::Store<bdk::wallet::ChangeSet>,
+                TenTenOneNodeStorage,
+                NodeStorage,
+            >,
+        >,
         running: RunningNode,
     ) -> Self {
         Self {
@@ -71,7 +75,7 @@ impl Node {
 }
 
 pub struct Balances {
-    pub on_chain: Option<u64>,
+    pub on_chain: u64,
     pub off_chain: Option<u64>,
 }
 
@@ -84,9 +88,8 @@ impl From<Balances> for crate::api::Balances {
     }
 }
 
-pub struct WalletHistories {
+pub struct WalletHistory {
     pub on_chain: Vec<TransactionDetails>,
-    pub off_chain: Vec<PaymentDetails>,
 }
 
 impl Node {
@@ -95,13 +98,8 @@ impl Node {
     }
 
     pub fn get_wallet_balances(&self) -> Balances {
-        let on_chain = match self.inner.get_on_chain_balance() {
-            Ok(on_chain) => Some(on_chain.confirmed + on_chain.trusted_pending),
-            Err(e) => {
-                tracing::error!("Failed to get onchain balance. {e:#}");
-                None
-            }
-        };
+        let on_chain = self.inner.get_on_chain_balance();
+        let on_chain = on_chain.confirmed + on_chain.trusted_pending;
 
         let off_chain = match self.inner.get_dlc_channels_usable_balance() {
             Ok(off_chain) => Some(off_chain.to_sat()),
@@ -117,14 +115,10 @@ impl Node {
         }
     }
 
-    pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
-        let on_chain = self.inner.get_on_chain_history()?;
-        let off_chain = self.inner.get_off_chain_history()?;
+    pub fn get_wallet_history(&self) -> WalletHistory {
+        let on_chain = self.inner.get_on_chain_history();
 
-        Ok(WalletHistories {
-            on_chain,
-            off_chain,
-        })
+        WalletHistory { on_chain }
     }
 
     pub fn process_incoming_dlc_messages(&self) {
@@ -143,7 +137,7 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = dlc_message_name(&msg);
-            if let Err(e) = self.process_dlc_message(node_id, msg) {
+            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg) {
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
@@ -202,7 +196,7 @@ impl Node {
                 let resp = self
                     .inner
                     .dlc_manager
-                    .on_dlc_message(&msg, node_id)
+                    .on_dlc_message(&msg, to_secp_pk_29(node_id))
                     .with_context(|| {
                         format!(
                             "Failed to handle {} message from {node_id}",
@@ -218,21 +212,21 @@ impl Node {
                 match channel_msg {
                     ChannelMessage::Offer(offer) => {
                         tracing::info!(
-                            channel_id = offer.temporary_channel_id.to_hex(),
+                            channel_id = hex::encode(offer.temporary_channel_id),
                             "Automatically accepting dlc channel offer"
                         );
                         self.process_dlc_channel_offer(&offer.temporary_channel_id)?;
                     }
                     ChannelMessage::SettleOffer(offer) => {
                         tracing::info!(
-                            channel_id = offer.channel_id.to_hex(),
+                            channel_id = hex::encode(offer.channel_id),
                             "Automatically accepting settle offer"
                         );
                         self.process_settle_offer(&offer.channel_id)?;
                     }
                     ChannelMessage::RenewOffer(r) => {
                         tracing::info!(
-                            channel_id = r.channel_id.to_hex(),
+                            channel_id = hex::encode(r.channel_id),
                             "Automatically accepting renew offer"
                         );
 
@@ -242,7 +236,7 @@ impl Node {
                         self.process_renew_offer(&r.channel_id, expiry_timestamp)?;
                     }
                     ChannelMessage::RenewRevoke(r) => {
-                        let channel_id_hex = r.channel_id.to_hex();
+                        let channel_id_hex = hex::encode(r.channel_id);
 
                         tracing::info!(
                             channel_id = %channel_id_hex,
@@ -322,7 +316,7 @@ impl Node {
                         ));
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
-                        let channel_id_hex_string = close_offer.channel_id.to_hex();
+                        let channel_id_hex_string = hex::encode(close_offer.channel_id);
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
@@ -347,7 +341,7 @@ impl Node {
         Ok(())
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         tracing::warn!("Rejecting dlc channel offer!");
 
@@ -370,19 +364,19 @@ impl Node {
         .context("Could not set order to failed")?;
 
         self.send_dlc_message(
-            counterparty,
+            to_secp_pk_30(counterparty),
             Message::Channel(ChannelMessage::Reject(reject)),
         )
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn process_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
 
         match self.inner.dlc_manager.accept_channel(channel_id) {
             Ok((accept_channel, _, _, node_id)) => {
                 self.send_dlc_message(
-                    node_id,
+                    to_secp_pk_30(node_id),
                     Message::Channel(ChannelMessage::Accept(accept_channel)),
                 )?;
             }
@@ -395,7 +389,7 @@ impl Node {
         Ok(())
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn reject_settle_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         tracing::warn!("Rejecting pending dlc channel collaborative settlement offer!");
         let (reject, counterparty) = self.inner.dlc_manager.reject_settle_offer(channel_id)?;
@@ -407,12 +401,12 @@ impl Node {
         )?;
 
         self.send_dlc_message(
-            counterparty,
+            to_secp_pk_30(counterparty),
             Message::Channel(ChannelMessage::Reject(reject)),
         )
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn process_settle_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
 
@@ -427,7 +421,7 @@ impl Node {
         Ok(())
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn reject_renew_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         tracing::warn!("Rejecting dlc channel renew offer!");
 
@@ -440,12 +434,12 @@ impl Node {
         )?;
 
         self.send_dlc_message(
-            counterparty,
+            to_secp_pk_30(counterparty),
             Message::Channel(ChannelMessage::Reject(reject)),
         )
     }
 
-    #[instrument(fields(channel_id = channel_id.to_hex()),skip_all, err(Debug))]
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
     pub fn process_renew_offer(
         &self,
         channel_id: &DlcChannelId,
@@ -458,7 +452,7 @@ impl Node {
                 position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
 
                 self.send_dlc_message(
-                    node_id,
+                    to_secp_pk_30(node_id),
                     Message::Channel(ChannelMessage::RenewAccept(renew_accept)),
                 )?;
             }
@@ -522,65 +516,6 @@ impl Node {
 pub struct NodeStorage;
 
 impl node::Storage for NodeStorage {
-    // Payments
-
-    fn insert_payment(&self, payment_hash: PaymentHash, info: PaymentInfo) -> Result<()> {
-        db::insert_payment(payment_hash, info)
-    }
-    fn merge_payment(
-        &self,
-        payment_hash: &PaymentHash,
-        flow: PaymentFlow,
-        amt_msat: MillisatAmount,
-        fee_msat: MillisatAmount,
-        htlc_status: HTLCStatus,
-        preimage: Option<PaymentPreimage>,
-        secret: Option<PaymentSecret>,
-        funding_txid: Option<Txid>,
-    ) -> Result<()> {
-        match db::get_payment(*payment_hash)? {
-            Some(_) => {
-                db::update_payment(
-                    *payment_hash,
-                    htlc_status,
-                    amt_msat,
-                    fee_msat,
-                    preimage,
-                    secret,
-                    funding_txid,
-                )?;
-            }
-            None => {
-                db::insert_payment(
-                    *payment_hash,
-                    PaymentInfo {
-                        preimage,
-                        secret,
-                        status: htlc_status,
-                        amt_msat,
-                        fee_msat,
-                        flow,
-                        timestamp: OffsetDateTime::now_utc(),
-                        description: "".to_string(),
-                        invoice: None,
-                        funding_txid,
-                    },
-                )?;
-            }
-        }
-
-        Ok(())
-    }
-    fn get_payment(
-        &self,
-        payment_hash: &PaymentHash,
-    ) -> Result<Option<(PaymentHash, PaymentInfo)>> {
-        db::get_payment(*payment_hash)
-    }
-    fn all_payments(&self) -> Result<Vec<(PaymentHash, PaymentInfo)>> {
-        db::get_payments()
-    }
-
     // Spendable outputs
 
     fn insert_spendable_output(&self, descriptor: SpendableOutputDescriptor) -> Result<()> {

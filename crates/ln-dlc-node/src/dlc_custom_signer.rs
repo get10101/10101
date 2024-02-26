@@ -1,15 +1,12 @@
 //! This file has temporarily been copied from `https://github.com/p2pderivatives/rust-dlc/pull/97`.
 //! We should reimplement some of these traits for production.
 
-use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::Storage;
-use crate::storage::TenTenOneStorage;
+use crate::bitcoin_conversion::to_script_29;
+use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::OnChainWallet;
 use anyhow::anyhow;
 use anyhow::Result;
-use bitcoin::secp256k1::schnorr::Signature;
-use bitcoin::Script;
-use bitcoin::Transaction;
-use bitcoin::TxOut;
+use bitcoin::address::Payload;
 use dlc_manager::subchannel::LnDlcChannelSigner;
 use dlc_manager::subchannel::LnDlcSignerProvider;
 use lightning::ln::chan_utils::ChannelPublicKeys;
@@ -32,9 +29,6 @@ use lightning::util::ser::Writeable;
 use parking_lot::Mutex;
 use parking_lot::MutexGuard;
 use secp256k1_zkp::ecdsa::RecoverableSignature;
-use secp256k1_zkp::Secp256k1;
-use secp256k1_zkp::SecretKey;
-use secp256k1_zkp::Signing;
 use std::sync::Arc;
 
 pub struct CustomSigner {
@@ -70,7 +64,7 @@ impl EcdsaChannelSigner for CustomSigner {
         &self,
         commitment_tx: &lightning::ln::chan_utils::CommitmentTransaction,
         preimages: Vec<lightning::ln::PaymentPreimage>,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<
         (
             secp256k1_zkp::ecdsa::Signature,
@@ -85,7 +79,11 @@ impl EcdsaChannelSigner for CustomSigner {
         )
     }
 
-    fn validate_counterparty_revocation(&self, idx: u64, secret: &SecretKey) -> Result<(), ()> {
+    fn validate_counterparty_revocation(
+        &self,
+        idx: u64,
+        secret: &bitcoin_old::secp256k1::SecretKey,
+    ) -> Result<(), ()> {
         self.in_memory_signer_lock()
             .validate_counterparty_revocation(idx, secret)
     }
@@ -93,7 +91,7 @@ impl EcdsaChannelSigner for CustomSigner {
     fn sign_holder_commitment_and_htlcs(
         &self,
         commitment_tx: &lightning::ln::chan_utils::HolderCommitmentTransaction,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<
         (
             secp256k1_zkp::ecdsa::Signature,
@@ -107,11 +105,11 @@ impl EcdsaChannelSigner for CustomSigner {
 
     fn sign_justice_revoked_output(
         &self,
-        justice_tx: &Transaction,
+        justice_tx: &bitcoin_old::Transaction,
         input: usize,
         amount: u64,
-        per_commitment_key: &SecretKey,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        per_commitment_key: &bitcoin_old::secp256k1::SecretKey,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock().sign_justice_revoked_output(
             justice_tx,
@@ -124,12 +122,12 @@ impl EcdsaChannelSigner for CustomSigner {
 
     fn sign_justice_revoked_htlc(
         &self,
-        justice_tx: &Transaction,
+        justice_tx: &bitcoin_old::Transaction,
         input: usize,
         amount: u64,
-        per_commitment_key: &SecretKey,
+        per_commitment_key: &bitcoin_old::secp256k1::SecretKey,
         htlc: &lightning::ln::chan_utils::HTLCOutputInCommitment,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock().sign_justice_revoked_htlc(
             justice_tx,
@@ -143,10 +141,10 @@ impl EcdsaChannelSigner for CustomSigner {
 
     fn sign_holder_htlc_transaction(
         &self,
-        htlc_tx: &Transaction,
+        htlc_tx: &bitcoin_old::Transaction,
         input: usize,
         htlc_descriptor: &lightning::events::bump_transaction::HTLCDescriptor,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock().sign_holder_htlc_transaction(
             htlc_tx,
@@ -158,12 +156,12 @@ impl EcdsaChannelSigner for CustomSigner {
 
     fn sign_counterparty_htlc_transaction(
         &self,
-        htlc_tx: &Transaction,
+        htlc_tx: &bitcoin_old::Transaction,
         input: usize,
         amount: u64,
         per_commitment_point: &secp256k1_zkp::PublicKey,
         htlc: &lightning::ln::chan_utils::HTLCOutputInCommitment,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock()
             .sign_counterparty_htlc_transaction(
@@ -179,7 +177,7 @@ impl EcdsaChannelSigner for CustomSigner {
     fn sign_closing_transaction(
         &self,
         closing_tx: &lightning::ln::chan_utils::ClosingTransaction,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock()
             .sign_closing_transaction(closing_tx, secp_ctx)
@@ -187,9 +185,9 @@ impl EcdsaChannelSigner for CustomSigner {
 
     fn sign_holder_anchor_input(
         &self,
-        anchor_tx: &Transaction,
+        anchor_tx: &bitcoin_old::Transaction,
         input: usize,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock()
             .sign_holder_anchor_input(anchor_tx, input, secp_ctx)
@@ -198,7 +196,7 @@ impl EcdsaChannelSigner for CustomSigner {
     fn sign_channel_announcement_with_funding_key(
         &self,
         msg: &lightning::ln::msgs::UnsignedChannelAnnouncement,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> Result<secp256k1_zkp::ecdsa::Signature, ()> {
         self.in_memory_signer_lock()
             .sign_channel_announcement_with_funding_key(msg, secp_ctx)
@@ -209,7 +207,7 @@ impl ChannelSigner for CustomSigner {
     fn get_per_commitment_point(
         &self,
         idx: u64,
-        secp_ctx: &Secp256k1<bitcoin::secp256k1::All>,
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<bitcoin_old::secp256k1::All>,
     ) -> secp256k1_zkp::PublicKey {
         self.in_memory_signer_lock()
             .get_per_commitment_point(idx, secp_ctx)
@@ -253,9 +251,9 @@ impl ChannelSigner for CustomSigner {
 impl LnDlcChannelSigner for CustomSigner {
     fn get_holder_split_tx_signature(
         &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        split_tx: &Transaction,
-        original_funding_redeemscript: &Script,
+        secp: &bitcoin_old::secp256k1::Secp256k1<secp256k1_zkp::All>,
+        split_tx: &bitcoin_old::Transaction,
+        original_funding_redeemscript: &bitcoin_old::Script,
         original_channel_value_satoshis: u64,
     ) -> std::result::Result<secp256k1_zkp::ecdsa::Signature, dlc_manager::error::Error> {
         dlc::util::get_raw_sig_for_tx_input(
@@ -271,10 +269,10 @@ impl LnDlcChannelSigner for CustomSigner {
 
     fn get_holder_split_tx_adaptor_signature(
         &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        split_tx: &Transaction,
+        secp: &bitcoin_old::secp256k1::Secp256k1<secp256k1_zkp::All>,
+        split_tx: &bitcoin_old::Transaction,
         original_channel_value_satoshis: u64,
-        original_funding_redeemscript: &Script,
+        original_funding_redeemscript: &bitcoin_old::Script,
         other_publish_key: &secp256k1_zkp::PublicKey,
     ) -> std::result::Result<secp256k1_zkp::EcdsaAdaptorSignature, dlc_manager::error::Error> {
         dlc::channel::get_tx_adaptor_signature(
@@ -295,34 +293,34 @@ impl Writeable for CustomSigner {
     }
 }
 
-pub struct CustomKeysManager<S, N> {
+pub struct CustomKeysManager<D> {
     keys_manager: KeysManager,
-    wallet: Arc<LnDlcWallet<S, N>>,
+    wallet: Arc<OnChainWallet<D>>,
 }
 
-impl<S, N> CustomKeysManager<S, N> {
-    pub fn new(keys_manager: KeysManager, wallet: Arc<LnDlcWallet<S, N>>) -> Self {
+impl<D> CustomKeysManager<D> {
+    pub fn new(keys_manager: KeysManager, wallet: Arc<OnChainWallet<D>>) -> Self {
         Self {
             keys_manager,
             wallet,
         }
     }
 
-    pub fn get_node_secret_key(&self) -> SecretKey {
+    pub fn get_node_secret_key(&self) -> bitcoin_old::secp256k1::SecretKey {
         self.keys_manager.get_node_secret_key()
     }
 }
 
-impl<S: TenTenOneStorage, N: Storage> CustomKeysManager<S, N> {
+impl<D> CustomKeysManager<D> {
     #[allow(clippy::result_unit_err)]
-    pub fn spend_spendable_outputs<C: Signing>(
+    pub fn spend_spendable_outputs<C: bitcoin_old::secp256k1::Signing>(
         &self,
         descriptors: &[&SpendableOutputDescriptor],
-        outputs: Vec<TxOut>,
-        change_destination_script: Script,
+        outputs: Vec<bitcoin_old::TxOut>,
+        change_destination_script: bitcoin_old::Script,
         feerate_sat_per_1000_weight: u32,
-        secp_ctx: &Secp256k1<C>,
-    ) -> Result<Transaction> {
+        secp_ctx: &bitcoin_old::secp256k1::Secp256k1<C>,
+    ) -> Result<bitcoin_old::Transaction> {
         self.keys_manager
             .spend_spendable_outputs(
                 descriptors,
@@ -336,9 +334,7 @@ impl<S: TenTenOneStorage, N: Storage> CustomKeysManager<S, N> {
     }
 }
 
-impl<S: TenTenOneStorage, N: Storage> LnDlcSignerProvider<CustomSigner>
-    for CustomKeysManager<S, N>
-{
+impl<D: BdkStorage> LnDlcSignerProvider<CustomSigner> for CustomKeysManager<D> {
     fn derive_ln_dlc_channel_signer(
         &self,
         channel_value_satoshis: u64,
@@ -348,19 +344,42 @@ impl<S: TenTenOneStorage, N: Storage> LnDlcSignerProvider<CustomSigner>
     }
 }
 
-impl<S: TenTenOneStorage, N: Storage> SignerProvider for CustomKeysManager<S, N> {
+impl<D: BdkStorage> SignerProvider for CustomKeysManager<D> {
     type Signer = CustomSigner;
 
-    fn get_destination_script(&self) -> Result<Script, ()> {
-        let address = self.wallet.unused_address();
-        Ok(address.script_pubkey())
+    fn get_destination_script(&self) -> Result<bitcoin_old::Script, ()> {
+        let address = match self.wallet.get_new_address() {
+            Ok(address) => address,
+            Err(e) => {
+                tracing::error!("Failed to get new address: {e:?}");
+                return Err(());
+            }
+        };
+
+        let script_pubkey = address.script_pubkey();
+        let script_pubkey = to_script_29(script_pubkey);
+
+        Ok(script_pubkey)
     }
 
     fn get_shutdown_scriptpubkey(&self) -> std::result::Result<ShutdownScript, ()> {
-        let address = self.wallet.unused_address();
+        let address = match self.wallet.get_new_address() {
+            Ok(address) => address,
+            Err(e) => {
+                tracing::error!("Failed to get new address: {e:?}");
+                return Err(());
+            }
+        };
+
         match address.payload {
-            bitcoin::util::address::Payload::WitnessProgram { version, program } => {
-                ShutdownScript::new_witness_program(version, &program)
+            Payload::WitnessProgram(program) => {
+                let version = program.version().to_num();
+                let version =
+                    bitcoin_old::util::address::WitnessVersion::try_from(version).expect("valid");
+
+                let program = program.program().as_bytes();
+
+                ShutdownScript::new_witness_program(version, program)
                     .map_err(|_ignored| tracing::error!("Invalid shutdown script"))
             }
             _ => {
@@ -402,7 +421,7 @@ impl<S: TenTenOneStorage, N: Storage> SignerProvider for CustomKeysManager<S, N>
     }
 }
 
-impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
+impl<D> NodeSigner for CustomKeysManager<D> {
     fn get_inbound_payment_key_material(&self) -> KeyMaterial {
         self.keys_manager.get_inbound_payment_key_material()
     }
@@ -423,7 +442,7 @@ impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     fn sign_invoice(
         &self,
         hrp_bytes: &[u8],
-        invoice_data: &[bitcoin::bech32::u5],
+        invoice_data: &[bitcoin_old::bech32::u5],
         recipient: Recipient,
     ) -> Result<RecoverableSignature, ()> {
         self.keys_manager
@@ -433,7 +452,7 @@ impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     fn sign_bolt12_invoice_request(
         &self,
         invoice_request: &UnsignedInvoiceRequest,
-    ) -> std::result::Result<Signature, ()> {
+    ) -> std::result::Result<bitcoin_old::secp256k1::schnorr::Signature, ()> {
         self.keys_manager
             .sign_bolt12_invoice_request(invoice_request)
     }
@@ -441,7 +460,7 @@ impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     fn sign_bolt12_invoice(
         &self,
         invoice: &UnsignedBolt12Invoice,
-    ) -> std::result::Result<Signature, ()> {
+    ) -> std::result::Result<bitcoin_old::secp256k1::schnorr::Signature, ()> {
         self.keys_manager.sign_bolt12_invoice(invoice)
     }
 
@@ -453,7 +472,7 @@ impl<S: TenTenOneStorage, N: Storage> NodeSigner for CustomKeysManager<S, N> {
     }
 }
 
-impl<S: TenTenOneStorage, N: Storage> EntropySource for CustomKeysManager<S, N> {
+impl<D> EntropySource for CustomKeysManager<D> {
     fn get_secure_random_bytes(&self) -> [u8; 32] {
         self.keys_manager.get_secure_random_bytes()
     }

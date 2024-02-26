@@ -1,4 +1,3 @@
-use bitcoin::hashes::hex::ToHex;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::Channel;
 use flutter_rust_bridge::frb;
@@ -13,47 +12,56 @@ impl From<&Channel> for DlcChannel {
     fn from(value: &Channel) -> Self {
         let channel_state = match value {
             Channel::Offered(o) => ChannelState::Offered {
-                contract_id: o.offered_contract_id.to_hex(),
+                contract_id: hex::encode(o.offered_contract_id),
             },
             Channel::Accepted(a) => ChannelState::Accepted {
-                contract_id: a.accepted_contract_id.to_hex(),
+                contract_id: hex::encode(a.accepted_contract_id),
             },
             s @ Channel::Signed(SignedChannel {
-                state: dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered { close_tx, .. },
+                state: dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered {
+                    close_tx,
+                    ..
+                },
                 fund_tx,
                 fund_output_index,
                 ..
             }) => ChannelState::Signed {
-                contract_id: s.get_contract_id().map(|c| c.to_hex()),
-                funding_txid: fund_tx.txid().to_hex(),
+                contract_id: s.get_contract_id().map(hex::encode),
+                funding_txid: hex::encode(fund_tx.txid()),
                 funding_tx_vout: *fund_output_index,
-                closing_txid: Some(close_tx.txid().to_hex()),
+                closing_txid: Some(hex::encode(close_tx.txid())),
                 state: SignedChannelState::CollaborativeCloseOffered,
             },
             Channel::Signed(s) => ChannelState::Signed {
-                contract_id: s.get_contract_id().map(|c| c.to_hex()),
-                funding_txid: s.fund_tx.txid().to_hex(),
+                contract_id: s.get_contract_id().map(hex::encode),
+                funding_txid: hex::encode(s.fund_tx.txid()),
                 funding_tx_vout: s.fund_output_index,
                 closing_txid: None,
                 state: SignedChannelState::from(&s.state),
             },
             Channel::Closing(c) => ChannelState::Closing {
-                buffer_txid: c.buffer_transaction.txid().to_hex(),
-                contract_id: c.contract_id.to_hex(),
+                buffer_txid: hex::encode(c.buffer_transaction.txid()),
+                contract_id: hex::encode(c.contract_id),
             },
-            Channel::Closed(c) => ChannelState::Closed{closing_txid: c.closing_txid.to_hex()},
-            Channel::CounterClosed(c) => ChannelState::CounterClosed{closing_txid: c.closing_txid.to_hex()},
+            Channel::Closed(c) => ChannelState::Closed {
+                closing_txid: hex::encode(c.closing_txid)
+            },
+            Channel::CounterClosed(c) => ChannelState::CounterClosed{
+                closing_txid: hex::encode(c.closing_txid)
+            },
             Channel::ClosedPunished(_) => ChannelState::ClosedPunished,
-            Channel::CollaborativelyClosed(c) => ChannelState::CollaborativelyClosed{closing_txid: c.closing_txid.to_hex()},
+            Channel::CollaborativelyClosed(c) => ChannelState::CollaborativelyClosed{
+                closing_txid: hex::encode(c.closing_txid)
+            },
             Channel::FailedAccept(_) => ChannelState::FailedAccept,
             Channel::FailedSign(_) => ChannelState::FailedSign,
             Channel::Cancelled(o) => ChannelState::Cancelled {
-                contract_id: o.temporary_channel_id.to_hex(),
+                contract_id: hex::encode(o.temporary_channel_id),
             },
         };
 
         Self {
-            dlc_channel_id: value.get_id().to_hex(),
+            dlc_channel_id: hex::encode(value.get_id()),
             channel_state,
         }
     }

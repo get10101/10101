@@ -22,7 +22,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
     final onchainBalance = walletChangeNotifier.onChain()?.formatted() ?? "n/a";
 
     final amountText = switch (widget.walletType) {
-      WalletType.lightning => Row(
+      WalletType.offChain => Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [

@@ -15,7 +15,6 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::json;
-use settings::Settings;
 
 mod collaborative_revert;
 mod payout_curve;
@@ -77,15 +76,6 @@ impl IntoResponse for AppError {
 
         (status, body).into_response()
     }
-}
-
-/// Check if the liquidity is sufficient to open a JIT channel from the coordinator
-pub fn is_liquidity_sufficient(
-    settings: &Settings,
-    balance: bdk::Balance,
-    amount_sats: u64,
-) -> bool {
-    balance.get_spendable() >= amount_sats + settings.min_liquidity_threshold_sats
 }
 
 pub fn parse_channel_id(channel_id: &str) -> Result<ChannelId> {

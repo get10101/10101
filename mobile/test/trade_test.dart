@@ -9,7 +9,6 @@ import 'package:get_10101/common/application/lsp_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<DlcChannelService>()])
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
-import 'package:get_10101/common/domain/channel.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/model.dart';
 @GenerateNiceMocks([MockSpec<CandlestickService>()])
@@ -108,23 +107,6 @@ void main() {
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
-
-    // assuming this is an initial funding, no channel exists yet
-    when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
-      return null;
-    });
-
-    when(channelConstraintsService.getMaxCapacity()).thenAnswer((_) async {
-      return Amount(20000);
-    });
-
-    when(channelConstraintsService.getMinTradeMargin()).thenReturn(Amount(1000));
-
-    when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
-
-    when(channelConstraintsService.getContractTxFeeRate()).thenAnswer((_) async {
-      return 1;
-    });
 
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(
@@ -233,22 +215,6 @@ void main() {
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
-
-    when(channelConstraintsService.getChannelInfo()).thenAnswer((_) async {
-      return ChannelInfo(Amount(100000), Amount(100000), null);
-    });
-
-    when(channelConstraintsService.getMaxCapacity()).thenAnswer((_) async {
-      return Amount(20000);
-    });
-
-    when(channelConstraintsService.getMinTradeMargin()).thenReturn(Amount(1000));
-
-    when(channelConstraintsService.getInitialReserve()).thenReturn(Amount(1000));
-
-    when(channelConstraintsService.getContractTxFeeRate()).thenAnswer((_) async {
-      return 1;
-    });
 
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(

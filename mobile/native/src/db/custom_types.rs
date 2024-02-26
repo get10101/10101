@@ -4,7 +4,6 @@ use crate::db::models::ContractSymbol;
 use crate::db::models::Direction;
 use crate::db::models::FailureReason;
 use crate::db::models::Flow;
-use crate::db::models::HtlcStatus;
 use crate::db::models::OrderReason;
 use crate::db::models::OrderState;
 use crate::db::models::OrderType;
@@ -180,31 +179,6 @@ impl FromSql<Text, Sqlite> for PositionState {
             "Closing" => Ok(PositionState::Closing),
             "Rollover" => Ok(PositionState::Rollover),
             "Resizing" => Ok(PositionState::Resizing),
-            _ => Err("Unrecognized enum variant".into()),
-        };
-    }
-}
-
-impl ToSql<Text, Sqlite> for HtlcStatus {
-    fn to_sql(&self, out: &mut Output<Sqlite>) -> serialize::Result {
-        let text = match *self {
-            HtlcStatus::Pending => "Pending",
-            HtlcStatus::Succeeded => "Succeeded",
-            HtlcStatus::Failed => "Failed",
-        };
-        out.set_value(text);
-        Ok(IsNull::No)
-    }
-}
-
-impl FromSql<Text, Sqlite> for HtlcStatus {
-    fn from_sql(bytes: backend::RawValue<Sqlite>) -> deserialize::Result<Self> {
-        let string = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
-
-        return match string.as_str() {
-            "Pending" => Ok(HtlcStatus::Pending),
-            "Succeeded" => Ok(HtlcStatus::Succeeded),
-            "Failed" => Ok(HtlcStatus::Failed),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

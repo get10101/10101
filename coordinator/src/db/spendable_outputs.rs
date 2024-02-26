@@ -2,8 +2,6 @@ use crate::schema::spendable_outputs;
 use anyhow::anyhow;
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::hashes::hex::ToHex;
 use diesel::prelude::*;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
@@ -87,7 +85,7 @@ impl From<SpendableOutputDescriptor> for NewSpendableOutput {
             StaticPaymentOutput(StaticPaymentOutputDescriptor { outpoint, .. }) => outpoint,
         };
 
-        let descriptor = descriptor.encode().to_hex();
+        let descriptor = hex::encode(descriptor.encode());
 
         Self {
             txid: outpoint.txid.to_string(),
@@ -101,7 +99,7 @@ impl TryFrom<SpendableOutput> for SpendableOutputDescriptor {
     type Error = anyhow::Error;
 
     fn try_from(value: SpendableOutput) -> Result<Self, Self::Error> {
-        let bytes = Vec::from_hex(&value.descriptor)?;
+        let bytes = hex::decode(value.descriptor)?;
         let descriptor = Self::read(&mut lightning::io::Cursor::new(bytes))
             .map_err(|e| anyhow!("Failed to decode spendable output descriptor: {e}"))?;
 

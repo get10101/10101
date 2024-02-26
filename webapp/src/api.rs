@@ -11,7 +11,6 @@ use axum::routing::get;
 use axum::routing::post;
 use axum::Json;
 use axum::Router;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::Price;
@@ -19,7 +18,6 @@ use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
 use native::api::Direction;
 use native::api::Fee;
-use native::api::SendPayment;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::ln_dlc;
@@ -93,13 +91,15 @@ pub async fn version() -> Json<Version> {
     })
 }
 
-pub async fn get_unused_address() -> impl IntoResponse {
-    ln_dlc::get_unused_address()
+pub async fn get_unused_address() -> Result<impl IntoResponse, AppError> {
+    let address = ln_dlc::get_unused_address()?;
+
+    Ok(address)
 }
 
 #[derive(Serialize)]
 pub struct Balance {
-    on_chain: Option<u64>,
+    on_chain: u64,
     off_chain: Option<u64>,
 }
 
@@ -161,11 +161,11 @@ pub struct Payment {
 }
 
 pub async fn send_payment(params: Json<Payment>) -> Result<(), AppError> {
-    ln_dlc::send_payment(SendPayment::OnChain {
-        address: params.0.address,
-        amount: params.0.amount,
-        fee: Fee::FeeRate { sats: params.0.fee },
-    })
+    ln_dlc::send_payment(
+        params.0.amount,
+        params.0.address,
+        Fee::FeeRate { sats: params.0.fee },
+    )
     .await?;
 
     ln_dlc::refresh_wallet_info().await?;
@@ -272,7 +272,7 @@ pub struct Position {
     pub created: OffsetDateTime,
     pub stable: bool,
     pub pnl_sats: Option<i64>,
-    #[serde(with = "bitcoin::util::amount::serde::as_sat::opt")]
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
     pub closing_fee: Option<Amount>,
 }
 
@@ -538,13 +538,13 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
     fn from(value: &dlc_manager::channel::Channel) -> Self {
         match value {
             dlc_manager::channel::Channel::Offered(o) => DlcChannel {
-                contract_id: Some(o.offered_contract_id.to_hex()),
+                contract_id: Some(hex::encode(o.offered_contract_id)),
                 channel_state: Some(ChannelState::Offered),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::Accepted(a) => DlcChannel {
-                dlc_channel_id: Some(a.channel_id.to_hex()),
-                contract_id: Some(a.accepted_contract_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(a.channel_id)),
+                contract_id: Some(hex::encode(a.accepted_contract_id)),
                 channel_state: Some(ChannelState::Accepted),
                 ..DlcChannel::default()
             },
@@ -622,48 +622,48 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                     ),
                 };
                 DlcChannel {
-                    dlc_channel_id: Some(s.channel_id.to_hex()),
-                    contract_id: s.get_contract_id().map(|c| c.to_hex()),
+                    dlc_channel_id: Some(hex::encode(s.channel_id)),
+                    contract_id: s.get_contract_id().map(hex::encode),
                     channel_state: Some(ChannelState::Signed),
-                    fund_txid: Some(s.fund_tx.txid().to_hex()),
+                    fund_txid: Some(s.fund_tx.txid().to_string()),
                     fund_txout: Some(s.fund_output_index),
                     fee_rate: Some(s.fee_rate_per_vb),
-                    buffer_txid: buffer_tx.map(|tx| tx.txid().to_hex()),
-                    settle_txid: settle_tx.map(|tx| tx.txid().to_hex()),
-                    close_txid: close_tx.map(|tx| tx.txid().to_hex()),
+                    buffer_txid: buffer_tx.map(|tx| tx.txid().to_string()),
+                    settle_txid: settle_tx.map(|tx| tx.txid().to_string()),
+                    close_txid: close_tx.map(|tx| tx.txid().to_string()),
                     subchannel_state: Some(subchannel_state),
                     ..DlcChannel::default()
                 }
             }
             dlc_manager::channel::Channel::Closing(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
-                contract_id: Some(c.contract_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
+                contract_id: Some(hex::encode(c.contract_id)),
                 channel_state: Some(ChannelState::Closing),
-                buffer_txid: Some(c.buffer_transaction.txid().to_hex()),
+                buffer_txid: Some(c.buffer_transaction.txid().to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::Closed(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::Closed),
-                close_txid: Some(c.closing_txid.to_hex()),
+                close_txid: Some(hex::encode(c.closing_txid)),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::CounterClosed(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::CounterClosed),
-                close_txid: Some(c.closing_txid.to_hex()),
+                close_txid: Some(hex::encode(c.closing_txid)),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::ClosedPunished(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::ClosedPunished),
-                punnish_txid: Some(c.punish_txid.to_hex()),
+                punnish_txid: Some(hex::encode(c.punish_txid)),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::CollaborativelyClosed(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::CollaborativelyClosed),
-                close_txid: Some(c.closing_txid.to_hex()),
+                close_txid: Some(hex::encode(c.closing_txid)),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::FailedAccept(_) => DlcChannel {
@@ -671,12 +671,12 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::FailedSign(c) => DlcChannel {
-                dlc_channel_id: Some(c.channel_id.to_hex()),
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::FailedSign),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::Cancelled(o) => DlcChannel {
-                contract_id: Some(o.offered_contract_id.to_hex()),
+                contract_id: Some(hex::encode(o.offered_contract_id)),
                 channel_state: Some(ChannelState::Cancelled),
                 ..DlcChannel::default()
             },

@@ -36,6 +36,7 @@
 #![deny(missing_docs)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::networking::DynamicSocketDescriptor;
 use bitcoin::secp256k1::PublicKey;
 use lightning::ln::msgs::SocketAddress;
@@ -417,11 +418,11 @@ where
     #[cfg(test)]
     let last_us = Arc::clone(&us);
     let descriptor = DynamicSocketDescriptor::Tcp(SocketDescriptor::new(us.clone()));
-    let handle_opt = if let Ok(initial_send) =
-        peer_manager
-            .as_ref()
-            .new_outbound_connection(their_node_id, descriptor, remote_addr)
-    {
+    let handle_opt = if let Ok(initial_send) = peer_manager.as_ref().new_outbound_connection(
+        to_secp_pk_29(their_node_id),
+        descriptor,
+        remote_addr,
+    ) {
         Some(tokio::spawn(async move {
             // We should essentially always have enough room in a TCP socket buffer to send the
             // initial 10s of bytes. However, tokio running in single-threaded mode will always

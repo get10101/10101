@@ -1,9 +1,10 @@
 use anyhow::Result;
 use bitcoin::hashes::sha256;
+use bitcoin::secp256k1::PublicKey;
 use rust_decimal::Decimal;
 use secp256k1::ecdsa::Signature;
 use secp256k1::Message;
-use secp256k1::PublicKey;
+use secp256k1::VerifyOnly;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -19,9 +20,11 @@ pub struct NewOrderRequest {
 }
 
 impl NewOrderRequest {
-    pub fn verify(&self) -> Result<()> {
+    pub fn verify(&self, secp: &secp256k1::Secp256k1<VerifyOnly>) -> Result<()> {
         let message = self.value.message();
-        self.signature.verify(&message, &self.value.trader_id)?;
+        let public_key = self.value.trader_id;
+        secp.verify_ecdsa(&message, &self.signature, &public_key)?;
+
         Ok(())
     }
 }
@@ -143,6 +146,7 @@ pub mod tests {
     use crate::NewOrderRequest;
     use crate::OrderType;
     use secp256k1::rand;
+    use secp256k1::Secp256k1;
     use secp256k1::SecretKey;
     use secp256k1::SECP256K1;
     use time::OffsetDateTime;
@@ -178,6 +182,7 @@ pub mod tests {
         let new_order_string = "{\"value\":{\"id\":\"00000000-0000-0000-0000-000000000000\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"02165446faa03b41d7f2e29741c5d5d5a27a3c1667f6a35d6ea03ba7c2d9619e35\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":[2024,53,12,18,24,406906000,0,0,0],\"stable\":false},\"signature\":\"304402203290d4415c230360f43847586bcf68d11b925e1c3011aab89a7c11d99fd3d5fa0220542830b5ec92a1b6e48240ea5205d66306668728402a5058cee014cecce38f40\"}";
         let new_order: NewOrderRequest = serde_json::from_str(new_order_string).unwrap();
 
-        new_order.verify().unwrap();
+        let secp = Secp256k1::verification_only();
+        new_order.verify(&secp).unwrap();
     }
 }

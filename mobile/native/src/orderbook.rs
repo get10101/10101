@@ -13,9 +13,8 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin::secp256k1::SecretKey;
-use bdk::bitcoin::secp256k1::SECP256K1;
-use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::SecretKey;
+use bitcoin::secp256k1::SECP256K1;
 use commons::best_current_price;
 use commons::Message;
 use commons::Order;
@@ -24,7 +23,6 @@ use commons::Prices;
 use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
-use lightning::ln::ChannelId;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -156,7 +154,6 @@ pub fn subscribe(
                             Ok(Some(msg)) => msg,
                             Ok(None) => {
                                 tracing::warn!("Orderbook WS stream closed");
-
                                 break;
                             }
                             Err(error) => {
@@ -312,7 +309,7 @@ async fn handle_orderbook_message(
             execution_price,
         } => {
             tracing::debug!(
-                channel_id = %channel_id.to_hex(),
+                channel_id = %hex::encode(channel_id),
                 "Received request to revert channel"
             );
 
@@ -331,41 +328,6 @@ async fn handle_orderbook_message(
                     BackgroundTask::CollabRevert(TaskStatus::Failed),
                 ));
                 tracing::error!("Could not collaboratively revert channel: {err:#}");
-            } else {
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::CollabRevert(TaskStatus::Success),
-                ));
-            }
-        }
-        Message::CollaborativeRevert {
-            channel_id,
-            coordinator_address,
-            coordinator_amount,
-            trader_amount,
-            execution_price,
-            funding_txo,
-        } => {
-            tracing::debug!(
-                channel_id = %channel_id.to_hex(),
-                "Received request for legacy collaborative revert of LN-DLC channel"
-            );
-
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::CollabRevert(TaskStatus::Pending),
-            ));
-
-            if let Err(err) = ln_dlc::legacy_collaborative_revert_channel(
-                ChannelId(channel_id),
-                coordinator_address,
-                coordinator_amount,
-                trader_amount,
-                execution_price,
-                funding_txo,
-            ) {
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::CollabRevert(TaskStatus::Failed),
-                ));
-                tracing::error!("Could not complete legacy collaborative revert: {err:#}");
             } else {
                 event::publish(&EventInternal::BackgroundNotification(
                     BackgroundTask::CollabRevert(TaskStatus::Success),

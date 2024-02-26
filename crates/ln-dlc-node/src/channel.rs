@@ -1,6 +1,7 @@
+use crate::bitcoin_conversion::to_secp_pk_30;
+use crate::bitcoin_conversion::to_txid_30;
 use anyhow::bail;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Txid;
 use lightning::events::ClosureReason;
@@ -138,7 +139,7 @@ impl Channel {
 
                 tracing::info!(
                     user_channel_id = %user_channel_id.to_string(),
-                    channel_id = %channel_details.channel_id.to_hex(),
+                    channel_id = %hex::encode(channel_details.channel_id.0),
                     public = channel_details.is_public,
                     outbound = channel_details.is_outbound,
                     "Cannot open non-existent shadow channel. Creating a new one."
@@ -148,7 +149,7 @@ impl Channel {
                     user_channel_id,
                     channel_details.inbound_capacity_msat / 1000,
                     0,
-                    channel_details.counterparty.node_id,
+                    to_secp_pk_30(channel_details.counterparty.node_id),
                 )
             }
         };
@@ -162,7 +163,7 @@ impl Channel {
         // channel. The `ChannelState::OpenUnpaid` is used on the app to track whether the opening
         // fees have been paid.
         channel.channel_state = ChannelState::OpenUnpaid;
-        channel.funding_txid = channel_details.funding_txo.map(|txo| txo.txid);
+        channel.funding_txid = channel_details.funding_txo.map(|txo| to_txid_30(txo.txid));
         channel.channel_id = Some(channel_details.channel_id);
         channel.updated_at = OffsetDateTime::now_utc();
 
@@ -242,7 +243,7 @@ impl Display for Channel {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let channel_id = self
             .channel_id
-            .map(|c| c.to_hex())
+            .map(|c| hex::encode(c.0))
             .unwrap_or("n/a".to_string());
         format!(
             "user_channel_id: {}, channel_id: {channel_id}, channel_state: {:?}, counterparty: {}, funding_txid: {:?}, created_at: {}, updated_at: {}",

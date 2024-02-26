@@ -1,10 +1,9 @@
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::bitcoin;
-use bdk::bitcoin::util::bip32::ExtendedPrivKey;
 use bip39::Language;
 use bip39::Mnemonic;
+use bitcoin::bip32::ExtendedPrivKey;
 use bitcoin::Network;
 use hkdf::Hkdf;
 use sha2::Sha256;

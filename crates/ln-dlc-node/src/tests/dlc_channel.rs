@@ -1,6 +1,8 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::RunningNode;
+use crate::on_chain_wallet;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
@@ -49,7 +51,7 @@ async fn can_open_and_settle_offchain() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -68,7 +70,7 @@ async fn can_open_and_settle_offchain() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
@@ -84,7 +86,7 @@ async fn can_open_and_settle_offchain() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -100,7 +102,7 @@ async fn can_open_and_settle_offchain() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
@@ -116,7 +118,7 @@ async fn can_open_and_settle_offchain() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -135,8 +137,8 @@ async fn can_open_and_collaboratively_close_channel() {
         coordinator_signed_channel,
     ) = set_up_channel_with_position().await;
 
-    let app_on_chain_balance_before_close = app.get_on_chain_balance().unwrap();
-    let coordinator_on_chain_balance_before_close = coordinator.get_on_chain_balance().unwrap();
+    let app_on_chain_balance_before_close = app.get_on_chain_balance();
+    let coordinator_on_chain_balance_before_close = coordinator.get_on_chain_balance();
 
     tracing::debug!("Proposing to close dlc channel collaboratively");
 
@@ -155,7 +157,7 @@ async fn can_open_and_collaboratively_close_channel() {
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -170,7 +172,7 @@ async fn can_open_and_collaboratively_close_channel() {
         mine(1).await.unwrap();
         coordinator.sync_wallets().await?;
 
-        let coordinator_on_chain_balances_after_close = coordinator.get_on_chain_balance()?;
+        let coordinator_on_chain_balances_after_close = coordinator.get_on_chain_balance();
 
         let coordinator_balance_changed = coordinator_on_chain_balances_after_close.confirmed
             > coordinator_on_chain_balance_before_close.confirmed;
@@ -192,7 +194,7 @@ async fn can_open_and_collaboratively_close_channel() {
         mine(1).await.unwrap();
         app.sync_wallets().await?;
 
-        let app_on_chain_balances_after_close = app.get_on_chain_balance()?;
+        let app_on_chain_balances_after_close = app.get_on_chain_balance();
 
         let app_balance_changed = app_on_chain_balances_after_close.confirmed
             > app_on_chain_balance_before_close.confirmed;
@@ -229,7 +231,7 @@ async fn can_open_and_force_close_channel() {
             .get_signed_channels(None)?;
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
@@ -297,7 +299,7 @@ async fn start_and_fund_app(
     amount: Amount,
     n_utxos: u64,
 ) -> (
-    Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
     RunningNode,
 ) {
     let (node, running_node) = Node::start_test_app("app").unwrap();
@@ -311,7 +313,7 @@ async fn start_and_fund_coordinator(
     amount: Amount,
     n_utxos: u64,
 ) -> (
-    Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
     RunningNode,
 ) {
     let (node, running_node) = Node::start_test_coordinator("coordinator").unwrap();
@@ -323,11 +325,11 @@ async fn start_and_fund_coordinator(
 
 async fn set_up_channel_with_position() -> (
     (
-        Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+        Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
         RunningNode,
     ),
     (
-        Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+        Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
         RunningNode,
     ),
     SignedChannel,
@@ -358,16 +360,18 @@ async fn set_up_channel_with_position() -> (
 }
 
 async fn open_channel_and_position(
-    app: Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
-    coordinator: Arc<Node<TenTenOneInMemoryStorage, InMemoryStore>>,
+    app: Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
+    coordinator: Arc<
+        Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>,
+    >,
     app_dlc_collateral: Amount,
     coordinator_dlc_collateral: Amount,
     fee_rate_sats_per_vbyte: Option<u64>,
 ) -> (SignedChannel, SignedChannel) {
     app.connect(coordinator.info).await.unwrap();
 
-    let app_balance_before_sat = app.get_on_chain_balance().unwrap().confirmed;
-    let coordinator_balance_before_sat = coordinator.get_on_chain_balance().unwrap().confirmed;
+    let app_balance_before_sat = app.get_on_chain_balance().confirmed;
+    let coordinator_balance_before_sat = coordinator.get_on_chain_balance().confirmed;
 
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
     let contract_input = dummy_contract_input(
@@ -389,7 +393,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -408,7 +412,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
@@ -421,7 +425,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -437,7 +441,7 @@ async fn open_channel_and_position(
     wait_until(Duration::from_secs(30), || async {
         app.sync_wallets().await.unwrap();
 
-        let app_balance_after_open_sat = app.get_on_chain_balance().unwrap().confirmed;
+        let app_balance_after_open_sat = app.get_on_chain_balance().confirmed;
 
         // We don't aim to account for transaction fees exactly.
         Ok(
@@ -451,8 +455,7 @@ async fn open_channel_and_position(
     wait_until(Duration::from_secs(30), || async {
         coordinator.sync_wallets().await.unwrap();
 
-        let coordinator_balance_after_open_sat =
-            coordinator.get_on_chain_balance().unwrap().confirmed;
+        let coordinator_balance_after_open_sat = coordinator.get_on_chain_balance().confirmed;
 
         // We don't aim to account for transaction fees exactly.
         Ok((coordinator_balance_after_open_sat
@@ -463,8 +466,12 @@ async fn open_channel_and_position(
     .unwrap();
 
     wait_until(Duration::from_secs(30), || async {
-        app.dlc_manager.periodic_chain_monitor().unwrap();
-        app.dlc_manager.periodic_check().unwrap();
+        if let Err(e) = app.dlc_manager.periodic_chain_monitor() {
+            tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
+        };
+        if let Err(e) = app.dlc_manager.periodic_check() {
+            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+        };
 
         let contract = app
             .dlc_manager
@@ -514,7 +521,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -534,7 +541,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -550,7 +557,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
@@ -566,7 +573,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == coordinator.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(coordinator.info.pubkey))
             .cloned())
     })
     .await
@@ -582,7 +589,7 @@ async fn open_channel_and_position(
 
         Ok(dlc_channels
             .iter()
-            .find(|dlc_channel| dlc_channel.counter_party == app.info.pubkey)
+            .find(|dlc_channel| dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey))
             .cloned())
     })
     .await
