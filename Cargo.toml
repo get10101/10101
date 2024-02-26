@@ -37,6 +37,8 @@ lightning-rapid-gossip-sync = { git = "https://github.com/bonomat/rust-lightning
 
 rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
 
+esplora-client = { git = "https://github.com/bitcoindevkit/rust-esplora-client", rev = "269360f" }
+
 [profile.test.package.proptest]
 opt-level = 3
 
