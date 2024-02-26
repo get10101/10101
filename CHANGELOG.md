@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.12] - 2024-02-26
+
 - Feat(webapp): Let user manually sync wallet history.
 - Feat(webapp): Allow to close or force-close a channel.
 - Feat(app): Count pending but trusted utxos to wallet balance.
 - Feat(mobile): Brag the bag: share your PnL as an image
+- Fix(expiry): Handle multiple attempts to collab close an expired position. Fixes an issue where the first attempt failed and got the position stuck on retries.
 
 ## [1.8.11] - 2024-02-20
 
@@ -334,7 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.11...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.8.12...HEAD
+[1.8.12]: https://github.com/get10101/10101/compare/1.8.11...1.8.12
 [1.8.11]: https://github.com/get10101/10101/compare/1.8.10...1.8.11
 [1.8.10]: https://github.com/get10101/10101/compare/1.8.9...1.8.10
 [1.8.9]: https://github.com/get10101/10101/compare/1.8.8...1.8.9
