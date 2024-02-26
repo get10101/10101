@@ -46,6 +46,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
       ...dlcChannelChangeNotifier.getAllAcceptedDlcChannels(),
       ...dlcChannelChangeNotifier.getAllCancelledDlcChannels(),
       ...dlcChannelChangeNotifier.getAllClosingDlcChannels(),
+      ...dlcChannelChangeNotifier.getAllClosedDlcChannels(),
       ...dlcChannelChangeNotifier.getAllOtherDlcChannels()
     ];
 
@@ -147,6 +148,12 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                             style: TextStyle(fontSize: 17)),
                                         title: TransactionIdText(channel.fundingTxid),
                                       ),
+                                      channel.closingTxid != null
+                                          ? ListTile(
+                                              leading: const Text('Closing TxId',
+                                                  style: TextStyle(fontSize: 17)),
+                                              title: TransactionIdText(channel.closingTxid!))
+                                          : Container(),
                                     ],
                                   );
                                 }).toList()),
@@ -215,7 +222,12 @@ class ChannelsTile extends StatelessWidget {
                     ? ListTile(
                         leading: const Text('Buffer TxId', style: TextStyle(fontSize: 17)),
                         title: TransactionIdText(channel.bufferTxid))
-                    : Container()
+                    : Container(),
+                channel is ClosedDlcChannel
+                    ? ListTile(
+                        leading: const Text('Closing TxId', style: TextStyle(fontSize: 17)),
+                        title: TransactionIdText(channel.closingTxid))
+                    : Container(),
               ],
             );
           }).toList()),

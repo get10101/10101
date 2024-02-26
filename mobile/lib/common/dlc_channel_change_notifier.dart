@@ -64,13 +64,21 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
         .toList();
   }
 
-  List<DlcChannel> getAllOtherDlcChannels() {
+  List<ClosedDlcChannel> getAllClosedDlcChannels() {
     return channels
         .where((channel) => [
               ChannelState.closed,
               ChannelState.counterClosed,
-              ChannelState.closedPunished,
               ChannelState.collaborativelyClosed,
+            ].contains(channel.state))
+        .map((channel) => channel as ClosedDlcChannel)
+        .toList();
+  }
+
+  List<DlcChannel> getAllOtherDlcChannels() {
+    return channels
+        .where((channel) => [
+              ChannelState.closedPunished,
               ChannelState.failedAccept,
               ChannelState.failedSign,
             ].contains(channel.state))

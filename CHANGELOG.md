@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.
+- Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.´
+- Feat: Show closing txid on closing and closed channels.
 
 ## [1.9.0] - 2024-02-26
 
