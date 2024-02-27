@@ -162,7 +162,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                               return "Amount cannot be negative";
                             }
 
-                            if (amount.sats + currentFee().sats > balance.sats) {
+                            if (amount.sats + currentFee().sats > (balance?.sats ?? 0)) {
                               return "Not enough funds.";
                             }
 

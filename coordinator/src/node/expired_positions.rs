@@ -50,7 +50,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
 
             if order.expiry < OffsetDateTime::now_utc() {
                 tracing::warn!(trader_id, order_id, "Matched order expired! Giving up on that position, looks like the corresponding dlc channel has to get force closed.");
-                orderbook::db::orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
+                orderbook::db::orders::set_order_state(&mut conn, order.id, OrderState::Expired)?;
 
                 orderbook::db::matches::set_match_state_by_order_id(
                     &mut conn,

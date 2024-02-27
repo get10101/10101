@@ -19,7 +19,6 @@ use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
 use lightning::routing::utxo::UtxoLookup;
 use lightning_invoice::Bolt11Invoice;
 use lightning_invoice::Bolt11InvoiceDescription;
-use lightning_net_tokio::SocketDescriptor;
 use ln_dlc_wallet::LnDlcWallet;
 use std::fmt;
 use std::sync::Arc;
@@ -36,6 +35,7 @@ pub mod channel;
 pub mod config;
 pub mod dlc_message;
 pub mod ln;
+pub mod networking;
 pub mod node;
 pub mod scorer;
 pub mod seed;
@@ -43,6 +43,7 @@ pub mod storage;
 pub mod transaction;
 pub mod util;
 
+use crate::networking::DynamicSocketDescriptor;
 pub use config::CONFIRMATION_TARGET;
 pub use ldk_node_wallet::WalletSettings;
 pub use lightning;
@@ -69,7 +70,7 @@ type ChainMonitor<S, N> = chainmonitor::ChainMonitor<
 >;
 
 pub type PeerManager<S, N> = lightning::ln::peer_handler::PeerManager<
-    SocketDescriptor,
+    DynamicSocketDescriptor,
     Arc<SubChannelManager<S, N>>,
     Arc<dyn RoutingMessageHandler + Send + Sync>,
     Arc<TenTenOneOnionMessageHandler>,

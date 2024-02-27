@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.
+
 ## [1.9.0] - 2024-02-26
 
 - Feat(webapp): Let user manually sync wallet history.

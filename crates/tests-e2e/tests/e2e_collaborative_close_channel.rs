@@ -13,7 +13,14 @@ async fn can_open_and_collab_close_channel() {
     // Setup
     let test = setup::TestSetup::new_with_open_position().await;
 
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Opened position");
 
     let closing_order = {
@@ -32,8 +39,22 @@ async fn can_open_and_collab_close_channel() {
 
     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-    let app_on_chain_balance = test.app.rx.wallet_info().unwrap().balances.on_chain;
-    let app_off_chain_balance = test.app.rx.wallet_info().unwrap().balances.off_chain;
+    let app_on_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .on_chain
+        .unwrap();
+    let app_off_chain_balance = test
+        .app
+        .rx
+        .wallet_info()
+        .unwrap()
+        .balances
+        .off_chain
+        .unwrap();
     tracing::info!(%app_off_chain_balance, "Closed first position");
 
     // Act
@@ -51,14 +72,14 @@ async fn can_open_and_collab_close_channel() {
             on_chain = app_balance.on_chain,
             "Balance while waiting"
         );
-        app_balance.off_chain == 0
+        app_balance.off_chain.unwrap() == 0
     });
 
     // Assert
 
     let wallet_info = test.app.rx.wallet_info().unwrap();
     assert_eq!(
-        wallet_info.balances.on_chain,
+        wallet_info.balances.on_chain.unwrap(),
         app_on_chain_balance + app_off_chain_balance
     );
 

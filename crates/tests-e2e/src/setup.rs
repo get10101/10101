@@ -40,13 +40,13 @@ impl TestSetup {
 
         assert_eq!(
             app.rx.wallet_info().unwrap().balances.on_chain,
-            0,
+            Some(0),
             "App should start with empty on-chain wallet"
         );
 
         assert_eq!(
             app.rx.wallet_info().unwrap().balances.off_chain,
-            0,
+            Some(0),
             "App should start with empty off-chain wallet"
         );
 
@@ -93,10 +93,24 @@ impl TestSetup {
 
         wait_until!({
             refresh_wallet_info();
-            self.app.rx.wallet_info().unwrap().balances.on_chain >= fund_amount.to_sat()
+            self.app
+                .rx
+                .wallet_info()
+                .unwrap()
+                .balances
+                .on_chain
+                .unwrap()
+                >= fund_amount.to_sat()
         });
 
-        let on_chain_balance = self.app.rx.wallet_info().unwrap().balances.on_chain;
+        let on_chain_balance = self
+            .app
+            .rx
+            .wallet_info()
+            .unwrap()
+            .balances
+            .on_chain
+            .unwrap();
 
         tracing::info!(%fund_amount, %on_chain_balance, "Successfully funded app");
     }

@@ -178,7 +178,8 @@ pub struct Node<S: TenTenOneStorage, N: Storage> {
     pub dlc_storage: Arc<DlcStorageProvider<S>>,
 
     // fields below are needed only to start the node
-    listen_address: SocketAddr,
+    #[allow(dead_code)]
+    listen_address: SocketAddr, // Irrelevant when using websockets
     gossip_source: Arc<GossipSource>,
     pub(crate) alias: String,
     pub(crate) announcement_addresses: Vec<SocketAddress>,
@@ -201,6 +202,7 @@ pub enum Fee {
 pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub address: SocketAddr,
+    pub is_ws: bool,
 }
 
 /// Node is running until this struct is dropped
@@ -471,6 +473,7 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         let node_info = NodeInfo {
             pubkey: channel_manager.get_our_node_id(),
             address: announcement_address,
+            is_ws: false,
         };
 
         let gossip_source = Arc::new(gossip_source);
@@ -520,10 +523,14 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
         event_handler: impl EventHandlerTrait + 'static,
         mobile_interruptable_platform: bool,
     ) -> Result<RunningNode> {
+        #[cfg(feature = "ln_net_tcp")]
         let mut handles = vec![spawn_connection_management(
             self.peer_manager.clone(),
             self.listen_address,
         )];
+
+        #[cfg(not(feature = "ln_net_tcp"))]
+        let mut handles = Vec::new();
 
         std::thread::spawn(shadow_sync_periodically(
             self.settings.clone(),
@@ -811,6 +818,7 @@ fn shadow_sync_periodically<S: TenTenOneStorage, N: Storage>(
     }
 }
 
+#[cfg(feature = "ln_net_tcp")]
 fn spawn_connection_management<
     S: TenTenOneStorage + 'static,
     N: Storage + Send + Sync + 'static,
@@ -837,7 +845,7 @@ fn spawn_connection_management<
             tracing::debug!(%addr, "Received inbound connection");
 
             let (fut, connection_handle) = async move {
-                lightning_net_tokio::setup_inbound(
+                crate::networking::tcp::setup_inbound(
                     peer_manager.clone(),
                     tcp_stream.into_std().expect("Stream conversion to succeed"),
                 )
@@ -1070,6 +1078,8 @@ async fn update_rgs_snapshot(
 
 impl Display for NodeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        format!("{}@{}", self.pubkey, self.address).fmt(f)
+        let scheme = if self.is_ws { "ws" } else { "tcp" };
+
+        format!("{scheme}://{}@{}", self.pubkey, self.address).fmt(f)
     }
 }

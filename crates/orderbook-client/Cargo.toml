@@ -14,7 +14,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = { version = "0.10", default-features = false }
 tokio = { version = "1", features = ["macros", "time", "tracing"] }
-tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+tokio-tungstenite-wasm = { version = "0.3.0", features = ["native-tls"] }
 tracing = "0.1"
 url = "2.3.0"
 
