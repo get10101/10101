@@ -135,7 +135,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                     ),
                                     children: <Widget>[
                                       ListTile(
-                                        leading: const Text('Dlc Channel Id',
+                                        leading: const Text('DLC Channel Id',
                                             style: TextStyle(fontSize: 17)),
                                         title: IdText(id: channel.id, length: 8),
                                       ),
@@ -144,13 +144,13 @@ class _ChannelScreenState extends State<ChannelScreen> {
                                               style: TextStyle(fontSize: 17)),
                                           title: IdText(id: channel.contractId ?? "n/a")),
                                       ListTile(
-                                        leading: const Text('Funding TxId',
+                                        leading: const Text('Funding TXID',
                                             style: TextStyle(fontSize: 17)),
                                         title: TransactionIdText(channel.fundingTxid),
                                       ),
                                       channel.closingTxid != null
                                           ? ListTile(
-                                              leading: const Text('Closing TxId',
+                                              leading: const Text('Closing TXID',
                                                   style: TextStyle(fontSize: 17)),
                                               title: TransactionIdText(channel.closingTxid!))
                                           : Container(),
@@ -210,7 +210,7 @@ class ChannelsTile extends StatelessWidget {
               title: Text(channel.state.toString()),
               children: <Widget>[
                 ListTile(
-                    leading: const Text('Dlc Channel Id', style: TextStyle(fontSize: 17)),
+                    leading: const Text('DLC Channel Id', style: TextStyle(fontSize: 17)),
                     title: IdText(id: channel.id)),
                 Visibility(
                   visible: channel.getContractId() != null,
@@ -220,12 +220,12 @@ class ChannelsTile extends StatelessWidget {
                 ),
                 channel is ClosingDlcChannel
                     ? ListTile(
-                        leading: const Text('Buffer TxId', style: TextStyle(fontSize: 17)),
+                        leading: const Text('Buffer TXID', style: TextStyle(fontSize: 17)),
                         title: TransactionIdText(channel.bufferTxid))
                     : Container(),
                 channel is ClosedDlcChannel
                     ? ListTile(
-                        leading: const Text('Closing TxId', style: TextStyle(fontSize: 17)),
+                        leading: const Text('Closing TXID', style: TextStyle(fontSize: 17)),
                         title: TransactionIdText(channel.closingTxid))
                     : Container(),
               ],
