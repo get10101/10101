@@ -74,11 +74,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let offer_channel = dlc_manager.offer_channel(
-                    &contract_input,
-                    counterparty,
-                    Some(protocol_id),
-                )?;
+                let offer_channel =
+                    dlc_manager.offer_channel(&contract_input, counterparty, Some(protocol_id))?;
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
                 let temporary_channel_id = offer_channel.temporary_channel_id;

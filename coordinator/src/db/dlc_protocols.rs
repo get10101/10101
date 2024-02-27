@@ -1,11 +1,11 @@
 use crate::dlc_protocol;
+use crate::dlc_protocol::ProtocolId;
 use crate::schema::dlc_protocols;
 use crate::schema::sql_types::ProtocolStateType;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::query_builder::QueryId;
-use diesel::result::Error::RollbackTransaction;
 use diesel::AsExpression;
 use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
@@ -16,8 +16,6 @@ use diesel::Queryable;
 use diesel::RunQueryDsl;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
-use dlc_manager::ReferenceId;
-use ln_dlc_node::util;
 use std::any::TypeId;
 use std::str::FromStr;
 use time::OffsetDateTime;
@@ -56,13 +54,10 @@ pub(crate) struct DlcProtocol {
 
 pub(crate) fn get_dlc_protocol(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
+    protocol_id: ProtocolId,
 ) -> QueryResult<dlc_protocol::DlcProtocol> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
-
     let contract_transaction: DlcProtocol = dlc_protocols::table
-        .filter(dlc_protocols::protocol_id.eq(protocol_id))
+        .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .first(conn)?;
 
     Ok(dlc_protocol::DlcProtocol::from(contract_transaction))
@@ -70,13 +65,10 @@ pub(crate) fn get_dlc_protocol(
 
 pub(crate) fn set_dlc_protocol_state_to_failed(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
+    protocol_id: ProtocolId,
 ) -> QueryResult<()> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
-
     let affected_rows = diesel::update(dlc_protocols::table)
-        .filter(dlc_protocols::protocol_id.eq(protocol_id))
+        .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .set((dlc_protocols::protocol_state.eq(DlcProtocolState::Failed),))
         .execute(conn)?;
 
@@ -89,15 +81,12 @@ pub(crate) fn set_dlc_protocol_state_to_failed(
 
 pub(crate) fn set_dlc_protocol_state_to_success(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
+    protocol_id: ProtocolId,
     contract_id: ContractId,
     channel_id: DlcChannelId,
 ) -> QueryResult<()> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
-
     let affected_rows = diesel::update(dlc_protocols::table)
-        .filter(dlc_protocols::protocol_id.eq(protocol_id))
+        .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .set((
             dlc_protocols::protocol_state.eq(DlcProtocolState::Success),
             dlc_protocols::contract_id.eq(contract_id.to_hex()),
@@ -114,28 +103,16 @@ pub(crate) fn set_dlc_protocol_state_to_success(
 
 pub(crate) fn create(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
-    previous_protocol_id: Option<ReferenceId>,
+    protocol_id: ProtocolId,
+    previous_protocol_id: Option<ProtocolId>,
     contract_id: ContractId,
     channel_id: DlcChannelId,
     trader: &PublicKey,
 ) -> QueryResult<()> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
-
-    let previous_protocol_id = match previous_protocol_id {
-        Some(previous_protocol_id) => {
-            let previous_protocol_id = util::parse_from_reference_id(previous_protocol_id)
-                .map_err(|_| RollbackTransaction)?;
-            Some(previous_protocol_id)
-        }
-        None => None,
-    };
-
     let affected_rows = diesel::insert_into(dlc_protocols::table)
         .values(&(
-            dlc_protocols::protocol_id.eq(protocol_id),
-            dlc_protocols::previous_protocol_id.eq(previous_protocol_id),
+            dlc_protocols::protocol_id.eq(protocol_id.to_uuid()),
+            dlc_protocols::previous_protocol_id.eq(previous_protocol_id.map(|ppid| ppid.to_uuid())),
             dlc_protocols::contract_id.eq(contract_id.to_hex()),
             dlc_protocols::channel_id.eq(channel_id.to_hex()),
             dlc_protocols::protocol_state.eq(DlcProtocolState::Pending),
@@ -154,7 +131,7 @@ pub(crate) fn create(
 impl From<DlcProtocol> for dlc_protocol::DlcProtocol {
     fn from(value: DlcProtocol) -> Self {
         dlc_protocol::DlcProtocol {
-            id: value.protocol_id,
+            id: value.protocol_id.into(),
             timestamp: value.timestamp,
             channel_id: DlcChannelId::from_hex(&value.channel_id).expect("valid dlc channel id"),
             contract_id: ContractId::from_hex(&value.contract_id).expect("valid contract id"),

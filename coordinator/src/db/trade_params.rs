@@ -1,16 +1,14 @@
 use crate::dlc_protocol;
+use crate::dlc_protocol::ProtocolId;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trade_params;
 use bitcoin::secp256k1::PublicKey;
-use diesel::result::Error::RollbackTransaction;
 use diesel::ExpressionMethods;
 use diesel::PgConnection;
 use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
-use dlc_manager::ReferenceId;
-use ln_dlc_node::util;
 use rust_decimal::prelude::ToPrimitive;
 use std::str::FromStr;
 use uuid::Uuid;
@@ -30,11 +28,9 @@ pub(crate) struct TradeParams {
 
 pub(crate) fn insert(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
+    protocol_id: ProtocolId,
     params: &commons::TradeParams,
 ) -> QueryResult<()> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
     let average_price = params
         .average_execution_price()
         .to_f32()
@@ -42,7 +38,7 @@ pub(crate) fn insert(
 
     let affected_rows = diesel::insert_into(trade_params::table)
         .values(&(
-            trade_params::protocol_id.eq(protocol_id),
+            trade_params::protocol_id.eq(protocol_id.to_uuid()),
             trade_params::quantity.eq(params.quantity),
             trade_params::leverage.eq(params.leverage),
             trade_params::trader_pubkey.eq(params.pubkey.to_string()),
@@ -60,29 +56,25 @@ pub(crate) fn insert(
 
 pub(crate) fn get(
     conn: &mut PgConnection,
-    protocol_id: ReferenceId,
+    protocol_id: ProtocolId,
 ) -> QueryResult<dlc_protocol::TradeParams> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
     let trade_params: TradeParams = trade_params::table
-        .filter(trade_params::protocol_id.eq(protocol_id))
+        .filter(trade_params::protocol_id.eq(protocol_id.to_uuid()))
         .first(conn)?;
 
     Ok(dlc_protocol::TradeParams::from(trade_params))
 }
 
-pub(crate) fn delete(conn: &mut PgConnection, protocol_id: ReferenceId) -> QueryResult<usize> {
-    let protocol_id =
-        util::parse_from_reference_id(protocol_id).map_err(|_| RollbackTransaction)?;
+pub(crate) fn delete(conn: &mut PgConnection, protocol_id: ProtocolId) -> QueryResult<usize> {
     diesel::delete(trade_params::table)
-        .filter(trade_params::protocol_id.eq(protocol_id))
+        .filter(trade_params::protocol_id.eq(protocol_id.to_uuid()))
         .execute(conn)
 }
 
 impl From<TradeParams> for dlc_protocol::TradeParams {
     fn from(value: TradeParams) -> Self {
         Self {
-            protocol_id: value.protocol_id,
+            protocol_id: value.protocol_id.into(),
             trader: PublicKey::from_str(&value.trader_pubkey).expect("valid pubkey"),
             quantity: value.quantity,
             leverage: value.leverage,

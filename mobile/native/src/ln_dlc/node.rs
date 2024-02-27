@@ -38,7 +38,6 @@ use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::PaymentDetails;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::transaction::Transaction;
-use ln_dlc_node::util;
 use ln_dlc_node::HTLCStatus;
 use ln_dlc_node::MillisatAmount;
 use ln_dlc_node::PaymentFlow;
@@ -182,12 +181,8 @@ impl Node {
                 None
             }
             Message::Channel(channel_msg) => {
-                let reference_id_string =
-                    util::stringify_reference_id(channel_msg.get_reference_id());
-
                 tracing::debug!(
                     from = %node_id,
-                    protocol_id = reference_id_string,
                     "Received channel message"
                 );
 

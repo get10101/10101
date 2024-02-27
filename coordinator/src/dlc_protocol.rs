@@ -13,14 +13,90 @@ use dlc_manager::ReferenceId;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::str::from_utf8;
 use time::OffsetDateTime;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::Direction;
 use uuid::Uuid;
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ProtocolId(Uuid);
+
+impl ProtocolId {
+    pub fn new() -> Self {
+        ProtocolId(Uuid::new_v4())
+    }
+
+    pub fn to_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl Default for ProtocolId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Display for ProtocolId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.to_string().fmt(f)
+    }
+}
+
+impl From<ProtocolId> for ReferenceId {
+    fn from(value: ProtocolId) -> Self {
+        let uuid = value.to_uuid();
+
+        // 16 bytes.
+        let uuid_bytes = uuid.as_bytes();
+
+        // 32-digit hex string.
+        let hex = hex::encode(uuid_bytes);
+
+        // Derived `ReferenceId`: 32-bytes.
+        let hex_bytes = hex.as_bytes();
+
+        let mut array = [0u8; 32];
+        array.copy_from_slice(hex_bytes);
+
+        array
+    }
+}
+
+impl TryFrom<ReferenceId> for ProtocolId {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ReferenceId) -> Result<Self> {
+        // 32-digit hex string.
+        let hex = from_utf8(&value)?;
+
+        // 16 bytes.
+        let uuid_bytes = hex::decode(hex)?;
+
+        let uuid = Uuid::from_slice(&uuid_bytes)?;
+
+        Ok(ProtocolId(uuid))
+    }
+}
+
+impl From<Uuid> for ProtocolId {
+    fn from(value: Uuid) -> Self {
+        ProtocolId(value)
+    }
+}
+
+impl From<ProtocolId> for Uuid {
+    fn from(value: ProtocolId) -> Self {
+        value.0
+    }
+}
+
 pub struct DlcProtocol {
-    pub id: Uuid,
+    pub id: ProtocolId,
     pub timestamp: OffsetDateTime,
     pub channel_id: DlcChannelId,
     pub contract_id: ContractId,
@@ -29,7 +105,7 @@ pub struct DlcProtocol {
 }
 
 pub struct TradeParams {
-    pub protocol_id: Uuid,
+    pub protocol_id: ProtocolId,
     pub trader: PublicKey,
     pub quantity: f32,
     pub leverage: f32,
@@ -58,8 +134,8 @@ impl DlcProtocolExecutor {
     /// Returns a uniquely generated protocol id as [`dlc_manager::ReferenceId`]
     pub fn start_dlc_protocol(
         &self,
-        protocol_id: ReferenceId,
-        previous_protocol_id: Option<ReferenceId>,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
         contract_id: ContractId,
         channel_id: DlcChannelId,
         trade_params: &commons::TradeParams,
@@ -82,7 +158,7 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    pub fn fail_dlc_protocol(&self, protocol_id: ReferenceId) -> Result<()> {
+    pub fn fail_dlc_protocol(&self, protocol_id: ProtocolId) -> Result<()> {
         let mut conn = self.pool.get()?;
         db::dlc_protocols::set_dlc_protocol_state_to_failed(&mut conn, protocol_id)?;
 
@@ -94,12 +170,12 @@ impl DlcProtocolExecutor {
     /// - Set dlc protocol to success
     /// - If not closing: Updates the `[PostionState::Proposed`] position state to
     ///   `[PostionState::Open]`
-    /// - If closing: Calculates the pnl and sets the `[PostionState::Closing`] position state to
-    ///   `[PostionState::Closed`]
+    /// - If closing: Calculates the pnl and sets the `[PositionState::Closing`] position state to
+    ///   `[PositionState::Closed`]
     /// - Creates and inserts the new trade
     pub fn finish_dlc_protocol(
         &self,
-        protocol_id: ReferenceId,
+        protocol_id: ProtocolId,
         closing: bool,
         contract_id: ContractId,
         channel_id: DlcChannelId,
@@ -208,5 +284,22 @@ impl DlcProtocolExecutor {
         })?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::dlc_protocol::ProtocolId;
+    use dlc_manager::ReferenceId;
+
+    #[test]
+    fn test_protocol_id_roundtrip() {
+        let protocol_id_0 = ProtocolId::new();
+
+        let reference_id = ReferenceId::from(protocol_id_0);
+
+        let protocol_id_1 = ProtocolId::try_from(reference_id).unwrap();
+
+        assert_eq!(protocol_id_0, protocol_id_1)
     }
 }

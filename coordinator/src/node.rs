@@ -1,5 +1,6 @@
-use crate::dlc_protocol;
 use crate::db;
+use crate::dlc_protocol;
+use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
@@ -30,7 +31,6 @@ use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
-use ln_dlc_node::util;
 use ln_dlc_node::WalletSettings;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -157,14 +157,8 @@ impl Node {
         for (node_id, msg) in messages {
             let msg_name = dlc_message_name(&msg);
             if let Err(e) = self.process_dlc_message(node_id, &msg) {
-                if let Message::Channel(msg) = &msg {
-                    if let Some(protocol_id) = msg.get_reference_id() {
-                        if let Err(e) = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone())
-                            .fail_dlc_protocol(protocol_id)
-                        {
-                            tracing::error!(from=%node_id, "Failed to set dlc protocol to failed. {e:#}");
-                        }
-                    }
+                if let Err(e) = self.set_dlc_protocol_to_failed(&msg) {
+                    tracing::error!(from=%node_id, "Failed to set dlc protocol to failed. {e:#}");
                 }
 
                 tracing::error!(
@@ -174,6 +168,22 @@ impl Node {
                 );
             }
         }
+    }
+
+    fn set_dlc_protocol_to_failed(&self, msg: &Message) -> Result<()> {
+        let msg = match msg {
+            Message::OnChain(_) => return Ok(()),
+            Message::Channel(msg) => msg,
+            Message::SubChannel(_) => return Ok(()),
+        };
+
+        if let Some(protocol_id) = msg.get_reference_id() {
+            let protocol_id = ProtocolId::try_from(protocol_id)?;
+            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone())
+                .fail_dlc_protocol(protocol_id)?;
+        }
+
+        Ok(())
     }
 
     /// Process an incoming [`Message::Channel`] and update the 10101 position accordingly.
@@ -203,12 +213,14 @@ impl Node {
                 None
             }
             Message::Channel(channel_msg) => {
-                let reference_id_string =
-                    util::stringify_reference_id(channel_msg.get_reference_id());
+                let protocol_id = match channel_msg.get_reference_id() {
+                    Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+                    None => None,
+                };
 
                 tracing::debug!(
                     from = %node_id,
-                    protocol_id = reference_id_string,
+                    ?protocol_id,
                     "Received channel message"
                 );
 
@@ -253,7 +265,7 @@ impl Node {
 
                         let channel_id_hex_string = channel_id.to_hex();
 
-                        let protocol_id = match reference_id {
+                        let reference_id = match reference_id {
                             Some(reference_id) => *reference_id,
                             // If the app did not yet update to the latest version, it will not
                             // send us the reference id in the message. In that case we will
@@ -266,11 +278,12 @@ impl Node {
                                 .get_reference_id()
                                 .context("missing reference id")?,
                         };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
 
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
-                            protocol_id = %util::parse_from_reference_id(protocol_id)?,
+                            %protocol_id,
                             "DLC channel renew protocol was finalized"
                         );
 
@@ -298,7 +311,7 @@ impl Node {
                     }) => {
                         let channel_id_hex_string = channel_id.to_hex();
 
-                        let protocol_id = match reference_id {
+                        let reference_id = match reference_id {
                             Some(reference_id) => *reference_id,
                             // If the app did not yet update to the latest version, it will not
                             // send us the reference id in the message. In that case we will
@@ -311,10 +324,12 @@ impl Node {
                                 .get_reference_id()
                                 .context("missing reference id")?,
                         };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
+
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
-                            protocol_id = %util::parse_from_reference_id(protocol_id)?,
+                            %protocol_id,
                             "DLC channel settle protocol was finalized"
                         );
 
@@ -323,11 +338,7 @@ impl Node {
                             db::dlc_protocols::get_dlc_protocol(&mut connection, protocol_id)?;
 
                         let trader_id = dlc_protocol.trader.to_string();
-                        tracing::debug!(
-                            trader_id,
-                            protocol_id = reference_id_string,
-                            "Finalize closing position",
-                        );
+                        tracing::debug!(trader_id, ?protocol_id, "Finalize closing position",);
 
                         let contract_id = dlc_protocol.contract_id;
 
@@ -336,7 +347,7 @@ impl Node {
                             Ok(None) => {
                                 tracing::error!(
                                     trader_id,
-                                    protocol_id = reference_id_string,
+                                    ?protocol_id,
                                     "Can't close position as contract is not closed."
                                 );
                                 bail!("Can't close position as contract is not closed.");
@@ -349,7 +360,8 @@ impl Node {
                             }
                         };
 
-                        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        let contract_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
                         contract_executor.finish_dlc_protocol(
                             protocol_id,
                             true,
@@ -382,7 +394,7 @@ impl Node {
                             _ => *temporary_channel_id,
                         };
 
-                        let protocol_id = match reference_id {
+                        let reference_id = match reference_id {
                             Some(reference_id) => *reference_id,
                             // If the app did not yet update to the latest version, it will not
                             // send us the reference id in the message. In that case we will
@@ -395,11 +407,12 @@ impl Node {
                                 .get_reference_id()
                                 .context("missing reference id")?,
                         };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
 
                         tracing::info!(
                             channel_id = channel_id.to_hex(),
                             node_id = node_id.to_string(),
-                            protocol_id = %util::parse_from_reference_id(protocol_id)?,
+                            %protocol_id,
                             "DLC channel open protocol was finalized"
                         );
 
@@ -407,7 +420,8 @@ impl Node {
                         let contract_id =
                             channel.get_contract_id().context("missing contract id")?;
 
-                        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        let contract_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
                         contract_executor.finish_dlc_protocol(
                             protocol_id,
                             false,

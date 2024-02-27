@@ -1,7 +1,8 @@
 use crate::compute_relative_contracts;
-use crate::dlc_protocol;
 use crate::db;
 use crate::decimal_from_f32;
+use crate::dlc_protocol;
+use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::node::NodeSettings;
@@ -40,7 +41,6 @@ use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::node;
 use ln_dlc_node::node::signed_channel_state_name;
-use ln_dlc_node::util;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -312,10 +312,10 @@ impl TradeExecutor {
             }],
         };
 
-        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
+        let protocol_id = ProtocolId::new();
 
         tracing::debug!(
-            protocol_id=util::stringify_reference_id(Some(protocol_id)),
+            %protocol_id,
             event_id,
             oracle=%trade_params.filled_with.oracle_pk,
             "Proposing DLC channel"
@@ -323,7 +323,7 @@ impl TradeExecutor {
 
         let (temporary_contract_id, temporary_channel_id) = self
             .node
-            .propose_dlc_channel(contract_input, trade_params.pubkey, protocol_id)
+            .propose_dlc_channel(contract_input, trade_params.pubkey, protocol_id.into())
             .await
             .context("Could not propose DLC channel")?;
 
@@ -484,13 +484,16 @@ impl TradeExecutor {
             }],
         };
 
-        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
+        let protocol_id = ProtocolId::new();
         let channel = self.node.get_dlc_channel_by_id(&dlc_channel_id)?;
-        let previous_id = channel.get_reference_id();
+        let previous_id = match channel.get_reference_id() {
+            Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+            None => None,
+        };
 
         let temporary_contract_id = self
             .node
-            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id)
+            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id.into())
             .await
             .context("Could not propose DLC channel update")?;
 
@@ -576,9 +579,9 @@ impl TradeExecutor {
         let dlc_channel_settlement_amount_coordinator =
             position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
 
-        let protocol_id = util::parse_from_uuid(Uuid::new_v4());
+        let protocol_id = ProtocolId::new();
         tracing::info!(
-            protocol_id = util::stringify_reference_id(Some(protocol_id)),
+            %protocol_id,
             ?position,
             channel_id = %channel_id.to_hex(),
             %position_settlement_amount_coordinator,
@@ -597,13 +600,16 @@ impl TradeExecutor {
 
         let channel = self.node.get_dlc_channel_by_id(&channel_id)?;
         let contract_id = channel.get_contract_id().context("missing contract id")?;
-        let previous_id = channel.get_reference_id();
+        let previous_id = match channel.get_reference_id() {
+            Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+            None => None,
+        };
 
         self.node
             .propose_dlc_channel_collaborative_settlement(
                 &channel_id,
                 settlement_amount_trader,
-                protocol_id,
+                protocol_id.into(),
             )
             .await?;
 
