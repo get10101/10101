@@ -7,6 +7,7 @@ use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::order::OrderState;
 use native::trade::position::PositionState;
+use std::time::Duration;
 use tests_e2e::app::submit_channel_opening_order;
 use tests_e2e::setup::TestSetup;
 use tests_e2e::wait_until;
@@ -65,6 +66,9 @@ async fn reject_offer() {
         stable: false,
     };
 
+    // give the coordinator some time to process the reject message, before submitting the next
+    // order.
+    tokio::time::sleep(Duration::from_secs(5)).await;
     submit_channel_opening_order(order.clone(), 0, 0);
 
     // Assert that the order was posted
