@@ -178,19 +178,20 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                       IconButton(
                         icon: const Icon(FontAwesomeIcons.github, size: 22),
                         onPressed: () async {
-                          await openTelegram(context);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.telegram, size: 22),
-                        onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri = Uri(scheme: "https", host: "t.me", path: "get10101");
+                          final httpsUri =
+                              Uri(scheme: "https", host: "github.com", path: "get10101");
                           if (await canLaunchUrl(httpsUri)) {
                             await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
                           } else {
                             showSnackBar(messenger, "Failed to open link");
                           }
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(FontAwesomeIcons.telegram, size: 22),
+                        onPressed: () async {
+                          await openTelegram(context);
                         },
                       ),
                       IconButton(
