@@ -18,28 +18,35 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
 
+    final offchainBalance = walletChangeNotifier.offChain()?.formatted() ?? "n/a";
+    final onchainBalance = walletChangeNotifier.onChain()?.formatted() ?? "n/a";
+
     final amountText = switch (widget.walletType) {
       WalletType.lightning => Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(walletChangeNotifier.offChain().formatted(),
+              Text(offchainBalance,
                   style: const TextStyle(
                       fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
-              const Text(" sats",
-                  style:
-                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+              walletChangeNotifier.offChain() != null
+                  ? const Text(" sats",
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+                  : Container()
             ]),
       WalletType.onChain => Row(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(walletChangeNotifier.onChain().formatted(),
+              Text(onchainBalance,
                   style: const TextStyle(
                       fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
-              const Text(" sats",
-                  style:
-                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+              walletChangeNotifier.onChain() != null
+                  ? const Text(" sats",
+                      style: TextStyle(
+                          fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
+                  : Container()
             ]),
     };
 

@@ -8,10 +8,14 @@ class WalletInfo {
   List<WalletHistoryItemData> history;
 
   WalletInfo({required this.balances, required this.history});
+
   WalletInfo.fromApi(rust.WalletInfo walletInfo)
       : balances = WalletBalances(
-            onChain: Amount(walletInfo.balances.onChain),
-            offChain: Amount(walletInfo.balances.offChain)),
+            onChain:
+                walletInfo.balances.onChain != null ? Amount(walletInfo.balances.onChain!) : null,
+            offChain: walletInfo.balances.offChain != null
+                ? Amount(walletInfo.balances.offChain!)
+                : null),
         history = walletInfo.history.map((item) {
           return WalletHistoryItemData.fromApi(item);
         }).toList();

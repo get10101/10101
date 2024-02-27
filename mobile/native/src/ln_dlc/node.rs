@@ -71,8 +71,8 @@ impl Node {
 }
 
 pub struct Balances {
-    pub on_chain: u64,
-    pub off_chain: u64,
+    pub on_chain: Option<u64>,
+    pub off_chain: Option<u64>,
 }
 
 impl From<Balances> for crate::api::Balances {
@@ -94,16 +94,27 @@ impl Node {
         self.inner.get_blockchain_height()
     }
 
-    pub fn get_wallet_balances(&self) -> Result<Balances> {
-        let on_chain_balance = self.inner.get_on_chain_balance()?;
-        let on_chain = on_chain_balance.confirmed + on_chain_balance.trusted_pending;
+    pub fn get_wallet_balances(&self) -> Balances {
+        let on_chain = match self.inner.get_on_chain_balance() {
+            Ok(on_chain) => Some(on_chain.confirmed + on_chain.trusted_pending),
+            Err(e) => {
+                tracing::error!("Failed to get onchain balance. {e:#}");
+                None
+            }
+        };
 
-        let off_chain = self.inner.get_dlc_channels_usable_balance()?;
+        let off_chain = match self.inner.get_dlc_channels_usable_balance() {
+            Ok(off_chain) => Some(off_chain.to_sat()),
+            Err(e) => {
+                tracing::error!("Failed to get dlc channels usable balance. {e:#}");
+                None
+            }
+        };
 
-        Ok(Balances {
+        Balances {
             on_chain,
-            off_chain: off_chain.to_sat(),
-        })
+            off_chain,
+        }
     }
 
     pub fn get_wallet_histories(&self) -> Result<WalletHistories> {
