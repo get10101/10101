@@ -1,3 +1,4 @@
+use crate::networking;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use crate::node::Node;
@@ -74,12 +75,8 @@ impl<S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static> Node<S, 
             loop {
                 tracing::debug!(%peer, "Setting up connection");
 
-                if let Some(fut) = lightning_net_tokio::connect_outbound(
-                    self.peer_manager.clone(),
-                    peer.pubkey,
-                    peer.address,
-                )
-                .await
+                if let Some(fut) =
+                    networking::connect_outbound(self.peer_manager.clone(), peer).await
                 {
                     return fut;
                 };

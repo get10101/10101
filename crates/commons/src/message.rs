@@ -11,7 +11,7 @@ use secp256k1::PublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
-use tokio_tungstenite::tungstenite;
+use tokio_tungstenite_wasm as tungstenite;
 use uuid::Uuid;
 
 pub type ChannelId = [u8; 32];

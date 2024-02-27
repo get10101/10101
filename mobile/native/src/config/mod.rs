@@ -14,6 +14,7 @@ pub struct ConfigInternal {
     coordinator_pubkey: PublicKey,
     electrs_endpoint: String,
     http_endpoint: SocketAddr,
+    #[allow(dead_code)] // Irrelevant when using websockets
     p2p_endpoint: SocketAddr,
     network: bitcoin::Network,
     oracle_endpoint: String,
@@ -35,9 +36,18 @@ pub fn health_check_interval() -> Duration {
 
 pub fn get_coordinator_info() -> NodeInfo {
     let config = crate::state::get_config();
+
+    #[cfg(feature = "ws")]
+    #[allow(unused_variables)] // In case both features are enabled
+    let (address, is_ws) = (config.http_endpoint, true);
+
+    #[cfg(feature = "native_tcp")]
+    let (address, is_ws) = (config.p2p_endpoint, false);
+
     NodeInfo {
         pubkey: config.coordinator_pubkey,
-        address: config.p2p_endpoint,
+        address,
+        is_ws,
     }
 }
 

@@ -76,6 +76,7 @@ fn reconnect_to_disconnected_public_channel_peers(
                     let node_info = NodeInfo {
                         pubkey: peer,
                         address,
+                        is_ws: false,
                     };
 
                     match node.connect(node_info).await {
