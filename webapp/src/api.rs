@@ -645,16 +645,17 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
             dlc_manager::channel::Channel::Closed(c) => DlcChannel {
                 dlc_channel_id: Some(c.channel_id.to_hex()),
                 channel_state: Some(ChannelState::Closed),
+                close_txid: Some(c.closing_txid.to_hex()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::CounterClosed(c) => DlcChannel {
                 dlc_channel_id: Some(c.channel_id.to_hex()),
                 channel_state: Some(ChannelState::CounterClosed),
+                close_txid: Some(c.closing_txid.to_hex()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::ClosedPunished(c) => DlcChannel {
                 dlc_channel_id: Some(c.channel_id.to_hex()),
-
                 channel_state: Some(ChannelState::ClosedPunished),
                 punnish_txid: Some(c.punish_txid.to_hex()),
                 ..DlcChannel::default()
@@ -662,6 +663,7 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
             dlc_manager::channel::Channel::CollaborativelyClosed(c) => DlcChannel {
                 dlc_channel_id: Some(c.channel_id.to_hex()),
                 channel_state: Some(ChannelState::CollaborativelyClosed),
+                close_txid: Some(c.closing_txid.to_hex()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::FailedAccept(_) => DlcChannel {

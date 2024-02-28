@@ -19,6 +19,7 @@ class DlcChannel {
               state: ChannelState.signed,
               contractId: signed.contractId,
               fundingTxid: signed.fundingTxid,
+              closingTxid: signed.closingTxid,
               signedState: SignedChannelState.fromApi(signed.state));
         }
       case (bridge.ChannelState_Offered offered):
@@ -39,26 +40,34 @@ class DlcChannel {
       case (bridge.ChannelState_Closing closing):
         {
           return ClosingDlcChannel(
+            id: dlcChannel.dlcChannelId,
+            state: ChannelState.closing,
+            contractId: closing.contractId,
+            bufferTxid: closing.bufferTxid,
+          );
+        }
+      case (bridge.ChannelState_Closed c):
+        {
+          return ClosedDlcChannel(
+              id: dlcChannel.dlcChannelId, state: ChannelState.closed, closingTxid: c.closingTxid);
+        }
+      case (bridge.ChannelState_CounterClosed c):
+        {
+          return ClosedDlcChannel(
               id: dlcChannel.dlcChannelId,
-              state: ChannelState.closing,
-              contractId: closing.contractId,
-              bufferTxid: closing.bufferTxid);
-        }
-      case (bridge.ChannelState_Closed _):
-        {
-          return DlcChannel(id: dlcChannel.dlcChannelId, state: ChannelState.closed);
-        }
-      case (bridge.ChannelState_CounterClosed _):
-        {
-          return DlcChannel(id: dlcChannel.dlcChannelId, state: ChannelState.counterClosed);
+              state: ChannelState.counterClosed,
+              closingTxid: c.closingTxid);
         }
       case (bridge.ChannelState_ClosedPunished _):
         {
           return DlcChannel(id: dlcChannel.dlcChannelId, state: ChannelState.closedPunished);
         }
-      case (bridge.ChannelState_CollaborativelyClosed _):
+      case (bridge.ChannelState_CollaborativelyClosed c):
         {
-          return DlcChannel(id: dlcChannel.dlcChannelId, state: ChannelState.collaborativelyClosed);
+          return ClosedDlcChannel(
+              id: dlcChannel.dlcChannelId,
+              state: ChannelState.collaborativelyClosed,
+              closingTxid: c.closingTxid);
         }
       case (bridge.ChannelState_FailedAccept _):
         {
@@ -104,6 +113,7 @@ class AcceptedDlcChannel extends DlcChannel {
 class SignedDlcChannel extends DlcChannel {
   String? contractId;
   String fundingTxid;
+  String? closingTxid;
   SignedChannelState signedState;
 
   SignedDlcChannel(
@@ -111,6 +121,7 @@ class SignedDlcChannel extends DlcChannel {
       required super.state,
       required this.contractId,
       required this.fundingTxid,
+      required this.closingTxid,
       required this.signedState});
 
   @override
@@ -133,6 +144,12 @@ class ClosingDlcChannel extends DlcChannel {
   String? getContractId() {
     return contractId;
   }
+}
+
+class ClosedDlcChannel extends DlcChannel {
+  String closingTxid;
+
+  ClosedDlcChannel({required super.id, required super.state, required this.closingTxid});
 }
 
 class CancelledDlcChannel extends DlcChannel {
