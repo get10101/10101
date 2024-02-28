@@ -140,9 +140,9 @@ class _PositionListItemState extends State<PositionListItem> {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.only(top: 5, bottom: 10),
               child: Wrap(
-                runSpacing: 5,
+                runSpacing: 2,
                 children: [
                   notNullPosition.unrealizedPnl == null
                       ? const ValueDataRow(
