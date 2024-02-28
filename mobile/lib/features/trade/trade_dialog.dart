@@ -81,7 +81,7 @@ Widget createSubmitWidget(
         SizedBox(
           width: 200,
           child: Wrap(
-            runSpacing: 10,
+            runSpacing: 5,
             children: [
               pendingOrder.positionAction == PositionAction.close
                   ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
@@ -114,7 +114,7 @@ Widget createSubmitWidget(
     // Only display "share on twitter" when order is filled
     if (pendingOrder.state == PendingOrderState.orderFilled) {
       children.add(Padding(
-        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+        padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
         child: ElevatedButton(
             onPressed: () async {
               showDialog(
