@@ -9,7 +9,6 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/channel_configuration.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
-import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
@@ -192,23 +191,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     }
 
     int usableBalance = channelTradeConstraints.maxLocalMarginSats;
-    bool isChannelBalance = channelTradeConstraints.isChannelBalance;
 
     // We compute the max quantity based on the margin needed for the counterparty and how much he has available.
     double price = tradeValues.price ?? 0.0;
     double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
         price *
         channelTradeConstraints.coordinatorLeverage;
-
-    String text =
-        "The usable balance of ${formatSats(Amount(usableBalance))} are your on-chain funds. If you need more, you can always deposit more into you wallet. "
-        "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
-    if (isChannelBalance) {
-      text =
-          "The usable balance of ${formatSats(Amount(usableBalance))} are your off-chain funds. At the moment you can't add more than this as we do not support splicing. \n"
-          "If you want to trade more than this, you will need to close the channel and open a bigger one. "
-          "\nWith your current balance, the maximum you can trade is ${formatUsd(Usd(maxQuantity.toInt()))}";
-    }
 
     return Wrap(
       runSpacing: 12,
@@ -220,14 +208,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               const Flexible(child: Text("Balance:")),
               const SizedBox(width: 5),
               Flexible(child: AmountText(amount: Amount(usableBalance))),
-              const SizedBox(
-                width: 5,
-              ),
-              ModalBottomSheetInfo(
-                closeButtonText: "Back to order",
-                infoButtonPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(text),
-              )
             ],
           ),
         ),
@@ -320,15 +300,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                       return AmountTextField(
                         value: margin,
                         label: "Margin (sats)",
-                        suffixIcon: showCapacityInfo
-                            ? ModalBottomSheetInfo(
-                                closeButtonText: "Back to order",
-                                child: Text(
-                                    "The max amount you can trade depends on your balance, your counterparty's balance and your leverage: \n\n"
-                                    "- Your max margin is ${formatSats(Amount(usableBalance))}\n"
-                                    "- Counterparty max margin is ${formatSats(Amount(channelTradeConstraints.maxLocalMarginSats))}\n"
-                                    "- This results in a max amount of ${formatUsd(Usd(maxQuantity.toInt()))} with your current leverage of ${tradeValues.leverage.formatted()}"))
-                            : null,
                       );
                     })),
           ],
