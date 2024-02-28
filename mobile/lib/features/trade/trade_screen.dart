@@ -216,6 +216,7 @@ class TradeScreen extends StatelessWidget {
             children: <Widget>[
               SizedBox(
                   width: tradeButtonWidth,
+                  height: 50,
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonBuy,
                     heroTag: "btnBuy",
@@ -224,13 +225,17 @@ class TradeScreen extends StatelessWidget {
                         tradeBottomSheet(context: context, direction: Direction.long);
                       }
                     },
-                    label: const Text("Buy"),
+                    label: const Text(
+                      "Buy",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     shape: tradeButtonShape,
                     backgroundColor: isBuyButtonEnabled ? tradeTheme.buy : tradeTheme.disabled,
                   )),
               const SizedBox(width: 20),
               SizedBox(
                   width: tradeButtonWidth,
+                  height: 50,
                   child: FloatingActionButton.extended(
                     key: tradeScreenButtonSell,
                     heroTag: "btnSell",
@@ -239,7 +244,10 @@ class TradeScreen extends StatelessWidget {
                         tradeBottomSheet(context: context, direction: Direction.short);
                       }
                     },
-                    label: const Text("Sell"),
+                    label: const Text(
+                      "Sell",
+                      style: TextStyle(color: Colors.white),
+                    ),
                     shape: tradeButtonShape,
                     backgroundColor: isBuyButtonEnabled ? tradeTheme.sell : tradeTheme.disabled,
                   )),

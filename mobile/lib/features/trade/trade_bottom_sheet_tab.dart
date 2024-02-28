@@ -148,7 +148,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: color, minimumSize: const Size.fromHeight(50)),
-                  child: Text(label)),
+                  child: Text(
+                    label,
+                    style: const TextStyle(color: Colors.white),
+                  )),
             ],
           )
         ],

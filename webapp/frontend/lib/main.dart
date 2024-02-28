@@ -55,12 +55,58 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
   @override
   Widget build(BuildContext context) {
     MaterialColor swatch = tenTenOnePurple;
+    final ColorScheme customColorScheme =
+        ColorScheme.fromSwatch(backgroundColor: Colors.grey[50], primarySwatch: tenTenOnePurple);
 
     return MaterialApp.router(
       title: "10101",
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: swatch,
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          selectedLabelStyle: TextStyle(color: tenTenOnePurple),
+        ),
+        navigationRailTheme: const NavigationRailThemeData(
+          selectedLabelTextStyle: TextStyle(
+            color: tenTenOnePurple,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          prefixIconColor: MaterialStateColor.resolveWith(
+            (Set<MaterialState> states) {
+              if (states.contains(MaterialState.focused)) {
+                return tenTenOnePurple;
+              }
+              if (states.contains(MaterialState.error)) {
+                return Colors.red;
+              }
+              return Colors.grey;
+            },
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            // this is the button background color
+            backgroundColor: MaterialStateProperty.resolveWith<Color>(
+              (Set<MaterialState> states) {
+                if (states.contains(MaterialState.disabled)) {
+                  // Return grey color when the button is disabled
+                  return Colors.grey;
+                }
+                // Return your default color when button is enabled
+                return tenTenOnePurple;
+              },
+            ),
+            // this is the button text color
+            foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
+            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5.0),
+              ),
+            ),
+          ),
+        ),
+        colorScheme: customColorScheme,
         iconTheme: IconThemeData(
           color: tenTenOnePurple.shade800,
           size: 32,

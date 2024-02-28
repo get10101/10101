@@ -46,7 +46,7 @@ dependencies:
   logger: ^2.0.2+1
   timeago: ^3.3.0
   flutter_svg: ^2.0.5
-  flutter_inappwebview: ^6.0.0
+  flutter_inappwebview: ^6.0.0-beta.23
   json_annotation: ^4.8.1
   url_launcher: ^6.2.4
 

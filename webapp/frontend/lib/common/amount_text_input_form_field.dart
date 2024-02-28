@@ -48,11 +48,7 @@ class AmountInputField extends StatelessWidget {
       enabled: enabled,
       controller: controller,
       textAlign: textAlign,
-      initialValue: controller != null
-          ? null
-          : value != null
-              ? value!.formatted()
-              : null,
+      initialValue: controller != null ? null : value?.formatted(),
       keyboardType: TextInputType.number,
       decoration: decoration ??
           InputDecoration(

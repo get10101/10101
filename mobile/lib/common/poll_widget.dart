@@ -29,6 +29,7 @@ class _PollWidgetState extends State<PollWidget> {
         child: Stack(
           children: [
             ExpansionTile(
+              backgroundColor: Colors.white,
               trailing: const SizedBox.shrink(),
               title: const Text("Time for a quick survey?"),
               children: [

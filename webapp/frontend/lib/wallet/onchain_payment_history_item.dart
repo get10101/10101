@@ -57,7 +57,7 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
                         style: const TextStyle(color: Colors.grey)),
                   ])),
               trailing: Padding(
-                padding: const EdgeInsets.only(top: 11.0, bottom: 5.0),
+                padding: const EdgeInsets.only(top: 5.0, bottom: 1.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
@@ -32,28 +33,30 @@ channelConfiguration({
       useRootNavigator: true,
       barrierColor: Colors.black.withOpacity(0),
       context: context,
+      useSafeArea: true,
       builder: (BuildContext context) {
         return SafeArea(
-            child: Padding(
-                padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-                // the GestureDetector ensures that we can close the keyboard by tapping into the modal
-                child: GestureDetector(
-                    onTap: () {
-                      FocusScopeNode currentFocus = FocusScope.of(context);
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: GestureDetector(
+                onTap: () {
+                  FocusScopeNode currentFocus = FocusScope.of(context);
 
-                      if (!currentFocus.hasPrimaryFocus) {
-                        currentFocus.unfocus();
-                      }
-                    },
-                    child: SingleChildScrollView(
-                      child: SizedBox(
-                        height: 450,
-                        child: ChannelConfiguration(
-                          tradeValues: tradeValues,
-                          onConfirmation: onConfirmation,
-                        ),
-                      ),
-                    ))));
+                  if (!currentFocus.hasPrimaryFocus) {
+                    currentFocus.unfocus();
+                  }
+                },
+                child: SingleChildScrollView(
+                  child: SizedBox(
+                    height: 520,
+                    child: ChannelConfiguration(
+                      tradeValues: tradeValues,
+                      onConfirmation: onConfirmation,
+                    ),
+                  ),
+                )),
+          ),
+        );
       });
 }
 
@@ -219,19 +222,27 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          ElevatedButton(
-                            key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
-                            onPressed:
-                                _formKey.currentState != null && _formKey.currentState!.validate()
-                                    ? () {
-                                        GoRouter.of(context).pop();
-                                        widget.onConfirmation(ChannelOpeningParams(
-                                            coordinatorCollateral: counterpartyCollateral,
-                                            traderCollateral: ownTotalCollateral));
-                                      }
-                                    : null,
-                            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                            child: const Text("Confirm"),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: ElevatedButton(
+                              key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
+                              onPressed:
+                                  _formKey.currentState != null && _formKey.currentState!.validate()
+                                      ? () {
+                                          GoRouter.of(context).pop();
+                                          widget.onConfirmation(ChannelOpeningParams(
+                                              coordinatorCollateral: counterpartyCollateral,
+                                              traderCollateral: ownTotalCollateral));
+                                        }
+                                      : null,
+                              style: ElevatedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(50),
+                                  backgroundColor: tenTenOnePurple),
+                              child: const Text(
+                                "Confirm",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
                           ),
                         ],
                       )

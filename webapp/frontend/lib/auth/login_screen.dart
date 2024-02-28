@@ -31,12 +31,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Image.asset('assets/10101_logo_icon.png', width: 350, height: 350),
         SizedBox(
             width: 500,
-            height: 150,
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: Colors.grey[100],
+                // color: Colors.grey[100],
               ),
               child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

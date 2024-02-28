@@ -222,7 +222,10 @@ class _PositionListItemState extends State<PositionListItem> {
                                   Text("Closing ...")
                                 ],
                               )
-                            : const Text("Close Position"),
+                            : const Text(
+                                "Close Position",
+                                style: TextStyle(color: Colors.white),
+                              ),
                       )
                     ],
                   )

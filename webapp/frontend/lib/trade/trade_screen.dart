@@ -193,7 +193,7 @@ class NewOrderWidget extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 400,
+          height: 420,
           width: 300,
           child: TabBarView(
             controller: _tabController,

@@ -129,6 +129,17 @@ class ScaffoldWithNavigationBar extends StatelessWidget {
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
+        overlayColor: MaterialStateColor.resolveWith(
+          (Set<MaterialState> states) {
+            if (states.contains(MaterialState.focused)) {
+              return Colors.green;
+            }
+            if (states.contains(MaterialState.error)) {
+              return Colors.red;
+            }
+            return Colors.grey;
+          },
+        ),
         selectedIndex: selectedIndex,
         destinations: const [
           NavigationDestination(label: 'Trading', icon: Icon(Icons.bar_chart)),
@@ -196,7 +207,6 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
               children: [
                 Container(
                   decoration: const BoxDecoration(
-                      color: Colors.white,
                       border: Border(bottom: BorderSide(width: 0.5, color: Colors.grey))),
                   padding: const EdgeInsets.all(25),
                   child: Row(

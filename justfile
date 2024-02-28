@@ -80,10 +80,10 @@ android-release:
 
 # Build flutter webapp for cargo run --bin webapp
 build-web args="":
-    cd webapp/frontend && flutter build web {{args}}
+    cd webapp/frontend && flutter build web --web-renderer html {{args}}
 
 build-web-release:
-    cd webapp/frontend && flutter build web --release
+    cd webapp/frontend && flutter build web --web-renderer html --release
 
 run-web:
     cd webapp/frontend && flutter run -d chrome --web-browser-flag "--disable-web-security"

@@ -56,10 +56,12 @@ class TradeTabs extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   TabBar(
+                      // Sets the divider below the tab to transparent
+                      dividerColor: Colors.transparent,
                       // This stops expanding the tab-bar to the right.
                       // This lets us align the tab bar to wherever we want, because it's size is limited to the tabs that it contains.
                       isScrollable: true,
-
+                      tabAlignment: TabAlignment.start,
                       // suppress overlay color (used for e.g. mouse-over) because it looks weird in this tab setup
                       overlayColor: MaterialStateColor.resolveWith((states) => Colors.transparent),
 
@@ -77,6 +79,8 @@ class TradeTabs extends StatelessWidget {
                       unselectedLabelColor: tradeTheme.tabColor,
                       indicator:
                           BoxDecoration(borderRadius: tabBorderRadius, color: tradeTheme.tabColor),
+                      labelStyle: const TextStyle(color: Colors.white),
+                      splashBorderRadius: BorderRadius.zero,
                       tabs: tabs.asMap().entries.map((entry) {
                         int index = entry.key;
                         String label = entry.value;

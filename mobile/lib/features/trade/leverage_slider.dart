@@ -140,7 +140,10 @@ class LeverageButton extends StatelessWidget {
               padding: EdgeInsets.zero,
               backgroundColor: tradeTheme.leverageMinusButtonColor),
           onPressed: () => onPressed(),
-          child: Text(label)),
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white),
+          )),
     );
   }
 }
