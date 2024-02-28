@@ -44,7 +44,7 @@ struct NewTrade {
 pub fn insert(
     conn: &mut PgConnection,
     trade: crate::trade::models::NewTrade,
-) -> Result<crate::trade::models::Trade> {
+) -> QueryResult<crate::trade::models::Trade> {
     let trade: Trade = diesel::insert_into(trades::table)
         .values(NewTrade::from(trade))
         .get_result(conn)?;

@@ -1,7 +1,8 @@
 use crate::db;
+use crate::dlc_protocol;
+use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
-use crate::position::models::Position;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::TradeExecutor;
@@ -17,6 +18,10 @@ use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
+use dlc_messages::channel::AcceptChannel;
+use dlc_messages::channel::RenewFinalize;
+use dlc_messages::channel::SettleFinalize;
+use dlc_messages::channel::SignChannel;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::util::config::UserConfig;
@@ -27,14 +32,9 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::WalletSettings;
-use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::Decimal;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use tracing::instrument;
-use trade::cfd::calculate_pnl;
-use trade::Direction;
 
 pub mod connection;
 pub mod expired_positions;
@@ -140,72 +140,6 @@ impl Node {
         Ok(())
     }
 
-    #[instrument(fields(position_id = position.id, trader_id = position.trader.to_string()),skip(self, conn, position))]
-    pub fn finalize_closing_position(
-        &self,
-        conn: &mut PgConnection,
-        position: Position,
-    ) -> Result<()> {
-        let trader_id = position.trader.to_string();
-        tracing::debug!(?position, trader_id, "Finalize closing position",);
-
-        let position_id = position.id;
-        let temporary_contract_id = match position.temporary_contract_id {
-            None => {
-                tracing::error!("Position does not have temporary contract id");
-                bail!("Position with id {position_id} with trader {trader_id} does not have temporary contract id");
-            }
-            Some(temporary_contract_id) => temporary_contract_id,
-        };
-
-        let contract = match self.inner.get_closed_contract(temporary_contract_id) {
-            Ok(Some(closed_contract)) => closed_contract,
-            Ok(None) => {
-                tracing::error!("Subchannel not closed yet, skipping");
-                bail!("Subchannel not closed for position {position_id} and trader {trader_id}");
-            }
-            Err(e) => {
-                tracing::error!("Failed to get closed contract from DLC manager storage: {e:#}");
-                bail!(e);
-            }
-        };
-
-        let pnl = if let PositionState::Closing { closing_price } = position.position_state {
-            let (initial_margin_long, initial_margin_short) = match position.trader_direction {
-                Direction::Long => (position.trader_margin, position.coordinator_margin),
-                Direction::Short => (position.coordinator_margin, position.trader_margin),
-            };
-
-            calculate_pnl(
-                Decimal::from_f32(position.average_entry_price).expect("to fit into decimal"),
-                Decimal::from_f32(closing_price).expect("to fit into decimal"),
-                position.quantity,
-                position.trader_direction,
-                initial_margin_long as u64,
-                initial_margin_short as u64,
-            )?
-        } else {
-            -0
-        };
-
-        tracing::debug!(
-            ?position,
-            pnl = pnl,
-            "Setting position to closed to match the contract state."
-        );
-
-        if let Err(e) =
-            db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)
-        {
-            tracing::error!(
-                temporary_contract_id=%temporary_contract_id.to_hex(),
-                pnl=contract.pnl,
-                "Failed to set position to closed: {e:#}"
-            )
-        }
-        Ok(())
-    }
-
     pub fn process_incoming_dlc_messages(&self) {
         if !self
             .inner
@@ -222,7 +156,11 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = dlc_message_name(&msg);
-            if let Err(e) = self.process_dlc_message(node_id, msg) {
+            if let Err(e) = self.process_dlc_message(node_id, &msg) {
+                if let Err(e) = self.set_dlc_protocol_to_failed(&msg) {
+                    tracing::error!(from=%node_id, "Failed to set dlc protocol to failed. {e:#}");
+                }
+
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
@@ -230,6 +168,22 @@ impl Node {
                 );
             }
         }
+    }
+
+    fn set_dlc_protocol_to_failed(&self, msg: &Message) -> Result<()> {
+        let msg = match msg {
+            Message::OnChain(_) => return Ok(()),
+            Message::Channel(msg) => msg,
+            Message::SubChannel(_) => return Ok(()),
+        };
+
+        if let Some(protocol_id) = msg.get_reference_id() {
+            let protocol_id = ProtocolId::try_from(protocol_id)?;
+            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone())
+                .fail_dlc_protocol(protocol_id)?;
+        }
+
+        Ok(())
     }
 
     /// Process an incoming [`Message::Channel`] and update the 10101 position accordingly.
@@ -246,26 +200,37 @@ impl Node {
     /// inconsistent state. One way of fixing that could be to: (1) use a single data source for the
     /// 10101 data and the `rust-dlc` data; (2) wrap the function into a DB transaction which can be
     /// atomically rolled back on error or committed on success.
-    fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+    fn process_dlc_message(&self, node_id: PublicKey, msg: &Message) -> Result<()> {
         tracing::info!(
             from = %node_id,
-            kind = %dlc_message_name(&msg),
+            kind = %dlc_message_name(msg),
             "Processing message"
         );
 
-        let resp = match &msg {
+        let resp = match msg {
             Message::OnChain(_) | Message::SubChannel(_) => {
-                tracing::warn!(from = %node_id, kind = %dlc_message_name(&msg),"Ignoring unexpected dlc message.");
+                tracing::warn!(from = %node_id, kind = %dlc_message_name(msg),"Ignoring unexpected dlc message.");
                 None
             }
             Message::Channel(channel_msg) => {
+                let protocol_id = match channel_msg.get_reference_id() {
+                    Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+                    None => None,
+                };
+
+                tracing::debug!(
+                    from = %node_id,
+                    ?protocol_id,
+                    "Received channel message"
+                );
+
                 let inbound_msg = {
                     let mut conn = self.pool.get()?;
-                    let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
+                    let serialized_inbound_message = SerializedDlcMessage::try_from(msg)?;
                     let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
                     match db::dlc_messages::get(&mut conn, &inbound_msg.message_hash)? {
                         Some(_) => {
-                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
+                            tracing::debug!(%node_id, kind=%dlc_message_name(msg), "Received message that has already been processed, skipping.");
                             return Ok(());
                         }
                         None => inbound_msg,
@@ -275,11 +240,11 @@ impl Node {
                 let resp = self
                     .inner
                     .dlc_manager
-                    .on_dlc_message(&msg, node_id)
+                    .on_dlc_message(msg, node_id)
                     .with_context(|| {
                         format!(
                             "Failed to handle {} dlc message from {node_id}",
-                            dlc_message_name(&msg)
+                            dlc_message_name(msg)
                         )
                     })?;
 
@@ -289,57 +254,120 @@ impl Node {
                 }
 
                 match channel_msg {
-                    ChannelMessage::RenewFinalize(r) => {
+                    ChannelMessage::RenewFinalize(RenewFinalize {
+                        channel_id,
+                        reference_id,
+                        ..
+                    }) => {
                         // TODO: Receiving this message used to be specific to rolling over, but we
                         // now use the renew protocol for all (non-closing)
                         // trades beyond the first one.
-                        // self.finalize_rollover(&r.channel_id)?;
 
-                        let channel_id_hex_string = r.channel_id.to_hex();
+                        let channel_id_hex_string = channel_id.to_hex();
+
+                        let reference_id = match reference_id {
+                            Some(reference_id) => *reference_id,
+                            // If the app did not yet update to the latest version, it will not
+                            // send us the reference id in the message. In that case we will
+                            // have to look up the reference id ourselves from the channel.
+                            // TODO(holzeis): Remove this fallback handling once not needed
+                            // anymore.
+                            None => self
+                                .inner
+                                .get_dlc_channel_by_id(channel_id)?
+                                .get_reference_id()
+                                .context("missing reference id")?,
+                        };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
+
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
+                            %protocol_id,
                             "DLC channel renew protocol was finalized"
                         );
 
                         if self.is_in_rollover(node_id)? {
-                            self.finalize_rollover(&r.channel_id)?;
+                            self.finalize_rollover(channel_id)?;
                         } else {
-                            let mut connection = self.pool.get()?;
-                            db::positions::Position::update_proposed_position(
-                                &mut connection,
-                                node_id.to_string(),
-                                PositionState::Open,
+                            let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
+                            let contract_id =
+                                channel.get_contract_id().context("missing contract id")?;
+
+                            let contract_executor =
+                                dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                            contract_executor.finish_dlc_protocol(
+                                protocol_id,
+                                false,
+                                contract_id,
+                                channel.get_id(),
                             )?;
                         }
                     }
-                    ChannelMessage::SettleFinalize(settle_finalize) => {
-                        let channel_id_hex_string = settle_finalize.channel_id.to_hex();
+                    ChannelMessage::SettleFinalize(SettleFinalize {
+                        channel_id,
+                        reference_id,
+                        ..
+                    }) => {
+                        let channel_id_hex_string = channel_id.to_hex();
+
+                        let reference_id = match reference_id {
+                            Some(reference_id) => *reference_id,
+                            // If the app did not yet update to the latest version, it will not
+                            // send us the reference id in the message. In that case we will
+                            // have to look up the reference id ourselves from the channel.
+                            // TODO(holzeis): Remove this fallback handling once not needed
+                            // anymore.
+                            None => self
+                                .inner
+                                .get_dlc_channel_by_id(channel_id)?
+                                .get_reference_id()
+                                .context("missing reference id")?,
+                        };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
+
                         tracing::info!(
                             channel_id = channel_id_hex_string,
                             node_id = node_id.to_string(),
+                            %protocol_id,
                             "DLC channel settle protocol was finalized"
                         );
-                        let mut connection = self.pool.get()?;
 
-                        match db::positions::Position::get_position_by_trader(
-                            &mut connection,
-                            node_id,
-                            vec![
-                                // The price doesn't matter here.
-                                PositionState::Closing { closing_price: 0.0 },
-                            ],
-                        )? {
-                            None => {
+                        let mut connection = self.pool.get()?;
+                        let dlc_protocol =
+                            db::dlc_protocols::get_dlc_protocol(&mut connection, protocol_id)?;
+
+                        let trader_id = dlc_protocol.trader.to_string();
+                        tracing::debug!(trader_id, ?protocol_id, "Finalize closing position",);
+
+                        let contract_id = dlc_protocol.contract_id;
+
+                        match self.inner.get_closed_contract(contract_id) {
+                            Ok(Some(closed_contract)) => closed_contract,
+                            Ok(None) => {
                                 tracing::error!(
-                                    channel_id = channel_id_hex_string,
-                                    "No position in Closing state found"
+                                    trader_id,
+                                    ?protocol_id,
+                                    "Can't close position as contract is not closed."
                                 );
+                                bail!("Can't close position as contract is not closed.");
                             }
-                            Some(position) => {
-                                self.finalize_closing_position(&mut connection, position)?;
+                            Err(e) => {
+                                tracing::error!(
+                                    "Failed to get closed contract from DLC manager storage: {e:#}"
+                                );
+                                bail!(e);
                             }
-                        }
+                        };
+
+                        let contract_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        contract_executor.finish_dlc_protocol(
+                            protocol_id,
+                            true,
+                            contract_id,
+                            *channel_id,
+                        )?;
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
                         let channel_id_hex_string = close_offer.channel_id.to_hex();
@@ -353,18 +381,52 @@ impl Node {
                         self.inner
                             .accept_dlc_channel_collaborative_close(&close_offer.channel_id)?;
                     }
-                    ChannelMessage::Accept(accept_channel) => {
-                        let channel_id_hex_string = accept_channel.temporary_channel_id.to_hex();
+                    ChannelMessage::Accept(AcceptChannel {
+                        temporary_channel_id,
+                        reference_id,
+                        ..
+                    }) => {
+                        let channel_id = match resp {
+                            Some(Message::Channel(ChannelMessage::Sign(SignChannel {
+                                channel_id,
+                                ..
+                            }))) => channel_id,
+                            _ => *temporary_channel_id,
+                        };
+
+                        let reference_id = match reference_id {
+                            Some(reference_id) => *reference_id,
+                            // If the app did not yet update to the latest version, it will not
+                            // send us the reference id in the message. In that case we will
+                            // have to look up the reference id ourselves from the channel.
+                            // TODO(holzeis): Remove this fallback handling once not needed
+                            // anymore.
+                            None => self
+                                .inner
+                                .get_dlc_channel_by_id(&channel_id)?
+                                .get_reference_id()
+                                .context("missing reference id")?,
+                        };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
+
                         tracing::info!(
-                            channel_id = channel_id_hex_string,
+                            channel_id = channel_id.to_hex(),
                             node_id = node_id.to_string(),
+                            %protocol_id,
                             "DLC channel open protocol was finalized"
                         );
-                        let mut connection = self.pool.get()?;
-                        db::positions::Position::update_proposed_position(
-                            &mut connection,
-                            node_id.to_string(),
-                            PositionState::Open,
+
+                        let channel = self.inner.get_dlc_channel_by_id(&channel_id)?;
+                        let contract_id =
+                            channel.get_contract_id().context("missing contract id")?;
+
+                        let contract_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        contract_executor.finish_dlc_protocol(
+                            protocol_id,
+                            false,
+                            contract_id,
+                            channel_id,
                         )?;
                     }
                     ChannelMessage::Reject(reject) => {

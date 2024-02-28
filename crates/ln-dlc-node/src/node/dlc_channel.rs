@@ -21,6 +21,7 @@ use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
+use dlc_manager::ReferenceId;
 use dlc_manager::Storage;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
@@ -32,7 +33,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         contract_input: ContractInput,
         counterparty: PublicKey,
-    ) -> Result<[u8; 32]> {
+        protocol_id: ReferenceId,
+    ) -> Result<(ContractId, DlcChannelId)> {
         tracing::info!(
             trader_id = counterparty.to_hex(),
             oracles = ?contract_input.contract_infos[0].oracles,
@@ -72,9 +74,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let offer_channel = dlc_manager.offer_channel(&contract_input, counterparty)?;
+                let offer_channel =
+                    dlc_manager.offer_channel(&contract_input, counterparty, Some(protocol_id))?;
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
+                let temporary_channel_id = offer_channel.temporary_channel_id;
 
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.
@@ -83,7 +87,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
                 })?;
 
-                Ok(temporary_contract_id)
+                Ok((temporary_contract_id, temporary_channel_id))
             }
         })
         .await?
@@ -131,7 +135,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             "Force closing DLC channel"
         );
 
-        self.dlc_manager.force_close_channel(channel_id)?;
+        self.dlc_manager.force_close_channel(channel_id, None)?;
         Ok(())
     }
 
@@ -158,7 +162,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                             "Proposing collaborative close"
                         );
                         let settle_offer = dlc_manager
-                            .offer_collaborative_close(&channel.channel_id, counter_payout)
+                            .offer_collaborative_close(&channel.channel_id, counter_payout, None)
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
                             )?;
@@ -187,8 +191,9 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
     /// Collaboratively close a position within a DLC Channel
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
-        channel_id: DlcChannelId,
+        channel_id: &DlcChannelId,
         accept_settlement_amount: u64,
+        protocol_id: ReferenceId,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -201,9 +206,13 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
             let event_handler = self.event_handler.clone();
+            let channel_id = *channel_id;
             move || {
-                let (settle_offer, counterparty) =
-                    dlc_manager.settle_offer(&channel_id, accept_settlement_amount)?;
+                let (settle_offer, counterparty) = dlc_manager.settle_offer(
+                    &channel_id,
+                    accept_settlement_amount,
+                    Some(protocol_id),
+                )?;
 
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.
@@ -254,6 +263,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         &self,
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
+        protocol_id: ReferenceId,
     ) -> Result<[u8; 32]> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
@@ -264,8 +274,12 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
                 let counter_payout = 0;
 
-                let (renew_offer, counterparty_pubkey) =
-                    dlc_manager.renew_offer(&dlc_channel_id, counter_payout, &contract_input)?;
+                let (renew_offer, counterparty_pubkey) = dlc_manager.renew_offer(
+                    &dlc_channel_id,
+                    counter_payout,
+                    &contract_input,
+                    Some(protocol_id),
+                )?;
 
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.

@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::positions;
+use crate::dlc_protocol::ProtocolId;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
@@ -226,8 +227,9 @@ impl Node {
 
         let contract_input: ContractInput = rollover.clone().into();
 
+        let protocol_id = ProtocolId::new();
         self.inner
-            .propose_dlc_channel_update(dlc_channel_id, contract_input)
+            .propose_dlc_channel_update(dlc_channel_id, contract_input, protocol_id.into())
             .await?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.

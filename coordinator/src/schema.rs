@@ -48,6 +48,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "PositionState_Type"))]
     pub struct PositionStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Protocol_State_Type"))]
+    pub struct ProtocolStateType;
 }
 
 diesel::table! {
@@ -109,6 +113,22 @@ diesel::table! {
         inbound -> Bool,
         peer_id -> Text,
         message_type -> MessageTypeType,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::ProtocolStateType;
+
+    dlc_protocols (id) {
+        id -> Int4,
+        protocol_id -> Uuid,
+        previous_protocol_id -> Nullable<Uuid>,
+        channel_id -> Text,
+        contract_id -> Text,
+        protocol_state -> ProtocolStateType,
+        trader_pubkey -> Text,
         timestamp -> Timestamptz,
     }
 }
@@ -295,6 +315,21 @@ diesel::table! {
 
 diesel::table! {
     use diesel::sql_types::*;
+    use super::sql_types::DirectionType;
+
+    trade_params (id) {
+        id -> Int4,
+        protocol_id -> Uuid,
+        trader_pubkey -> Text,
+        quantity -> Float4,
+        leverage -> Float4,
+        average_price -> Float4,
+        direction -> DirectionType,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
     use super::sql_types::ContractSymbolType;
     use super::sql_types::DirectionType;
 
@@ -348,6 +383,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     choices,
     collaborative_reverts,
     dlc_messages,
+    dlc_protocols,
     last_outbound_dlc_messages,
     legacy_collaborative_reverts,
     liquidity_options,
@@ -359,6 +395,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     positions,
     routing_fees,
     spendable_outputs,
+    trade_params,
     trades,
     transactions,
     users,

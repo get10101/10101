@@ -239,6 +239,7 @@ pub fn confirm_collaborative_revert(
             counter_party: signed_channel.counter_party,
             temporary_channel_id: signed_channel.temporary_channel_id,
             channel_id: signed_channel.channel_id,
+            reference_id: None,
         }),
         // The contract doesn't matter anymore.
         None,

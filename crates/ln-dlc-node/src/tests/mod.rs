@@ -21,6 +21,7 @@ use crate::EventHandlerTrait;
 use crate::EventSender;
 use crate::WalletSettings;
 use anyhow::Result;
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::XOnlyPublicKey;
@@ -36,6 +37,7 @@ use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::subchannel::SubChannelState;
+use dlc_manager::ReferenceId;
 use futures::Future;
 use lightning::events::Event;
 use lightning::util::config::UserConfig;
@@ -54,6 +56,7 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
 use tokio::task::block_in_place;
+use uuid::Uuid;
 
 mod bitcoind;
 mod dlc_channel;
@@ -541,4 +544,17 @@ fn dummy_contract_input(
             },
         }],
     }
+}
+
+pub fn new_reference_id() -> ReferenceId {
+    let uuid = Uuid::new_v4();
+    let hex = uuid.as_simple().to_hex();
+    let bytes = hex.as_bytes();
+
+    debug_assert!(bytes.len() == 32, "length must be exactly 32 bytes");
+
+    let mut array = [0u8; 32];
+    array.copy_from_slice(bytes);
+
+    array
 }

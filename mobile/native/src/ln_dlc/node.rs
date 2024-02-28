@@ -181,6 +181,11 @@ impl Node {
                 None
             }
             Message::Channel(channel_msg) => {
+                tracing::debug!(
+                    from = %node_id,
+                    "Received channel message"
+                );
+
                 let inbound_msg = {
                     let mut conn = db::connection()?;
                     let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;

@@ -5,6 +5,7 @@ use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
 use crate::tests::init_tracing;
+use crate::tests::new_reference_id;
 use crate::tests::wait_until;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -30,7 +31,11 @@ async fn can_open_and_settle_offchain() {
     let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
     coordinator
-        .propose_dlc_channel_update(&coordinator_signed_channel.channel_id, contract_input)
+        .propose_dlc_channel_update(
+            &coordinator_signed_channel.channel_id,
+            contract_input,
+            new_reference_id(),
+        )
         .await
         .unwrap();
 
@@ -373,7 +378,7 @@ async fn open_channel_and_position(
     );
 
     coordinator
-        .propose_dlc_channel(contract_input, app.info.pubkey)
+        .propose_dlc_channel(contract_input, app.info.pubkey, new_reference_id())
         .await
         .unwrap();
 
@@ -491,8 +496,9 @@ async fn open_channel_and_position(
 
     coordinator
         .propose_dlc_channel_collaborative_settlement(
-            coordinator_signed_channel.channel_id,
+            &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
+            new_reference_id(),
         )
         .await
         .unwrap();
