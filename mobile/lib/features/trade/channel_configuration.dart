@@ -36,7 +36,7 @@ channelConfiguration({
       useSafeArea: true,
       builder: (BuildContext context) {
         return SafeArea(
-          child: Padding(
+          child: Container(
             padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
             child: GestureDetector(
                 onTap: () {
@@ -48,7 +48,7 @@ channelConfiguration({
                 },
                 child: SingleChildScrollView(
                   child: SizedBox(
-                    height: 520,
+                    height: 450,
                     child: ChannelConfiguration(
                       tradeValues: tradeValues,
                       onConfirmation: onConfirmation,
@@ -127,7 +127,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     return Form(
         key: _formKey,
         child: Container(
-            padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+            padding: const EdgeInsets.only(top: 5, left: 20, right: 20),
             child: Column(children: [
               const Text("DLC Channel Configuration",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
@@ -141,15 +141,15 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                 style: DefaultTextStyle.of(context).style,
               )),
               const SizedBox(
-                height: 20,
+                height: 10,
               ),
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  padding: const EdgeInsets.only(top: 10),
                   child: Column(
                     children: [
                       Wrap(
-                        runSpacing: 10,
+                        runSpacing: 5,
                         children: [
                           SizedBox(
                             height: 80,
@@ -200,7 +200,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 10),
                           ValueDataRow(
                               type: ValueType.amount,
                               value: ownTotalCollateral,
@@ -217,13 +217,13 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                           type: ValueType.amount,
                           value: ownTotalCollateral.add(openingFee),
                           label: "Total"),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 17),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: const EdgeInsets.only(top: 8, left: 8, right: 8),
                             child: ElevatedButton(
                               key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
                               onPressed:
