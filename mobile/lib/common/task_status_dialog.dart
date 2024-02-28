@@ -78,6 +78,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
         child: Text(widget.buttonText));
 
     AlertDialog dialog = AlertDialog(
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12.0))),
       icon: (() {
         switch (widget.status) {
           case TaskStatus.pending:
