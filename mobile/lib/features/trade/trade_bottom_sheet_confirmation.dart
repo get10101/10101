@@ -62,7 +62,7 @@ tradeBottomSheetConfirmation(
             },
             child: SingleChildScrollView(
               child: SizedBox(
-                  height: TradeAction.closePosition == tradeAction ? 320 : 450,
+                  height: TradeAction.closePosition == tradeAction ? 330 : 450,
                   child: TradeBottomSheetConfirmation(
                     direction: direction,
                     sliderButtonKey: sliderButtonKey,
@@ -153,7 +153,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
     return Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.only(left: 20, right: 20, top: (isClose ? 20 : 10), bottom: 10),
         child: Column(
           children: [
             const ContractSymbolIcon(),
@@ -165,7 +165,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                 child: Column(
                   children: [
                     Wrap(
-                      runSpacing: 10,
+                      runSpacing: 5,
                       children: [
                         if (!isClose)
                           ValueDataRow(
