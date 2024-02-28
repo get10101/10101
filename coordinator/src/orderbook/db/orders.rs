@@ -187,7 +187,7 @@ pub fn all_limit_orders(conn: &mut PgConnection) -> QueryResult<Vec<OrderbookOrd
     let orders = orders::table
         .filter(orders::order_type.eq(OrderType::Limit))
         .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
-        .filter(orders::order_state.ne(OrderState::Failed))
+        .filter(orders::order_state.eq(OrderState::Open))
         .load::<Order>(conn)?;
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
