@@ -238,7 +238,7 @@ class BitcoinAddress extends StatelessWidget {
             });
           },
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 15),
             child: Opacity(
                 opacity: 1.0,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -457,7 +457,8 @@ class SelectableButton extends StatelessWidget {
       onPressed: onPressed,
       style: ButtonStyle(
         iconSize: MaterialStateProperty.all<double>(20.0),
-        elevation: MaterialStateProperty.all<double>(0), // this reduces the shade
+        elevation: MaterialStateProperty.all<double>(0),
+        // this reduces the shade
         side: MaterialStateProperty.all(BorderSide(
             width: isSelected ? 1.0 : 0,
             color: isSelected ? selectedColor.withOpacity(1) : Colors.grey.shade300)),
@@ -599,7 +600,8 @@ class _InvoiceDrawerScreen extends State<InvoiceDrawerScreen> {
                     style: ButtonStyle(
                       fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
                       iconSize: MaterialStateProperty.all<double>(20.0),
-                      elevation: MaterialStateProperty.all<double>(0), // this reduces the shade
+                      elevation: MaterialStateProperty.all<double>(0),
+                      // this reduces the shade
                       side: MaterialStateProperty.all(
                           const BorderSide(width: 1.0, color: tenTenOnePurple)),
                       padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
