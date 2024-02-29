@@ -21,12 +21,6 @@ jobs:
 
           print(f"::set-output name=version::{version}")
 
-      - name: Extract changelog section for release
-        id: changelog
-        uses: coditory/changelog-parser@v1
-        with:
-          version: ${{ steps.extract-version.outputs.version }}
-
       - uses: actions/download-artifact@v3
         with:
           name: ${{ needs.build.outputs.ANDROID_APK_NAME }}
@@ -35,8 +29,8 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           artifacts: ${{ needs.build.outputs.ANDROID_APK_NAME }}
-          body: ${{ steps.changelog.outputs.description }}
           token: ${{ secrets.GH_ACTION_TOKEN }}
           tag: ${{ steps.extract-version.outputs.version }}
           prerelease: true
           makeLatest: false
+          generateReleaseNotes: true
