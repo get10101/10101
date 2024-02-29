@@ -341,8 +341,8 @@ impl TradeExecutor {
             .await
             .context("Could not propose DLC channel")?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
             temporary_contract_id,
@@ -511,8 +511,8 @@ impl TradeExecutor {
             .await
             .context("Could not propose DLC channel update")?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
             temporary_contract_id,
@@ -627,8 +627,8 @@ impl TradeExecutor {
             )
             .await?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
             contract_id,

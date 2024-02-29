@@ -277,9 +277,9 @@ impl Node {
                             let contract_id =
                                 channel.get_contract_id().context("missing contract id")?;
 
-                            let contract_executor =
+                            let protocol_executor =
                                 dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                            contract_executor.finish_dlc_protocol(
+                            protocol_executor.finish_dlc_protocol(
                                 protocol_id,
                                 false,
                                 contract_id,
@@ -343,9 +343,9 @@ impl Node {
                             }
                         };
 
-                        let contract_executor =
+                        let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        contract_executor.finish_dlc_protocol(
+                        protocol_executor.finish_dlc_protocol(
                             protocol_id,
                             true,
                             contract_id,
@@ -402,9 +402,9 @@ impl Node {
                         let contract_id =
                             channel.get_contract_id().context("missing contract id")?;
 
-                        let contract_executor =
+                        let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        contract_executor.finish_dlc_protocol(
+                        protocol_executor.finish_dlc_protocol(
                             protocol_id,
                             false,
                             contract_id,
