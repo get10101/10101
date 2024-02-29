@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -15,7 +14,6 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:social_share/social_share.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class TradeDialog extends StatelessWidget {
@@ -83,7 +81,7 @@ Widget createSubmitWidget(
         SizedBox(
           width: 200,
           child: Wrap(
-            runSpacing: 10,
+            runSpacing: 5,
             children: [
               pendingOrder.positionAction == PositionAction.close
                   ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
@@ -116,7 +114,7 @@ Widget createSubmitWidget(
     // Only display "share on twitter" when order is filled
     if (pendingOrder.state == PendingOrderState.orderFilled) {
       children.add(Padding(
-        padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
+        padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
         child: ElevatedButton(
             onPressed: () async {
               showDialog(
@@ -148,18 +146,6 @@ Widget createSubmitWidget(
     mainAxisSize: MainAxisSize.min,
     children: children,
   );
-}
-
-Future<void> shareTweet(PositionAction action) async {
-  String actionStr = action == PositionAction.open ? "opened" : "closed";
-  String shareText =
-      "Just $actionStr a #selfcustodial position using #DLC with @get10101 🚀. The future of decentralised finance starts now! #Bitcoin";
-
-  if (Platform.isAndroid || Platform.isIOS) {
-    await SocialShare.shareTwitter(shareText);
-  } else {
-    await Share.share(shareText);
-  }
 }
 
 class ClickableHelpText extends StatelessWidget {
