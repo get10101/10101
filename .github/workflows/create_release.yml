@@ -38,3 +38,5 @@ jobs:
           body: ${{ steps.changelog.outputs.description }}
           token: ${{ secrets.GH_ACTION_TOKEN }}
           tag: ${{ steps.extract-version.outputs.version }}
+          prerelease: true
+          makeLatest: false
