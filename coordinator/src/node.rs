@@ -270,20 +270,25 @@ impl Node {
                             "DLC channel renew protocol was finalized"
                         );
 
-                        if self.is_in_rollover(node_id)? {
-                            self.finalize_rollover(channel_id)?;
-                        } else {
-                            let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
-                            let contract_id =
-                                channel.get_contract_id().context("missing contract id")?;
+                        let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
+                        let contract_id =
+                            channel.get_contract_id().context("missing contract id")?;
 
-                            let protocol_executor =
-                                dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                            protocol_executor.finish_dlc_protocol(
+                        let protocol_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        if self.is_in_rollover(node_id)? {
+                            protocol_executor.finish_rollover_dlc_protocol(
+                                protocol_id,
+                                &contract_id,
+                                &channel.get_id(),
+                                &to_secp_pk_30(channel.get_counter_party_id()),
+                            )?;
+                        } else {
+                            protocol_executor.finish_trade_dlc_protocol(
                                 protocol_id,
                                 false,
-                                contract_id,
-                                channel.get_id(),
+                                &contract_id,
+                                &channel.get_id(),
                             )?;
                         }
                     }
@@ -345,11 +350,11 @@ impl Node {
 
                         let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        protocol_executor.finish_dlc_protocol(
+                        protocol_executor.finish_trade_dlc_protocol(
                             protocol_id,
                             true,
-                            contract_id,
-                            *channel_id,
+                            &contract_id,
+                            channel_id,
                         )?;
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
@@ -404,11 +409,11 @@ impl Node {
 
                         let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        protocol_executor.finish_dlc_protocol(
+                        protocol_executor.finish_trade_dlc_protocol(
                             protocol_id,
                             false,
-                            contract_id,
-                            channel_id,
+                            &contract_id,
+                            &channel_id,
                         )?;
                     }
                     ChannelMessage::Reject(reject) => {

@@ -138,8 +138,8 @@ pub(crate) fn set_dlc_protocol_state_to_failed(
 pub(crate) fn set_dlc_protocol_state_to_success(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
-    contract_id: ContractId,
-    channel_id: DlcChannelId,
+    contract_id: &ContractId,
+    channel_id: &DlcChannelId,
 ) -> QueryResult<()> {
     let affected_rows = diesel::update(dlc_protocols::table)
         .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))

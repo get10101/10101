@@ -222,7 +222,7 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the dlc protocol as successful and updates the 10101 meta data
+    /// Completes the trade dlc protocol as successful and updates the 10101 meta data
     /// accordingly in a single database transaction.
     /// - Set dlc protocol to success
     /// - If not closing: Updates the `[PostionState::Proposed`] position state to
@@ -230,12 +230,12 @@ impl DlcProtocolExecutor {
     /// - If closing: Calculates the pnl and sets the `[PositionState::Closing`] position state to
     ///   `[PositionState::Closed`]
     /// - Creates and inserts the new trade
-    pub fn finish_dlc_protocol(
+    pub fn finish_trade_dlc_protocol(
         &self,
         protocol_id: ProtocolId,
         closing: bool,
-        contract_id: ContractId,
-        channel_id: DlcChannelId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
 
@@ -338,6 +338,32 @@ impl DlcProtocolExecutor {
             db::trades::insert(conn, new_trade)?;
 
             db::trade_params::delete(conn, protocol_id)
+        })?;
+
+        Ok(())
+    }
+
+    /// Completes the rollover dlc protocol as successful and updates the 10101 meta data
+    /// accordingly in a single database transaction.
+    pub fn finish_rollover_dlc_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        trader: &PublicKey,
+    ) -> Result<()> {
+        tracing::debug!(%trader, %protocol_id, "Finalizing rollover");
+        let mut conn = self.pool.get()?;
+
+        conn.transaction(|conn| {
+            db::dlc_protocols::set_dlc_protocol_state_to_success(
+                conn,
+                protocol_id,
+                contract_id,
+                channel_id,
+            )?;
+
+            db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)
         })?;
 
         Ok(())
