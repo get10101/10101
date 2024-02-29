@@ -274,7 +274,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
         protocol_id: ReferenceId,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<ContractId> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
