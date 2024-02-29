@@ -345,8 +345,8 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
-            temporary_contract_id,
-            temporary_channel_id,
+            &temporary_contract_id,
+            &temporary_channel_id,
             trade_params,
         )?;
 
@@ -515,8 +515,8 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            temporary_contract_id,
-            channel.get_id(),
+            &temporary_contract_id,
+            &channel.get_id(),
             trade_params,
         )?;
 
@@ -631,8 +631,8 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            contract_id,
-            channel.get_id(),
+            &contract_id,
+            &channel.get_id(),
             trade_params,
         )?;
 

@@ -104,8 +104,8 @@ pub(crate) fn create(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
     previous_protocol_id: Option<ProtocolId>,
-    contract_id: ContractId,
-    channel_id: DlcChannelId,
+    contract_id: &ContractId,
+    channel_id: &DlcChannelId,
     trader: &PublicKey,
 ) -> QueryResult<()> {
     let affected_rows = diesel::insert_into(dlc_protocols::table)

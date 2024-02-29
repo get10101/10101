@@ -136,8 +136,8 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: ContractId,
-        channel_id: DlcChannelId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
         trade_params: &commons::TradeParams,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
