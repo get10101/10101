@@ -300,8 +300,8 @@ impl Position {
         conn: &mut PgConnection,
         trader_pubkey: String,
         temporary_contract_id: ContractId,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
+    ) -> QueryResult<usize> {
+        diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey))
             .filter(
                 positions::position_state
@@ -313,11 +313,7 @@ impl Position {
                 positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
-            .execute(conn)?;
-
-        ensure!(affected_rows > 0, "Could not set position to open");
-
-        Ok(())
+            .execute(conn)
     }
 
     pub fn update_unrealized_pnl(conn: &mut PgConnection, id: i32, pnl: i64) -> Result<()> {
