@@ -308,7 +308,9 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let offered_contract = offered_contracts
                     .iter()
                     .find(|contract| contract.counter_party == counterparty_pubkey)
-                    .context("Cold not find offered contract after proposing DLC channel update")?;
+                    .context(
+                        "Could not find offered contract after proposing DLC channel update",
+                    )?;
 
                 Ok(offered_contract.id)
             }
