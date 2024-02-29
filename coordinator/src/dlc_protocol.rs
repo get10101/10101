@@ -12,6 +12,7 @@ use dlc_manager::ContractId;
 use dlc_manager::ReferenceId;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -102,8 +103,10 @@ pub struct DlcProtocol {
     pub contract_id: ContractId,
     pub trader: PublicKey,
     pub protocol_state: DlcProtocolState,
+    pub protocol_type: DlcProtocolType,
 }
 
+#[derive(Clone, Debug)]
 pub struct TradeParams {
     pub protocol_id: ProtocolId,
     pub trader: PublicKey,
@@ -113,10 +116,55 @@ pub struct TradeParams {
     pub direction: Direction,
 }
 
+impl From<(ProtocolId, &commons::TradeParams)> for TradeParams {
+    fn from((protocol_id, trade_params): (ProtocolId, &commons::TradeParams)) -> Self {
+        Self {
+            protocol_id,
+            trader: trade_params.pubkey,
+            quantity: trade_params.quantity,
+            leverage: trade_params.leverage,
+            average_price: trade_params
+                .average_execution_price()
+                .to_f32()
+                .expect("to fit into f32"),
+            direction: trade_params.direction,
+        }
+    }
+}
+
 pub enum DlcProtocolState {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Debug)]
+pub enum DlcProtocolType {
+    Open { trade_params: TradeParams },
+    Renew { trade_params: TradeParams },
+    Settle { trade_params: TradeParams },
+    Close { trader: PublicKey },
+    ForceClose { trader: PublicKey },
+    Rollover { trader: PublicKey },
+}
+
+impl DlcProtocolType {
+    pub fn get_trader_pubkey(&self) -> &PublicKey {
+        match self {
+            DlcProtocolType::Open {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Renew {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Settle {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Close { trader } => trader,
+            DlcProtocolType::ForceClose { trader } => trader,
+            DlcProtocolType::Rollover { trader } => trader,
+        }
+    }
 }
 
 pub struct DlcProtocolExecutor {
@@ -138,7 +186,7 @@ impl DlcProtocolExecutor {
         previous_protocol_id: Option<ProtocolId>,
         contract_id: &ContractId,
         channel_id: &DlcChannelId,
-        trade_params: &commons::TradeParams,
+        protocol_type: DlcProtocolType,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
         conn.transaction(|conn| {
@@ -148,9 +196,18 @@ impl DlcProtocolExecutor {
                 previous_protocol_id,
                 contract_id,
                 channel_id,
-                &trade_params.pubkey,
+                protocol_type.clone(),
+                protocol_type.get_trader_pubkey(),
             )?;
-            db::trade_params::insert(conn, protocol_id, trade_params)?;
+
+            match protocol_type {
+                DlcProtocolType::Open { trade_params }
+                | DlcProtocolType::Renew { trade_params }
+                | DlcProtocolType::Settle { trade_params } => {
+                    db::trade_params::insert(conn, protocol_id, &trade_params)?;
+                }
+                _ => {}
+            }
 
             diesel::result::QueryResult::Ok(())
         })?;

@@ -52,6 +52,10 @@ pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "Protocol_State_Type"))]
     pub struct ProtocolStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Protocol_Type_Type"))]
+    pub struct ProtocolTypeType;
 }
 
 diesel::table! {
@@ -120,6 +124,7 @@ diesel::table! {
 diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ProtocolStateType;
+    use super::sql_types::ProtocolTypeType;
 
     dlc_protocols (id) {
         id -> Int4,
@@ -130,6 +135,7 @@ diesel::table! {
         protocol_state -> ProtocolStateType,
         trader_pubkey -> Text,
         timestamp -> Timestamptz,
+        protocol_type -> ProtocolTypeType,
     }
 }
 

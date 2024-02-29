@@ -2,6 +2,7 @@ use crate::compute_relative_contracts;
 use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
+use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
@@ -347,7 +348,9 @@ impl TradeExecutor {
             None,
             &temporary_contract_id,
             &temporary_channel_id,
-            trade_params,
+            DlcProtocolType::Open {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         // After the DLC channel has been proposed the position can be created. This fixes
@@ -517,7 +520,9 @@ impl TradeExecutor {
             previous_id,
             &temporary_contract_id,
             &channel.get_id(),
-            trade_params,
+            DlcProtocolType::Renew {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
@@ -633,7 +638,9 @@ impl TradeExecutor {
             previous_id,
             &contract_id,
             &channel.get_id(),
-            trade_params,
+            DlcProtocolType::Settle {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         db::positions::Position::set_open_position_to_closing(

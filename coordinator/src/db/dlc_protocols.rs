@@ -1,7 +1,9 @@
+use crate::db;
 use crate::dlc_protocol;
 use crate::dlc_protocol::ProtocolId;
 use crate::schema::dlc_protocols;
 use crate::schema::sql_types::ProtocolStateType;
+use crate::schema::sql_types::ProtocolTypeType;
 use bitcoin::secp256k1::PublicKey;
 use diesel::query_builder::QueryId;
 use diesel::AsExpression;
@@ -37,6 +39,26 @@ impl QueryId for ProtocolStateType {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression, Eq, Hash)]
+#[diesel(sql_type = ProtocolTypeType)]
+pub(crate) enum DlcProtocolType {
+    Open,
+    Renew,
+    Settle,
+    Close,
+    ForceClose,
+    Rollover,
+}
+
+impl QueryId for ProtocolTypeType {
+    type QueryId = ProtocolTypeType;
+    const HAS_STATIC_QUERY_ID: bool = false;
+
+    fn query_id() -> Option<TypeId> {
+        None
+    }
+}
+
 #[derive(Queryable, Debug)]
 #[diesel(table_name = protocols)]
 #[allow(dead_code)] // We have to allow dead code here because diesel needs the fields to be able to derive queryable.
@@ -49,17 +71,52 @@ pub(crate) struct DlcProtocol {
     pub protocol_state: DlcProtocolState,
     pub trader_pubkey: String,
     pub timestamp: OffsetDateTime,
+    pub protocol_type: DlcProtocolType,
 }
 
 pub(crate) fn get_dlc_protocol(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
 ) -> QueryResult<dlc_protocol::DlcProtocol> {
-    let contract_transaction: DlcProtocol = dlc_protocols::table
+    let dlc_protocol: DlcProtocol = dlc_protocols::table
         .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .first(conn)?;
 
-    Ok(dlc_protocol::DlcProtocol::from(contract_transaction))
+    let protocol_type = match dlc_protocol.protocol_type {
+        DlcProtocolType::Open => {
+            let trade_params = db::trade_params::get(conn, protocol_id)?;
+            dlc_protocol::DlcProtocolType::Open { trade_params }
+        }
+        DlcProtocolType::Renew => {
+            let trade_params = db::trade_params::get(conn, protocol_id)?;
+            dlc_protocol::DlcProtocolType::Renew { trade_params }
+        }
+        DlcProtocolType::Settle => {
+            let trade_params = db::trade_params::get(conn, protocol_id)?;
+            dlc_protocol::DlcProtocolType::Settle { trade_params }
+        }
+        DlcProtocolType::Close => dlc_protocol::DlcProtocolType::Close {
+            trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
+        },
+        DlcProtocolType::ForceClose => dlc_protocol::DlcProtocolType::ForceClose {
+            trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
+        },
+        DlcProtocolType::Rollover => dlc_protocol::DlcProtocolType::Rollover {
+            trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
+        },
+    };
+
+    let protocol = dlc_protocol::DlcProtocol {
+        id: dlc_protocol.protocol_id.into(),
+        timestamp: dlc_protocol.timestamp,
+        channel_id: DlcChannelId::from_hex(&dlc_protocol.channel_id).expect("valid dlc channel id"),
+        contract_id: ContractId::from_hex(&dlc_protocol.contract_id).expect("valid contract id"),
+        trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
+        protocol_state: dlc_protocol.protocol_state.into(),
+        protocol_type,
+    };
+
+    Ok(protocol)
 }
 
 pub(crate) fn set_dlc_protocol_state_to_failed(
@@ -106,6 +163,7 @@ pub(crate) fn create(
     previous_protocol_id: Option<ProtocolId>,
     contract_id: &ContractId,
     channel_id: &DlcChannelId,
+    protocol_type: dlc_protocol::DlcProtocolType,
     trader: &PublicKey,
 ) -> QueryResult<()> {
     let affected_rows = diesel::insert_into(dlc_protocols::table)
@@ -117,6 +175,7 @@ pub(crate) fn create(
             dlc_protocols::protocol_state.eq(DlcProtocolState::Pending),
             dlc_protocols::trader_pubkey.eq(trader.to_string()),
             dlc_protocols::timestamp.eq(OffsetDateTime::now_utc()),
+            dlc_protocols::protocol_type.eq(DlcProtocolType::from(protocol_type)),
         ))
         .execute(conn)?;
 
@@ -125,19 +184,6 @@ pub(crate) fn create(
     }
 
     Ok(())
-}
-
-impl From<DlcProtocol> for dlc_protocol::DlcProtocol {
-    fn from(value: DlcProtocol) -> Self {
-        dlc_protocol::DlcProtocol {
-            id: value.protocol_id.into(),
-            timestamp: value.timestamp,
-            channel_id: DlcChannelId::from_hex(&value.channel_id).expect("valid dlc channel id"),
-            contract_id: ContractId::from_hex(&value.contract_id).expect("valid contract id"),
-            trader: PublicKey::from_str(&value.trader_pubkey).expect("valid public key"),
-            protocol_state: value.protocol_state.into(),
-        }
-    }
 }
 
 impl From<dlc_protocol::DlcProtocolState> for DlcProtocolState {
@@ -156,6 +202,19 @@ impl From<DlcProtocolState> for dlc_protocol::DlcProtocolState {
             DlcProtocolState::Pending => dlc_protocol::DlcProtocolState::Pending,
             DlcProtocolState::Success => dlc_protocol::DlcProtocolState::Success,
             DlcProtocolState::Failed => dlc_protocol::DlcProtocolState::Failed,
+        }
+    }
+}
+
+impl From<dlc_protocol::DlcProtocolType> for DlcProtocolType {
+    fn from(value: dlc_protocol::DlcProtocolType) -> Self {
+        match value {
+            dlc_protocol::DlcProtocolType::Open { .. } => DlcProtocolType::Open,
+            dlc_protocol::DlcProtocolType::Renew { .. } => DlcProtocolType::Renew,
+            dlc_protocol::DlcProtocolType::Settle { .. } => DlcProtocolType::Settle,
+            dlc_protocol::DlcProtocolType::Close { .. } => DlcProtocolType::Close,
+            dlc_protocol::DlcProtocolType::ForceClose { .. } => DlcProtocolType::ForceClose,
+            dlc_protocol::DlcProtocolType::Rollover { .. } => DlcProtocolType::Rollover,
         }
     }
 }

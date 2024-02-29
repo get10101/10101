@@ -1,6 +1,7 @@
 use crate::db::channels::ChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::dlc_protocols::DlcProtocolState;
+use crate::db::dlc_protocols::DlcProtocolType;
 use crate::db::polls::PollType;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
@@ -11,6 +12,7 @@ use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PollTypeType;
 use crate::schema::sql_types::PositionStateType;
 use crate::schema::sql_types::ProtocolStateType;
+use crate::schema::sql_types::ProtocolTypeType;
 use diesel::deserialize;
 use diesel::deserialize::FromSql;
 use diesel::pg::Pg;
@@ -199,7 +201,35 @@ impl FromSql<ProtocolStateType, Pg> for DlcProtocolState {
             b"Pending" => Ok(DlcProtocolState::Pending),
             b"Success" => Ok(DlcProtocolState::Success),
             b"Failed" => Ok(DlcProtocolState::Failed),
-            _ => Err("Unrecognized enum variant for ContractTransactionType".into()),
+            _ => Err("Unrecognized enum variant for ProtocolStateType".into()),
+        }
+    }
+}
+
+impl ToSql<ProtocolTypeType, Pg> for DlcProtocolType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            DlcProtocolType::Open => out.write_all(b"open")?,
+            DlcProtocolType::Settle => out.write_all(b"settle")?,
+            DlcProtocolType::Renew => out.write_all(b"renew")?,
+            DlcProtocolType::Rollover => out.write_all(b"rollover")?,
+            DlcProtocolType::Close => out.write_all(b"close")?,
+            DlcProtocolType::ForceClose => out.write_all(b"force-close")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<ProtocolTypeType, Pg> for DlcProtocolType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"open" => Ok(DlcProtocolType::Open),
+            b"settle" => Ok(DlcProtocolType::Settle),
+            b"renew" => Ok(DlcProtocolType::Renew),
+            b"rollover" => Ok(DlcProtocolType::Rollover),
+            b"close" => Ok(DlcProtocolType::Close),
+            b"force-close" => Ok(DlcProtocolType::ForceClose),
+            _ => Err("Unrecognized enum variant for ProtocolTypeType".into()),
         }
     }
 }
