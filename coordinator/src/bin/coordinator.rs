@@ -286,6 +286,7 @@ async fn main() -> Result<()> {
         tx_price_feed,
         tx_user_feed,
         auth_users_notifier.clone(),
+        notification_service.get_sender(),
         user_backup,
     );
 

@@ -12,6 +12,7 @@ pub enum NotificationKind {
     PositionSoonToExpire,
     PositionExpired,
     CollaborativeRevert,
+    Campaign { title: String, message: String },
 }
 
 impl Display for NotificationKind {
@@ -21,21 +22,29 @@ impl Display for NotificationKind {
             NotificationKind::PositionExpired => write!(f, "PositionExpired"),
             NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
             NotificationKind::CollaborativeRevert => write!(f, "CollaborativeRevertPending"),
+            NotificationKind::Campaign { .. } => write!(f, "Campaign"),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Notification {
-    pub user_fcm_token: FcmToken,
-    pub notification_kind: NotificationKind,
+    fcm_tokens: Vec<FcmToken>,
+    notification_kind: NotificationKind,
 }
 
 impl Notification {
     pub fn new(user_fcm_token: FcmToken, notification_kind: NotificationKind) -> Self {
         Self {
             notification_kind,
-            user_fcm_token,
+            fcm_tokens: vec![user_fcm_token],
+        }
+    }
+
+    pub fn new_batch(fcm_tokens: Vec<FcmToken>, notification_kind: NotificationKind) -> Self {
+        Self {
+            notification_kind,
+            fcm_tokens,
         }
     }
 }
@@ -63,19 +72,25 @@ impl NotificationService {
             let client = fcm::Client::new();
             async move {
                 while let Some(Notification {
-                    user_fcm_token,
+                    fcm_tokens,
                     notification_kind,
                 }) = notification_receiver.recv().await
                 {
-                    tracing::info!(%notification_kind, %user_fcm_token, "Sending notification");
+                    for user_fcm_token in fcm_tokens {
+                        tracing::info!(%notification_kind, %user_fcm_token, "Sending notification");
 
-                    if !fcm_api_key.is_empty() {
-                        let notification = build_notification(notification_kind);
-                        if let Err(e) =
-                            send_notification(&client, &fcm_api_key, &user_fcm_token, notification)
-                                .await
-                        {
-                            tracing::error!("Could not send notification to FCM: {:?}", e);
+                        if !fcm_api_key.is_empty() {
+                            let notification = build_notification(&notification_kind);
+                            if let Err(e) = send_notification(
+                                &client,
+                                &fcm_api_key,
+                                &user_fcm_token,
+                                notification,
+                            )
+                            .await
+                            {
+                                tracing::error!("Could not send notification to FCM: {:?}", e);
+                            }
                         }
                     }
                 }
@@ -94,7 +109,7 @@ impl NotificationService {
 }
 
 /// Prepares the notification text
-fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
+fn build_notification(kind: &NotificationKind) -> fcm::Notification<'_> {
     let mut notification_builder = fcm::NotificationBuilder::new();
     match kind {
         NotificationKind::PositionSoonToExpire => {
@@ -112,6 +127,10 @@ fn build_notification<'a>(kind: NotificationKind) -> fcm::Notification<'a> {
         NotificationKind::CollaborativeRevert => {
             notification_builder.title("Error detected");
             notification_builder.body("Please open your app to recover your funds.");
+        }
+        NotificationKind::Campaign { title, message } => {
+            notification_builder.title(title);
+            notification_builder.body(message);
         }
     }
     notification_builder.finalize()
@@ -151,7 +170,7 @@ async fn send_notification<'a>(
     let response = client
         .send(message)
         .await
-        .context("could not send FCM notification")?;
+        .context("Could not send FCM notification")?;
     tracing::debug!("Sent notification. Response: {:?}", response);
     Ok(())
 }
