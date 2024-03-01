@@ -32,6 +32,8 @@ use ln_dlc_storage::DlcStorageProvider;
 use ln_dlc_storage::WalletStorage;
 use std::sync::Arc;
 
+const COIN_SELECTION_MAX_ROUNDS: usize = 100_000;
+
 #[derive(Clone)]
 pub struct DlcWallet<D, S, N> {
     on_chain_wallet: Arc<OnChainWallet<D>>,
@@ -257,7 +259,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
         };
 
         coin_selector
-            .run_bnb(metric, 100_000)
+            .run_bnb(metric, COIN_SELECTION_MAX_ROUNDS)
             .map_err(|e| dlc_manager::error::Error::WalletError((format!("{e:#}")).into()))?;
 
         debug_assert!(coin_selector.is_target_met(target));
