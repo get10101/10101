@@ -47,7 +47,7 @@ const tradeScreenBottomSheetButtonBuy = Key(_trade + _bottomSheet + _button + _b
 const tradeScreenBottomSheetButtonSell = Key(_trade + _bottomSheet + _button + _sell);
 
 const tradeScreenBottomSheetChannelConfigurationConfirmButton =
-    Key(_trade + _bottomSheet + _configureChannel + _configureChannel);
+    Key(_trade + _bottomSheet + _configureChannel);
 
 const tradeScreenBottomSheetConfirmationConfigureChannelSlider =
     Key(_trade + _bottomSheet + _confirmSheet + _channelConfig + _slider + _openChannel);

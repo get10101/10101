@@ -232,7 +232,7 @@ pub enum WalletHistoryItemType {
         funding_txid: String,
         // This fee represents the total fee reserved for all off-chain transactions, i.e. for the
         // fund/buffer/cet/refund. Only the part for the fund tx has been paid for now
-        reserved_fee_sats: Option<u64>,
+        funding_tx_fee_sats: Option<u64>,
         confirmations: u64,
         // The amount we hold in the channel
         our_channel_input_amount_sats: u64,
@@ -770,6 +770,18 @@ pub fn decode_destination(destination: String) -> Result<Destination> {
 
 pub fn get_node_id() -> SyncReturn<String> {
     SyncReturn(ln_dlc::get_node_pubkey().to_string())
+}
+
+pub fn get_estimated_channel_fee_reserve() -> Result<SyncReturn<u64>> {
+    let reserve = ln_dlc::estimated_fee_reserve()?;
+
+    Ok(SyncReturn(reserve.to_sat()))
+}
+
+pub fn get_estimated_funding_tx_fee() -> Result<SyncReturn<u64>> {
+    let fee = ln_dlc::estimated_funding_tx_fee()?;
+
+    Ok(SyncReturn(fee.to_sat()))
 }
 
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {

@@ -1,3 +1,5 @@
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -35,6 +37,17 @@ tradeBottomSheetConfirmation(
       ? tradeScreenBottomSheetConfirmationSliderButtonBuy
       : tradeScreenBottomSheetConfirmationSliderButtonSell;
 
+  Amount? fundingTxFee;
+  Amount? channelFeeReserve;
+
+  if (tradeAction == TradeAction.openChannel) {
+    final DlcChannelService dlcChannelService =
+        context.read<DlcChannelChangeNotifier>().dlcChannelService;
+
+    fundingTxFee = dlcChannelService.getEstimatedFundingTxFee();
+    channelFeeReserve = dlcChannelService.getEstimatedChannelFeeReserve();
+  }
+
   showModalBottomSheet<void>(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(
@@ -62,7 +75,7 @@ tradeBottomSheetConfirmation(
             },
             child: SingleChildScrollView(
               child: SizedBox(
-                  height: TradeAction.closePosition == tradeAction ? 330 : 450,
+                  height: TradeAction.closePosition == tradeAction ? 330 : 500,
                   child: TradeBottomSheetConfirmation(
                     direction: direction,
                     sliderButtonKey: sliderButtonKey,
@@ -70,6 +83,8 @@ tradeBottomSheetConfirmation(
                     onConfirmation: onConfirmation,
                     tradeAction: tradeAction,
                     traderCollateral: channelOpeningParams?.traderCollateral,
+                    channelFeeReserve: channelFeeReserve,
+                    fundingTxFee: fundingTxFee,
                   )),
             ),
           ),
@@ -111,15 +126,20 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
   final TradeAction tradeAction;
 
   final Amount? traderCollateral;
+  final Amount? channelFeeReserve;
+  final Amount? fundingTxFee;
 
-  const TradeBottomSheetConfirmation(
-      {required this.direction,
-      super.key,
-      required this.sliderButtonKey,
-      required this.sliderKey,
-      required this.onConfirmation,
-      required this.tradeAction,
-      this.traderCollateral});
+  const TradeBottomSheetConfirmation({
+    required this.direction,
+    super.key,
+    required this.sliderButtonKey,
+    required this.sliderKey,
+    required this.onConfirmation,
+    required this.tradeAction,
+    this.traderCollateral,
+    this.channelFeeReserve,
+    this.fundingTxFee,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -141,9 +161,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         : Amount.zero();
 
     // Fallback to 0 if we can't get the fee or the margin
-    Amount total = tradeValues.fee != null && tradeValues.margin != null
-        ? Amount(tradeValues.fee!.sats + tradeValues.margin!.sats).add(reserve)
-        : Amount(0);
+    Amount total =
+        tradeValues.margin != null ? Amount(tradeValues.margin!.sats).add(reserve) : Amount(0);
     Amount pnl = Amount(0);
     if (context.read<PositionChangeNotifier>().positions.containsKey(ContractSymbol.btcusd)) {
       final position = context.read<PositionChangeNotifier>().positions[ContractSymbol.btcusd];
@@ -199,13 +218,28 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                         ),
                         isChannelOpen
                             ? ValueDataRow(
-                                type: ValueType.amount, value: reserve, label: 'Channel reserve')
+                                type: ValueType.amount,
+                                value: reserve,
+                                label: 'Channel collateral reserve')
+                            : const SizedBox(height: 0),
+                        isChannelOpen
+                            ? ValueDataRow(
+                                type: ValueType.amount,
+                                value: channelFeeReserve,
+                                label: 'Channel fee reserve')
                             : const SizedBox(height: 0),
                         isChannelOpen
                             ? ValueDataRow(
                                 type: ValueType.amount,
                                 value: openingFee,
                                 label: 'Channel-opening fee',
+                              )
+                            : const SizedBox(height: 0),
+                        isChannelOpen
+                            ? ValueDataRow(
+                                type: ValueType.amount,
+                                value: fundingTxFee,
+                                label: 'Transaction fee estimate',
                               )
                             : const SizedBox(height: 0),
                       ],

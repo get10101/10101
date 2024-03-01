@@ -20,11 +20,11 @@ resolver = "2"
 # We are using our own fork of `rust-dlc` at least until we can drop all the LN-DLC features. Also,
 # `p2pderivatives/rust-dlc#master` is missing certain patches that can only be found in the LN-DLC
 # branch.
-dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "bc31c6167e304d7886c328da91e8c17dad1afce5" }
-dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "bc31c6167e304d7886c328da91e8c17dad1afce5" }
-dlc = { git = "https://github.com/get10101/rust-dlc", rev = "bc31c6167e304d7886c328da91e8c17dad1afce5" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "bc31c6167e304d7886c328da91e8c17dad1afce5" }
-dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "bc31c6167e304d7886c328da91e8c17dad1afce5" }
+dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "1ab4bf5" }
+dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "1ab4bf5" }
+dlc = { git = "https://github.com/get10101/rust-dlc", rev = "1ab4bf5" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "1ab4bf5" }
+dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "1ab4bf5" }
 
 # We should usually track the `p2pderivatives/split-tx-experiment[-10101]` branch. For now we depend
 # on a special fork which removes a panic in `rust-lightning`.

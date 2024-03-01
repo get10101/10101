@@ -818,3 +818,68 @@ pub fn send_dlc_message<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcSt
     // enqueued message ASAP.
     peer_manager.process_events();
 }
+
+/// Give an estimate for the fee reserve of a DLC channel, given a fee rate.
+///
+/// Limitations:
+///
+/// - `rust-dlc` assumes that both parties will use P2WPKH script pubkeys for their CET outputs. If
+/// they don't then the reserved fee might be slightly over or under the target fee rate.
+///
+/// - Rounding errors can cause very slight differences between what we estimate here and what
+/// `rust-dlc` will end up reserving.
+pub fn estimated_dlc_channel_fee_reserve(fee_rate_sats_per_vb: f64) -> Amount {
+    let buffer_weight_wu = dlc::channel::BUFFER_TX_WEIGHT;
+
+    let cet_or_refund_weight_wu = {
+        let cet_or_refund_base_weight_wu = dlc::CET_BASE_WEIGHT;
+        // Because the CET spends from a buffer transaction, compared to a regular DLC that spends
+        // directly from the funding transaction.
+        let cet_or_refund_extra_weight_wu = dlc::channel::CET_EXTRA_WEIGHT;
+
+        // This is the standard length of a P2WPKH script pubkey.
+        let cet_or_refund_output_spk_bytes = 22;
+
+        // Value = 8 bytes; var_int = 1 byte.
+        let cet_or_refund_output_weight_wu = (8 + 1 + cet_or_refund_output_spk_bytes) * 4;
+
+        cet_or_refund_base_weight_wu
+            + cet_or_refund_extra_weight_wu
+            // 1 output per party.
+            + (2 * cet_or_refund_output_weight_wu)
+    };
+
+    let total_weight_vb = (buffer_weight_wu + cet_or_refund_weight_wu) as f64 / 4.0;
+
+    let total_fee_reserve = total_weight_vb * fee_rate_sats_per_vb;
+    let total_fee_reserve = total_fee_reserve.ceil() as u64;
+
+    Amount::from_sat(total_fee_reserve)
+}
+
+/// Give an estimate for the fee paid to publish a DLC channel funding transaction, given a fee
+/// rate.
+///
+/// This estimate is based on a funding transaction spending _two_ P2WPKH inputs (one per party) and
+/// including _two_ P2WPKH change outputs (also one per party).
+///
+/// Values taken from
+/// https://github.com/discreetlogcontracts/dlcspecs/blob/master/Transactions.md#fees.
+pub fn estimated_funding_transaction_fee(fee_rate_sats_per_vb: f64) -> Amount {
+    let base_weight_wu = dlc::FUND_TX_BASE_WEIGHT;
+
+    let input_script_pubkey_length = 22;
+    let max_witness_length = 108;
+    let input_weight_wu = 164 + (4 * input_script_pubkey_length) + max_witness_length;
+
+    let output_script_pubkey_length = 22;
+    let output_weight_wu = 36 + (4 * output_script_pubkey_length);
+
+    let total_weight_wu = base_weight_wu + (input_weight_wu * 2) + (output_weight_wu * 2);
+    let total_weight_vb = total_weight_wu as f64 / 4.0;
+
+    let fee = total_weight_vb * fee_rate_sats_per_vb;
+    let fee = fee.ceil() as u64;
+
+    Amount::from_sat(fee)
+}

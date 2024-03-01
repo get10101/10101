@@ -33,7 +33,7 @@ tradeBottomSheet({required BuildContext context, required Direction direction}) 
               child: SizedBox(
                   // TODO: Find a way to make height dynamic depending on the children size
                   // This is needed because otherwise the keyboard does not push the sheet up correctly
-                  height: 470,
+                  height: 500,
                   child: TradeBottomSheet(direction: direction)),
             ),
           ),

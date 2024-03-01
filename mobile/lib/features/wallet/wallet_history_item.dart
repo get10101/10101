@@ -443,7 +443,7 @@ class DlcChannelFundingHistoryItem extends WalletHistoryItem {
           displayWidget: TransactionIdText(data.fundingTxid)),
       HistoryDetail(label: "Confirmations", value: data.confirmations.toString()),
       HistoryDetail(label: "Channel input", value: formatSats(data.ourChannelInputAmountSats)),
-      HistoryDetail(label: "Reserved fee", value: formatSats(data.reservedFeeSats)),
+      HistoryDetail(label: "Funding TX fee estimate", value: formatSats(data.fundingTxFee)),
     ];
 
     return details;

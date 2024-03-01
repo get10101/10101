@@ -17,7 +17,7 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
-use dlc::util::weight_to_fee;
+use dlc::util::tx_weight_to_fee;
 use dlc_manager::channel::ClosedChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Signer;
@@ -86,7 +86,7 @@ pub async fn propose_collaborative_revert(
         .checked_sub(trader_amount_sats)
         .context("Could not substract trader amount from total value without overflow")?;
 
-    let fee = weight_to_fee(COLLABORATIVE_REVERT_TX_WEIGHT, fee_rate_sats_vb)
+    let fee = tx_weight_to_fee(COLLABORATIVE_REVERT_TX_WEIGHT, fee_rate_sats_vb)
         .context("Could not calculate fee")?;
 
     let fee_half = fee.checked_div(2).context("Could not divide fee")?;

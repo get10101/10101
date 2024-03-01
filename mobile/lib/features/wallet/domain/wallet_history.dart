@@ -81,7 +81,7 @@ abstract class WalletHistoryItemData {
         amount: amount,
         status: status,
         timestamp: timestamp,
-        reservedFeeSats: Amount(type.reservedFeeSats ?? 0),
+        fundingTxFee: Amount(type.fundingTxFeeSats ?? 0),
         fundingTxid: type.fundingTxid,
         confirmations: type.confirmations,
         ourChannelInputAmountSats: Amount(type.ourChannelInputAmountSats),
@@ -183,7 +183,7 @@ class TradeData extends WalletHistoryItemData {
 }
 
 class DlcChannelFundingData extends WalletHistoryItemData {
-  final Amount reservedFeeSats;
+  final Amount fundingTxFee;
   final String fundingTxid;
   final int confirmations;
   final Amount ourChannelInputAmountSats;
@@ -193,7 +193,7 @@ class DlcChannelFundingData extends WalletHistoryItemData {
       required super.amount,
       required super.status,
       required super.timestamp,
-      required this.reservedFeeSats,
+      required this.fundingTxFee,
       required this.confirmations,
       required this.ourChannelInputAmountSats,
       required this.fundingTxid});
