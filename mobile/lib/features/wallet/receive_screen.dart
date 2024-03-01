@@ -8,6 +8,7 @@ import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/secondary_action_button.dart';
@@ -49,6 +50,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     super.initState();
     _createPaymentRequest(amount, description)
         .then((paymentRequest) => setState(() => _paymentRequest = paymentRequest));
+    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
   }
 
   String rawInvoice() {
@@ -62,6 +64,10 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   @override
   Widget build(BuildContext context) {
     final bridge.Config config = context.read<bridge.Config>();
+
+    final balance = context.watch<WalletChangeNotifier>().walletInfo.balances.onChain;
+    final hasDlcChannel = context.watch<DlcChannelChangeNotifier>().hasDlcChannel();
+    const minBalance = 275000;
 
     if (_paymentRequest == null) {
       return Scaffold(
@@ -202,6 +208,41 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         BitcoinAddress(
           address: _paymentRequest == null ? "" : _paymentRequest!.address,
         ),
+        const Spacer(),
+        Visibility(
+          visible: !hasDlcChannel && balance.sats < minBalance,
+          child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+              decoration: BoxDecoration(
+                  border: Border.all(color: tenTenOnePurple),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info,
+                    color: tenTenOnePurple,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                      child: RichText(
+                    softWrap: true,
+                    text: TextSpan(
+                      text: "You will need around",
+                      style: const TextStyle(fontSize: 15, color: Colors.black87),
+                      children: [
+                        TextSpan(
+                            text: " ${formatSats(Amount(minBalance))} ",
+                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                        const TextSpan(text: "in your on-chain wallet to start trading.")
+                      ],
+                    ),
+                  ))
+                ],
+              )),
+        ),
       ]),
     )));
   }
@@ -238,7 +279,7 @@ class BitcoinAddress extends StatelessWidget {
             });
           },
           child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 15),
             child: Opacity(
                 opacity: 1.0,
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -457,7 +498,7 @@ class SelectableButton extends StatelessWidget {
       onPressed: onPressed,
       style: ButtonStyle(
         iconSize: MaterialStateProperty.all<double>(20.0),
-        elevation: MaterialStateProperty.all<double>(0), // this reduces the shade
+        elevation: MaterialStateProperty.all<double>(0),
         side: MaterialStateProperty.all(BorderSide(
             width: isSelected ? 1.0 : 0,
             color: isSelected ? selectedColor.withOpacity(1) : Colors.grey.shade300)),
@@ -547,6 +588,7 @@ class _InvoiceDrawerScreen extends State<InvoiceDrawerScreen> {
                       color: Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(4)),
                   child: InvoiceInputField(
+                    keyboardType: TextInputType.number,
                     onChanged: (value) => {
                       setState(() {
                         _amount = int.parse(value);
@@ -599,7 +641,8 @@ class _InvoiceDrawerScreen extends State<InvoiceDrawerScreen> {
                     style: ButtonStyle(
                       fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
                       iconSize: MaterialStateProperty.all<double>(20.0),
-                      elevation: MaterialStateProperty.all<double>(0), // this reduces the shade
+                      elevation: MaterialStateProperty.all<double>(0),
+                      // this reduces the shade
                       side: MaterialStateProperty.all(
                           const BorderSide(width: 1.0, color: tenTenOnePurple)),
                       padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
@@ -629,6 +672,7 @@ class InvoiceInputField extends StatelessWidget {
   final String hintText;
   final List<TextInputFormatter>? inputFormatters;
   final String value;
+  final TextInputType? keyboardType;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
 
@@ -638,6 +682,7 @@ class InvoiceInputField extends StatelessWidget {
     required this.hintText,
     required this.inputFormatters,
     required this.value,
+    this.keyboardType,
     this.prefixIcon,
     this.suffixIcon,
   });
@@ -646,6 +691,7 @@ class InvoiceInputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       initialValue: value,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hintText,

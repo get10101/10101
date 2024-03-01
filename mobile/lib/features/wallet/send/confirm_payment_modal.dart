@@ -125,11 +125,6 @@ class ConfirmPayment extends StatelessWidget {
                       Text(truncateWithEllipsis(26, destination.raw),
                           style: const TextStyle(fontSize: 16)),
                       const Divider(height: 40, indent: 0, endIndent: 0),
-                      const Text("Payee", style: TextStyle(color: Colors.grey, fontSize: 16)),
-                      const SizedBox(height: 5),
-                      Text(truncateWithEllipsis(26, destination.payee),
-                          style: const TextStyle(fontSize: 16)),
-                      const Divider(height: 40, indent: 0, endIndent: 0),
                       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
