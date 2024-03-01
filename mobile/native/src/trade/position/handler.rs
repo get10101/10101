@@ -109,12 +109,13 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
         },
     };
 
+    let execution_price = filled_with
+        .average_execution_price()
+        .to_f32()
+        .expect("to fit into f32");
+
     let order = match db::get_order(order.id)? {
         None => {
-            let execution_price = filled_with
-                .average_execution_price()
-                .to_f32()
-                .expect("to fit into f32");
             let order = Order {
                 id: order.id,
                 leverage: order.leverage,
@@ -132,10 +133,12 @@ pub async fn async_trade(order: commons::Order, filled_with: FilledWith) -> Resu
 
             db::insert_order(order.clone())?
         }
-        Some(order) => {
+        Some(mut order) => {
             // the order has already been inserted to the database. Most likely because the async
             // match has already been received. We still want to retry this order as the previous
             // attempt seems to have failed.
+            db::update_order_state(order.id, OrderState::Filling { execution_price })?;
+            order.state = OrderState::Filling { execution_price };
             order
         }
     };
