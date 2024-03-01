@@ -122,7 +122,7 @@ pub enum ChannelState {
     Cancelled,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
