@@ -25,8 +25,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
         appBar: const PreferredSize(
             preferredSize: Size.fromHeight(40), child: SafeArea(child: AppBarWrapper())),
         bottomNavigationBar: BottomNavigationBar(
+          backgroundColor: Colors.white,
           selectedItemColor: tenTenOnePurple,
-          unselectedItemColor: Colors.grey,
+          unselectedItemColor: Colors.black,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(
               icon: Container(key: tabWallet, child: const Icon(Icons.wallet)),

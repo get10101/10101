@@ -74,6 +74,16 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: swatch,
+        scaffoldBackgroundColor: Colors.white,
+        cardTheme: const CardTheme(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12.0))),
+            surfaceTintColor: Colors.white,
+            color: Colors.white),
+        dialogBackgroundColor: Colors.white,
+        dialogTheme: const DialogTheme(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12.0))),
+          backgroundColor: Colors.white,
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
             // this is the button background color

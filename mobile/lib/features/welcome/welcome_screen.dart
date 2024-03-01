@@ -55,11 +55,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     child: SingleChildScrollView(
                       child: Padding(
                         padding: const EdgeInsets.only(left: 20, right: 20),
-                        child: Text("Important: The 10101 Wallet is still in its testing phase and is provided on an \"as is\" basis and may contain defects.\n\n".toUpperCase() +
-                            "A primary purpose of this beta testing phase is to obtain feedback on performance and the identification of defects."
-                                .toUpperCase() +
-                            " Users are advised to safeguard important data, to use caution and not to rely in any way on the correct functioning or performance of the beta product."
-                                .toUpperCase()),
+                        child: Text(
+                            "Important: The 10101 Wallet is still in its testing phase and is provided on an \"as is\" basis and may contain defects.\n\n".toUpperCase() +
+                                "A primary purpose of this beta testing phase is to obtain feedback on performance and the identification of defects."
+                                    .toUpperCase() +
+                                " Users are advised to safeguard important data, to use caution and not to rely in any way on the correct functioning or performance of the beta product."
+                                    .toUpperCase(),
+                            style: const TextStyle(letterSpacing: 0.1)),
                       ),
                     ),
                   ),
@@ -86,7 +88,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 const Expanded(
                                   child: Text(
                                       "10101 is still being tested and may contain defects.",
-                                      softWrap: true),
+                                      softWrap: true,
+                                      style: TextStyle(letterSpacing: 0.1)),
                                 ),
                                 TenTenOneSwitch(
                                     value: _betaDisclaimer,
@@ -106,7 +109,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 const Expanded(
                                   child: Text(
                                       "If I lose my seed phrase and my device, my funds will be lost forever",
-                                      softWrap: true),
+                                      softWrap: true,
+                                      style: TextStyle(letterSpacing: 0.1)),
                                 ),
                                 TenTenOneSwitch(
                                     value: _loseDisclaimer,
@@ -130,7 +134,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   filled: true,
                                   fillColor: tenTenOnePurple.shade300.withOpacity(0.2),
                                   labelText: 'Nostr Pubkey, Telegram or Email (optional)',
-                                  labelStyle: const TextStyle(color: Colors.black87, fontSize: 14),
+                                  labelStyle: const TextStyle(
+                                      color: Colors.black87, fontSize: 14, letterSpacing: 0.1),
                                   hintText: 'Let us know how to reach you'),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {

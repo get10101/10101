@@ -56,7 +56,7 @@ Widget carouselItemWidget(BuildContext context, CarouselItem item) {
               padding: const EdgeInsets.only(left: 20, right: 20, top: 10),
               child: Text(
                 item.description,
-                style: const TextStyle(fontSize: 18, color: Colors.black54),
+                style: const TextStyle(fontSize: 18, color: Colors.black54, letterSpacing: 0.1),
                 textAlign: TextAlign.justify,
               ),
             )
@@ -96,7 +96,6 @@ class _Onboarding extends State<Onboarding> {
         body: SafeArea(
             child: Container(
           color: Colors.white,
-          padding: const EdgeInsets.only(bottom: 20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[

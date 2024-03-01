@@ -67,6 +67,7 @@ abstract class WalletHistoryItem extends StatelessWidget {
         Card(
           margin: const EdgeInsets.all(0),
           elevation: 0,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(0))),
           child: ListTile(
               onTap: () async {
                 await showItemDetails(title, context);
