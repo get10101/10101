@@ -3,11 +3,11 @@ use crate::position;
 use crate::schema::collaborative_reverts;
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Denomination;
+use bitcoin::Network;
 use diesel::prelude::*;
 use diesel::AsChangeset;
 use diesel::Insertable;
@@ -49,6 +49,7 @@ pub(crate) struct NewCollaborativeRevert {
 
 pub(crate) fn by_trader_pubkey(
     trader_pubkey: &str,
+    network: Network,
     conn: &mut PgConnection,
 ) -> Result<Option<position::models::CollaborativeRevert>> {
     let result: Option<CollaborativeRevert> = collaborative_reverts::table
@@ -56,7 +57,7 @@ pub(crate) fn by_trader_pubkey(
         .first(conn)
         .optional()?;
     if let Some(rev) = result {
-        let rev = rev.try_into()?;
+        let rev = (rev, network).try_into()?;
         Ok(Some(rev))
     } else {
         Ok(None)
@@ -66,14 +67,15 @@ pub(crate) fn by_trader_pubkey(
 pub(crate) fn get_by_channel_id(
     conn: &mut PgConnection,
     channel_id: &DlcChannelId,
+    network: Network,
 ) -> Result<Option<position::models::CollaborativeRevert>> {
-    let channel_id = channel_id.to_hex();
+    let channel_id = hex::encode(channel_id);
 
     collaborative_reverts::table
         .filter(collaborative_reverts::channel_id.eq(channel_id))
         .first(conn)
         .optional()?
-        .map(|rev: CollaborativeRevert| anyhow::Ok(rev.try_into()?))
+        .map(|rev: CollaborativeRevert| anyhow::Ok((rev, network).try_into()?))
         .transpose()
 }
 
@@ -93,7 +95,7 @@ pub(crate) fn insert(
 
 pub(crate) fn delete(conn: &mut PgConnection, channel_id: DlcChannelId) -> Result<()> {
     diesel::delete(collaborative_reverts::table)
-        .filter(collaborative_reverts::channel_id.eq(channel_id.to_hex()))
+        .filter(collaborative_reverts::channel_id.eq(hex::encode(channel_id)))
         .execute(conn)?;
 
     Ok(())
@@ -102,7 +104,7 @@ pub(crate) fn delete(conn: &mut PgConnection, channel_id: DlcChannelId) -> Resul
 impl From<position::models::CollaborativeRevert> for NewCollaborativeRevert {
     fn from(value: position::models::CollaborativeRevert) -> Self {
         NewCollaborativeRevert {
-            channel_id: value.channel_id.to_hex(),
+            channel_id: hex::encode(value.channel_id),
             trader_pubkey: value.trader_pubkey.to_string(),
             price: value.price.to_f32().expect("to be valid f32"),
             coordinator_address: value.coordinator_address.to_string(),
@@ -113,24 +115,27 @@ impl From<position::models::CollaborativeRevert> for NewCollaborativeRevert {
     }
 }
 
-impl TryFrom<CollaborativeRevert> for position::models::CollaborativeRevert {
+impl TryFrom<(CollaborativeRevert, Network)> for position::models::CollaborativeRevert {
     type Error = anyhow::Error;
 
-    fn try_from(value: CollaborativeRevert) -> std::result::Result<Self, Self::Error> {
+    fn try_from(
+        (rev, network): (CollaborativeRevert, Network),
+    ) -> std::result::Result<Self, Self::Error> {
         Ok(position::models::CollaborativeRevert {
-            channel_id: parse_dlc_channel_id(value.channel_id.as_str())?,
-            trader_pubkey: PublicKey::from_str(value.trader_pubkey.as_str())?,
-            price: Decimal::from_f32(value.price).expect("to be valid decimal"),
-            coordinator_address: Address::from_str(value.coordinator_address.as_str())?,
+            channel_id: parse_dlc_channel_id(rev.channel_id.as_str())?,
+            trader_pubkey: PublicKey::from_str(rev.trader_pubkey.as_str())?,
+            price: Decimal::from_f32(rev.price).expect("to be valid decimal"),
+            coordinator_address: Address::from_str(rev.coordinator_address.as_str())?
+                .require_network(network)?,
             coordinator_amount_sats: Amount::from_str_in(
-                value.coordinator_amount_sats.to_string().as_str(),
+                rev.coordinator_amount_sats.to_string().as_str(),
                 Denomination::Satoshi,
             )?,
             trader_amount_sats: Amount::from_str_in(
-                value.trader_amount_sats.to_string().as_str(),
+                rev.trader_amount_sats.to_string().as_str(),
                 Denomination::Satoshi,
             )?,
-            timestamp: value.timestamp,
+            timestamp: rev.timestamp,
         })
     }
 }

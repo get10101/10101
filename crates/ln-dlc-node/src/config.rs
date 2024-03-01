@@ -4,19 +4,11 @@ use lightning::util::config::ChannelConfig;
 use lightning::util::config::ChannelHandshakeConfig;
 use lightning::util::config::ChannelHandshakeLimits;
 use lightning::util::config::UserConfig;
-use std::time::Duration;
 
 /// The speed at which we want a transaction to confirm used for feerate estimation.
 ///
 /// We set it to high priority because the channel funding transaction should be included fast.
 pub const CONFIRMATION_TARGET: ConfirmationTarget = ConfirmationTarget::HighPriority;
-
-/// When handling the [`Event::HTLCIntercepted`], the user might not be online right away. This
-/// could be because she is funding the wallet through another wallet. In order to give the user
-/// some time to open 10101 again we wait for a bit to see if we can establish a connection.
-///
-/// This constant specifies the amount of time we are willing to delay a payment.
-pub(crate) const HTLC_INTERCEPTED_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub fn app_config() -> UserConfig {
     UserConfig {

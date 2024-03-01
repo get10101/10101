@@ -42,32 +42,3 @@ class OnChainAddress extends Destination {
     return WalletType.onChain;
   }
 }
-
-class LightningInvoice extends Destination {
-  final DateTime timestamp;
-  final DateTime expiry;
-
-  LightningInvoice(
-      {required super.amount,
-      required super.description,
-      required super.payee,
-      required super.raw,
-      required this.timestamp,
-      required this.expiry});
-
-  static fromApi(rust.Destination_Bolt11 invoice, String raw) {
-    return LightningInvoice(
-      description: invoice.description,
-      amount: Amount(invoice.amountSats),
-      raw: raw,
-      timestamp: DateTime.fromMillisecondsSinceEpoch(invoice.timestamp * 1000),
-      payee: invoice.payee,
-      expiry: DateTime.fromMillisecondsSinceEpoch(invoice.expiry * 1000),
-    );
-  }
-
-  @override
-  WalletType getWalletType() {
-    return WalletType.lightning;
-  }
-}

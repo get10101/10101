@@ -1,10 +1,12 @@
+use crate::bitcoin_conversion::to_secp_pk_29;
+use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::node::event::NodeEvent;
 use crate::node::Node;
 use crate::node::Storage as LnDlcStorage;
+use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
 use crate::DlcMessageHandler;
 use crate::PeerManager;
-use crate::ToHex;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -16,6 +18,7 @@ use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
+use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ContractId;
@@ -28,7 +31,9 @@ use dlc_messages::Message;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
-impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Node<S, N> {
+impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static>
+    Node<D, S, N>
+{
     pub async fn propose_dlc_channel(
         &self,
         contract_input: ContractInput,
@@ -36,7 +41,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         protocol_id: ReferenceId,
     ) -> Result<(ContractId, DlcChannelId)> {
         tracing::info!(
-            trader_id = counterparty.to_hex(),
+            trader_id = %counterparty,
             oracles = ?contract_input.contract_infos[0].oracles,
             "Sending DLC channel offer"
         );
@@ -44,11 +49,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         if let Some(channel) = self
             .list_signed_dlc_channels()?
             .iter()
-            .find(|channel| channel.counter_party == counterparty)
+            .find(|channel| channel.counter_party == to_secp_pk_29(counterparty))
         {
             tracing::error!(
                 trader_id = %counterparty,
-                existing_channel_id = channel.channel_id.to_hex(),
+                existing_channel_id = hex::encode(channel.channel_id),
                 existing_channel_state = %channel.state,
                 "We can't open a new channel because we still have an open dlc-channel"
             );
@@ -74,8 +79,11 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     format!("Can't propose dlc channel without oracles")
                 );
 
-                let offer_channel =
-                    dlc_manager.offer_channel(&contract_input, counterparty, Some(protocol_id))?;
+                let offer_channel = dlc_manager.offer_channel(
+                    &contract_input,
+                    to_secp_pk_29(counterparty),
+                    Some(protocol_id),
+                )?;
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
                 let temporary_channel_id = offer_channel.temporary_channel_id;
@@ -102,22 +110,31 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             self.dlc_manager.accept_channel(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
-            peer: counter_party,
+            peer: to_secp_pk_30(counter_party),
             msg: Message::Channel(ChannelMessage::Accept(msg)),
         })?;
 
         Ok(())
     }
 
-    pub async fn close_dlc_channel(&self, channel_id: DlcChannelId, force: bool) -> Result<()> {
+    pub async fn close_dlc_channel(
+        &self,
+        channel_id: DlcChannelId,
+        is_force_close: bool,
+    ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
-        tracing::info!(channel_id = channel_id_hex, "Closing DLC channel");
+
+        tracing::info!(
+            is_force_close,
+            channel_id = channel_id_hex,
+            "Closing DLC channel"
+        );
 
         let channel = self
             .get_signed_dlc_channel(|channel| channel.channel_id == channel_id)?
             .context("DLC channel to close not found")?;
 
-        if force {
+        if is_force_close {
             self.force_close_dlc_channel(&channel_id)?;
         } else {
             self.propose_dlc_channel_collaborative_close(channel)
@@ -139,15 +156,8 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         Ok(())
     }
 
-    /// Collaboratively close a DLC channel on-chain if there is no open position
+    /// Close a DLC channel on-chain collaboratively, if there is no open position.
     async fn propose_dlc_channel_collaborative_close(&self, channel: SignedChannel) -> Result<()> {
-        let channel_id_hex = hex::encode(channel.channel_id);
-
-        tracing::info!(
-            channel_id = %channel_id_hex,
-            "Closing DLC channel collaboratively"
-        );
-
         let counterparty = channel.counter_party;
 
         match channel.state {
@@ -158,7 +168,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                     move || {
                         tracing::info!(
                             counter_payout,
-                            channel_id = channel.channel_id.to_hex(),
+                            channel_id = hex::encode(channel.channel_id),
                             "Proposing collaborative close"
                         );
                         let settle_offer = dlc_manager
@@ -168,7 +178,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                             )?;
 
                         event_handler.publish(NodeEvent::SendDlcMessage {
-                            peer: counterparty,
+                            peer: to_secp_pk_30(counterparty),
                             msg: Message::Channel(ChannelMessage::CollaborativeCloseOffer(
                                 settle_offer,
                             )),
@@ -217,7 +227,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 // TODO(holzeis): We should send the dlc message last to make sure that we have
                 // finished updating the 10101 meta data before the app responds to the message.
                 event_handler.publish(NodeEvent::SendDlcMessage {
-                    peer: counterparty,
+                    peer: to_secp_pk_30(counterparty),
                     msg: Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
                 })?;
 
@@ -250,7 +260,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
-            peer: counterparty_pk,
+            peer: to_secp_pk_30(counterparty_pk),
             msg: Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
         })?;
 
@@ -285,7 +295,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
                 // finished updating the 10101 meta data before the app responds to the message.
                 event_handler.publish(NodeEvent::SendDlcMessage {
                     msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
-                    peer: counterparty_pubkey,
+                    peer: to_secp_pk_30(counterparty_pubkey),
                 })?;
 
                 let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
@@ -322,7 +332,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         send_dlc_message(
             &self.dlc_message_handler,
             &self.peer_manager,
-            counter_party,
+            to_secp_pk_30(counter_party),
             Message::Channel(ChannelMessage::RenewAccept(msg)),
         );
 
@@ -379,7 +389,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
         counterparty_pk: &PublicKey,
     ) -> Result<Option<SignedChannel>> {
         self.get_signed_dlc_channel(|signed_channel| {
-            signed_channel.counter_party == *counterparty_pk
+            signed_channel.counter_party == to_secp_pk_29(*counterparty_pk)
         })
     }
 
@@ -404,14 +414,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             .with_context(|| {
                 format!(
                     "Couldn't find dlc channel with id: {}",
-                    dlc_channel_id.to_hex()
+                    hex::encode(dlc_channel_id)
                 )
             })
     }
 
     pub fn get_established_dlc_channel(&self, pubkey: &PublicKey) -> Result<Option<SignedChannel>> {
         let matcher = |dlc_channel: &&SignedChannel| {
-            dlc_channel.counter_party == *pubkey
+            dlc_channel.counter_party == to_secp_pk_29(*pubkey)
                 && matches!(&dlc_channel.state, SignedChannelState::Established { .. })
         };
         let dlc_channel = self.get_signed_dlc_channel(&matcher)?;
@@ -501,7 +511,7 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
             Channel::Signed(channel) => Ok(Amount::from_sat(
                 channel.own_params.collateral + channel.counter_params.collateral,
             )),
-            _ => bail!("DLC channel {} not signed", channel_id.to_hex()),
+            _ => bail!("DLC channel {} not signed", hex::encode(channel_id)),
         }
     }
 
@@ -707,6 +717,86 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 
         Ok(usable_balance)
     }
+
+    #[cfg(test)]
+    pub fn process_incoming_messages(&self) -> Result<()> {
+        use crate::node::dlc_message_name;
+
+        let dlc_message_handler = &self.dlc_message_handler;
+        let dlc_manager = &self.dlc_manager;
+        let peer_manager = &self.peer_manager;
+        let messages = dlc_message_handler.get_and_clear_received_messages();
+        tracing::debug!("Received and cleared {} messages", messages.len());
+
+        for (node_id, msg) in messages {
+            tracing::info!(
+                from = %to_secp_pk_30(node_id),
+                msg = %dlc_message_name(&msg),
+                "Processing rust-dlc message"
+            );
+
+            match msg {
+                Message::OnChain(_) | Message::Channel(_) => {
+                    let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
+
+                    if let Some(msg) = resp {
+                        tracing::debug!(to = %to_secp_pk_30(node_id), msg = dlc_message_name(&msg), "Sending DLC-manager message");
+                        send_dlc_message(
+                            dlc_message_handler,
+                            peer_manager,
+                            to_secp_pk_30(node_id),
+                            msg,
+                        );
+                    }
+                }
+                Message::SubChannel(_) => {
+                    tracing::error!("Not sending subchannel message");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn get_closed_contract(
+        &self,
+        temporary_contract_id: ContractId,
+    ) -> Result<Option<ClosedContract>> {
+        let contract = self
+            .dlc_manager
+            .get_store()
+            .get_contracts()?
+            .into_iter()
+            .find_map(|contract| match contract {
+                Contract::Closed(closed_contract)
+                    if closed_contract.temporary_contract_id == temporary_contract_id =>
+                {
+                    Some(closed_contract)
+                }
+                _ => None,
+            });
+
+        Ok(contract)
+    }
+
+    // Rollback the channel to the last "stable" state. Note, this is potentially risky to do as the
+    // counterparty may still old signed transactions, that would allow them to punish us if we were
+    // to publish an outdated transaction.
+    pub fn roll_back_channel(&self, signed_channel: &SignedChannel) -> Result<()> {
+        let mut signed_channel = signed_channel.clone();
+
+        let state = signed_channel
+            .clone()
+            .roll_back_state
+            .context("Missing rollback state")?;
+
+        signed_channel.state = state;
+        self.dlc_manager
+            .get_store()
+            .upsert_channel(Channel::Signed(signed_channel), None)?;
+
+        Ok(())
+    }
 }
 
 /// Ensure that a [`dlc_messages::Message`] is sent straight away.
@@ -714,14 +804,14 @@ impl<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static> Nod
 /// Use this instead of [`MessageHandler`]'s `send_message` which only enqueues the message.
 ///
 /// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
-pub fn send_dlc_message<S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static>(
+pub fn send_dlc_message<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage>(
     dlc_message_handler: &DlcMessageHandler,
-    peer_manager: &PeerManager<S, N>,
+    peer_manager: &PeerManager<D, S, N>,
     node_id: PublicKey,
     msg: Message,
 ) {
     // Enqueue the message.
-    dlc_message_handler.send_message(node_id, msg);
+    dlc_message_handler.send_message(to_secp_pk_29(node_id), msg);
 
     // According to the LDK docs, you don't _have_ to call this function explicitly if you are
     // using [`lightning-net-tokio`], which we are. But calling it ensures that we send the

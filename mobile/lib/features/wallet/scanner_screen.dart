@@ -115,7 +115,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                               _destination = destination;
                               if (_formKey.currentState!.validate()) {
                                 switch (destination!.getWalletType()) {
-                                  case WalletType.lightning:
+                                  case WalletType.offChain:
                                     _showNoLightningDialog(context);
                                   case WalletType.onChain:
                                     GoRouter.of(context)
@@ -189,7 +189,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
                           if (_formKey.currentState!.validate()) {
                             switch (destination!.getWalletType()) {
-                              case WalletType.lightning:
+                              case WalletType.offChain:
                                 _showNoLightningDialog(context);
                               case WalletType.onChain:
                                 GoRouter.of(context)

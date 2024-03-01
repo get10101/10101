@@ -9,10 +9,9 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Network;
-use bitcoin::XOnlyPublicKey;
 use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -27,6 +26,9 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
+use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
+use ln_dlc_node::bitcoin_conversion::to_xonly_pk_30;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -130,11 +132,11 @@ impl Rollover {
 
         let contract_tx_fee_rate = offered_contract.fee_rate_per_vb;
         Ok(Rollover {
-            counterparty_pubkey: offered_contract.counter_party,
+            counterparty_pubkey: to_secp_pk_30(offered_contract.counter_party),
             contract_descriptor: contract_info.clone().contract_descriptor,
             margin_coordinator,
             margin_trader,
-            oracle_pk: oracle_announcement.oracle_public_key,
+            oracle_pk: to_xonly_pk_30(oracle_announcement.oracle_public_key),
             contract_symbol: ContractSymbol::from_str(
                 &oracle_announcement.oracle_event.event_id[..6],
             )?,
@@ -178,7 +180,7 @@ impl Node {
 
             let (retry_rollover, contract_id) = match position.position_state {
                 PositionState::Rollover => {
-                    self.rollback_channel_if_needed(&mut conn, &signed_channel)?
+                    self.roll_back_channel_if_needed(&mut conn, &signed_channel)?
                 }
                 PositionState::Open => (false, signed_channel.get_contract_id()),
                 _ => bail!("Unexpected position state {:?}", position.position_state),
@@ -256,9 +258,10 @@ impl Node {
     pub fn finalize_rollover(&self, dlc_channel_id: &DlcChannelId) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
         let trader_id = contract.get_counter_party_id();
-        tracing::debug!(%trader_id,
-            "Finalizing rollover for dlc channel: {}",
-            dlc_channel_id.to_hex()
+        tracing::debug!(
+            %trader_id,
+            dlc_channel_id = %hex::encode(dlc_channel_id),
+            "Finalizing rollover",
         );
 
         let mut connection = self.pool.get()?;
@@ -269,7 +272,7 @@ impl Node {
         )
     }
 
-    fn rollback_channel_if_needed(
+    fn roll_back_channel_if_needed(
         &self,
         connection: &mut PgConnection,
         signed_channel: &SignedChannel,
@@ -277,9 +280,16 @@ impl Node {
         if is_channel_in_intermediate_state(signed_channel) {
             let trader_id = signed_channel.counter_party;
             let state = ln_dlc_node::node::signed_channel_state_name(signed_channel);
-            tracing::warn!(%trader_id, state, "Found signed channel contract in an intermediate state. Trying to rollback channel to the last stable state!");
+
+            tracing::warn!(
+                %trader_id,
+                state,
+                "Found signed channel contract in an intermediate state. \
+                 Trying to rollback channel to the last stable state!"
+            );
+
             self.inner
-                .rollback_channel(signed_channel)
+                .roll_back_channel(signed_channel)
                 .map_err(|e| anyhow!("{e:#}"))?;
 
             let contract = self
@@ -318,7 +328,7 @@ impl From<Rollover> for ContractInput {
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor: rollover.clone().contract_descriptor,
                 oracles: OracleInput {
-                    public_keys: vec![rollover.oracle_pk],
+                    public_keys: vec![to_xonly_pk_29(rollover.oracle_pk)],
                     event_id: rollover.event_id(),
                     threshold: 1,
                 },
@@ -330,10 +340,7 @@ impl From<Rollover> for ContractInput {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::secp256k1;
-    use bitcoin::secp256k1::ecdsa::Signature;
-    use bitcoin::PackedLockTime;
-    use bitcoin::Script;
+    use bitcoin::absolute;
     use bitcoin::Transaction;
     use dlc::DlcTransactions;
     use dlc::PartyParams;
@@ -347,6 +354,9 @@ mod tests {
     use dlc_messages::oracle_msgs::OracleAnnouncement;
     use dlc_messages::oracle_msgs::OracleEvent;
     use dlc_messages::FundingSignatures;
+    use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
+    use ln_dlc_node::bitcoin_conversion::to_tx_29;
+    use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
     use rand::Rng;
 
     #[test]
@@ -417,10 +427,10 @@ mod tests {
                 adaptor_infos: vec![],
                 adaptor_signatures: None,
                 dlc_transactions: DlcTransactions {
-                    fund: dummy_tx(),
+                    fund: to_tx_29(dummy_tx()),
                     cets: vec![],
-                    refund: dummy_tx(),
-                    funding_script_pubkey: Script::new(),
+                    refund: to_tx_29(dummy_tx()),
+                    funding_script_pubkey: bitcoin_old::Script::new(),
                 },
                 accept_refund_signature: dummy_signature(),
             },
@@ -445,7 +455,7 @@ mod tests {
                 contract_descriptor: dummy_contract_descriptor(),
                 oracle_announcements: vec![OracleAnnouncement {
                     announcement_signature: dummy_schnorr_signature(),
-                    oracle_public_key: XOnlyPublicKey::from(dummy_pubkey()),
+                    oracle_public_key: to_xonly_pk_29(XOnlyPublicKey::from(dummy_pubkey())),
                     oracle_event: OracleEvent {
                         oracle_nonces: vec![],
                         event_maturity_epoch: expiry_timestamp,
@@ -457,7 +467,7 @@ mod tests {
                 }],
                 threshold: 0,
             }],
-            counter_party: dummy_pubkey(),
+            counter_party: to_secp_pk_29(dummy_pubkey()),
             offer_params: dummy_params(margin_coordinator),
             total_collateral: margin_coordinator + margin_trader,
             funding_inputs_info: vec![],
@@ -485,8 +495,8 @@ mod tests {
         dummy_id
     }
 
-    fn dummy_schnorr_signature() -> secp256k1::schnorr::Signature {
-        secp256k1::schnorr::Signature::from_str(
+    fn dummy_schnorr_signature() -> bitcoin_old::secp256k1::schnorr::Signature {
+        bitcoin_old::secp256k1::schnorr::Signature::from_str(
             "84526253c27c7aef56c7b71a5cd25bebb66dddda437826defc5b2568bde81f0784526253c27c7aef56c7b71a5cd25bebb66dddda437826defc5b2568bde81f07",
         ).unwrap()
     }
@@ -494,12 +504,12 @@ mod tests {
     fn dummy_params(collateral: u64) -> PartyParams {
         PartyParams {
             collateral,
-            change_script_pubkey: Script::new(),
+            change_script_pubkey: bitcoin_old::Script::new(),
             change_serial_id: 0,
-            fund_pubkey: dummy_pubkey(),
+            fund_pubkey: to_secp_pk_29(dummy_pubkey()),
             input_amount: 0,
             inputs: vec![],
-            payout_script_pubkey: Script::new(),
+            payout_script_pubkey: bitcoin_old::Script::new(),
             payout_serial_id: 0,
         }
     }
@@ -507,14 +517,14 @@ mod tests {
     fn dummy_tx() -> Transaction {
         Transaction {
             version: 1,
-            lock_time: PackedLockTime::ZERO,
+            lock_time: absolute::LockTime::ZERO,
             input: vec![],
             output: vec![],
         }
     }
 
-    fn dummy_signature() -> Signature {
-        Signature::from_str(
+    fn dummy_signature() -> bitcoin_old::secp256k1::ecdsa::Signature {
+        bitcoin_old::secp256k1::ecdsa::Signature::from_str(
             "304402202f2545f818a5dac9311157d75065156b141e5a6437e817d1d75f9fab084e46940220757bb6f0916f83b2be28877a0d6b05c45463794e3c8c99f799b774443575910d",
         ).unwrap()
     }

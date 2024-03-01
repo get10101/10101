@@ -39,14 +39,7 @@ async fn can_open_and_collab_close_channel() {
 
     tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-    let app_on_chain_balance = test
-        .app
-        .rx
-        .wallet_info()
-        .unwrap()
-        .balances
-        .on_chain
-        .unwrap();
+    let app_on_chain_balance = test.app.rx.wallet_info().unwrap().balances.on_chain;
     let app_off_chain_balance = test
         .app
         .rx
@@ -79,7 +72,7 @@ async fn can_open_and_collab_close_channel() {
 
     let wallet_info = test.app.rx.wallet_info().unwrap();
     assert_eq!(
-        wallet_info.balances.on_chain.unwrap(),
+        wallet_info.balances.on_chain,
         app_on_chain_balance + app_off_chain_balance
     );
 

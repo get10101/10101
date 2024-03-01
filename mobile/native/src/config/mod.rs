@@ -1,13 +1,13 @@
-pub mod api;
-
-use bdk::bitcoin;
-use bdk::bitcoin::secp256k1::PublicKey;
-use bdk::bitcoin::XOnlyPublicKey;
+use bitcoin::key::XOnlyPublicKey;
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::Network;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::OracleInfo;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
+
+pub mod api;
 
 #[derive(Clone)]
 pub struct ConfigInternal {
@@ -16,7 +16,7 @@ pub struct ConfigInternal {
     http_endpoint: SocketAddr,
     #[allow(dead_code)] // Irrelevant when using websockets
     p2p_endpoint: SocketAddr,
-    network: bitcoin::Network,
+    network: Network,
     oracle_endpoint: String,
     oracle_pubkey: XOnlyPublicKey,
     health_check_interval: Duration,
@@ -67,7 +67,7 @@ pub fn get_http_endpoint() -> SocketAddr {
     crate::state::get_config().http_endpoint
 }
 
-pub fn get_network() -> bitcoin::Network {
+pub fn get_network() -> Network {
     crate::state::get_config().network
 }
 

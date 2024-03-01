@@ -1,4 +1,4 @@
-use bitcoin::hashes::hex::ToHex;
+use crate::bitcoin_conversion::to_secp_pk_30;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::Channel;
@@ -104,7 +104,7 @@ impl From<Channel> for DlcChannelDetails {
 
         DlcChannelDetails {
             dlc_channel_id: Some(channel.get_id()),
-            counter_party: channel.get_counter_party_id(),
+            counter_party: to_secp_pk_30(channel.get_counter_party_id()),
             channel_state: ChannelState::from(channel),
             signed_channel_state: state.map(SignedChannelState::from),
             update_idx,
@@ -159,7 +159,7 @@ where
     S: Serializer,
 {
     match channel_id {
-        Some(channel_id) => s.serialize_str(&channel_id.to_hex()),
+        Some(channel_id) => s.serialize_str(&hex::encode(channel_id)),
         None => s.serialize_none(),
     }
 }
@@ -168,5 +168,5 @@ fn pk_as_hex<S>(pk: &PublicKey, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    s.serialize_str(&pk.to_hex())
+    s.serialize_str(&pk.to_string())
 }

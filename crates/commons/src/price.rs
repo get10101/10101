@@ -75,9 +75,9 @@ mod test {
     use crate::order::OrderType;
     use crate::price::best_ask_price;
     use crate::price::best_bid_price;
+    use bitcoin::secp256k1::PublicKey;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
-    use secp256k1::PublicKey;
     use std::str::FromStr;
     use time::OffsetDateTime;
     use trade::ContractSymbol;

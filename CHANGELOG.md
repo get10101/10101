@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.´
+- Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.
 - Feat: Show closing txid on closing and closed channels.
+- Feat(wallet): Upgrade `bdk` to version `1.0.0-alpha.6`, solving a lot of problems with the app's on-chain sync.
+- Fix(dlc): Mark channel-opening transaction as confirmed after 1 confirmation.
+- Fix(wallet): Prevent some app crashes and freezes when sending on-chain or opening a DLC channel.
+- Chore(wallet): Remove Lightning payments from transaction history.
 
 ## [1.9.0] - 2024-02-26
 

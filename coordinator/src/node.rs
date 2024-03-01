@@ -9,7 +9,6 @@ use crate::trade::TradeExecutor;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use commons::TradeAndChannelParams;
 use diesel::r2d2::ConnectionManager;
@@ -24,22 +23,20 @@ use dlc_messages::channel::SettleFinalize;
 use dlc_messages::channel::SignChannel;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
-use lightning::util::config::UserConfig;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node;
 use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
-use ln_dlc_node::WalletSettings;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
-pub mod connection;
 pub mod expired_positions;
 pub mod rollover;
-pub mod routing_fees;
 pub mod storage;
 pub mod unrealized_pnl;
 
@@ -48,26 +45,17 @@ pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
     // scheduled upgrade)
     pub allow_opening_positions: bool,
-    pub max_allowed_tx_fee_rate_when_opening_channel: Option<u32>,
-    // Defines if we want to open jit channels
-    pub jit_channels_enabled: bool,
-    /// Defines the sats/vbyte to be used for all transactions within the sub-channel
-    pub contract_tx_fee_rate: u64,
-}
-
-impl NodeSettings {
-    fn to_wallet_settings(&self) -> WalletSettings {
-        WalletSettings {
-            max_allowed_tx_fee_rate_when_opening_channel: self
-                .max_allowed_tx_fee_rate_when_opening_channel,
-            jit_channels_enabled: self.jit_channels_enabled,
-        }
-    }
 }
 
 #[derive(Clone)]
 pub struct Node {
-    pub inner: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+    pub inner: Arc<
+        node::Node<
+            bdk_file_store::Store<bdk::wallet::ChangeSet>,
+            CoordinatorTenTenOneStorage,
+            NodeStorage,
+        >,
+    >,
     _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
@@ -75,7 +63,13 @@ pub struct Node {
 
 impl Node {
     pub fn new(
-        inner: Arc<node::Node<CoordinatorTenTenOneStorage, NodeStorage>>,
+        inner: Arc<
+            node::Node<
+                bdk_file_store::Store<bdk::wallet::ChangeSet>,
+                CoordinatorTenTenOneStorage,
+                NodeStorage,
+            >,
+        >,
         running: RunningNode,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,
@@ -88,22 +82,6 @@ impl Node {
         }
     }
 
-    pub async fn update_settings(&self, settings: NodeSettings) {
-        tracing::info!(?settings, "Updating node settings");
-        *self.settings.write().await = settings.clone();
-
-        // Forward relevant settings down to the wallet
-        let wallet_settings = settings.to_wallet_settings();
-        self.inner
-            .ldk_wallet()
-            .update_settings(wallet_settings)
-            .await;
-    }
-
-    pub fn update_ldk_settings(&self, ldk_config: UserConfig) {
-        self.inner.update_ldk_settings(ldk_config)
-    }
-
     /// Returns true or false, whether we can find an usable channel with the provided trader.
     ///
     /// Note, we use the usable channel to implicitely check if the user is connected, as it
@@ -112,7 +90,9 @@ impl Node {
         let usable_channels = self.inner.channel_manager.list_usable_channels();
         let usable_channels = usable_channels
             .iter()
-            .filter(|channel| channel.is_usable && channel.counterparty.node_id == *trader)
+            .filter(|channel| {
+                channel.is_usable && channel.counterparty.node_id == to_secp_pk_29(*trader)
+            })
             .collect::<Vec<_>>();
 
         if usable_channels.len() > 1 {
@@ -156,9 +136,12 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = dlc_message_name(&msg);
-            if let Err(e) = self.process_dlc_message(node_id, &msg) {
+            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), &msg) {
                 if let Err(e) = self.set_dlc_protocol_to_failed(&msg) {
-                    tracing::error!(from=%node_id, "Failed to set dlc protocol to failed. {e:#}");
+                    tracing::error!(
+                        from = %node_id,
+                        "Failed to set dlc protocol to failed. {e:#}"
+                    );
                 }
 
                 tracing::error!(
@@ -240,7 +223,7 @@ impl Node {
                 let resp = self
                     .inner
                     .dlc_manager
-                    .on_dlc_message(msg, node_id)
+                    .on_dlc_message(msg, to_secp_pk_29(node_id))
                     .with_context(|| {
                         format!(
                             "Failed to handle {} dlc message from {node_id}",
@@ -263,7 +246,7 @@ impl Node {
                         // now use the renew protocol for all (non-closing)
                         // trades beyond the first one.
 
-                        let channel_id_hex_string = channel_id.to_hex();
+                        let channel_id_hex_string = hex::encode(channel_id);
 
                         let reference_id = match reference_id {
                             Some(reference_id) => *reference_id,
@@ -309,7 +292,7 @@ impl Node {
                         reference_id,
                         ..
                     }) => {
-                        let channel_id_hex_string = channel_id.to_hex();
+                        let channel_id_hex_string = hex::encode(channel_id);
 
                         let reference_id = match reference_id {
                             Some(reference_id) => *reference_id,
@@ -370,9 +353,8 @@ impl Node {
                         )?;
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
-                        let channel_id_hex_string = close_offer.channel_id.to_hex();
                         tracing::info!(
-                            channel_id = channel_id_hex_string,
+                            channel_id = hex::encode(close_offer.channel_id),
                             node_id = node_id.to_string(),
                             "Received an offer to collaboratively close a channel"
                         );
@@ -410,7 +392,7 @@ impl Node {
                         let protocol_id = ProtocolId::try_from(reference_id)?;
 
                         tracing::info!(
-                            channel_id = channel_id.to_hex(),
+                            channel_id = hex::encode(channel_id),
                             node_id = node_id.to_string(),
                             %protocol_id,
                             "DLC channel open protocol was finalized"
@@ -433,7 +415,7 @@ impl Node {
                         // TODO(holzeis): if an dlc channel gets rejected we have to deal with the
                         // counterparty as well.
 
-                        let channel_id_hex_string = reject.channel_id.to_hex();
+                        let channel_id_hex_string = hex::encode(reject.channel_id);
 
                         let channel = self.inner.get_dlc_channel_by_id(&reject.channel_id)?;
                         let mut connection = self.pool.get()?;

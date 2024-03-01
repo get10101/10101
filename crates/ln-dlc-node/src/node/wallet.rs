@@ -1,203 +1,158 @@
-use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ldk_node_wallet;
-use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::HTLCStatus;
+use crate::bitcoin_conversion::to_secp_sk_30;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::OnChainWallet;
+use crate::on_chain_wallet::TransactionDetails;
 use crate::storage::TenTenOneStorage;
-use crate::PaymentFlow;
-use crate::ToHex;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::blockchain::EsploraBlockchain;
-use bdk::sled;
+use bdk_esplora::EsploraAsyncExt;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
-use dlc_manager::Blockchain;
-use lightning::ln::PaymentHash;
-use std::fmt;
+use bitcoin::OutPoint;
+use bitcoin::ScriptBuf;
+use bitcoin::TxOut;
 use std::sync::Arc;
-use time::OffsetDateTime;
+use tokio::task::spawn_blocking;
 
-#[derive(Debug, Clone)]
-pub struct OffChainBalance {
-    /// Available balance, in msats.
-    available: u64,
-    /// Balance corresponding to channels being closed, in _sats_.
-    pending_close: u64,
-}
+/// The number of parallel requests to be used during the on-chain sync.
+///
+/// This number was chosen arbitrarily.
+const PARALLEL_REQUESTS_SYNC: usize = 5;
 
-impl OffChainBalance {
-    /// Available balance, in sats.
-    pub fn available(&self) -> u64 {
-        self.available / 1000
-    }
-
-    /// Balance corresponding to channels being closed, in sats.
-    pub fn pending_close(&self) -> u64 {
-        self.pending_close
-    }
-
-    /// Available balance, in msats.
-    pub fn available_msat(&self) -> u64 {
-        self.available
-    }
-}
-
-impl<S: TenTenOneStorage, N: Storage> Node<S, N> {
-    pub fn wallet(&self) -> Arc<LnDlcWallet<S, N>> {
+impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Node<D, S, N> {
+    pub fn wallet(&self) -> Arc<OnChainWallet<D>> {
         self.wallet.clone()
     }
 
-    pub fn ldk_wallet(
-        &self,
-    ) -> Arc<ldk_node_wallet::Wallet<sled::Tree, EsploraBlockchain, FeeRateEstimator, N>> {
-        self.wallet.ldk_wallet()
-    }
-
-    pub fn get_unused_address(&self) -> Address {
-        self.wallet.unused_address()
-    }
-
-    pub fn sync_for_addresses(&self, gap: u32) -> Result<bool> {
-        let new_addresses_generated = self.wallet.update_lookahead(gap)?;
-        self.wallet.sync_and_update_address_cache()?;
-        Ok(new_addresses_generated)
-    }
-
     pub fn get_new_address(&self) -> Result<Address> {
-        self.wallet
-            .new_address()
-            .context("Failed to get new address")
+        self.wallet.get_new_address()
+    }
+
+    pub fn get_unused_address(&self) -> Result<Address> {
+        self.wallet.get_unused_address()
     }
 
     pub fn get_blockchain_height(&self) -> Result<u64> {
-        self.wallet
-            .get_blockchain_height()
+        self.blockchain
+            .get_blockchain_tip()
             .context("Failed to get blockchain height")
     }
 
-    pub fn get_on_chain_balance(&self) -> Result<bdk::Balance> {
-        self.wallet
-            .ldk_wallet()
-            .get_balance()
-            .context("Failed to get on-chain balance")
+    pub fn get_on_chain_balance(&self) -> bdk::wallet::Balance {
+        self.wallet.get_balance()
     }
 
     pub fn node_key(&self) -> SecretKey {
-        self.keys_manager.get_node_secret_key()
+        to_secp_sk_30(self.keys_manager.get_node_secret_key())
     }
 
-    /// The LDK [`OffChain`] balance keeps track of:
-    ///
-    /// - The total sum of money in all open channels.
-    /// - The total sum of money in close transactions that do not yet pay to our on-chain wallet.
-    pub fn get_ldk_balance(&self) -> OffChainBalance {
-        let open_channels = self.channel_manager.list_channels();
+    pub fn get_on_chain_history(&self) -> Vec<TransactionDetails> {
+        self.wallet.get_on_chain_history()
+    }
 
-        let claimable_channel_balances = {
-            let ignored_channels = open_channels.iter().collect::<Vec<_>>();
-            let ignored_channels = &ignored_channels.as_slice();
-            self.chain_monitor.get_claimable_balances(ignored_channels)
+    pub fn get_utxos(&self) -> Vec<(OutPoint, TxOut)> {
+        self.wallet.get_utxos()
+    }
+
+    pub fn is_mine(&self, script_pubkey: &ScriptBuf) -> bool {
+        self.wallet.is_mine(script_pubkey)
+    }
+
+    /// Sync the state of the on-chain wallet against the blockchain.
+    pub async fn sync_on_chain_wallet(&self) -> Result<()> {
+        let client = &self.blockchain.esplora_client_async;
+
+        let (local_chain, unused_revealed_script_pubkeys, unconfirmed_txids, utxos) =
+            spawn_blocking({
+                let wallet = self.wallet.clone();
+                move || wallet.pre_sync_state()
+            })
+            .await
+            .expect("task to complete");
+
+        let graph_update = client
+            .sync(
+                unused_revealed_script_pubkeys,
+                unconfirmed_txids,
+                utxos,
+                PARALLEL_REQUESTS_SYNC,
+            )
+            .await?;
+
+        let chain_update = {
+            let missing_heights = graph_update.missing_heights(&local_chain);
+
+            client
+                .update_local_chain(local_chain.tip(), missing_heights)
+                .await?
         };
 
-        let pending_close = claimable_channel_balances.iter().fold(0, |acc, balance| {
-            use ::lightning::chain::channelmonitor::Balance::*;
-            match balance {
-                ClaimableOnChannelClose { amount_satoshis }
-                | ContentiousClaimable {
-                    amount_satoshis, ..
-                }
-                | MaybeTimeoutClaimableHTLC {
-                    amount_satoshis, ..
-                }
-                | MaybePreimageClaimableHTLC {
-                    amount_satoshis, ..
-                }
-                | CounterpartyRevokedOutputClaimable { amount_satoshis } => acc + amount_satoshis,
-                ClaimableAwaitingConfirmations { .. } => {
-                    // we can safely ignore this type of balance because we override the
-                    // `destination_script` for the channel closure so that it's owned by our
-                    // on-chain wallet
-                    acc
-                }
+        let wallet_update = bdk::wallet::Update {
+            graph: graph_update.clone(),
+            chain: Some(chain_update),
+            ..Default::default()
+        };
+
+        spawn_blocking({
+            let wallet = self.wallet.clone();
+            move || {
+                wallet.commit_wallet_update(wallet_update)?;
+
+                anyhow::Ok(())
             }
-        });
+        })
+        .await
+        .expect("task to complete")?;
 
-        let available = self
-            .channel_manager
-            .list_channels()
-            .iter()
-            .map(|details| details.balance_msat)
-            .sum();
-
-        OffChainBalance {
-            available,
-            pending_close,
-        }
+        Ok(())
     }
 
-    pub fn get_on_chain_history(&self) -> Result<Vec<bdk::TransactionDetails>> {
-        self.wallet
-            .on_chain_transactions()
-            .context("Failed to retrieve on-chain transaction history")
-    }
+    pub async fn full_sync(&self, stop_gap: usize) -> Result<()> {
+        let client = &self.blockchain.esplora_client_async;
 
-    pub fn get_off_chain_history(&self) -> Result<Vec<PaymentDetails>> {
-        let mut payments = self
-            .node_storage
-            .all_payments()?
-            .iter()
-            .map(|(hash, info)| PaymentDetails {
-                payment_hash: *hash,
-                status: info.status,
-                flow: info.flow,
-                amount_msat: info.amt_msat.0,
-                fee_msat: info.fee_msat.0,
-                timestamp: info.timestamp,
-                description: info.description.clone(),
-                preimage: info.preimage.map(|preimage| preimage.0.to_hex()),
-                invoice: info.invoice.clone(),
-                funding_txid: info.funding_txid.map(|txid| txid.to_string()),
-            })
-            .collect::<Vec<_>>();
+        let (local_chain, all_script_pubkeys) = spawn_blocking({
+            let wallet = self.wallet.clone();
+            move || {
+                let all_script_pubkeys = wallet.all_script_pubkeys();
+                let local_chain = wallet.local_chain();
 
-        payments.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                (local_chain, all_script_pubkeys)
+            }
+        })
+        .await
+        .expect("task to complete");
 
-        Ok(payments)
-    }
-}
+        let (graph_update, _) = client
+            .full_scan(all_script_pubkeys, stop_gap, PARALLEL_REQUESTS_SYNC)
+            .await?;
 
-#[derive(Debug)]
-pub struct PaymentDetails {
-    pub payment_hash: PaymentHash,
-    pub status: HTLCStatus,
-    pub flow: PaymentFlow,
-    pub amount_msat: Option<u64>,
-    pub fee_msat: Option<u64>,
-    pub timestamp: OffsetDateTime,
-    pub description: String,
-    pub preimage: Option<String>,
-    pub invoice: Option<String>,
-    pub funding_txid: Option<String>,
-}
+        let chain_update = {
+            let missing_heights = graph_update.missing_heights(&local_chain);
 
-impl fmt::Display for PaymentDetails {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let payment_hash = hex::encode(self.payment_hash.0);
-        let status = self.status.to_string();
-        let flow = self.flow;
-        let amount_msat = self.amount_msat.unwrap_or_default();
-        let fee_msat = self.fee_msat.unwrap_or_default();
-        let timestamp = self.timestamp.to_string();
-        let description = self.description.clone();
-        let invoice = self.invoice.clone();
-        let funding_txid = self.funding_txid.clone();
+            client
+                .update_local_chain(local_chain.tip(), missing_heights)
+                .await?
+        };
 
-        write!(
-            f,
-            "payment_hash {}, status {}, flow {}, amount_msat {}, fee_msat {}, timestamp {}, description {}, invoice {:?}, funding_txid {:?}",
-            payment_hash, status, flow, amount_msat, fee_msat, timestamp, description, invoice, funding_txid
-        )
+        let wallet_update = bdk::wallet::Update {
+            graph: graph_update.clone(),
+            chain: Some(chain_update),
+            ..Default::default()
+        };
+
+        spawn_blocking({
+            let wallet = self.wallet.clone();
+            move || {
+                wallet.commit_wallet_update(wallet_update)?;
+
+                anyhow::Ok(())
+            }
+        })
+        .await
+        .expect("task to complete")?;
+
+        Ok(())
     }
 }

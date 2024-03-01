@@ -3,8 +3,9 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use anyhow::bail;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Address;
+use bitcoin::Network;
 use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -20,6 +21,7 @@ pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     notifier: mpsc::Sender<OrderbookMessage>,
+    network: Network,
 ) -> RemoteHandle<()> {
     let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
@@ -40,6 +42,7 @@ pub fn monitor(
                                 pool,
                                 notifier,
                                 new_user_msg.new_user,
+                                network,
                             )
                             .await
                             {
@@ -72,19 +75,24 @@ async fn process_pending_collaborative_revert(
     pool: Pool<ConnectionManager<PgConnection>>,
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
+    network: Network,
 ) -> Result<()> {
     let mut conn = spawn_blocking(move || pool.get())
         .await
         .expect("task to complete")?;
 
-    match collaborative_reverts::by_trader_pubkey(trader_id.to_string().as_str(), &mut conn)? {
+    match collaborative_reverts::by_trader_pubkey(
+        trader_id.to_string().as_str(),
+        network,
+        &mut conn,
+    )? {
         None => {
             // nothing to revert
         }
         Some(revert) => {
             tracing::debug!(
                 %trader_id,
-                channel_id = revert.channel_id.to_hex(),
+                channel_id = hex::encode(revert.channel_id),
                 "Notifying trader about pending collaborative revert"
             );
 
@@ -94,7 +102,10 @@ async fn process_pending_collaborative_revert(
                 trader_id,
                 message: Message::DlcChannelCollaborativeRevert {
                     channel_id: revert.channel_id,
-                    coordinator_address: revert.coordinator_address,
+                    coordinator_address: Address::new(
+                        revert.coordinator_address.network,
+                        revert.coordinator_address.payload,
+                    ),
                     coordinator_amount: revert.coordinator_amount_sats,
                     trader_amount: revert.trader_amount_sats,
                     execution_price: revert.price,

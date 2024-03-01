@@ -9,7 +9,7 @@ anyhow = "1"
 async-stream = "0.3"
 commons = { path = "../commons" }
 futures = "0.3"
-secp256k1 = { version = "0.24.3", features = ["global-context", "serde"] }
+secp256k1 = { version = "0.27.0", features = ["global-context", "serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = { version = "0.10", default-features = false }

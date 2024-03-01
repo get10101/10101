@@ -17,7 +17,6 @@ import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
-import 'package:get_10101/features/wallet/onboarding/onboarding_screen.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/welcome/seed_import_screen.dart';
@@ -182,12 +181,6 @@ GoRouter createRoutes() {
                     return SendOnChainScreen(destination: state.extra as OnChainAddress);
                   },
                 ),
-                GoRoute(
-                    path: OnboardingScreen.subRouteName,
-                    parentNavigatorKey: rootNavigatorKey,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const OnboardingScreen();
-                    }),
                 GoRoute(
                   path: ReceiveScreen.subRouteName,
                   // Use root navigator so the screen overlays the application shell

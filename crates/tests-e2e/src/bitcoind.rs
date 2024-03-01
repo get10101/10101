@@ -1,5 +1,6 @@
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
 use bitcoin::Amount;
 use reqwest::Client;
@@ -78,7 +79,7 @@ impl Bitcoind {
         n_utxos: u64,
     ) -> Result<()>
     where
-        F: Fn() -> Address,
+        F: Fn() -> Address<NetworkUnchecked>,
     {
         let total_amount = utxo_amount * n_utxos;
 
@@ -103,7 +104,10 @@ impl Bitcoind {
 
         for _ in 0..n_utxos {
             let address = address_fn();
-            outputs.insert(address.to_string(), json!(utxo_amount.to_btc()));
+            outputs.insert(
+                address.assume_checked().to_string(),
+                json!(utxo_amount.to_btc()),
+            );
         }
 
         let create_raw_tx_request = json!(
@@ -199,7 +203,7 @@ struct ListUnspentResponse {
 struct Utxo {
     txid: String,
     vout: usize,
-    #[serde(with = "bitcoin::util::amount::serde::as_btc")]
+    #[serde(with = "bitcoin::amount::serde::as_btc")]
     amount: Amount,
     spendable: bool,
 }

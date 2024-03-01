@@ -101,10 +101,6 @@ impl Settings {
     pub fn to_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
-            max_allowed_tx_fee_rate_when_opening_channel: self
-                .max_allowed_tx_fee_rate_when_opening_channel,
-            contract_tx_fee_rate: self.contract_tx_fee_rate,
-            jit_channels_enabled: self.jit_channels_enabled,
         }
     }
 

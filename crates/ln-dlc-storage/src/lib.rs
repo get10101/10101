@@ -1,4 +1,6 @@
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::SecretKey;
 use dlc_manager::chain_monitor::ChainMonitor;
 use dlc_manager::channel::accepted_channel::AcceptedChannel;
 use dlc_manager::channel::offered_channel::OfferedChannel;
@@ -27,8 +29,6 @@ use dlc_manager::DlcChannelId;
 use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
-use secp256k1_zkp::PublicKey;
-use secp256k1_zkp::SecretKey;
 use std::convert::TryInto;
 use std::io::Cursor;
 use std::io::Read;

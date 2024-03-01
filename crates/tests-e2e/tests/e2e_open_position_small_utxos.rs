@@ -70,7 +70,7 @@ async fn can_open_position_with_multiple_small_utxos() {
 
     wait_until!({
         refresh_wallet_info();
-        app.rx.wallet_info().unwrap().balances.on_chain.unwrap() >= fund_amount
+        app.rx.wallet_info().unwrap().balances.on_chain >= fund_amount
     });
 
     // Act

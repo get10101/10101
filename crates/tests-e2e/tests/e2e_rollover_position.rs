@@ -43,7 +43,11 @@ async fn can_rollover_position() {
         .map(|p| PositionState::Open == p.position_state)
         .unwrap_or(false));
 
-    force_close_dlc_channel();
+    // Once the rollover is complete, we also want to verify that the channel can still be
+    // force-closed. This should be tested in `rust-dlc`, but we recently encountered a bug in our
+    // branch: https://github.com/get10101/10101/pull/2079.
+
+    force_close_dlc_channel(&test.bitcoind).await;
 
     let channels = get_dlc_channels();
     let channel = channels.first().unwrap();

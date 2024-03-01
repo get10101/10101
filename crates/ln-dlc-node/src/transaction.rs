@@ -1,5 +1,4 @@
-use bitcoin::hashes::hex::ToHex;
-use bitcoin::psbt::serialize::Serialize;
+use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::Txid;
 use std::fmt;
 use std::fmt::Display;
@@ -65,7 +64,7 @@ impl From<&bitcoin::Transaction> for Transaction {
     fn from(value: &bitcoin::Transaction) -> Self {
         let now = OffsetDateTime::now_utc();
 
-        Self::new(value.txid(), 0, now, now, value.serialize().to_hex())
+        Self::new(value.txid(), 0, now, now, serialize_hex(value))
     }
 }
 

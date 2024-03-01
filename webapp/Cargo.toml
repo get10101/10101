@@ -9,11 +9,12 @@ anyhow = "1"
 atty = "0.2.14"
 axum = { version = "0.7", features = ["tracing"] }
 axum-login = "0.13.1"
-bitcoin = "0.29.2"
+bitcoin = "0.30"
 clap = { version = "4", features = ["derive"] }
 commons = { path = "../crates/commons" }
 console-subscriber = "0.1.6"
 dlc-manager = { version = "0.4.0" }
+hex = "0.4"
 hyper = { version = "1.0.0", features = ["full"] }
 hyper-util = { version = "0.1" }
 mime_guess = "2.0.4"

@@ -3,7 +3,6 @@ use crate::schema::channels;
 use crate::schema::sql_types::ChannelStateType;
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Txid;
 use diesel::query_builder::QueryId;
@@ -119,7 +118,7 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
     fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
             user_channel_id: value.user_channel_id.to_string(),
-            channel_id: value.channel_id.map(|cid| cid.to_hex()),
+            channel_id: value.channel_id.map(|cid| hex::encode(cid.0)),
             liquidity_option_id: value.liquidity_option_id,
             inbound_sats: value.inbound_sats as i64,
             outbound_sats: value.outbound_sats as i64,

@@ -11,23 +11,6 @@ impl Node {
                 Ok(()) => {
                     if let Some(event) = event_receiver.borrow().clone() {
                         match event {
-                            Event::ChannelReady { channel_id, .. } => {
-                                event::publish(&EventInternal::ChannelReady(channel_id))
-                            }
-                            Event::PaymentClaimed {
-                                amount_msat,
-                                payment_hash,
-                                ..
-                            } => event::publish(&EventInternal::PaymentClaimed(
-                                amount_msat,
-                                payment_hash,
-                            )),
-                            Event::PaymentSent { .. } => {
-                                event::publish(&EventInternal::PaymentSent)
-                            }
-                            Event::PaymentFailed { .. } => {
-                                event::publish(&EventInternal::PaymentFailed)
-                            }
                             Event::SpendableOutputs { .. } => {
                                 event::publish(&EventInternal::SpendableOutputs)
                             }

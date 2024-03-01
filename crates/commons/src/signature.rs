@@ -1,5 +1,5 @@
-use secp256k1::Message as SecpMessage;
-use secp256k1::PublicKey;
+use bitcoin::secp256k1::Message as SecpMessage;
+use bitcoin::secp256k1::PublicKey;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::digest::FixedOutput;
@@ -23,8 +23,8 @@ pub fn create_sign_message(message: Vec<u8>) -> SecpMessage {
 #[cfg(test)]
 mod test {
     use crate::signature::Signature;
-    use secp256k1::PublicKey;
-    use secp256k1::SecretKey;
+    use bitcoin::secp256k1::PublicKey;
+    use bitcoin::secp256k1::SecretKey;
     use std::str::FromStr;
 
     fn dummy_public_key() -> PublicKey {

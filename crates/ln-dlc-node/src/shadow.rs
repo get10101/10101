@@ -1,64 +1,48 @@
-use crate::channel::Channel;
-use crate::channel::ChannelState;
-use crate::ln_dlc_wallet::LnDlcWallet;
-use crate::node::ChannelManager;
 use crate::node::Storage;
-use crate::storage::TenTenOneStorage;
+use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::OnChainWallet;
 use anyhow::Result;
-use bdk::TransactionDetails;
-use dlc_manager::subchannel::LNChannelManager;
+use bdk::chain::tx_graph::CalculateFeeError;
 use std::sync::Arc;
 
-pub struct Shadow<S: TenTenOneStorage, N: Storage> {
+pub struct Shadow<D: BdkStorage, N: Storage> {
     storage: Arc<N>,
-    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
-    channel_manager: Arc<ChannelManager<S, N>>,
+    wallet: Arc<OnChainWallet<D>>,
 }
 
-impl<S: TenTenOneStorage, N: Storage> Shadow<S, N> {
-    pub fn new(
-        storage: Arc<N>,
-        ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
-        channel_manager: Arc<ChannelManager<S, N>>,
-    ) -> Self {
-        Shadow {
-            storage,
-            ln_dlc_wallet,
-            channel_manager,
-        }
-    }
-
-    pub fn sync_channels(&self) -> Result<()> {
-        let channels = self.storage.all_non_pending_channels()?;
-        tracing::debug!("Syncing {} shadow channels", channels.len());
-
-        for mut channel in channels
-            .into_iter()
-            .filter(|c| c.channel_state == ChannelState::Open)
-        {
-            if let Some(channel_id) = &channel.channel_id {
-                let channel_details = self.channel_manager.get_channel_details(channel_id);
-                channel = Channel::update_liquidity(&channel, &channel_details)?;
-                self.storage.upsert_channel(channel.clone())?;
-            }
-        }
-        Ok(())
+impl<D: BdkStorage, N: Storage> Shadow<D, N> {
+    pub fn new(storage: Arc<N>, wallet: Arc<OnChainWallet<D>>) -> Self {
+        Shadow { storage, wallet }
     }
 
     pub fn sync_transactions(&self) -> Result<()> {
         let transactions = self.storage.all_transactions_without_fees()?;
         tracing::debug!("Syncing {} shadow transactions", transactions.len());
 
+        let wallet = self.wallet.clone();
+
         for transaction in transactions.iter() {
             let txid = transaction.txid();
-            match self.ln_dlc_wallet.ldk_wallet().get_transaction(&txid) {
-                Ok(Some(TransactionDetails { fee: Some(fee), .. })) => {
-                    self.storage
-                        .upsert_transaction(transaction.clone().with_fee(fee))?;
-                }
-                Ok(_) => {}
-                Err(e) => {
-                    tracing::warn!(%txid, "Failed to get transaction details: {e:#}");
+
+            match wallet.get_transaction(&txid) {
+                Some(tx) => match wallet.calculate_fee(&tx) {
+                    Ok(fee) => {
+                        self.storage
+                            .upsert_transaction(transaction.clone().with_fee(fee))?;
+                    }
+                    Err(e @ CalculateFeeError::NegativeFee(_)) => {
+                        tracing::error!(%txid, "Failed to get fee: {e}");
+                    }
+                    Err(e @ CalculateFeeError::MissingTxOut(_)) => {
+                        tracing::warn!(%txid, "Failed to get fee: {e}");
+                        // TODO: We should consider calling `insert_txout` to add all the `TxOut`s
+                        // that we don't own so that BDK can actually calculate the fee. Of course,
+                        // the fee will be shared with other wallets if we don't own all the
+                        // transaction inputs, and BDK won't be able to decide on the split.
+                    }
+                },
+                None => {
+                    tracing::warn!(%txid, "Failed to get transaction details");
                 }
             };
         }

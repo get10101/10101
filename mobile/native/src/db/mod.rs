@@ -1,13 +1,10 @@
 use crate::config;
-use crate::db::models::base64_engine;
 use crate::db::models::Channel;
 use crate::db::models::ChannelOpeningParams;
 use crate::db::models::FailureReason;
 use crate::db::models::NewTrade;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
-use crate::db::models::PaymentInsertable;
-use crate::db::models::PaymentQueryable;
 use crate::db::models::Position;
 use crate::db::models::SpendableOutputInsertable;
 use crate::db::models::SpendableOutputQueryable;
@@ -17,10 +14,8 @@ use crate::trade;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use base64::Engine;
-use bdk::bitcoin;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Txid;
+use bitcoin::Network;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
@@ -87,7 +82,7 @@ impl r2d2::CustomizeConnection<SqliteConnection, r2d2::Error> for ConnectionOpti
     }
 }
 
-pub fn init_db(db_dir: &str, network: bitcoin::Network) -> Result<()> {
+pub fn init_db(db_dir: &str, network: Network) -> Result<()> {
     if DB.try_get().is_some() {
         return Ok(());
     }
@@ -343,88 +338,6 @@ pub fn rollover_position(
         .context("Failed to rollover position")?;
 
     Ok(())
-}
-
-pub fn insert_payment(
-    payment_hash: lightning::ln::PaymentHash,
-    info: ln_dlc_node::PaymentInfo,
-) -> Result<()> {
-    tracing::debug!(?payment_hash, "Inserting payment");
-
-    let mut db = connection()?;
-
-    PaymentInsertable::insert((payment_hash, info).into(), &mut db)?;
-
-    Ok(())
-}
-
-pub fn update_payment(
-    payment_hash: lightning::ln::PaymentHash,
-    htlc_status: ln_dlc_node::HTLCStatus,
-    amt_msat: ln_dlc_node::MillisatAmount,
-    fee_msat: ln_dlc_node::MillisatAmount,
-    preimage: Option<lightning::ln::PaymentPreimage>,
-    secret: Option<lightning::ln::PaymentSecret>,
-    funding_txid: Option<Txid>,
-) -> Result<()> {
-    tracing::info!(?payment_hash, "Updating payment");
-
-    let mut db = connection()?;
-
-    let base64 = base64_engine();
-
-    let preimage = preimage.map(|preimage| base64.encode(preimage.0));
-    let secret = secret.map(|secret| base64.encode(secret.0));
-    let funding_txid = funding_txid.map(|txid| txid.to_string());
-
-    PaymentInsertable::update(
-        base64.encode(payment_hash.0),
-        htlc_status.into(),
-        amt_msat.to_inner().map(|amt| amt as i64),
-        fee_msat.to_inner().map(|amt| amt as i64),
-        preimage,
-        secret,
-        funding_txid,
-        &mut db,
-    )?;
-
-    Ok(())
-}
-
-pub fn get_payment(
-    payment_hash: lightning::ln::PaymentHash,
-) -> Result<Option<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    tracing::debug!(
-        payment_hash = hex::encode(payment_hash.0),
-        "Getting payment"
-    );
-
-    let mut db = connection()?;
-
-    let payment =
-        PaymentQueryable::get(base64_engine().encode(payment_hash.0), &mut db).optional()?;
-
-    payment.map(|payment| payment.try_into()).transpose()
-}
-
-pub fn get_payments() -> Result<Vec<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)>> {
-    let mut db = connection()?;
-    let payments = PaymentQueryable::get_all(&mut db)?;
-    let payments = payments
-        .into_iter()
-        .map(|payment| payment.try_into())
-        .collect::<Result<Vec<_>>>()?;
-
-    let formatted_payment_hashes = payments
-        .iter()
-        .map(|(hash, _)| hex::encode(hash.0))
-        .collect::<Vec<_>>();
-    tracing::trace!(
-        payment_hashes = ?formatted_payment_hashes,
-        "Got all payments"
-    );
-
-    Ok(payments)
 }
 
 pub fn insert_spendable_output(

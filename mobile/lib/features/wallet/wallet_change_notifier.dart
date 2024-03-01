@@ -31,10 +31,6 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     super.notifyListeners();
   }
 
-  Future<void> refreshLightningWallet() async {
-    await service.refreshLightningWallet();
-  }
-
   Future<void> refreshWalletInfo() async {
     syncing = true;
     await service.refreshWalletInfo();

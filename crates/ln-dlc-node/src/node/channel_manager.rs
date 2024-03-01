@@ -1,14 +1,17 @@
+use crate::bitcoin_conversion::to_block_hash_29;
+use crate::bitcoin_conversion::to_network_29;
+use crate::blockchain::Blockchain;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::TracingLogger;
-use crate::ln_dlc_wallet::LnDlcWallet;
 use crate::node::Storage;
+use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::Router;
 use anyhow::anyhow;
 use anyhow::Result;
-use bitcoin::BlockHash;
+use bitcoin::Network;
 use lightning::chain::BestBlock;
 use lightning::chain::ChannelMonitorUpdateStatus;
 use lightning::chain::Watch;
@@ -24,30 +27,30 @@ use lightning::util::ser::ReadableArgs;
 use lightning_transaction_sync::EsploraSyncClient;
 use std::sync::Arc;
 
-pub type ChannelManager<S, N> = lightning::ln::channelmanager::ChannelManager<
+pub type ChannelManager<D, S, N> = lightning::ln::channelmanager::ChannelManager<
     Arc<ChainMonitor<S, N>>,
-    Arc<LnDlcWallet<S, N>>,
-    Arc<CustomKeysManager<S, N>>,
-    Arc<CustomKeysManager<S, N>>,
-    Arc<CustomKeysManager<S, N>>,
+    Arc<Blockchain<N>>,
+    Arc<CustomKeysManager<D>>,
+    Arc<CustomKeysManager<D>>,
+    Arc<CustomKeysManager<D>>,
     Arc<FeeRateEstimator>,
     Arc<Router>,
     Arc<TracingLogger>,
 >;
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
-    keys_manager: Arc<CustomKeysManager<S, N>>,
-    ln_dlc_wallet: Arc<LnDlcWallet<S, N>>,
+pub(crate) fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
+    keys_manager: Arc<CustomKeysManager<D>>,
+    blockchain: Arc<Blockchain<N>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
     explora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
     logger: Arc<TracingLogger>,
     chain_monitor: Arc<ChainMonitor<S, N>>,
     ldk_config: UserConfig,
-    network: bitcoin::Network,
+    network: Network,
     persister: Arc<S>,
     router: Arc<Router>,
-) -> Result<ChannelManager<S, N>> {
+) -> Result<ChannelManager<D, S, N>> {
     let file = match KVStore::read(
         persister.as_ref(),
         CHANNEL_MANAGER_PERSISTENCE_PRIMARY_NAMESPACE,
@@ -62,11 +65,13 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
             tracing::info!("Did not find channel manager data. {e:#}");
             tracing::info!("Initializing new channel manager");
 
-            let (height, block_hash) = ln_dlc_wallet.tip()?;
+            let height = blockchain.get_blockchain_tip()?;
+            let block_hash = blockchain.get_block_hash(height)?;
+
             return Ok(ChannelManager::new(
                 fee_rate_estimator,
                 chain_monitor.clone(),
-                ln_dlc_wallet,
+                blockchain,
                 router,
                 logger,
                 keys_manager.clone(),
@@ -74,8 +79,8 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
                 keys_manager,
                 ldk_config,
                 ChainParameters {
-                    network,
-                    best_block: BestBlock::new(block_hash, height),
+                    network: to_network_29(network),
+                    best_block: BestBlock::new(to_block_hash_29(block_hash), height as u32),
                 },
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)?
@@ -97,7 +102,7 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
         keys_manager,
         fee_rate_estimator,
         chain_monitor.clone(),
-        ln_dlc_wallet,
+        blockchain,
         router,
         logger,
         ldk_config,
@@ -105,7 +110,7 @@ pub(crate) fn build<S: TenTenOneStorage, N: Storage>(
     );
 
     let channel_manager =
-        <(BlockHash, ChannelManager<S, N>)>::read(&mut file.as_slice(), read_args)
+        <(bitcoin_old::BlockHash, ChannelManager<D, S, N>)>::read(&mut file.as_slice(), read_args)
             .map_err(|e| anyhow!(e))?
             .1;
 

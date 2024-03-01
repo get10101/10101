@@ -15,7 +15,6 @@ import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/domain/share_payment_request.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
-import 'package:get_10101/features/wallet/payment_claimed_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -31,7 +30,7 @@ class ReceiveScreen extends StatefulWidget {
 
   final WalletType walletType;
 
-  const ReceiveScreen({super.key, this.walletType = WalletType.lightning});
+  const ReceiveScreen({super.key, this.walletType = WalletType.onChain});
 
   @override
   State<ReceiveScreen> createState() => _ReceiveScreenState();
@@ -48,7 +47,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<PaymentClaimedChangeNotifier>().waitForPayment();
     _createPaymentRequest(amount, description)
         .then((paymentRequest) => setState(() => _paymentRequest = paymentRequest));
   }
@@ -70,17 +68,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
           appBar: AppBar(title: const Text("Receive funds")),
           body: const Center(
               child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator())));
-    }
-
-    final isPaymentClaimed = context.watch<PaymentClaimedChangeNotifier>().isClaimed();
-    if (isPaymentClaimed) {
-      // routing is not allowed during building a widget, hence we need to register the route navigation after the widget has been build.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context
-            .read<WalletChangeNotifier>()
-            .refreshLightningWallet()
-            .then((value) => GoRouter.of(context).pop());
-      });
     }
 
     return Scaffold(

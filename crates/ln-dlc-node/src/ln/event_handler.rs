@@ -1,20 +1,10 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use lightning::events::Event;
-use lightning::ln::channelmanager::InterceptId;
-use parking_lot::Mutex;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
 
-pub type PendingInterceptedHtlcs = Arc<Mutex<HashMap<PublicKey, InterceptionDetails>>>;
 pub type EventSender = watch::Sender<Option<Event>>;
-
-pub struct InterceptionDetails {
-    pub id: InterceptId,
-    pub expected_outbound_amount_msat: u64,
-}
 
 #[async_trait]
 pub trait EventHandlerTrait: Send + Sync {

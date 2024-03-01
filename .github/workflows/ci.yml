@@ -260,20 +260,20 @@ jobs:
           set -euxo pipefail
 
           just wait-for-electrs-to-be-ready
-          
+
           settings_target_path="data/coordinator/regtest/coordinator-settings.toml"
-      
+
           cp coordinator/example-settings/test-coordinator-settings.toml "$settings_target_path"
           echo "Copied test settings to $settings_target_path"
 
           echo "Starting coordinator"
-          ls -lah ./target/debug/ 
+          ls -lah ./target/debug/
           ./target/debug/coordinator &> ./data/coordinator/regtest.log &
           just wait-for-coordinator-to-be-ready
           echo "Coordinator successfully started."
       - name: Run maker
         run: |
-          docker run --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://172.17.0.1:8000
+          just run-maker-detached
           echo "Maker successfully started."
       - name: Run e2e tests
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored

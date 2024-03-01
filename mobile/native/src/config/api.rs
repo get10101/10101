@@ -1,6 +1,6 @@
 use crate::config::ConfigInternal;
-use bdk::bitcoin::Network;
-use bdk::bitcoin::XOnlyPublicKey;
+use bitcoin::key::XOnlyPublicKey;
+use bitcoin::Network;
 use flutter_rust_bridge::frb;
 use std::str::FromStr;
 

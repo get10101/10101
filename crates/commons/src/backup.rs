@@ -1,6 +1,8 @@
 use crate::signature::create_sign_message;
-use secp256k1::ecdsa::Signature;
-use secp256k1::PublicKey;
+use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::VerifyOnly;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -22,9 +24,10 @@ pub struct Backup {
 
 impl Backup {
     /// Verifies if the backup was from the given node id
-    pub fn verify(&self, node_id: &PublicKey) -> anyhow::Result<()> {
+    pub fn verify(&self, secp: &Secp256k1<VerifyOnly>, node_id: &PublicKey) -> anyhow::Result<()> {
         let message = create_sign_message(self.value.clone());
-        self.signature.verify(&message, node_id)?;
+        secp.verify_ecdsa(&message, &self.signature, node_id)?;
+
         Ok(())
     }
 }
@@ -38,10 +41,12 @@ pub struct DeleteBackup {
 }
 
 impl DeleteBackup {
-    pub fn verify(&self, node_id: &PublicKey) -> anyhow::Result<()> {
+    pub fn verify(&self, secp: &Secp256k1<VerifyOnly>, node_id: &PublicKey) -> anyhow::Result<()> {
         let message = node_id.to_string().as_bytes().to_vec();
         let message = create_sign_message(message);
-        self.signature.verify(&message, node_id)?;
+
+        secp.verify_ecdsa(&message, &self.signature, node_id)?;
+
         Ok(())
     }
 }

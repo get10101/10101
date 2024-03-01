@@ -2,8 +2,6 @@ use crate::dlc_protocol;
 use crate::dlc_protocol::ProtocolId;
 use crate::schema::dlc_protocols;
 use crate::schema::sql_types::ProtocolStateType;
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::query_builder::QueryId;
 use diesel::AsExpression;
@@ -16,6 +14,7 @@ use diesel::Queryable;
 use diesel::RunQueryDsl;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
+use hex::FromHex;
 use std::any::TypeId;
 use std::str::FromStr;
 use time::OffsetDateTime;
@@ -89,8 +88,8 @@ pub(crate) fn set_dlc_protocol_state_to_success(
         .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .set((
             dlc_protocols::protocol_state.eq(DlcProtocolState::Success),
-            dlc_protocols::contract_id.eq(contract_id.to_hex()),
-            dlc_protocols::channel_id.eq(channel_id.to_hex()),
+            dlc_protocols::contract_id.eq(hex::encode(contract_id)),
+            dlc_protocols::channel_id.eq(hex::encode(channel_id)),
         ))
         .execute(conn)?;
 
@@ -113,8 +112,8 @@ pub(crate) fn create(
         .values(&(
             dlc_protocols::protocol_id.eq(protocol_id.to_uuid()),
             dlc_protocols::previous_protocol_id.eq(previous_protocol_id.map(|ppid| ppid.to_uuid())),
-            dlc_protocols::contract_id.eq(contract_id.to_hex()),
-            dlc_protocols::channel_id.eq(channel_id.to_hex()),
+            dlc_protocols::contract_id.eq(hex::encode(contract_id)),
+            dlc_protocols::channel_id.eq(hex::encode(channel_id)),
             dlc_protocols::protocol_state.eq(DlcProtocolState::Pending),
             dlc_protocols::trader_pubkey.eq(trader.to_string()),
             dlc_protocols::timestamp.eq(OffsetDateTime::now_utc()),

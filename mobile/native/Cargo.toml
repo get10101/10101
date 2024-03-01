@@ -10,9 +10,11 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 aes-gcm-siv = { version = "0.11.1", features = ["heapless"] }
 anyhow = "1"
 base64 = "0.21.0"
-bdk = { version = "0.28.0", default-features = false, features = ["key-value-db", "use-esplora-blocking"] }
-bip21 = "0.2.0"
-bitcoin = "0.29.2"
+bdk = { version = "1.0.0-alpha.6", features = ["std"] }
+bdk_file_store = "0.6"
+bip21 = "0.3.0"
+bitcoin = { version = "0.30" }
+bitcoin_old = { package = "bitcoin", version = "0.29.2" }
 commons = { path = "../../crates/commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"

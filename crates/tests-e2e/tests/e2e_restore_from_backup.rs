@@ -19,6 +19,9 @@ async fn app_can_be_restored_from_a_backup() {
 
     let off_chain = test.app.rx.wallet_info().unwrap().balances.off_chain;
 
+    // Give any pending backup time to complete.
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+
     // kill the app
     test.app.stop();
     tracing::info!("Shutting down app!");

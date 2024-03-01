@@ -1,5 +1,4 @@
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
@@ -46,7 +45,7 @@ impl SerializedDlcMessage {
     pub fn generate_hash(&self) -> String {
         let mut hasher = Sha256::new();
         hasher.update(self.message.as_bytes());
-        hasher.finalize_fixed().to_hex()
+        hex::encode(hasher.finalize_fixed())
     }
 }
 

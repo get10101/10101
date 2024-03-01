@@ -8,7 +8,10 @@ use crate::coordinator::Coordinator;
 use crate::http::init_reqwest;
 use crate::logger::init_tracing;
 use crate::wait_until;
+use bitcoin::address::NetworkUnchecked;
+use bitcoin::Address;
 use bitcoin::Amount;
+use ln_dlc_node::node::rust_dlc_manager::manager::NB_CONFIRMATIONS;
 use native::api;
 use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
@@ -40,7 +43,7 @@ impl TestSetup {
 
         assert_eq!(
             app.rx.wallet_info().unwrap().balances.on_chain,
-            Some(0),
+            0,
             "App should start with empty on-chain wallet"
         );
 
@@ -62,7 +65,12 @@ impl TestSetup {
     /// E.g. if amount = 3 BTC, and n_utxos = 3, it would create 3 UTXOs a 1 BTC
     pub async fn fund_coordinator(&self, amount: Amount, n_utxos: u64) {
         // Ensure that the coordinator has a free UTXO available.
-        let address = self.coordinator.get_new_address().await.unwrap();
+        let address = self
+            .coordinator
+            .get_new_address()
+            .await
+            .unwrap()
+            .assume_checked();
 
         let sats_per_fund = amount.to_sat() / n_utxos;
         for _ in 0..n_utxos {
@@ -81,11 +89,11 @@ impl TestSetup {
     }
 
     pub async fn fund_app(&self, fund_amount: Amount) {
-        let address = api::get_unused_address();
-        let address = &address.0.parse().unwrap();
+        let address = api::get_new_address().unwrap();
+        let address: Address<NetworkUnchecked> = address.parse().unwrap();
 
         self.bitcoind
-            .send_to_address(address, fund_amount)
+            .send_to_address(&address.assume_checked(), fund_amount)
             .await
             .unwrap();
 
@@ -93,24 +101,10 @@ impl TestSetup {
 
         wait_until!({
             refresh_wallet_info();
-            self.app
-                .rx
-                .wallet_info()
-                .unwrap()
-                .balances
-                .on_chain
-                .unwrap()
-                >= fund_amount.to_sat()
+            self.app.rx.wallet_info().unwrap().balances.on_chain >= fund_amount.to_sat()
         });
 
-        let on_chain_balance = self
-            .app
-            .rx
-            .wallet_info()
-            .unwrap()
-            .balances
-            .on_chain
-            .unwrap();
+        let on_chain_balance = self.app.rx.wallet_info().unwrap().balances.on_chain;
 
         tracing::info!(%fund_amount, %on_chain_balance, "Successfully funded app");
     }
@@ -143,12 +137,15 @@ impl TestSetup {
         // Wait for coordinator to open position.
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        setup.bitcoind.mine(6).await.unwrap();
+        setup.bitcoind.mine(NB_CONFIRMATIONS as u16).await.unwrap();
 
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        sync_dlc_channels();
+        // Includes an on-chain sync.
         refresh_wallet_info();
+
+        // Relies on the on-chain sync to be able to detect the publication of the fund transaction.
+        sync_dlc_channels();
 
         setup.sync_coordinator().await;
 

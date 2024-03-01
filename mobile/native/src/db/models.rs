@@ -2,7 +2,6 @@ use crate::schema;
 use crate::schema::channel_opening_params;
 use crate::schema::channels;
 use crate::schema::orders;
-use crate::schema::payments;
 use crate::schema::positions;
 use crate::schema::spendable_outputs;
 use crate::schema::trades;
@@ -12,9 +11,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
-use base64::Engine;
-use bdk::bitcoin::hashes::hex::FromHex;
-use bdk::bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
@@ -732,293 +728,11 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
     }
 }
 
-#[derive(Insertable, Debug, Clone, PartialEq)]
-#[diesel(table_name = payments)]
-pub(crate) struct PaymentInsertable {
-    #[diesel(sql_type = Text)]
-    pub payment_hash: String,
-    #[diesel(sql_type = Nullabel<Text>)]
-    pub preimage: Option<String>,
-    #[diesel(sql_type = Nullable<Text>)]
-    pub secret: Option<String>,
-    pub htlc_status: HtlcStatus,
-    #[diesel(sql_type = Nullable<BigInt>)]
-    pub amount_msat: Option<i64>,
-    #[diesel(sql_type = Nullable<BigInt>)]
-    pub fee_msat: Option<i64>,
-    pub flow: Flow,
-    pub created_at: i64,
-    pub updated_at: i64,
-    #[diesel(sql_type = Text)]
-    pub description: String,
-    #[diesel(sql_type = Nullable<Text>)]
-    pub invoice: Option<String>,
-    #[diesel(sql_type = Nullable<Text>)]
-    pub funding_txid: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Text)]
-pub enum HtlcStatus {
-    Pending,
-    Succeeded,
-    Failed,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Text)]
 pub enum Flow {
     Inbound,
     Outbound,
-}
-
-impl PaymentInsertable {
-    pub fn insert(payment: PaymentInsertable, conn: &mut SqliteConnection) -> Result<()> {
-        let affected_rows = diesel::insert_into(payments::table)
-            .values(&payment)
-            .execute(conn)?;
-
-        ensure!(affected_rows > 0, "Could not insert payment");
-
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn update(
-        payment_hash: String,
-        htlc_status: HtlcStatus,
-        amount_msat: Option<i64>,
-        fee_msat: Option<i64>,
-        preimage: Option<String>,
-        secret: Option<String>,
-        funding_txid: Option<String>,
-        conn: &mut SqliteConnection,
-    ) -> Result<i64> {
-        let updated_at = OffsetDateTime::now_utc().unix_timestamp();
-
-        conn.transaction::<(), _, _>(|conn| {
-            let affected_rows = diesel::update(payments::table)
-                .filter(schema::payments::payment_hash.eq(&payment_hash))
-                .set(schema::payments::htlc_status.eq(htlc_status))
-                .execute(conn)?;
-
-            if affected_rows == 0 {
-                bail!("Could not update payment HTLC status")
-            }
-
-            if let Some(amount_msat) = amount_msat {
-                let affected_rows = diesel::update(payments::table)
-                    .filter(schema::payments::payment_hash.eq(&payment_hash))
-                    .set(schema::payments::amount_msat.eq(amount_msat))
-                    .execute(conn)?;
-
-                if affected_rows == 0 {
-                    bail!("Could not update payment amount")
-                }
-            }
-
-            if let Some(fee_msat) = fee_msat {
-                let affected_rows = diesel::update(payments::table)
-                    .filter(schema::payments::payment_hash.eq(&payment_hash))
-                    .set(schema::payments::fee_msat.eq(fee_msat))
-                    .execute(conn)?;
-
-                if affected_rows == 0 {
-                    bail!("Could not update payment fee amount")
-                }
-            }
-
-            if let Some(preimage) = preimage {
-                let affected_rows = diesel::update(payments::table)
-                    .filter(schema::payments::payment_hash.eq(&payment_hash))
-                    .set(schema::payments::preimage.eq(preimage))
-                    .execute(conn)?;
-
-                if affected_rows == 0 {
-                    bail!("Could not update payment preimage")
-                }
-            }
-
-            if let Some(secret) = secret {
-                let affected_rows = diesel::update(payments::table)
-                    .filter(schema::payments::payment_hash.eq(&payment_hash))
-                    .set(schema::payments::secret.eq(secret))
-                    .execute(conn)?;
-
-                if affected_rows == 0 {
-                    bail!("Could not update payment secret")
-                }
-            }
-
-            if let Some(funding_txid) = funding_txid {
-                let affected_rows = diesel::update(payments::table)
-                    .filter(schema::payments::payment_hash.eq(&payment_hash))
-                    .set(schema::payments::funding_txid.eq(funding_txid))
-                    .execute(conn)?;
-
-                if affected_rows == 0 {
-                    bail!("Could not update payment funding_txid")
-                }
-            }
-
-            let affected_rows = diesel::update(payments::table)
-                .filter(schema::payments::payment_hash.eq(&payment_hash))
-                .set(schema::payments::updated_at.eq(updated_at))
-                .execute(conn)?;
-
-            if affected_rows == 0 {
-                bail!("Could not update payment updated_at timestamp")
-            }
-
-            Ok(())
-        })?;
-
-        Ok(updated_at)
-    }
-}
-
-#[derive(Queryable, Debug, Clone, PartialEq)]
-#[diesel(table_name = payments)]
-pub(crate) struct PaymentQueryable {
-    pub id: i32,
-    pub payment_hash: String,
-    pub preimage: Option<String>,
-    pub secret: Option<String>,
-    pub htlc_status: HtlcStatus,
-    pub amount_msat: Option<i64>,
-    pub flow: Flow,
-    pub created_at: i64,
-    pub updated_at: i64,
-    pub description: String,
-    pub invoice: Option<String>,
-    pub fee_msat: Option<i64>,
-    pub funding_txid: Option<String>,
-}
-
-impl PaymentQueryable {
-    pub fn get(payment_hash: String, conn: &mut SqliteConnection) -> QueryResult<PaymentQueryable> {
-        payments::table
-            .filter(schema::payments::payment_hash.eq(payment_hash))
-            .first(conn)
-    }
-
-    pub fn get_all(conn: &mut SqliteConnection) -> QueryResult<Vec<PaymentQueryable>> {
-        payments::table.load(conn)
-    }
-}
-
-impl From<(lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)> for PaymentInsertable {
-    fn from((payment_hash, info): (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo)) -> Self {
-        let base64 = base64_engine();
-
-        let timestamp = info.timestamp.unix_timestamp();
-
-        Self {
-            payment_hash: base64.encode(payment_hash.0),
-            preimage: info.preimage.map(|preimage| base64.encode(preimage.0)),
-            secret: info.secret.map(|secret| base64.encode(secret.0)),
-            htlc_status: info.status.into(),
-            amount_msat: info.amt_msat.to_inner().map(|amt| amt as i64),
-            fee_msat: info.fee_msat.to_inner().map(|amt| amt as i64),
-            flow: info.flow.into(),
-            created_at: timestamp,
-            updated_at: timestamp,
-            description: info.description,
-            invoice: info.invoice,
-            funding_txid: info.funding_txid.map(|txid| txid.to_string()),
-        }
-    }
-}
-
-impl TryFrom<PaymentQueryable> for (lightning::ln::PaymentHash, ln_dlc_node::PaymentInfo) {
-    type Error = anyhow::Error;
-
-    fn try_from(value: PaymentQueryable) -> Result<Self> {
-        let base64 = base64_engine();
-
-        let payment_hash = base64.decode(value.payment_hash)?;
-        let payment_hash = payment_hash
-            .try_into()
-            .map_err(|_| anyhow!("Can't convert payment hash to array"))?;
-        let payment_hash = lightning::ln::PaymentHash(payment_hash);
-
-        let preimage = value
-            .preimage
-            .map(|preimage| {
-                let preimage = base64.decode(preimage)?;
-                let preimage = preimage
-                    .try_into()
-                    .map_err(|_| anyhow!("Can't convert preimage to array"))?;
-
-                anyhow::Ok(lightning::ln::PaymentPreimage(preimage))
-            })
-            .transpose()?;
-
-        let secret = value
-            .secret
-            .map(|secret| {
-                let secret = base64.decode(secret)?;
-                let secret = secret
-                    .try_into()
-                    .map_err(|_| anyhow!("Can't convert secret to array"))?;
-
-                anyhow::Ok(lightning::ln::PaymentSecret(secret))
-            })
-            .transpose()?;
-
-        let funding_txid = value
-            .funding_txid
-            .map(|txid| Txid::from_str(&txid).expect("valid txid"));
-
-        let status = value.htlc_status.into();
-
-        let amt_msat =
-            ln_dlc_node::MillisatAmount::new(value.amount_msat.map(|amount| amount as u64));
-        let fee_msat = ln_dlc_node::MillisatAmount::new(value.fee_msat.map(|amount| amount as u64));
-
-        let flow = value.flow.into();
-
-        let timestamp = OffsetDateTime::from_unix_timestamp(value.created_at)?;
-
-        let description = value.description;
-        let invoice = value.invoice;
-
-        Ok((
-            payment_hash,
-            ln_dlc_node::PaymentInfo {
-                preimage,
-                secret,
-                status,
-                amt_msat,
-                fee_msat,
-                flow,
-                timestamp,
-                description,
-                invoice,
-                funding_txid,
-            },
-        ))
-    }
-}
-
-impl From<ln_dlc_node::HTLCStatus> for HtlcStatus {
-    fn from(value: ln_dlc_node::HTLCStatus) -> Self {
-        match value {
-            ln_dlc_node::node::HTLCStatus::Pending => Self::Pending,
-            ln_dlc_node::node::HTLCStatus::Succeeded => Self::Succeeded,
-            ln_dlc_node::node::HTLCStatus::Failed => Self::Failed,
-        }
-    }
-}
-
-impl From<HtlcStatus> for ln_dlc_node::HTLCStatus {
-    fn from(value: HtlcStatus) -> Self {
-        match value {
-            HtlcStatus::Pending => Self::Pending,
-            HtlcStatus::Succeeded => Self::Succeeded,
-            HtlcStatus::Failed => Self::Failed,
-        }
-    }
 }
 
 impl From<ln_dlc_node::PaymentFlow> for Flow {
@@ -1037,13 +751,6 @@ impl From<Flow> for ln_dlc_node::PaymentFlow {
             Flow::Outbound => Self::Outbound,
         }
     }
-}
-
-pub(crate) fn base64_engine() -> base64::engine::GeneralPurpose {
-    base64::engine::GeneralPurpose::new(
-        &base64::alphabet::STANDARD,
-        base64::engine::GeneralPurposeConfig::new(),
-    )
 }
 
 #[derive(Insertable, Debug, Clone, PartialEq)]
@@ -1125,7 +832,7 @@ impl
         ),
     ) -> Self {
         let outpoint = outpoint_to_string(outpoint);
-        let descriptor = descriptor.encode().to_hex();
+        let descriptor = hex::encode(descriptor.encode());
 
         Self {
             outpoint,
@@ -1138,7 +845,7 @@ impl TryFrom<SpendableOutputQueryable> for lightning::sign::SpendableOutputDescr
     type Error = anyhow::Error;
 
     fn try_from(value: SpendableOutputQueryable) -> Result<Self, Self::Error> {
-        let bytes = Vec::from_hex(&value.descriptor)?;
+        let bytes = hex::decode(value.descriptor)?;
         let descriptor = Self::read(&mut lightning::io::Cursor::new(bytes))
             .map_err(|e| anyhow!("Failed to decode spendable output descriptor: {e}"))?;
 
@@ -1307,7 +1014,7 @@ impl From<ln_dlc_node::channel::Channel> for Channel {
     fn from(value: ln_dlc_node::channel::Channel) -> Self {
         Channel {
             user_channel_id: value.user_channel_id.to_string(),
-            channel_id: value.channel_id.map(|cid| cid.to_hex()),
+            channel_id: value.channel_id.map(|cid| hex::encode(cid.0)),
             inbound: value.inbound_sats as i64,
             outbound: value.outbound_sats as i64,
             funding_txid: value.funding_txid.map(|txid| txid.to_string()),
@@ -1745,124 +1452,12 @@ pub mod test {
     }
 
     #[test]
-    fn payment_round_trip() {
-        let mut connection = SqliteConnection::establish(":memory:").unwrap();
-        connection.run_pending_migrations(MIGRATIONS).unwrap();
-
-        let payment_hash = "lnbc2500u1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpuaztrnwngzn3kdzw5hydlzf03qdgm2hdq27cqv3agm2awhz5se903vruatfhq77w3ls4evs3ch9zw97j25emudupq63nyw24cg27h2rspfj9srp";
-        let preimage = None;
-        let secret = None;
-        let htlc_status = HtlcStatus::Pending;
-        let amount_msat = Some(10_000_000);
-        let fee_msat = Some(120);
-        let flow = Flow::Inbound;
-        let created_at = 100;
-        let updated_at = 100;
-        let description = "payment1".to_string();
-        let invoice = Some("invoice1".to_string());
-
-        let payment = PaymentInsertable {
-            payment_hash: payment_hash.to_string(),
-            preimage: preimage.clone(),
-            secret: secret.clone(),
-            htlc_status,
-            amount_msat,
-            fee_msat,
-            flow,
-            created_at,
-            updated_at,
-            description: description.clone(),
-            invoice: invoice.clone(),
-            funding_txid: None,
-        };
-
-        PaymentInsertable::insert(payment, &mut connection).unwrap();
-
-        // Insert a random payment to show that we don't get confused with this one
-        PaymentInsertable::insert(
-            PaymentInsertable {
-                payment_hash: "lnbcrt100u1pjzy0v3dq8w3jhxaqpp55s8w2jfqatnjh4ntsrv36nvzutp9wm25zqyrn9glrnxgfu72l3cqsp50rj4gs2ck2vjungtx9auetdfa5eeglw89c037nv3fcj03xtj0shs9qrsgqcqpcrzjqfhpmc88dypdw8fvy7lam2w53svuf32s7z9mgxyawgyzgmsw8tuhuqqqqyqq2tgqqvqqqqlgqqqyugqq9gefmmc3jhl85nhhq0cljg2muqsj4z54j770xym29h2mutzu6gg8d86p50wcuazxrzhr8lfen9htg605gj3hp86vedhp7a46ypdsrg34sqm5t9tv".to_string(),
-                preimage: None,
-                secret: None,
-                htlc_status: HtlcStatus::Pending,
-                amount_msat: None,
-                fee_msat: None,
-                flow: Flow::Outbound,
-                created_at: 200,
-                updated_at: 200,
-                description: "payment2".to_string(),
-                invoice: Some("invoice2".to_string()),
-                funding_txid: None
-            },
-            &mut connection,
-        )
-        .unwrap();
-
-        // Verify that we can load the right payment based on its payment_hash
-        let loaded_payment =
-            PaymentQueryable::get(payment_hash.to_string(), &mut connection).unwrap();
-
-        let expected_payment = PaymentQueryable {
-            id: 1,
-            payment_hash: payment_hash.to_string(),
-            preimage,
-            secret,
-            htlc_status,
-            amount_msat,
-            fee_msat,
-            flow,
-            created_at,
-            updated_at,
-            description,
-            invoice,
-            funding_txid: None,
-        };
-
-        assert_eq!(expected_payment, loaded_payment);
-
-        // Verify that we can update the payment
-
-        let new_htlc_status = HtlcStatus::Succeeded;
-        let preimage = Some("preimage".to_string());
-        let amount_msat = Some(1_000_000);
-        let fee_msat = Some(150);
-        let secret = Some("secret".to_string());
-
-        let updated_at = PaymentInsertable::update(
-            payment_hash.to_string(),
-            new_htlc_status,
-            amount_msat,
-            fee_msat,
-            preimage.clone(),
-            secret.clone(),
-            None,
-            &mut connection,
-        )
-        .unwrap();
-
-        let loaded_payment =
-            PaymentQueryable::get(payment_hash.to_string(), &mut connection).unwrap();
-
-        let expected_payment = PaymentQueryable {
-            preimage,
-            secret,
-            htlc_status: new_htlc_status,
-            amount_msat,
-            fee_msat,
-            updated_at,
-            ..expected_payment
-        };
-
-        assert_eq!(expected_payment, loaded_payment);
-    }
-
-    #[test]
     fn spendable_output_round_trip() {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
         let outpoint = lightning::chain::transaction::OutPoint {
-            txid: bitcoin::hash_types::Txid::from_str(
+            txid: bitcoin_old::hash_types::Txid::from_str(
                 "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3",
             )
             .unwrap(),
@@ -1870,9 +1465,9 @@ pub mod test {
         };
         let descriptor = lightning::sign::SpendableOutputDescriptor::StaticOutput {
             outpoint,
-            output: bitcoin::TxOut {
+            output: bitcoin_old::TxOut {
                 value: 10_000,
-                script_pubkey: bitcoin::Script::new(),
+                script_pubkey: bitcoin_old::Script::new(),
             },
         };
 
@@ -1883,7 +1478,7 @@ pub mod test {
         SpendableOutputInsertable::insert(
             {
                 let outpoint = lightning::chain::transaction::OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_str(
+                    txid: bitcoin_old::hash_types::Txid::from_str(
                         "d0a8d75b352d015b7cd29a06d62c0aa92919927eefe7d6d016d7d01c0b7333a5",
                     )
                     .unwrap(),
@@ -1893,9 +1488,9 @@ pub mod test {
                     outpoint,
                     lightning::sign::SpendableOutputDescriptor::StaticOutput {
                         outpoint,
-                        output: bitcoin::TxOut {
+                        output: bitcoin_old::TxOut {
                             value: 25_000,
-                            script_pubkey: bitcoin::Script::new(),
+                            script_pubkey: bitcoin_old::Script::new(),
                         },
                     },
                 )
@@ -1912,7 +1507,7 @@ pub mod test {
             id: 1,
             outpoint: "219fede5479a69d8fc42693ecb8cea67098531087c421b4421d96e2f5acd7de3:2"
                 .to_string(),
-            descriptor: descriptor.encode().to_hex(),
+            descriptor: hex::encode(descriptor.encode()),
         };
 
         assert_eq!(expected, loaded);

@@ -5,14 +5,10 @@ import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
-import 'package:get_10101/features/wallet/domain/wallet_type.dart';
-import 'package:get_10101/features/wallet/send/execute_payment_modal.dart';
-import 'package:get_10101/features/wallet/send/payment_sent_change_notifier.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
@@ -63,7 +59,6 @@ class ConfirmPayment extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = context.read<WalletChangeNotifier>().service;
-    final submitOderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
     final formatter = NumberFormat("#,###,##0.00", "en");
 
     final tradeValuesChangeNotifier = context.watch<TradeValuesChangeNotifier>();
@@ -149,7 +144,8 @@ class ConfirmPayment extends StatelessWidget {
                           ],
                         ),
                         FutureBuilder(
-                            future: walletService.estimateFeeMsat(destination, amt, fee),
+                            // TODO: Someone to remove all this Lightning stuff.
+                            future: Future.value(1000),
                             builder: (BuildContext context, AsyncSnapshot<int> feeMsat) {
                               final msat = feeMsat.data ?? 0;
 
@@ -191,22 +187,15 @@ class ConfirmPayment extends StatelessWidget {
                 ),
                 onConfirmation: () async {
                   GoRouter.of(context).pop();
+                  final goRouter = GoRouter.of(context);
                   final messenger = ScaffoldMessenger.of(context);
-                  if (destination.getWalletType() == WalletType.lightning) {
-                    context.read<PaymentChangeNotifier>().waitForPayment();
-                    if (payWithUsdp) {
-                      submitOderChangeNotifier.submitPendingOrder(tradeValues, PositionAction.open);
-                    }
-                    showExecuteUsdpPaymentModal(context, destination, amt, payWithUsdp);
-                  } else {
-                    try {
-                      var txid = walletService.sendOnChainPayment(destination, amt, fee: fee);
-                      showSnackBar(messenger, "Transaction broadcasted $txid");
-                      GoRouter.of(context).pop();
-                    } catch (error) {
-                      logger.e("Failed to send payment: $error");
-                      showSnackBar(messenger, error.toString());
-                    }
+                  try {
+                    var txid = await walletService.sendOnChainPayment(destination, amt, fee: fee);
+                    showSnackBar(messenger, "Transaction broadcasted $txid");
+                    goRouter.pop();
+                  } catch (error) {
+                    logger.e("Failed to send payment: $error");
+                    showSnackBar(messenger, error.toString());
                   }
                 }),
             const SizedBox(height: 24),

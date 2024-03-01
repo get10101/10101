@@ -26,9 +26,6 @@ pub enum Event {
     PriceUpdateNotification(BestPrice),
     ServiceHealthUpdate(ServiceUpdate),
     BackgroundNotification(BackgroundTask),
-    PaymentClaimed(u64, String),
-    PaymentSent,
-    PaymentFailed,
     Authenticated(LspConfig),
 }
 
@@ -76,14 +73,6 @@ impl From<EventInternal> for Event {
                 Event::PriceUpdateNotification(best_price)
             }
             EventInternal::ServiceHealthUpdate(update) => Event::ServiceHealthUpdate(update),
-            EventInternal::ChannelReady(_) => {
-                unreachable!("This internal event is not exposed to the UI")
-            }
-            EventInternal::PaymentClaimed(amount, hash) => {
-                Event::PaymentClaimed(amount, hash.to_string())
-            }
-            EventInternal::PaymentSent => Event::PaymentSent,
-            EventInternal::PaymentFailed => Event::PaymentFailed,
             EventInternal::BackgroundNotification(task) => {
                 Event::BackgroundNotification(task.into())
             }

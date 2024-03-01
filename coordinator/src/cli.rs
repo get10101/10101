@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bitcoin::XOnlyPublicKey;
+use bitcoin::secp256k1::XOnlyPublicKey;
 use clap::Parser;
 use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::node::OracleInfo;

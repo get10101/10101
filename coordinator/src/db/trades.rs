@@ -2,7 +2,6 @@ use crate::db::positions::ContractSymbol;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trades;
 use anyhow::Result;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
 use hex::FromHex;
@@ -63,21 +62,6 @@ pub fn get_latest_for_position(
         .optional()?;
 
     Ok(trade.map(crate::trade::models::Trade::from))
-}
-
-/// Returns the position by trader pub key
-pub fn is_payment_hash_registered_as_trade_fee(
-    conn: &mut PgConnection,
-    payment_hash: PaymentHash,
-) -> QueryResult<bool> {
-    let payment_hash = payment_hash.0.to_hex();
-
-    let trade = trades::table
-        .filter(trades::fee_payment_hash.eq(payment_hash))
-        .first::<Trade>(conn)
-        .optional()?;
-
-    Ok(trade.is_some())
 }
 
 impl From<crate::trade::models::NewTrade> for NewTrade {

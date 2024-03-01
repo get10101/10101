@@ -1,7 +1,7 @@
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use rust_decimal::Decimal;
-use secp256k1::ecdsa::Signature;
 use serde::Deserialize;
 use serde::Serialize;
 

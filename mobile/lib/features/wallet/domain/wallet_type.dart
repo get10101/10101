@@ -1,1 +1,1 @@
-enum WalletType { lightning, onChain }
+enum WalletType { onChain, offChain }

@@ -108,16 +108,16 @@ class _WalletSettingsState extends State<WalletSettings> {
                                     syncing = true;
                                   });
 
-                                  await rust.api.syncForAddresses(gap: gapAsNumber);
+                                  await rust.api.fullSync(stopGap: gapAsNumber);
                                   showSnackBar(messenger, "Successfully synced for new gap.");
 
                                   setState(() {
                                     syncing = false;
                                   });
                                 } catch (exception) {
-                                  logger.e("Failed to sync for addresses $exception");
+                                  logger.e("Failed to complete full sync $exception");
                                   showSnackBar(
-                                      messenger, "Error when syncing for new addresses $exception");
+                                      messenger, "Error when running full sync $exception");
                                 } finally {
                                   setState(() {
                                     syncing = false;

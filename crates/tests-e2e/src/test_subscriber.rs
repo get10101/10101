@@ -180,20 +180,8 @@ impl Senders {
             native::event::EventInternal::ServiceHealthUpdate(update) => {
                 self.service.send(Some(update.clone()))?;
             }
-            native::event::EventInternal::ChannelReady(_channel_id) => {
-                unreachable!("ChannelReady event should not be sent to the subscriber");
-            }
-            native::event::EventInternal::PaymentClaimed(_amount_msats, _hash) => {
-                unreachable!("PaymentClaimed event should not be sent to the subscriber");
-            }
             native::event::EventInternal::BackgroundNotification(_task) => {
                 // ignored
-            }
-            native::event::EventInternal::PaymentSent => {
-                unreachable!("PaymentSent event should not be sent to the subscriber");
-            }
-            native::event::EventInternal::PaymentFailed => {
-                unreachable!("PaymentFailed event should not be sent to the subscriber");
             }
             native::event::EventInternal::SpendableOutputs => {
                 unreachable!("SpendableOutputs event should not be sent to the subscriber");
