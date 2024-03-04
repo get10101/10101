@@ -1,6 +1,7 @@
 use crate::db;
 use crate::position::models::PositionState;
 use crate::trade::models::NewTrade;
+use crate::trade::websocket::InternalPositionUpdateMessage;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -20,6 +21,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::str::from_utf8;
 use time::OffsetDateTime;
+use tokio::sync::broadcast::Sender;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::Direction;
@@ -231,12 +233,12 @@ impl DlcProtocolExecutor {
         trader_id: &PublicKey,
         contract_id: Option<ContractId>,
         channel_id: &DlcChannelId,
+        tx_position_feed: Sender<InternalPositionUpdateMessage>,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
+        let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
         conn.transaction(|conn| {
-            let dlc_protocol = db::dlc_protocols::get_dlc_protocol(conn, protocol_id)?;
-
-            match dlc_protocol.protocol_type {
+            match &dlc_protocol.protocol_type {
                 DlcProtocolType::Open { trade_params }
                 | DlcProtocolType::Renew { trade_params } => {
                     let contract_id = contract_id
@@ -282,6 +284,29 @@ impl DlcProtocolExecutor {
             }
         })?;
 
+        match &dlc_protocol.protocol_type {
+            DlcProtocolType::Open { trade_params }
+            | DlcProtocolType::Renew { trade_params }
+            | DlcProtocolType::Settle { trade_params } => {
+                if let Err(e) = {
+                    tx_position_feed.send(InternalPositionUpdateMessage::NewTrade {
+                        quantity: if trade_params.direction == Direction::Short {
+                            trade_params.quantity
+                        } else {
+                            // We want to reflect the quantity as seen by the coordinator
+                            trade_params.quantity * -1.0
+                        },
+                        average_entry_price: trade_params.average_price,
+                    })
+                } {
+                    tracing::error!("Could not notify channel about finished trade {e:#}");
+                }
+            }
+            _ => {
+                // a trade only happens in Open, Renew and Settle
+            }
+        }
+
         Ok(())
     }
 
@@ -294,7 +319,7 @@ impl DlcProtocolExecutor {
     fn finish_close_trade_dlc_protocol(
         &self,
         conn: &mut PgConnection,
-        trade_params: TradeParams,
+        trade_params: &TradeParams,
         protocol_id: ProtocolId,
         settled_contract: &ContractId,
         channel_id: &DlcChannelId,
@@ -391,7 +416,7 @@ impl DlcProtocolExecutor {
     fn finish_open_trade_dlc_protocol(
         &self,
         conn: &mut PgConnection,
-        trade_params: TradeParams,
+        trade_params: &TradeParams,
         protocol_id: ProtocolId,
         contract_id: &ContractId,
         channel_id: &DlcChannelId,

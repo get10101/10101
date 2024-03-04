@@ -24,6 +24,7 @@ use coordinator::run_migration;
 use coordinator::scheduler::NotificationScheduler;
 use coordinator::settings::Settings;
 use coordinator::storage::CoordinatorTenTenOneStorage;
+use coordinator::trade::websocket::InternalPositionUpdateMessage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -148,7 +149,17 @@ async fn main() -> Result<()> {
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), None);
     let running = node.start(event_handler, false)?;
-    let node = Node::new(node, running, pool.clone(), settings.to_node_settings());
+
+    // an internal channel to send updates about our position
+    let (tx_position_feed, _rx) = broadcast::channel::<InternalPositionUpdateMessage>(100);
+
+    let node = Node::new(
+        node,
+        running,
+        pool.clone(),
+        settings.to_node_settings(),
+        tx_position_feed.clone(),
+    );
 
     // TODO: Pass the tokio metrics into Prometheus
     if let Some(interval) = opts.tokio_metrics_interval_seconds {
@@ -284,6 +295,7 @@ async fn main() -> Result<()> {
         NODE_ALIAS,
         trading_sender,
         tx_price_feed,
+        tx_position_feed,
         tx_user_feed,
         auth_users_notifier.clone(),
         notification_service.get_sender(),

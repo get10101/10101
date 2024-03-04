@@ -57,6 +57,7 @@ use trade::Direction;
 use uuid::Uuid;
 
 pub mod models;
+pub mod websocket;
 
 pub enum TradeAction {
     OpenDlcChannel,
