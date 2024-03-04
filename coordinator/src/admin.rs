@@ -413,7 +413,7 @@ pub struct DeleteDlcChannel {
 /// This function deletes a DLC channel from our database irreversible!
 /// If you want to close a channel instead, use `close_channel`
 #[instrument(skip_all, err(Debug))]
-pub async fn delete_dlc_channels(
+pub async fn delete_dlc_channel(
     Path(channel_id_string): Path<String>,
     State(state): State<Arc<AppState>>,
     Query(params): Query<DeleteDlcChannel>,
