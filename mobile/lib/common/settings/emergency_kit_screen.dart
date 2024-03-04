@@ -145,9 +145,24 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                             ))
                       ],
                     ),
-                    const SizedBox(
-                      height: 30,
-                    ),
+                    const SizedBox(height: 30),
+                    EmergencyKitButton(
+                        icon: const Icon(FontAwesomeIcons.broom),
+                        title: "Delete position",
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final goRouter = GoRouter.of(context);
+
+                          try {
+                            await rust.api.deletePosition();
+                            showSnackBar(messenger, "Successfully deleted position");
+                          } catch (e) {
+                            showSnackBar(messenger, "Failed to delete position. Error: $e");
+                          }
+
+                          goRouter.pop();
+                        }),
+                    const SizedBox(height: 30),
                     Visibility(
                         visible: config.network == "regtest",
                         child: EmergencyKitButton(

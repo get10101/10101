@@ -6,7 +6,6 @@ use crate::config::api::Config;
 use crate::config::api::Directories;
 use crate::config::get_network;
 use crate::db;
-use crate::db::connection;
 use crate::destination;
 pub use crate::dlc_channel::ChannelState;
 pub use crate::dlc_channel::DlcChannel;
@@ -390,6 +389,10 @@ pub async fn get_positions() -> Result<Vec<Position>> {
 
 pub fn set_filling_orders_to_failed() -> Result<()> {
     emergency_kit::set_filling_orders_to_failed()
+}
+
+pub fn delete_position() -> Result<()> {
+    emergency_kit::delete_position()
 }
 
 pub fn subscribe(stream: StreamSink<event::api::Event>) {
