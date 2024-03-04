@@ -27,7 +27,7 @@ class AppBarWrapper extends StatelessWidget {
         margin: const EdgeInsets.only(left: 10.0, right: 5.0),
         child: AppBar(
             elevation: 0,
-            backgroundColor: Colors.transparent,
+            backgroundColor: const Color(0xFFFAFAFA),
             iconTheme: const IconThemeData(
                 color: tenTenOnePurple,
                 // Without adjustment, the icon appears off-center from the title (logo)
