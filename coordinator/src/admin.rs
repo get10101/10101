@@ -405,7 +405,7 @@ pub async fn close_channel(
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DeleteDlcChannel {
+pub struct Confirmation {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     i_know_what_i_am_doing: Option<bool>,
 }
@@ -416,7 +416,7 @@ pub struct DeleteDlcChannel {
 pub async fn delete_dlc_channel(
     Path(channel_id_string): Path<String>,
     State(state): State<Arc<AppState>>,
-    Query(params): Query<DeleteDlcChannel>,
+    Query(params): Query<Confirmation>,
 ) -> Result<(), AppError> {
     if !params.i_know_what_i_am_doing.unwrap_or_default() {
         let error_message =
