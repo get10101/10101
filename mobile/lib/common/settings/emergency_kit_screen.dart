@@ -181,6 +181,25 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                           goRouter.pop();
                         }),
                     const SizedBox(height: 30),
+                    EmergencyKitButton(
+                        icon: const Icon(FontAwesomeIcons.backwardStep),
+                        title: "Rollback channel state",
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final orderChangeNotifier = context.read<OrderChangeNotifier>();
+                          final goRouter = GoRouter.of(context);
+
+                          try {
+                            await rust.api.rollBackChannelState();
+                            await orderChangeNotifier.initialize();
+                            showSnackBar(messenger, "Successfully rolled back channel state");
+                          } catch (e) {
+                            showSnackBar(messenger, "Failed to rollback channel state. Error: $e");
+                          }
+
+                          goRouter.pop();
+                        }),
+                    const SizedBox(height: 30),
                     Visibility(
                         visible: config.network == "regtest",
                         child: EmergencyKitButton(

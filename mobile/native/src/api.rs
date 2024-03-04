@@ -819,3 +819,10 @@ pub fn get_new_random_name() -> SyncReturn<String> {
 pub async fn update_nickname(nickname: String) -> Result<()> {
     users::update_username(nickname).await
 }
+
+pub fn roll_back_channel_state() -> Result<()> {
+    tracing::warn!(
+        "Executing emergency kit! Attempting to rollback channel state to last stable state"
+    );
+    ln_dlc::roll_back_channel_state()
+}

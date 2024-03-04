@@ -405,7 +405,7 @@ pub async fn close_channel(
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DeleteDlcChannel {
+pub struct Confirmation {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     i_know_what_i_am_doing: Option<bool>,
 }
@@ -413,10 +413,10 @@ pub struct DeleteDlcChannel {
 /// This function deletes a DLC channel from our database irreversible!
 /// If you want to close a channel instead, use `close_channel`
 #[instrument(skip_all, err(Debug))]
-pub async fn delete_dlc_channels(
+pub async fn delete_dlc_channel(
     Path(channel_id_string): Path<String>,
     State(state): State<Arc<AppState>>,
-    Query(params): Query<DeleteDlcChannel>,
+    Query(params): Query<Confirmation>,
 ) -> Result<(), AppError> {
     if !params.i_know_what_i_am_doing.unwrap_or_default() {
         let error_message =
@@ -443,6 +443,50 @@ pub async fn delete_dlc_channels(
         })?;
 
     tracing::info!(channel_id = %channel_id_string, "Deleted dlc channel");
+
+    Ok(())
+}
+
+/// This function attempts to roll back a DLC channel to the last stable state!
+/// The action is irreversible, only use if you know what you are doing!
+#[instrument(skip_all, err(Debug))]
+pub async fn roll_back_dlc_channel(
+    Path(channel_id_string): Path<String>,
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<Confirmation>,
+) -> Result<(), AppError> {
+    if !params.i_know_what_i_am_doing.unwrap_or_default() {
+        let error_message =
+            "Looks like you don't know what you are doing! Go and ask your supervisor for help!";
+        tracing::warn!(error_message);
+        return Err(AppError::BadRequest(error_message.to_string()));
+    }
+
+    let channel_id = parse_dlc_channel_id(&channel_id_string)
+        .map_err(|_| AppError::BadRequest("Provided channel ID was invalid".to_string()))?;
+
+    tracing::info!(channel_id = %channel_id_string, "Attempting to roll back dlc channel to last stable state");
+
+    let channel = state
+        .node
+        .inner
+        .get_dlc_channel_by_id(&channel_id)
+        .map_err(|e| AppError::BadRequest(format!("Couldn't find channel. {e:#}")))?;
+    if let Channel::Signed(signed_channel) = channel {
+        state
+            .node
+            .inner
+            .roll_back_channel(&signed_channel)
+            .map_err(|e| {
+                AppError::InternalServerError(format!("Failed to roll back channel. {e:#}"))
+            })?
+    } else {
+        return Err(AppError::BadRequest(
+            "It's only possible to rollback a channel in state signed".to_string(),
+        ));
+    }
+
+    tracing::info!(channel_id = %channel_id_string, "Rolled back dlc channel");
 
     Ok(())
 }

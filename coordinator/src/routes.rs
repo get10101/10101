@@ -1,7 +1,7 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
 use crate::admin::connect_to_peer;
-use crate::admin::delete_dlc_channels;
+use crate::admin::delete_dlc_channel;
 use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
 use crate::admin::get_utxos;
@@ -9,6 +9,7 @@ use crate::admin::is_connected;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
+use crate::admin::roll_back_dlc_channel;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
@@ -170,7 +171,11 @@ pub fn router(
         .route("/api/admin/dlc_channels", get(list_dlc_channels))
         .route(
             "/api/admin/dlc_channels/:channel_id",
-            delete(delete_dlc_channels),
+            delete(delete_dlc_channel),
+        )
+        .route(
+            "/api/admin/dlc_channels/rollback/:channel_id",
+            post(roll_back_dlc_channel),
         )
         .route("/api/admin/transactions", get(list_on_chain_transactions))
         .route("/api/admin/sign/:msg", get(sign_message))
