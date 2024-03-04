@@ -15,6 +15,7 @@ mod rollover;
 mod signature;
 mod trade;
 
+pub use crate::trade::*;
 pub use backup::*;
 pub use collab_revert::*;
 pub use liquidity_option::*;
@@ -27,7 +28,6 @@ pub use price::Price;
 pub use price::Prices;
 pub use rollover::*;
 pub use signature::*;
-pub use trade::*;
 
 pub const AUTH_SIGN_MESSAGE: &[u8; 19] = b"Hello it's me Mario";
 
