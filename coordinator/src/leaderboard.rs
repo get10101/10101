@@ -183,9 +183,9 @@ pub mod tests {
         .into();
 
         let leader_board = sort_leader_board(3, LeaderBoardCategory::Pnl, false, positions.clone());
-        assert_eq!(leader_board.get(0).unwrap().pnl, dec!(200));
-        assert_eq!(leader_board.get(0).unwrap().rank, 1);
-        assert_eq!(leader_board.get(0).unwrap().trader, trader_0);
+        assert_eq!(leader_board.first().unwrap().pnl, dec!(200));
+        assert_eq!(leader_board.first().unwrap().rank, 1);
+        assert_eq!(leader_board.first().unwrap().trader, trader_0);
 
         assert_eq!(leader_board.get(1).unwrap().pnl, dec!(0));
         assert_eq!(leader_board.get(1).unwrap().rank, 2);
@@ -196,9 +196,9 @@ pub mod tests {
         assert_eq!(leader_board.get(2).unwrap().trader, trader_2);
 
         let leader_board = sort_leader_board(3, LeaderBoardCategory::Pnl, true, positions);
-        assert_eq!(leader_board.get(0).unwrap().pnl, dec!(-100));
-        assert_eq!(leader_board.get(0).unwrap().rank, 1);
-        assert_eq!(leader_board.get(0).unwrap().trader, trader_2);
+        assert_eq!(leader_board.first().unwrap().pnl, dec!(-100));
+        assert_eq!(leader_board.first().unwrap().rank, 1);
+        assert_eq!(leader_board.first().unwrap().trader, trader_2);
 
         assert_eq!(leader_board.get(1).unwrap().pnl, dec!(0));
         assert_eq!(leader_board.get(1).unwrap().rank, 2);
@@ -229,9 +229,9 @@ pub mod tests {
         let leader_board =
             sort_leader_board(2, LeaderBoardCategory::Volume, false, positions.clone());
         assert_eq!(leader_board.len(), 2);
-        assert_eq!(leader_board.get(0).unwrap().volume, dec!(300));
-        assert_eq!(leader_board.get(0).unwrap().rank, 1);
-        assert_eq!(leader_board.get(0).unwrap().trader, trader_2);
+        assert_eq!(leader_board.first().unwrap().volume, dec!(300));
+        assert_eq!(leader_board.first().unwrap().rank, 1);
+        assert_eq!(leader_board.first().unwrap().trader, trader_2);
 
         assert_eq!(leader_board.get(1).unwrap().volume, dec!(200));
         assert_eq!(leader_board.get(1).unwrap().rank, 2);
@@ -239,9 +239,9 @@ pub mod tests {
 
         let leader_board = sort_leader_board(2, LeaderBoardCategory::Volume, true, positions);
         assert_eq!(leader_board.len(), 2);
-        assert_eq!(leader_board.get(0).unwrap().volume, dec!(100));
-        assert_eq!(leader_board.get(0).unwrap().rank, 1);
-        assert_eq!(leader_board.get(0).unwrap().trader, trader_1);
+        assert_eq!(leader_board.first().unwrap().volume, dec!(100));
+        assert_eq!(leader_board.first().unwrap().rank, 1);
+        assert_eq!(leader_board.first().unwrap().trader, trader_1);
 
         assert_eq!(leader_board.get(1).unwrap().volume, dec!(200));
         assert_eq!(leader_board.get(1).unwrap().rank, 2);

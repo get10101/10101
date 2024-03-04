@@ -430,7 +430,7 @@ async fn open_channel_and_position(
     coordinator_dlc_collateral: Amount,
     fee_rate_sats_per_vbyte: Option<u64>,
 ) -> (SignedChannel, SignedChannel) {
-    app.connect(coordinator.info).await.unwrap();
+    app.connect_once(coordinator.info).await.unwrap();
 
     let app_balance_before_sat = app.get_on_chain_balance().confirmed;
     let coordinator_balance_before_sat = coordinator.get_on_chain_balance().confirmed;

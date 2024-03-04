@@ -581,13 +581,13 @@ mod tests {
         assert_eq!(matched_orders.makers_matches.len(), 1);
         let maker_matches = matched_orders
             .makers_matches
-            .get(0)
+            .first()
             .unwrap()
             .filled_with
             .matches
             .clone();
         assert_eq!(maker_matches.len(), 1);
-        assert_eq!(maker_matches.get(0).unwrap().quantity, dec!(100));
+        assert_eq!(maker_matches.first().unwrap().quantity, dec!(100));
 
         assert_eq!(matched_orders.taker_match.filled_with.order_id, order.id);
         assert_eq!(matched_orders.taker_match.filled_with.matches.len(), 1);
@@ -596,7 +596,7 @@ mod tests {
                 .taker_match
                 .filled_with
                 .matches
-                .get(0)
+                .first()
                 .unwrap()
                 .quantity,
             order.quantity

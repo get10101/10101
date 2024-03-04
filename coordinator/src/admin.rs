@@ -510,7 +510,7 @@ pub async fn connect_to_peer(
     target: Json<NodeInfo>,
 ) -> Result<(), AppError> {
     let target = target.0;
-    state.node.inner.connect(target).await.map_err(|err| {
+    state.node.inner.connect_once(target).await.map_err(|err| {
         AppError::InternalServerError(format!("Could not connect to {target}. Error: {err}"))
     })?;
     Ok(())
