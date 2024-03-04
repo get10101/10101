@@ -142,10 +142,7 @@ async fn process_orderbook_message(
                 let fcm_token = FcmToken::new(user.fcm_token)?;
 
                 notification_sender
-                    .send(Notification {
-                        user_fcm_token: fcm_token,
-                        notification_kind,
-                    })
+                    .send(Notification::new(fcm_token, notification_kind))
                     .await
                     .with_context(|| {
                         format!("Failed to send push notification to trader {trader_id}")

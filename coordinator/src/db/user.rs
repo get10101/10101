@@ -140,3 +140,11 @@ pub fn get_user(conn: &mut PgConnection, trader_id: PublicKey) -> Result<Option<
 
     Ok(maybe_user)
 }
+
+pub fn get_users(conn: &mut PgConnection, trader_ids: Vec<PublicKey>) -> Result<Vec<User>> {
+    let users = users::table
+        .filter(users::pubkey.eq_any(trader_ids.iter().map(|id| id.to_string())))
+        .load(conn)?;
+
+    Ok(users)
+}
