@@ -302,7 +302,7 @@ pub fn get_with_id(conn: &mut PgConnection, uid: Uuid) -> QueryResult<Option<Ord
         .filter(orders::trader_order_id.eq(uid))
         .load::<Order>(conn)?;
 
-    let option = x.get(0).map(|order| OrderbookOrder::from(order.clone()));
+    let option = x.first().map(|order| OrderbookOrder::from(order.clone()));
     Ok(option)
 }
 

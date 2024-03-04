@@ -358,7 +358,7 @@ mod tests {
 
         assert_eq!(vec.len(), 1);
 
-        let loaded_struct = vec.get(0).unwrap();
+        let loaded_struct = vec.first().unwrap();
         assert_eq!(loaded_struct, &sample_struct);
     }
 }

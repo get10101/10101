@@ -293,7 +293,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
     pub async fn reconnect(&self, peer: NodeInfo) -> Result<()> {
         self.disconnect(peer);
         tokio::time::sleep(Duration::from_secs(1)).await;
-        self.connect(peer).await?;
+        self.connect_once(peer).await?;
         Ok(())
     }
 }
