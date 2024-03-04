@@ -163,6 +163,24 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                           goRouter.pop();
                         }),
                     const SizedBox(height: 30),
+                    EmergencyKitButton(
+                        icon: const Icon(FontAwesomeIcons.broom),
+                        title: "Resend SettleFinalize Message",
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final goRouter = GoRouter.of(context);
+
+                          try {
+                            await rust.api.resendSettleFinalizeMessage();
+                            showSnackBar(messenger, "Successfully resend SettleFinalize message");
+                          } catch (e) {
+                            showSnackBar(
+                                messenger, "Failed to resend SettleFinalize message. Error: $e");
+                          }
+
+                          goRouter.pop();
+                        }),
+                    const SizedBox(height: 30),
                     Visibility(
                         visible: config.network == "regtest",
                         child: EmergencyKitButton(
