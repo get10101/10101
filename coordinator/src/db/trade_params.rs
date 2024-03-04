@@ -9,7 +9,6 @@ use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
-use rust_decimal::prelude::ToPrimitive;
 use std::str::FromStr;
 use uuid::Uuid;
 
@@ -29,21 +28,16 @@ pub(crate) struct TradeParams {
 pub(crate) fn insert(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
-    params: &commons::TradeParams,
+    params: &dlc_protocol::TradeParams,
 ) -> QueryResult<()> {
-    let average_price = params
-        .average_execution_price()
-        .to_f32()
-        .expect("to fit into f32");
-
     let affected_rows = diesel::insert_into(trade_params::table)
         .values(&(
             trade_params::protocol_id.eq(protocol_id.to_uuid()),
             trade_params::quantity.eq(params.quantity),
             trade_params::leverage.eq(params.leverage),
-            trade_params::trader_pubkey.eq(params.pubkey.to_string()),
+            trade_params::trader_pubkey.eq(params.trader.to_string()),
             trade_params::direction.eq(Direction::from(params.direction)),
-            trade_params::average_price.eq(average_price),
+            trade_params::average_price.eq(params.average_price),
         ))
         .execute(conn)?;
 

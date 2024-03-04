@@ -6,7 +6,6 @@ use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::TradeExecutor;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -270,22 +269,16 @@ impl Node {
                             "DLC channel renew protocol was finalized"
                         );
 
-                        if self.is_in_rollover(node_id)? {
-                            self.finalize_rollover(channel_id)?;
-                        } else {
-                            let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
-                            let contract_id =
-                                channel.get_contract_id().context("missing contract id")?;
+                        let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
 
-                            let contract_executor =
-                                dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                            contract_executor.finish_dlc_protocol(
-                                protocol_id,
-                                false,
-                                contract_id,
-                                channel.get_id(),
-                            )?;
-                        }
+                        let protocol_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        protocol_executor.finish_dlc_protocol(
+                            protocol_id,
+                            &node_id,
+                            channel.get_contract_id(),
+                            channel_id,
+                        )?;
                     }
                     ChannelMessage::SettleFinalize(SettleFinalize {
                         channel_id,
@@ -316,40 +309,14 @@ impl Node {
                             "DLC channel settle protocol was finalized"
                         );
 
-                        let mut connection = self.pool.get()?;
-                        let dlc_protocol =
-                            db::dlc_protocols::get_dlc_protocol(&mut connection, protocol_id)?;
-
-                        let trader_id = dlc_protocol.trader.to_string();
-                        tracing::debug!(trader_id, ?protocol_id, "Finalize closing position",);
-
-                        let contract_id = dlc_protocol.contract_id;
-
-                        match self.inner.get_closed_contract(contract_id) {
-                            Ok(Some(closed_contract)) => closed_contract,
-                            Ok(None) => {
-                                tracing::error!(
-                                    trader_id,
-                                    ?protocol_id,
-                                    "Can't close position as contract is not closed."
-                                );
-                                bail!("Can't close position as contract is not closed.");
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to get closed contract from DLC manager storage: {e:#}"
-                                );
-                                bail!(e);
-                            }
-                        };
-
-                        let contract_executor =
+                        let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        contract_executor.finish_dlc_protocol(
+                        protocol_executor.finish_dlc_protocol(
                             protocol_id,
-                            true,
-                            contract_id,
-                            *channel_id,
+                            &node_id,
+                            // the settled signed channel does not have a contract
+                            None,
+                            channel_id,
                         )?;
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
@@ -399,16 +366,14 @@ impl Node {
                         );
 
                         let channel = self.inner.get_dlc_channel_by_id(&channel_id)?;
-                        let contract_id =
-                            channel.get_contract_id().context("missing contract id")?;
 
-                        let contract_executor =
+                        let protocol_executor =
                             dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                        contract_executor.finish_dlc_protocol(
+                        protocol_executor.finish_dlc_protocol(
                             protocol_id,
-                            false,
-                            contract_id,
-                            channel_id,
+                            &node_id,
+                            channel.get_contract_id(),
+                            &channel_id,
                         )?;
                     }
                     ChannelMessage::Reject(reject) => {

@@ -1,5 +1,7 @@
 use crate::db;
 use crate::db::positions;
+use crate::dlc_protocol;
+use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
@@ -215,15 +217,33 @@ impl Node {
     ) -> Result<()> {
         let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
         let rollover = Rollover::new(contract, network)?;
+        let protocol_id = ProtocolId::new();
 
-        tracing::debug!(node_id=%rollover.counterparty_pubkey, "Rollover dlc channel");
+        tracing::debug!(node_id=%rollover.counterparty_pubkey, %protocol_id, "Rollover dlc channel");
 
         let contract_input: ContractInput = rollover.clone().into();
 
-        let protocol_id = ProtocolId::new();
-        self.inner
+        let channel = self.inner.get_dlc_channel_by_id(dlc_channel_id)?;
+        let previous_id = match channel.get_reference_id() {
+            Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+            None => None,
+        };
+
+        let contract_id = self
+            .inner
             .propose_dlc_channel_update(dlc_channel_id, contract_input, protocol_id.into())
             .await?;
+
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
+            protocol_id,
+            previous_id,
+            &contract_id,
+            dlc_channel_id,
+            DlcProtocolType::Rollover {
+                trader: rollover.counterparty_pubkey,
+            },
+        )?;
 
         // Sets the position state to rollover indicating that a rollover is in progress.
         let mut connection = self.pool.get()?;
@@ -243,24 +263,6 @@ impl Node {
         )?;
 
         Ok(position.is_some())
-    }
-
-    /// Finalizes the rollover protocol with the app setting the position to open.
-    pub fn finalize_rollover(&self, dlc_channel_id: &DlcChannelId) -> Result<()> {
-        let contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
-        let trader_id = contract.get_counter_party_id();
-        tracing::debug!(
-            %trader_id,
-            dlc_channel_id = %hex::encode(dlc_channel_id),
-            "Finalizing rollover",
-        );
-
-        let mut connection = self.pool.get()?;
-        db::positions::Position::set_position_to_open(
-            &mut connection,
-            contract.get_counter_party_id().to_string(),
-            contract.get_temporary_id(),
-        )
     }
 }
 

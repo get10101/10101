@@ -1,6 +1,7 @@
 use crate::db;
 use crate::position::models::PositionState;
 use crate::trade::models::NewTrade;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use diesel::r2d2::ConnectionManager;
@@ -8,10 +9,12 @@ use diesel::r2d2::Pool;
 use diesel::result::Error::RollbackTransaction;
 use diesel::Connection;
 use diesel::PgConnection;
+use diesel::QueryResult;
 use dlc_manager::ContractId;
 use dlc_manager::ReferenceId;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -102,8 +105,10 @@ pub struct DlcProtocol {
     pub contract_id: ContractId,
     pub trader: PublicKey,
     pub protocol_state: DlcProtocolState,
+    pub protocol_type: DlcProtocolType,
 }
 
+#[derive(Clone, Debug)]
 pub struct TradeParams {
     pub protocol_id: ProtocolId,
     pub trader: PublicKey,
@@ -113,10 +118,55 @@ pub struct TradeParams {
     pub direction: Direction,
 }
 
+impl From<(ProtocolId, &commons::TradeParams)> for TradeParams {
+    fn from((protocol_id, trade_params): (ProtocolId, &commons::TradeParams)) -> Self {
+        Self {
+            protocol_id,
+            trader: trade_params.pubkey,
+            quantity: trade_params.quantity,
+            leverage: trade_params.leverage,
+            average_price: trade_params
+                .average_execution_price()
+                .to_f32()
+                .expect("to fit into f32"),
+            direction: trade_params.direction,
+        }
+    }
+}
+
 pub enum DlcProtocolState {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Debug)]
+pub enum DlcProtocolType {
+    Open { trade_params: TradeParams },
+    Renew { trade_params: TradeParams },
+    Settle { trade_params: TradeParams },
+    Close { trader: PublicKey },
+    ForceClose { trader: PublicKey },
+    Rollover { trader: PublicKey },
+}
+
+impl DlcProtocolType {
+    pub fn get_trader_pubkey(&self) -> &PublicKey {
+        match self {
+            DlcProtocolType::Open {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Renew {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Settle {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::Close { trader } => trader,
+            DlcProtocolType::ForceClose { trader } => trader,
+            DlcProtocolType::Rollover { trader } => trader,
+        }
+    }
 }
 
 pub struct DlcProtocolExecutor {
@@ -136,9 +186,9 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: ContractId,
-        channel_id: DlcChannelId,
-        trade_params: &commons::TradeParams,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        protocol_type: DlcProtocolType,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
         conn.transaction(|conn| {
@@ -148,9 +198,18 @@ impl DlcProtocolExecutor {
                 previous_protocol_id,
                 contract_id,
                 channel_id,
-                &trade_params.pubkey,
+                protocol_type.clone(),
+                protocol_type.get_trader_pubkey(),
             )?;
-            db::trade_params::insert(conn, protocol_id, trade_params)?;
+
+            match protocol_type {
+                DlcProtocolType::Open { trade_params }
+                | DlcProtocolType::Renew { trade_params }
+                | DlcProtocolType::Settle { trade_params } => {
+                    db::trade_params::insert(conn, protocol_id, &trade_params)?;
+                }
+                _ => {}
+            }
 
             diesel::result::QueryResult::Ok(())
         })?;
@@ -165,124 +224,242 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
-    /// - Set dlc protocol to success
-    /// - If not closing: Updates the `[PostionState::Proposed`] position state to
-    ///   `[PostionState::Open]`
-    /// - If closing: Calculates the pnl and sets the `[PositionState::Closing`] position state to
-    ///   `[PositionState::Closed`]
-    /// - Creates and inserts the new trade
+    /// Finishes a dlc protocol by the corresponding dlc protocol type handling.
     pub fn finish_dlc_protocol(
         &self,
         protocol_id: ProtocolId,
-        closing: bool,
-        contract_id: ContractId,
-        channel_id: DlcChannelId,
+        trader_id: &PublicKey,
+        contract_id: Option<ContractId>,
+        channel_id: &DlcChannelId,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
-
         conn.transaction(|conn| {
-            let trade_params: TradeParams = db::trade_params::get(conn, protocol_id)?;
+            let dlc_protocol = db::dlc_protocols::get_dlc_protocol(conn, protocol_id)?;
 
-            db::dlc_protocols::set_dlc_protocol_state_to_success(
-                conn,
-                protocol_id,
-                contract_id,
-                channel_id,
-            )?;
-
-            // TODO(holzeis): We are still updating the position based on the position state. This
-            // will change once we only have a single position per user and representing
-            // the position only as view on multiple trades.
-            let position = match closing {
-                false => db::positions::Position::update_proposed_position(
-                    conn,
-                    trade_params.trader.to_string(),
-                    PositionState::Open,
-                ),
-                true => {
-                    let position = match db::positions::Position::get_position_by_trader(
+            match dlc_protocol.protocol_type {
+                DlcProtocolType::Open { trade_params }
+                | DlcProtocolType::Renew { trade_params } => {
+                    let contract_id = contract_id
+                        .context("missing contract id")
+                        .map_err(|_| RollbackTransaction)?;
+                    self.finish_open_trade_dlc_protocol(
                         conn,
-                        trade_params.trader,
-                        vec![
-                            // The price doesn't matter here.
-                            PositionState::Closing { closing_price: 0.0 },
-                        ],
-                    )? {
-                        Some(position) => position,
-                        None => {
-                            tracing::error!("No position in state Closing found.");
-                            return Err(RollbackTransaction);
-                        }
-                    };
-
-                    tracing::debug!(
-                        ?position,
-                        trader_id = %trade_params.trader,
-                        "Finalize closing position",
-                    );
-
-                    let pnl = {
-                        let (initial_margin_long, initial_margin_short) =
-                            match trade_params.direction {
-                                Direction::Long => {
-                                    (position.trader_margin, position.coordinator_margin)
-                                }
-                                Direction::Short => {
-                                    (position.coordinator_margin, position.trader_margin)
-                                }
-                            };
-
-                        match calculate_pnl(
-                            Decimal::from_f32(position.average_entry_price)
-                                .expect("to fit into decimal"),
-                            Decimal::from_f32(trade_params.average_price)
-                                .expect("to fit into decimal"),
-                            trade_params.quantity,
-                            trade_params.direction,
-                            initial_margin_long as u64,
-                            initial_margin_short as u64,
-                        ) {
-                            Ok(pnl) => pnl,
-                            Err(e) => {
-                                tracing::error!("Failed to calculate pnl. Error: {e:#}");
-                                return Err(RollbackTransaction);
-                            }
-                        }
-                    };
-
-                    db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)
+                        trade_params,
+                        protocol_id,
+                        &contract_id,
+                        channel_id,
+                    )
                 }
-            }?;
+                DlcProtocolType::Settle { trade_params } => {
+                    let settled_contract = &dlc_protocol.contract_id;
 
-            let coordinator_margin = calculate_margin(
-                Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
-                trade_params.quantity,
-                crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
-                    .map_err(|_| RollbackTransaction)?,
-            );
-
-            // TODO(holzeis): Add optional pnl to trade.
-            // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
-            // -> Short or Short -> Long.
-            let new_trade = NewTrade {
-                position_id: position.id,
-                contract_symbol: position.contract_symbol,
-                trader_pubkey: trade_params.trader,
-                quantity: trade_params.quantity,
-                trader_leverage: trade_params.leverage,
-                coordinator_margin: coordinator_margin as i64,
-                trader_direction: trade_params.direction,
-                average_price: trade_params.average_price,
-                dlc_expiry_timestamp: None,
-            };
-
-            db::trades::insert(conn, new_trade)?;
-
-            db::trade_params::delete(conn, protocol_id)
+                    self.finish_close_trade_dlc_protocol(
+                        conn,
+                        trade_params,
+                        protocol_id,
+                        // If the contract got settled, we do not get a new contract id, hence we
+                        // copy the contract id of the settled contract.
+                        settled_contract,
+                        channel_id,
+                    )
+                }
+                DlcProtocolType::Rollover { .. } => {
+                    let contract_id = contract_id
+                        .context("missing contract id")
+                        .map_err(|_| RollbackTransaction)?;
+                    self.finish_rollover_dlc_protocol(
+                        conn,
+                        trader_id,
+                        protocol_id,
+                        &contract_id,
+                        channel_id,
+                    )
+                }
+                DlcProtocolType::Close { .. } | DlcProtocolType::ForceClose { .. } => {
+                    debug_assert!(false, "Finishing unexpected dlc protocol types");
+                    Ok(())
+                }
+            }
         })?;
 
+        Ok(())
+    }
+
+    /// Completes the close trade dlc protocol as successful and updates the 10101 meta data
+    /// accordingly in a single database transaction.
+    /// - Set dlc protocol to success
+    /// - Calculates the pnl and sets the `[PositionState::Closing`] position state to
+    ///   `[PositionState::Closed`]
+    /// - Creates and inserts the new trade
+    fn finish_close_trade_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trade_params: TradeParams,
+        protocol_id: ProtocolId,
+        settled_contract: &ContractId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        db::dlc_protocols::set_dlc_protocol_state_to_success(
+            conn,
+            protocol_id,
+            settled_contract,
+            channel_id,
+        )?;
+
+        // TODO(holzeis): We are still updating the position based on the position state. This
+        // will change once we only have a single position per user and representing
+        // the position only as view on multiple trades.
+        let position = match db::positions::Position::get_position_by_trader(
+            conn,
+            trade_params.trader,
+            vec![
+                // The price doesn't matter here.
+                PositionState::Closing { closing_price: 0.0 },
+            ],
+        )? {
+            Some(position) => position,
+            None => {
+                tracing::error!("No position in state Closing found.");
+                return Err(RollbackTransaction);
+            }
+        };
+
+        tracing::debug!(
+            ?position,
+            trader_id = %trade_params.trader,
+            "Finalize closing position",
+        );
+
+        let pnl = {
+            let (initial_margin_long, initial_margin_short) = match trade_params.direction {
+                Direction::Long => (position.trader_margin, position.coordinator_margin),
+                Direction::Short => (position.coordinator_margin, position.trader_margin),
+            };
+
+            match calculate_pnl(
+                Decimal::from_f32(position.average_entry_price).expect("to fit into decimal"),
+                Decimal::from_f32(trade_params.average_price).expect("to fit into decimal"),
+                trade_params.quantity,
+                trade_params.direction,
+                initial_margin_long as u64,
+                initial_margin_short as u64,
+            ) {
+                Ok(pnl) => pnl,
+                Err(e) => {
+                    tracing::error!("Failed to calculate pnl. Error: {e:#}");
+                    return Err(RollbackTransaction);
+                }
+            }
+        };
+
+        db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)?;
+
+        let coordinator_margin = calculate_margin(
+            Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
+            trade_params.quantity,
+            crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
+                .map_err(|_| RollbackTransaction)?,
+        );
+
+        // TODO(holzeis): Add optional pnl to trade.
+        // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
+        // -> Short or Short -> Long.
+        let new_trade = NewTrade {
+            position_id: position.id,
+            contract_symbol: position.contract_symbol,
+            trader_pubkey: trade_params.trader,
+            quantity: trade_params.quantity,
+            trader_leverage: trade_params.leverage,
+            coordinator_margin: coordinator_margin as i64,
+            trader_direction: trade_params.direction,
+            average_price: trade_params.average_price,
+            dlc_expiry_timestamp: None,
+        };
+
+        db::trades::insert(conn, new_trade)?;
+
+        db::trade_params::delete(conn, protocol_id)?;
+
+        Ok(())
+    }
+
+    /// Completes the open trade dlc protocol as successful and updates the 10101 meta data
+    /// accordingly in a single database transaction.
+    /// - Set dlc protocol to success
+    /// - Updates the `[PostionState::Proposed`] position state to `[PostionState::Open]`
+    /// - Creates and inserts the new trade
+    fn finish_open_trade_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trade_params: TradeParams,
+        protocol_id: ProtocolId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        db::dlc_protocols::set_dlc_protocol_state_to_success(
+            conn,
+            protocol_id,
+            contract_id,
+            channel_id,
+        )?;
+
+        // TODO(holzeis): We are still updating the position based on the position state. This
+        // will change once we only have a single position per user and representing
+        // the position only as view on multiple trades.
+        let position = db::positions::Position::update_proposed_position(
+            conn,
+            trade_params.trader.to_string(),
+            PositionState::Open,
+        )?;
+
+        let coordinator_margin = calculate_margin(
+            Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
+            trade_params.quantity,
+            crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
+                .map_err(|_| RollbackTransaction)?,
+        );
+
+        // TODO(holzeis): Add optional pnl to trade.
+        // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
+        // -> Short or Short -> Long.
+        let new_trade = NewTrade {
+            position_id: position.id,
+            contract_symbol: position.contract_symbol,
+            trader_pubkey: trade_params.trader,
+            quantity: trade_params.quantity,
+            trader_leverage: trade_params.leverage,
+            coordinator_margin: coordinator_margin as i64,
+            trader_direction: trade_params.direction,
+            average_price: trade_params.average_price,
+            dlc_expiry_timestamp: None,
+        };
+
+        db::trades::insert(conn, new_trade)?;
+
+        db::trade_params::delete(conn, protocol_id)?;
+
+        Ok(())
+    }
+
+    /// Completes the rollover dlc protocol as successful and updates the 10101 meta data
+    /// accordingly in a single database transaction.
+    fn finish_rollover_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trader: &PublicKey,
+        protocol_id: ProtocolId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        tracing::debug!(%trader, %protocol_id, "Finalizing rollover");
+        db::dlc_protocols::set_dlc_protocol_state_to_success(
+            conn,
+            protocol_id,
+            contract_id,
+            channel_id,
+        )?;
+
+        db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)?;
         Ok(())
     }
 }

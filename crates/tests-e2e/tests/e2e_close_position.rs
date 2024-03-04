@@ -6,6 +6,7 @@ use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
 use tests_e2e::app::submit_order;
+use tests_e2e::coordinator::SignedChannelState;
 use tests_e2e::setup;
 use tests_e2e::setup::dummy_order;
 use tests_e2e::wait_until;
@@ -89,6 +90,34 @@ async fn can_open_close_open_close_position() {
         .unwrap();
     tracing::info!(%app_off_chain_balance, "Opened second position");
 
+    // rolling over before closing the second position
+    tracing::info!("Rollover second position");
+    let coordinator = test.coordinator;
+    let app_pubkey = api::get_node_id().0;
+    let dlc_channels = coordinator.get_dlc_channels().await.unwrap();
+    let dlc_channel = dlc_channels
+        .into_iter()
+        .find(|chan| chan.counter_party == app_pubkey)
+        .unwrap();
+
+    coordinator
+        .rollover(&dlc_channel.dlc_channel_id.unwrap())
+        .await
+        .unwrap();
+
+    wait_until!(test
+        .app
+        .rx
+        .position()
+        .map(|p| PositionState::Rollover == p.position_state)
+        .unwrap_or(false));
+    wait_until!(test
+        .app
+        .rx
+        .position()
+        .map(|p| PositionState::Open == p.position_state)
+        .unwrap_or(false));
+
     tracing::info!("Closing second position");
 
     let closing_order = NewOrder {
@@ -99,6 +128,16 @@ async fn can_open_close_open_close_position() {
     submit_order(closing_order);
 
     wait_until!(test.app.rx.position_close().is_some());
+
+    wait_until!({
+        let dlc_channels = coordinator.get_dlc_channels().await.unwrap();
+        let dlc_channel = dlc_channels
+            .into_iter()
+            .find(|chan| chan.counter_party == app_pubkey)
+            .unwrap();
+
+        Some(SignedChannelState::Settled) == dlc_channel.signed_channel_state
+    });
 
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 

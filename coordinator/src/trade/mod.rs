@@ -2,6 +2,7 @@ use crate::compute_relative_contracts;
 use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
+use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
@@ -341,13 +342,15 @@ impl TradeExecutor {
             .await
             .context("Could not propose DLC channel")?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
-            temporary_contract_id,
-            temporary_channel_id,
-            trade_params,
+            &temporary_contract_id,
+            &temporary_channel_id,
+            DlcProtocolType::Open {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         // After the DLC channel has been proposed the position can be created. This fixes
@@ -511,13 +514,15 @@ impl TradeExecutor {
             .await
             .context("Could not propose DLC channel update")?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            temporary_contract_id,
-            channel.get_id(),
-            trade_params,
+            &temporary_contract_id,
+            &channel.get_id(),
+            DlcProtocolType::Renew {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
@@ -627,13 +632,15 @@ impl TradeExecutor {
             )
             .await?;
 
-        let contract_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        contract_executor.start_dlc_protocol(
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            contract_id,
-            channel.get_id(),
-            trade_params,
+            &contract_id,
+            &channel.get_id(),
+            DlcProtocolType::Settle {
+                trade_params: (protocol_id, trade_params).into(),
+            },
         )?;
 
         db::positions::Position::set_open_position_to_closing(

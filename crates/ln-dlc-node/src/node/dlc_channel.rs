@@ -18,7 +18,6 @@ use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::contract::contract_input::ContractInput;
-use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::ContractId;
@@ -274,7 +273,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
         protocol_id: ReferenceId,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<ContractId> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
@@ -308,7 +307,9 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let offered_contract = offered_contracts
                     .iter()
                     .find(|contract| contract.counter_party == counterparty_pubkey)
-                    .context("Cold not find offered contract after proposing DLC channel update")?;
+                    .context(
+                        "Could not find offered contract after proposing DLC channel update",
+                    )?;
 
                 Ok(offered_contract.id)
             }
@@ -756,27 +757,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         }
 
         Ok(())
-    }
-
-    pub fn get_closed_contract(
-        &self,
-        temporary_contract_id: ContractId,
-    ) -> Result<Option<ClosedContract>> {
-        let contract = self
-            .dlc_manager
-            .get_store()
-            .get_contracts()?
-            .into_iter()
-            .find_map(|contract| match contract {
-                Contract::Closed(closed_contract)
-                    if closed_contract.temporary_contract_id == temporary_contract_id =>
-                {
-                    Some(closed_contract)
-                }
-                _ => None,
-            });
-
-        Ok(contract)
     }
 
     // Rollback the channel to the last "stable" state. Note, this is potentially risky to do as the
