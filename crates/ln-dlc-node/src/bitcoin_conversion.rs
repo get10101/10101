@@ -179,6 +179,11 @@ pub fn to_secp_sk_30(sk: bitcoin_old::secp256k1::SecretKey) -> bitcoin::secp256k
     bitcoin::secp256k1::SecretKey::from_slice(&sk).expect("valid conversion")
 }
 
+pub fn to_secp_sk_29(sk: bitcoin::secp256k1::SecretKey) -> bitcoin_old::secp256k1::SecretKey {
+    let sk = sk.secret_bytes();
+    bitcoin_old::secp256k1::SecretKey::from_slice(&sk).expect("valid conversion")
+}
+
 pub fn to_ecdsa_signature_30(signature: bitcoin_old::secp256k1::ecdsa::Signature) -> Signature {
     let sig = signature.serialize_compact();
     Signature::from_compact(&sig).expect("valid conversion")
