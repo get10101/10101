@@ -5,7 +5,6 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::position::models::PositionState;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -16,13 +15,11 @@ use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::ContractDescriptor;
-use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
@@ -178,25 +175,19 @@ impl Node {
                 .inner
                 .get_signed_channel_by_trader_id(position.trader)?;
 
-            let (retry_rollover, contract_id) = match position.position_state {
-                PositionState::Rollover => {
-                    self.roll_back_channel_if_needed(&mut conn, &signed_channel)?
-                }
-                PositionState::Open => (false, signed_channel.get_contract_id()),
-                _ => bail!("Unexpected position state {:?}", position.position_state),
-            };
+            let contract_id = signed_channel.get_contract_id();
 
             if commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
                 && !position.is_expired()
             {
                 let next_expiry =
                     commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-                if position.expiry_timestamp == next_expiry && !retry_rollover {
+                if position.expiry_timestamp == next_expiry {
                     tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
                     return Ok(());
                 }
 
-                tracing::debug!(%trader_id, position_id=position.id, retry_rollover, "Proposing to rollover user's position");
+                tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover user's position");
 
                 let message = OrderbookMessage::TraderMessage {
                     trader_id,
@@ -271,52 +262,6 @@ impl Node {
             contract.get_temporary_id(),
         )
     }
-
-    fn roll_back_channel_if_needed(
-        &self,
-        connection: &mut PgConnection,
-        signed_channel: &SignedChannel,
-    ) -> Result<(bool, Option<ContractId>)> {
-        if is_channel_in_intermediate_state(signed_channel) {
-            let trader_id = signed_channel.counter_party;
-            let state = ln_dlc_node::node::signed_channel_state_name(signed_channel);
-
-            tracing::warn!(
-                %trader_id,
-                state,
-                "Found signed channel contract in an intermediate state. \
-                 Trying to rollback channel to the last stable state!"
-            );
-
-            self.inner
-                .roll_back_channel(signed_channel)
-                .map_err(|e| anyhow!("{e:#}"))?;
-
-            let contract = self
-                .inner
-                .get_contract_by_dlc_channel_id(&signed_channel.channel_id)?;
-            db::positions::Position::set_position_to_open(
-                connection,
-                trader_id.to_string(),
-                contract.get_temporary_id(),
-            )?;
-
-            return Ok((true, Some(contract.get_id())));
-        }
-
-        Ok((false, signed_channel.get_contract_id()))
-    }
-}
-
-fn is_channel_in_intermediate_state(signed_channel: &SignedChannel) -> bool {
-    use dlc_manager::channel::signed_channel::SignedChannelState;
-    matches!(
-        signed_channel.state,
-        SignedChannelState::RenewOffered { .. }
-            | SignedChannelState::RenewAccepted { .. }
-            | SignedChannelState::RenewConfirmed { .. }
-            | SignedChannelState::RenewFinalized { .. }
-    )
 }
 
 impl From<Rollover> for ContractInput {
