@@ -11,6 +11,7 @@ use crate::destination;
 pub use crate::dlc_channel::ChannelState;
 pub use crate::dlc_channel::DlcChannel;
 pub use crate::dlc_channel::SignedChannelState;
+use crate::emergency_kit;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
@@ -33,11 +34,9 @@ use bdk::FeeRate;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::OrderbookRequest;
-use dlc_manager::DlcChannelId;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
-use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
@@ -390,10 +389,7 @@ pub async fn get_positions() -> Result<Vec<Position>> {
 }
 
 pub fn set_filling_orders_to_failed() -> Result<()> {
-    tracing::warn!("Executing emergency kit! Setting orders in state Filling to Failed!");
-
-    let mut conn = connection()?;
-    db::models::Order::set_all_filling_orders_to_failed(&mut conn)
+    emergency_kit::set_filling_orders_to_failed()
 }
 
 pub fn subscribe(stream: StreamSink<event::api::Event>) {
@@ -805,8 +801,7 @@ pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
 }
 
 pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
-    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
-    ln_dlc::delete_dlc_channel(&dlc_channel_id)
+    emergency_kit::delete_dlc_channel(dlc_channel_id)
 }
 
 pub fn get_new_random_name() -> SyncReturn<String> {
