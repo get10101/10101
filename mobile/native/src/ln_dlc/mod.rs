@@ -1057,3 +1057,14 @@ fn confirmation_status_to_status_and_timestamp(
 
     (status, timestamp.unix_timestamp() as u64)
 }
+
+pub fn roll_back_channel_state() -> Result<()> {
+    let node = state::get_node();
+
+    let counterparty_pubkey = config::get_coordinator_info().pubkey;
+    let signed_channel = node
+        .inner
+        .get_signed_channel_by_trader_id(counterparty_pubkey)?;
+
+    node.inner.roll_back_channel(&signed_channel)
+}
