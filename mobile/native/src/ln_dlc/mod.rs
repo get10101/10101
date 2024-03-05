@@ -100,6 +100,9 @@ const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
 const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 
+/// The name of the BDK wallet database file.
+const WALLET_DB_FILE_NAME: &str = "bdk-wallet";
+
 /// The prefix to the [`bdk_file_store`] database file where BDK persists
 /// [`bdk::wallet::ChangeSet`]s.
 ///
@@ -310,7 +313,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         let node_event_handler = Arc::new(NodeEventHandler::new());
 
         let wallet_storage = {
-            let wallet_dir = Path::new(&config::get_data_dir()).join("wallet");
+            let wallet_dir = Path::new(&config::get_data_dir()).join(WALLET_DB_FILE_NAME);
             bdk_file_store::Store::open_or_create_new(WALLET_DB_PREFIX.as_bytes(), wallet_dir)?
         };
 
