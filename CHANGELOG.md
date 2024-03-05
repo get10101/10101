@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2024-03-05
+
 - Fix(wallet): Gracefully handle an error during the wallet sync. Fixes an issue where the app was not able to start because of an inconsistent state.
 - Feat: Show closing txid on closing and closed channels.
 - Feat(wallet): Upgrade `bdk` to version `1.0.0-alpha.6`, solving a lot of problems with the app's on-chain sync.
@@ -344,7 +346,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Self-Custodial CFD Trading based on DLC and lightning
 
-[Unreleased]: https://github.com/get10101/10101/compare/1.8.12...HEAD
+[Unreleased]: https://github.com/get10101/10101/compare/1.10.0...HEAD
+[1.10.0]: https://github.com/get10101/10101/compare/1.8.12...1.10.0
 [1.8.12]: https://github.com/get10101/10101/compare/1.8.11...1.8.12
 [1.8.11]: https://github.com/get10101/10101/compare/1.8.10...1.8.11
 [1.8.10]: https://github.com/get10101/10101/compare/1.8.9...1.8.10
