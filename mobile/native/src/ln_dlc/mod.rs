@@ -429,12 +429,65 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             }
         });
 
-        state::set_node(node);
+        state::set_node(node.clone());
 
         event::publish(&EventInternal::Init("10101 is ready.".to_string()));
 
+        tokio::spawn(full_sync_on_wallet_db_migration());
+
         Ok(())
     })
+}
+
+pub async fn full_sync_on_wallet_db_migration() {
+    let node = state::get_node();
+
+    let old_wallet_db_path = Path::new(&config::get_data_dir()).join("wallet");
+    if old_wallet_db_path.exists() {
+        event::publish(&EventInternal::BackgroundNotification(
+            event::BackgroundTask::FullSync(event::TaskStatus::Pending),
+        ));
+
+        let stop_gap = 20;
+        tracing::info!(
+            %stop_gap,
+            "Old wallet DB detected. Attempting to populate new wallet with full sync"
+        );
+
+        match node.inner.full_sync(stop_gap).await {
+            Ok(_) => {
+                tracing::info!("Full sync successful");
+
+                // Spawn into the blocking thread pool of the dedicated backend runtime to avoid
+                // blocking the UI thread.
+                if let Ok(runtime) = state::get_or_create_tokio_runtime() {
+                    runtime
+                        .spawn_blocking(move || {
+                            if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
+                                tracing::error!("Failed to keep wallet history up to date: {e:#}");
+                            }
+                        })
+                        .await
+                        .expect("task to complete");
+                }
+
+                event::publish(&EventInternal::BackgroundNotification(
+                    event::BackgroundTask::FullSync(event::TaskStatus::Success),
+                ));
+
+                if let Err(e) = std::fs::remove_file(old_wallet_db_path) {
+                    tracing::info!("Failed to delete old wallet DB file: {e:#}");
+                }
+            }
+            Err(e) => {
+                tracing::error!("Full sync failed: {e:#}");
+
+                event::publish(&EventInternal::BackgroundNotification(
+                    event::BackgroundTask::FullSync(event::TaskStatus::Failed),
+                ));
+            }
+        };
+    }
 }
 
 pub fn init_new_mnemonic(target_seed_file: &Path) -> Result<()> {

@@ -77,3 +77,17 @@ class CollabRevert {
     return bridge.BackgroundTask_CollabRevert(TaskStatus.apiDummy());
   }
 }
+
+class FullSync {
+  final TaskStatus taskStatus;
+
+  FullSync({required this.taskStatus});
+
+  static FullSync fromApi(bridge.BackgroundTask_FullSync fullSync) {
+    return FullSync(taskStatus: TaskStatus.fromApi(fullSync.field0));
+  }
+
+  static bridge.BackgroundTask apiDummy() {
+    return bridge.BackgroundTask_FullSync(TaskStatus.apiDummy());
+  }
+}

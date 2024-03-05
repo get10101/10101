@@ -42,6 +42,8 @@ pub enum BackgroundTask {
     RecoverDlc(TaskStatus),
     /// The coordinator wants to collaboratively close a ln channel with a stuck position.
     CollabRevert(TaskStatus),
+    /// The app is performing a full sync of the on-chain wallet.
+    FullSync(TaskStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -141,6 +143,7 @@ impl From<event::BackgroundTask> for BackgroundTask {
             event::BackgroundTask::CollabRevert(status) => {
                 BackgroundTask::CollabRevert(status.into())
             }
+            event::BackgroundTask::FullSync(status) => BackgroundTask::FullSync(status.into()),
         }
     }
 }
