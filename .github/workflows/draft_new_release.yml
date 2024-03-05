@@ -34,11 +34,6 @@ jobs:
           components: rustfmt
       - uses: dprint/check@v2.1
 
-      - name: Update changelog
-        uses: thomaseizinger/keep-a-changelog-new-release@v1
-        with:
-          version: ${{ github.event.inputs.version }}
-
       - name: Bump pubspec version
         uses: fjogeleit/yaml-update-action@v0.12.2
         with:
