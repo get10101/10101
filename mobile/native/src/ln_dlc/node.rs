@@ -15,6 +15,11 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use dlc_manager::ReferenceId;
+use dlc_messages::channel::OfferChannel;
+use dlc_messages::channel::Reject;
+use dlc_messages::channel::RenewOffer;
+use dlc_messages::channel::SettleOffer;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
@@ -193,7 +198,7 @@ impl Node {
                     }
                 };
 
-                let resp = self
+                let resp = match self
                     .inner
                     .dlc_manager
                     .on_dlc_message(&msg, to_secp_pk_29(node_id))
@@ -202,7 +207,40 @@ impl Node {
                             "Failed to handle {} message from {node_id}",
                             dlc_message_name(&msg)
                         )
-                    })?;
+                    }) {
+                    Ok(resp) => resp,
+                    Err(e) => {
+                        match &channel_msg {
+                            ChannelMessage::Offer(OfferChannel {
+                                temporary_channel_id: channel_id,
+                                reference_id,
+                                ..
+                            })
+                            | ChannelMessage::SettleOffer(SettleOffer {
+                                channel_id,
+                                reference_id,
+                                ..
+                            })
+                            | ChannelMessage::RenewOffer(RenewOffer {
+                                channel_id,
+                                reference_id,
+                                ..
+                            }) => {
+                                if let Err(e) =
+                                    self.force_reject_offer(node_id, *channel_id, *reference_id)
+                                {
+                                    tracing::error!(
+                                        channel_id = hex::encode(channel_id),
+                                        "Failed to reject offer. Error: {e:#}"
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+
+                        return Err(e);
+                    }
+                };
 
                 {
                     let mut conn = db::connection()?;
@@ -339,6 +377,47 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    /// Rejects a offer that failed to get processed during the [`dlc_manager.on_dlc_message`].
+    ///
+    /// This function will simply update the 10101 meta data and send the reject message without
+    /// going through rust-dlc.
+    ///
+    /// Note we can't use the rust-dlc api to reject the offer as the processing failed
+    /// and the `Channel::Offered`, `Channel::RenewOffered`, `Channel::SettledOffered`  have not
+    /// been stored to the dlc store. The corresponding reject offer would fail in rust-dlc,
+    /// because this the expected channel can't be found by the provided `channel_id`.
+    #[instrument(fields(channel_id = hex::encode(channel_id), %counterparty),skip_all, err(Debug))]
+    pub fn force_reject_offer(
+        &self,
+        counterparty: PublicKey,
+        channel_id: DlcChannelId,
+        reference_id: Option<ReferenceId>,
+    ) -> Result<()> {
+        let now = std::time::SystemTime::now();
+        let now = now
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Unexpected time error")
+            .as_secs();
+
+        let reject = Reject {
+            channel_id,
+            timestamp: now,
+            reference_id,
+        };
+
+        order::handler::order_failed(
+            None,
+            FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
+            anyhow!("Failed to accept offer"),
+        )
+        .context("Could not set order to failed")?;
+
+        self.send_dlc_message(
+            counterparty,
+            Message::Channel(ChannelMessage::Reject(reject)),
+        )
     }
 
     #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
