@@ -71,7 +71,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             ContractSymbol.btcusd,
             tradeValues.direction,
             stable,
-            coordinatorReserve,
+            Amount(-10101),
             traderReserve);
       } else {
         _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
