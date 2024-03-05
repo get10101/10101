@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -62,8 +64,9 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
 
         final coordinatorReserve =
-            channelOpeningParams.coordinatorCollateral.sub(coordinatorCollateral);
-        final traderReserve = channelOpeningParams.traderCollateral.sub(tradeValues.margin!);
+            max(0, channelOpeningParams.coordinatorCollateral.sub(coordinatorCollateral).sats);
+        final traderReserve =
+            max(0, channelOpeningParams.traderCollateral.sub(tradeValues.margin!).sats);
 
         _pendingOrder!.id = await orderService.submitChannelOpeningMarketOrder(
             tradeValues.leverage,
@@ -71,8 +74,8 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             ContractSymbol.btcusd,
             tradeValues.direction,
             stable,
-            coordinatorReserve,
-            traderReserve);
+            Amount(coordinatorReserve),
+            Amount(traderReserve));
       } else {
         _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
             tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
