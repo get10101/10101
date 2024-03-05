@@ -15,6 +15,8 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use dlc_messages::channel::OfferChannel;
+use dlc_messages::channel::Reject;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
@@ -193,7 +195,7 @@ impl Node {
                     }
                 };
 
-                let resp = self
+                let resp = match self
                     .inner
                     .dlc_manager
                     .on_dlc_message(&msg, to_secp_pk_29(node_id))
@@ -202,7 +204,24 @@ impl Node {
                             "Failed to handle {} message from {node_id}",
                             dlc_message_name(&msg)
                         )
-                    })?;
+                    }) {
+                    Ok(resp) => resp,
+                    Err(e) => {
+                        if let Message::Channel(ChannelMessage::Offer(offer_channel)) = &msg {
+                            if let Err(e) =
+                                self.force_reject_dlc_channel_offer(node_id, offer_channel)
+                            {
+                                let channel_id = hex::encode(offer_channel.temporary_channel_id);
+                                tracing::error!(
+                                    channel_id,
+                                    "Failed to reject dlc channel offer. Error: {e:#}"
+                                );
+                            }
+                        }
+
+                        return Err(e);
+                    }
+                };
 
                 {
                     let mut conn = db::connection()?;
@@ -339,6 +358,47 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    /// Rejects a dlc channel offer that failed to get processed during the
+    /// [`dlc_manager.on_dlc_message`].
+    ///
+    /// This function will simply update the 10101 meta data and send the reject message without
+    /// going through rust-dlc.
+    ///
+    /// Note we can't use the rust-dlc api to reject the dlc channel offer as the processing failed
+    /// and the `Channel::Offered` or `Contract::Offered` have not been stored to the dlc store. The
+    /// reject dlc channel offer would fail in rust-dlc, because this the `Channel::Offered` can't
+    /// be found by the provided `dlc_channel_id`.
+    #[instrument(fields(channel_id = hex::encode(offer_channel.temporary_channel_id), %counterparty),skip_all, err(Debug))]
+    pub fn force_reject_dlc_channel_offer(
+        &self,
+        counterparty: PublicKey,
+        offer_channel: &OfferChannel,
+    ) -> Result<()> {
+        let now = std::time::SystemTime::now();
+        let now = now
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("Unexpected time error")
+            .as_secs();
+
+        let reject = Reject {
+            channel_id: offer_channel.temporary_channel_id,
+            timestamp: now,
+            reference_id: offer_channel.reference_id,
+        };
+
+        order::handler::order_failed(
+            None,
+            FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
+            anyhow!("Failed to accept dlc channel offer"),
+        )
+        .context("Could not set order to failed")?;
+
+        self.send_dlc_message(
+            counterparty,
+            Message::Channel(ChannelMessage::Reject(reject)),
+        )
     }
 
     #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
