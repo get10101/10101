@@ -6,6 +6,7 @@ use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::TradeExecutor;
+use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -205,6 +206,8 @@ impl Node {
                     ?protocol_id,
                     "Received channel message"
                 );
+
+                self.verify_collab_close_offer(&node_id, channel_msg)?;
 
                 let inbound_msg = {
                     let mut conn = self.pool.get()?;
@@ -456,6 +459,57 @@ impl Node {
                 .event_handler
                 .publish(NodeEvent::SendDlcMessage { peer: node_id, msg })?;
         }
+
+        Ok(())
+    }
+
+    /// TODO(holzeis): We need to intercept the collaborative close offer before
+    /// processing it in `rust-dlc` as it would otherwise overwrite the `own_payout`
+    /// amount, which would prevent us from verifying the proposed payout amount.
+    ///
+    /// If the expected own payout amount does not match the offered own payout amount,
+    /// we will simply ignore the offer.
+    fn verify_collab_close_offer(&self, node_id: &PublicKey, msg: &ChannelMessage) -> Result<()> {
+        let close_offer = match msg {
+            ChannelMessage::CollaborativeCloseOffer(close_offer) => close_offer,
+            _ => return Ok(()),
+        };
+
+        let channel = self.inner.get_dlc_channel_by_id(&close_offer.channel_id)?;
+        match channel {
+            Channel::Signed(SignedChannel {
+                state: SignedChannelState::Established { .. },
+                channel_id,
+                ..
+            }) => {
+                let channel_id_hex = hex::encode(channel_id);
+
+                tracing::debug!(%node_id, channel_id = %channel_id_hex, "Ignoring dlc channel collaborative close offer");
+                bail!("channel_id = {channel_id_hex}, node_id = {node_id}, state = Established Received DLC channel \
+                        collaborative close offer in an unexpected signed channel state");
+            }
+            Channel::Signed(SignedChannel {
+                state:
+                    SignedChannelState::Settled {
+                        own_payout: expected_own_payout,
+                        ..
+                    },
+                channel_id,
+                ..
+            }) => {
+                let offered_own_payout = close_offer.counter_payout;
+                if expected_own_payout != offered_own_payout {
+                    let channel_id_hex = hex::encode(channel_id);
+
+                    // TODO(holzeis): Implement reject collaborative close offer flow https://github.com/get10101/10101/issues/2019
+                    tracing::debug!(%node_id, channel_id = %channel_id_hex, "Ignoring dlc channel collaborative close offer");
+
+                    bail!("node_id = {node_id}, channel_id = {channel_id_hex}, offered_own_payout = {offered_own_payout}, \
+                            expected_own_payout = {expected_own_payout}, Received DLC channel collaborative close offer with an invalid payout");
+                }
+            }
+            _ => {}
+        };
 
         Ok(())
     }
