@@ -47,6 +47,7 @@ pub enum BackgroundTask {
     Rollover(TaskStatus),
     CollabRevert(TaskStatus),
     RecoverDlc(TaskStatus),
+    FullSync(TaskStatus),
 }
 
 #[derive(Clone, Debug)]

@@ -66,69 +66,76 @@ class _WalletSettingsState extends State<WalletSettings> {
               height: 20,
             ),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "The amount of addresses to sync for (at least). Once you confirm, a full wallet sync will be performed. The higher the gap is, the longer the sync will take. Hence, we recommend syncing incrementally.",
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                    child: Stack(
-                      alignment: Alignment.centerRight,
-                      children: [
-                        TextFormField(
-                          inputFormatters: <TextInputFormatter>[
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                          keyboardType: TextInputType.number,
-                          controller: lookAheadController,
-                          decoration: const InputDecoration(
-                            border: UnderlineInputBorder(),
-                            labelText: 'Wallet Gap',
-                          ),
-                        ),
-                        Visibility(
-                            visible: !syncing,
-                            replacement: const CircularProgressIndicator(),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.check,
-                                color: Colors.green,
-                              ),
-                              onPressed: () async {
-                                final messenger = ScaffoldMessenger.of(context);
-                                try {
-                                  var gap = lookAheadController.value.text;
-                                  var gapAsNumber = int.parse(gap);
-
-                                  setState(() {
-                                    syncing = true;
-                                  });
-
-                                  await rust.api.fullSync(stopGap: gapAsNumber);
-                                  showSnackBar(messenger, "Successfully synced for new gap.");
-
-                                  setState(() {
-                                    syncing = false;
-                                  });
-                                } catch (exception) {
-                                  logger.e("Failed to complete full sync $exception");
-                                  showSnackBar(
-                                      messenger, "Error when running full sync $exception");
-                                } finally {
-                                  setState(() {
-                                    syncing = false;
-                                  });
-                                }
-                              },
-                            ))
-                      ],
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Full sync \n",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  )
-                ],
+                    const Text(
+                      "Select the stop gap and confirm to perform a full wallet sync.\n\nThe stop gap determines how many consecutive unused addresses the wallet will have to find to stop syncing. The bigger the gap, the longer the sync will take. Hence, we recommend syncing incrementally.\n\nFor example: use a stop gap of 5, wait for the sync to complete and check your balance; if your balance still seems incorrect, come back here and use a stop gap of 10, etc.",
+                      style: TextStyle(fontSize: 18),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                      child: Stack(
+                        alignment: Alignment.centerRight,
+                        children: [
+                          TextFormField(
+                            inputFormatters: <TextInputFormatter>[
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                            keyboardType: TextInputType.number,
+                            controller: lookAheadController,
+                            decoration: const InputDecoration(
+                              border: UnderlineInputBorder(),
+                              labelText: 'Stop Gap',
+                            ),
+                          ),
+                          Visibility(
+                              visible: !syncing,
+                              replacement: const CircularProgressIndicator(),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.check,
+                                  color: Colors.green,
+                                ),
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
+                                  try {
+                                    var gap = lookAheadController.value.text;
+                                    var gapAsNumber = int.parse(gap);
+
+                                    setState(() {
+                                      syncing = true;
+                                    });
+
+                                    await rust.api.fullSync(stopGap: gapAsNumber);
+                                    showSnackBar(messenger, "Successfully synced for new gap.");
+
+                                    setState(() {
+                                      syncing = false;
+                                    });
+                                  } catch (exception) {
+                                    logger.e("Failed to complete full sync $exception");
+                                    showSnackBar(
+                                        messenger, "Error when running full sync $exception");
+                                  } finally {
+                                    setState(() {
+                                      syncing = false;
+                                    });
+                                  }
+                                },
+                              ))
+                        ],
+                      ),
+                    )
+                  ],
+                ),
               ),
             ),
           ],

@@ -3,6 +3,7 @@ import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/lsp_config.dart';
+import 'package:get_10101/common/full_sync_change_notifier.dart';
 import 'package:get_10101/features/brag/github_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
@@ -66,6 +67,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
     ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
+    ChangeNotifierProvider(create: (context) => FullSyncChangeNotifier()),
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService),
     Provider(create: (context) => pollService),
@@ -93,6 +95,7 @@ void subscribeToNotifiers(BuildContext context) {
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
   final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
   final lspConfigChangeNotifier = context.read<LspChangeNotifier>();
+  final fullSyncChangeNotifier = context.read<FullSyncChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -135,6 +138,9 @@ void subscribeToNotifiers(BuildContext context) {
       collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));
 
   eventService.subscribe(lspConfigChangeNotifier, bridge.Event.authenticated(LspConfig.apiDummy()));
+
+  eventService.subscribe(
+      fullSyncChangeNotifier, bridge.Event.backgroundNotification(FullSync.apiDummy()));
 
   eventService.subscribe(
       AnonSubscriber((event) => logger.i(event.field0)), const bridge.Event.log(""));
