@@ -75,8 +75,11 @@ use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
+use std::fmt;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -305,12 +308,31 @@ pub async fn rollover(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SyncParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    full: Option<bool>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    gap: Option<usize>,
+}
+
 /// Internal API for syncing the on-chain wallet and the DLC channels.
 #[instrument(skip_all, err(Debug))]
-pub async fn post_sync(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
-    state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
-        AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
-    })?;
+pub async fn post_sync(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SyncParams>,
+) -> Result<(), AppError> {
+    if params.full.unwrap_or(false) {
+        let stop_gap = params.gap.unwrap_or(20);
+
+        state.node.inner.full_sync(stop_gap).await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not full-sync on-chain wallet: {e:#}"))
+        })?;
+    } else {
+        state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
+        })?;
+    }
 
     spawn_blocking(move || {
         if let Err(e) = state.node.inner.dlc_manager.periodic_chain_monitor() {
@@ -666,4 +688,17 @@ pub async fn get_leaderboard(
     Ok(Json(LeaderBoard {
         entries: leader_board,
     }))
+}
+
+pub fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
 }

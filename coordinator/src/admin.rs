@@ -1,6 +1,7 @@
 use crate::collaborative_revert;
 use crate::db;
 use crate::parse_dlc_channel_id;
+use crate::routes::empty_string_as_none;
 use crate::routes::AppState;
 use crate::AppError;
 use anyhow::Context;
@@ -22,14 +23,10 @@ use ln_dlc_node::node::NodeInfo;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use serde::de;
 use serde::Deserialize;
-use serde::Deserializer;
 use serde::Serialize;
 use std::cmp::Ordering;
-use std::fmt;
 use std::num::NonZeroU32;
-use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
@@ -368,19 +365,6 @@ pub async fn list_peers(State(state): State<Arc<AppState>>) -> Json<Vec<PublicKe
 pub struct CloseChannelParams {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     force: Option<bool>,
-}
-
-fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: FromStr,
-    T::Err: fmt::Display,
-{
-    let opt = Option::<String>::deserialize(de)?;
-    match opt.as_deref() {
-        None | Some("") => Ok(None),
-        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
-    }
 }
 
 #[instrument(skip_all, err(Debug))]
