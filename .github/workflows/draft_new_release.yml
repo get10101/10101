@@ -78,7 +78,7 @@ jobs:
         run: |
           /home/runner/.dprint/bin/dprint fmt
 
-          git add mobile/native/Cargo.toml mobile/pubspec.yaml coordinator/Cargo.toml webapp/Cargo.toml
+          git add mobile/native/Cargo.toml mobile/pubspec.yaml coordinator/Cargo.toml webapp/Cargo.toml Cargo.lock
           git commit --message "Prepare release ${{ github.event.inputs.version }}"
 
           echo "::set-output name=commit::$(git rev-parse HEAD)"
