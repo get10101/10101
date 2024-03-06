@@ -13,6 +13,7 @@ use axum::Json;
 use axum::Router;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
+use commons::taker_fee;
 use commons::Price;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
@@ -468,16 +469,27 @@ pub async fn get_orders() -> Result<Json<Vec<Order>>, AppError> {
     Ok(Json(orders))
 }
 
+#[derive(Serialize)]
+pub struct BestQuote {
+    #[serde(flatten)]
+    price: Price,
+    #[serde(with = "rust_decimal::serde::float")]
+    fee: Decimal,
+}
+
 pub async fn get_best_quote(
     State(subscribers): State<Arc<AppSubscribers>>,
     Path(contract_symbol): Path<ContractSymbol>,
-) -> Result<Json<Option<Price>>, AppError> {
+) -> Result<Json<Option<BestQuote>>, AppError> {
     let quotes = subscribers
         .orderbook_info()
         .map(|prices| prices.get(&contract_symbol).cloned())
         .and_then(|inner| inner);
 
-    Ok(Json(quotes))
+    Ok(Json(quotes.map(|quote| BestQuote {
+        price: quote,
+        fee: taker_fee(),
+    })))
 }
 
 #[derive(Serialize, Default)]
