@@ -144,7 +144,7 @@ pub fn login_user(
     Ok(())
 }
 
-pub fn get_user(conn: &mut PgConnection, trader_id: PublicKey) -> Result<Option<User>> {
+pub fn get_user(conn: &mut PgConnection, trader_id: &PublicKey) -> Result<Option<User>> {
     let maybe_user = users::table
         .filter(users::pubkey.eq(trader_id.to_string()))
         .first(conn)

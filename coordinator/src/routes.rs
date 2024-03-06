@@ -389,7 +389,7 @@ pub async fn get_user(
     let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
         .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
 
-    let option = user::get_user(&mut conn, trader_pubkey)
+    let option = user::get_user(&mut conn, &trader_pubkey)
         .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
 
     match option {
