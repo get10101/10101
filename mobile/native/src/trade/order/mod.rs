@@ -38,7 +38,7 @@ pub enum FailureReason {
     TimedOut,
     InvalidDlcOffer(InvalidSubchannelOffer),
     /// The order has been rejected by the orderbook
-    OrderRejected,
+    OrderRejected(String),
     Unknown,
 }
 

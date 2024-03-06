@@ -660,7 +660,7 @@ pub enum FailureReason {
     SubchannelOfferOutdated,
     SubchannelOfferDateUndetermined,
     SubchannelOfferUnacceptable,
-    OrderRejected,
+    OrderRejected(String),
     Unknown,
 }
 
@@ -694,7 +694,9 @@ impl From<FailureReason> for crate::trade::order::FailureReason {
                     InvalidSubchannelOffer::Unacceptable,
                 )
             }
-            FailureReason::OrderRejected => crate::trade::order::FailureReason::OrderRejected,
+            FailureReason::OrderRejected(reason) => {
+                crate::trade::order::FailureReason::OrderRejected(reason)
+            }
             FailureReason::Unknown => crate::trade::order::FailureReason::Unknown,
         }
     }
@@ -722,7 +724,9 @@ impl From<crate::trade::order::FailureReason> for FailureReason {
                 }
                 InvalidSubchannelOffer::Unacceptable => FailureReason::SubchannelOfferUnacceptable,
             },
-            crate::trade::order::FailureReason::OrderRejected => FailureReason::OrderRejected,
+            crate::trade::order::FailureReason::OrderRejected(reason) => {
+                FailureReason::OrderRejected(reason)
+            }
             crate::trade::order::FailureReason::Unknown => FailureReason::Unknown,
         }
     }

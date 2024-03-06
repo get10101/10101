@@ -116,7 +116,7 @@ pub async fn submit_order(
         update_order_state_in_db_and_ui(
             order.id,
             OrderState::Failed {
-                reason: FailureReason::OrderRejected,
+                reason: FailureReason::OrderRejected(err.to_string()),
             },
         )
         .map_err(SubmitOrderError::Storage)?;

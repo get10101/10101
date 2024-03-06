@@ -417,7 +417,7 @@ impl From<&native::trade::order::Order> for Order {
                         }
                         InvalidSubchannelOffer::Unacceptable => "OfferUnacceptable",
                     },
-                    FailureReason::OrderRejected => "OrderRejected",
+                    FailureReason::OrderRejected(_) => "OrderRejected",
                     FailureReason::Unknown => "Unknown",
                 }
                 .to_string();
