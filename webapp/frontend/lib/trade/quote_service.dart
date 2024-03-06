@@ -5,13 +5,15 @@ import 'dart:convert';
 class BestQuote {
   Price? bid;
   Price? ask;
+  double? fee;
 
-  BestQuote({this.bid, this.ask});
+  BestQuote({this.bid, this.ask, this.fee});
 
   factory BestQuote.fromJson(Map<String, dynamic> json) {
     return BestQuote(
       bid: (Price.parseString(json['bid'])),
       ask: (Price.parseString(json['ask'])),
+      fee: json['fee'],
     );
   }
 }

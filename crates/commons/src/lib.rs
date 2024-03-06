@@ -22,6 +22,7 @@ pub use liquidity_option::*;
 pub use message::*;
 pub use order::*;
 pub use order_matching_fee::order_matching_fee_taker;
+pub use order_matching_fee::taker_fee;
 pub use polls::*;
 pub use price::best_current_price;
 pub use price::Price;
