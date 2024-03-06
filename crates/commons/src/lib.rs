@@ -38,6 +38,7 @@ pub struct RegisterParams {
     pub pubkey: PublicKey,
     pub contact: Option<String>,
     pub nickname: Option<String>,
+    pub version: Option<String>,
 }
 
 /// Registration details for enrolling into the beta program

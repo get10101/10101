@@ -431,10 +431,12 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
                     signature: ln_dlc::get_node_key().sign_ecdsa(msg),
                 });
 
+            let version = env!("CARGO_PKG_VERSION").to_string();
             let runtime = crate::state::get_or_create_tokio_runtime()?;
             runtime.block_on(async {
                 tx_websocket.send(OrderbookRequest::Authenticate {
                     fcm_token: Some(fcm_token),
+                    version: Some(version),
                     signature,
                 })
             })?;
@@ -724,7 +726,8 @@ pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
 /// Enroll or update a user in the beta program
 #[tokio::main(flavor = "current_thread")]
 pub async fn register_beta(contact: String) -> Result<()> {
-    users::register_beta(contact).await
+    let version = env!("CARGO_PKG_VERSION").to_string();
+    users::register_beta(contact, version).await
 }
 
 #[derive(Debug)]

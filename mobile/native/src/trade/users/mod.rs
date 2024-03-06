@@ -9,17 +9,19 @@ use commons::UpdateUsernameParams;
 use commons::User;
 
 /// Enroll the user in the beta program
-pub async fn register_beta(contact: String) -> Result<()> {
+pub async fn register_beta(contact: String, version: String) -> Result<()> {
     let name = crate::names::get_new_name();
     let register = RegisterParams {
         pubkey: ln_dlc::get_node_pubkey(),
         contact: Some(contact),
         nickname: Some(name),
+        version: Some(version.clone()),
     };
 
     tracing::debug!(
         pubkey = register.pubkey.to_string(),
         contact = register.contact,
+        version,
         "Registering user"
     );
 
