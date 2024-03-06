@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/auth/login_screen.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:get_10101/common/currency_change_notifier.dart';
+import 'package:get_10101/common/currency_selection_widget.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
@@ -175,6 +179,14 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final quoteChangeNotifier = context.watch<QuoteChangeNotifier>();
+    final quote = quoteChangeNotifier.getBestQuote();
+    final Price midMarket =
+        ((quote?.ask ?? Price.zero()) + (quote?.bid ?? Price.zero())) / Decimal.fromInt(2);
+
+    final currencyChangeNotifier = context.watch<CurrencyChangeNotifier>();
+    final currency = currencyChangeNotifier.currency;
+
     return Scaffold(
       body: Row(
         children: [
@@ -185,7 +197,18 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
             trailing: Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: [Text("v$version"), const SizedBox(height: 50)],
+                children: [
+                  Row(
+                    children: [
+                      Text("v$version"),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Row(
+                    children: [CurrencySelectionScreen()],
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
             leading: showAsDrawer
@@ -241,10 +264,8 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                               value: balance == null
                                   ? []
                                   : [
-                                      TextSpan(
-                                          text: balance?.offChain.formatted(),
-                                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const TextSpan(text: " sats"),
+                                      formatAmountAsCurrency(
+                                          balance?.offChain, currency, midMarket),
                                     ]),
                           const SizedBox(width: 30),
                           TopBarItem(
@@ -252,10 +273,7 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                               value: balance == null
                                   ? []
                                   : [
-                                      TextSpan(
-                                          text: balance?.onChain.formatted(),
-                                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const TextSpan(text: " sats"),
+                                      formatAmountAsCurrency(balance?.onChain, currency, midMarket),
                                     ]),
                           const SizedBox(width: 30),
                           TopBarItem(
@@ -263,12 +281,10 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                               value: balance == null
                                   ? []
                                   : [
-                                      TextSpan(
-                                          text: balance?.onChain
-                                              .add(balance?.offChain ?? Amount.zero())
-                                              .formatted(),
-                                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      const TextSpan(text: " sats"),
+                                      formatAmountAsCurrency(
+                                          balance?.onChain.add(balance?.offChain ?? Amount.zero()),
+                                          currency,
+                                          midMarket),
                                     ]),
                         ],
                       ),
@@ -332,4 +348,22 @@ class TopBarItem extends StatelessWidget {
             ),
           );
   }
+}
+
+TextSpan formatAmountAsCurrency(Amount? amount, Currency currency, Price midMarket) {
+  if (amount == null) {
+    return const TextSpan();
+  }
+
+  String formatted = "";
+  switch (currency) {
+    case Currency.usd:
+      formatted = formatUsd(amount * midMarket, decimalPlaces: 2);
+    case Currency.btc:
+      formatted = formatBtc(amount);
+    case Currency.sats:
+      formatted = formatSats(amount);
+  }
+
+  return TextSpan(text: formatted, style: const TextStyle(fontWeight: FontWeight.bold));
 }

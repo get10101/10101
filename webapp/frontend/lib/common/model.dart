@@ -59,6 +59,12 @@ class Amount implements Formattable {
     }
   }
 
+  Usd operator *(Price multiplier) {
+    Usd result = Usd.zero();
+    result._usd = Decimal.parse((btc * multiplier.asDouble).toString());
+    return result;
+  }
+
   @override
   String formatted() {
     final formatter = NumberFormat("#,###,###,###,###", "en");
@@ -68,11 +74,6 @@ class Amount implements Formattable {
   @override
   String toString() {
     return formatSats(this);
-  }
-
-  String formatSats(Amount amount) {
-    final formatter = NumberFormat("#,###,###,###,###", "en");
-    return "${formatter.format(amount.sats)} sats";
   }
 }
 
@@ -155,6 +156,18 @@ class Price implements Formattable {
     } on Exception {
       _usd = Decimal.zero;
     }
+  }
+
+  Price operator +(Price other) {
+    Price result = Price.zero();
+    result._usd = _usd + other._usd;
+    return result;
+  }
+
+  Price operator /(Decimal divisor) {
+    Price result = Price.zero();
+    result._usd = (_usd / divisor).toDecimal();
+    return result;
   }
 
   @override
