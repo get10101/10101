@@ -442,8 +442,10 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
 pub async fn full_sync_on_wallet_db_migration() {
     let node = state::get_node();
 
-    let old_wallet_db_path = Path::new(&config::get_data_dir()).join("wallet");
-    if old_wallet_db_path.exists() {
+    let old_wallet_dir = Path::new(&config::get_data_dir())
+        .join(config::get_network().to_string())
+        .join("on_chain");
+    if old_wallet_dir.exists() {
         event::publish(&EventInternal::BackgroundNotification(
             event::BackgroundTask::FullSync(event::TaskStatus::Pending),
         ));
@@ -451,7 +453,7 @@ pub async fn full_sync_on_wallet_db_migration() {
         let stop_gap = 20;
         tracing::info!(
             %stop_gap,
-            "Old wallet DB detected. Attempting to populate new wallet with full sync"
+            "Old wallet directory detected. Attempting to populate new wallet with full sync"
         );
 
         match node.inner.full_sync(stop_gap).await {
@@ -475,8 +477,8 @@ pub async fn full_sync_on_wallet_db_migration() {
                     event::BackgroundTask::FullSync(event::TaskStatus::Success),
                 ));
 
-                if let Err(e) = std::fs::remove_file(old_wallet_db_path) {
-                    tracing::info!("Failed to delete old wallet DB file: {e:#}");
+                if let Err(e) = std::fs::remove_dir_all(old_wallet_dir) {
+                    tracing::info!("Failed to delete old wallet directory: {e:#}");
                 }
             }
             Err(e) => {
