@@ -33,9 +33,17 @@ String formatSats(Amount amount) {
   return "${formatter.format(amount.sats)} sats";
 }
 
-String formatUsd(Usd usd) {
-  final formatter = NumberFormat("\$ #,###,###,###,###", "en");
-  return formatter.format(usd.usd);
+String formatUsd(Usd usd, {int decimalPlaces = 0}) {
+  String formatString;
+  if (decimalPlaces > 0) {
+    formatString = '\$ #,###,###,###,##0.${'0' * decimalPlaces}';
+  } else {
+    formatString = '\$ #,###,###,###,##0';
+  }
+
+  final formatter = NumberFormat(formatString, "en");
+
+  return formatter.format(usd.asDouble);
 }
 
 String formatPrice(Price price) {

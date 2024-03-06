@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/auth/auth_service.dart';
+import 'package:get_10101/common/currency_change_notifier.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
@@ -33,6 +34,7 @@ void main() {
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(const PositionService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(const OrderService())),
     ChangeNotifierProvider(create: (context) => ChannelChangeNotifier(channelService)),
+    ChangeNotifierProvider(create: (context) => CurrencyChangeNotifier(Currency.sats)),
     Provider(create: (context) => const SettingsService()),
     Provider(create: (context) => channelService),
     Provider(create: (context) => AuthService()),

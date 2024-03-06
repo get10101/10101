@@ -1,5 +1,8 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/currency_change_notifier.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/settings/channel_change_notifier.dart';
@@ -25,8 +28,14 @@ class OpenPositionTable extends StatelessWidget {
 
     final positionChangeNotifier = context.watch<PositionChangeNotifier>();
     final positions = positionChangeNotifier.getPositions();
+
+    final currencyChangeNotifier = context.watch<CurrencyChangeNotifier>();
+    final currency = currencyChangeNotifier.currency;
+
     final quoteChangeNotifier = context.watch<QuoteChangeNotifier>();
     final quote = quoteChangeNotifier.getBestQuote();
+    final Price midMarket =
+        ((quote?.ask ?? Price.zero()) + (quote?.bid ?? Price.zero())) / Decimal.fromInt(2);
 
     if (positions == null) {
       return const Center(child: CircularProgressIndicator());
@@ -35,12 +44,12 @@ class OpenPositionTable extends StatelessWidget {
     if (positions.isEmpty) {
       return const Center(child: Text('No data available'));
     } else {
-      return buildTable(positions, quote, context, channel);
+      return buildTable(positions, quote, context, channel, midMarket, currency);
     }
   }
 
-  Widget buildTable(
-      List<Position> positions, BestQuote? bestQuote, BuildContext context, DlcChannel? channel) {
+  Widget buildTable(List<Position> positions, BestQuote? bestQuote, BuildContext context,
+      DlcChannel? channel, Price midMarket, Currency currency) {
     Widget actionReplacementLabel = createActionReplacementLabel(channel);
     return Table(
       border: const TableBorder(verticalInside: BorderSide(width: 0.5, color: Colors.black)),
@@ -80,9 +89,9 @@ class OpenPositionTable extends StatelessWidget {
                   : "+${position.quantity}")),
               buildTableCell(Text(position.averageEntryPrice.toString())),
               buildTableCell(Text(position.liquidationPrice.toString())),
-              buildTableCell(Text(position.collateral.toString())),
+              buildAmountTableCell(position.collateral, currency, midMarket),
               buildTableCell(Text(position.leverage.formatted())),
-              buildTableCell(Text(position.pnlSats.toString())),
+              buildAmountTableCell(position.pnlSats, currency, midMarket),
               buildTableCell(
                   Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} UTC")),
               buildTableCell(Center(
@@ -208,4 +217,19 @@ class OpenPositionTable extends StatelessWidget {
             child: Container(
                 padding: const EdgeInsets.all(10), alignment: Alignment.center, child: child)),
       ));
+
+  TableCell buildAmountTableCell(Amount? child, Currency currency, Price midMarket) {
+    if (child == null) {
+      return buildTableCell(const Text(""));
+    }
+
+    switch (currency) {
+      case Currency.usd:
+        return buildTableCell(Text(formatUsd(child * midMarket, decimalPlaces: 2)));
+      case Currency.btc:
+        return buildTableCell(Text(formatBtc(child)));
+      case Currency.sats:
+        return buildTableCell(Text(formatSats(child)));
+    }
+  }
 }
