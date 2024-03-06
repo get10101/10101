@@ -61,7 +61,7 @@ pub(crate) fn generate_leader_board(
     let leader_board = leader_board
         .into_iter()
         .map(|entry| {
-            let nickname = db::user::get_user(conn, entry.trader).unwrap_or_default();
+            let nickname = db::user::get_user(conn, &entry.trader).unwrap_or_default();
             LeaderBoardEntry {
                 nickname: nickname.and_then(|user| user.nickname).unwrap_or_default(),
                 ..entry

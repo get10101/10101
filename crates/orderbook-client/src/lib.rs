@@ -23,7 +23,7 @@ pub async fn subscribe(
     SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
-    subscribe_impl(None, url, None).await
+    subscribe_impl(None, url, None, None).await
 }
 
 /// Connects to the orderbook WebSocket API with authentication.
@@ -33,12 +33,13 @@ pub async fn subscribe_with_authentication(
     url: String,
     authenticate: impl Fn(Message) -> Signature,
     fcm_token: Option<String>,
+    version: Option<String>,
 ) -> Result<(
     SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String, anyhow::Error>> + Unpin,
 )> {
     let signature = create_auth_message_signature(authenticate);
-    subscribe_impl(Some(signature), url, fcm_token).await
+    subscribe_impl(Some(signature), url, fcm_token, version).await
 }
 
 pub fn create_auth_message_signature(authenticate: impl Fn(Message) -> Signature) -> Signature {
@@ -50,6 +51,7 @@ async fn subscribe_impl(
     signature: Option<Signature>,
     url: String,
     fcm_token: Option<String>,
+    version: Option<String>,
 ) -> Result<(
     SplitSink<WebSocketStream, tungstenite::Message>,
     impl Stream<Item = Result<String>> + Unpin,
@@ -67,6 +69,7 @@ async fn subscribe_impl(
             .send(tungstenite::Message::try_from(
                 OrderbookRequest::Authenticate {
                     fcm_token,
+                    version,
                     signature,
                 },
             )?)

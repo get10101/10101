@@ -44,7 +44,7 @@ pub enum FailureReason {
     OrderNotAcceptable,
     TimedOut,
     InvalidDlcOffer,
-    OrderRejected,
+    OrderRejected(String),
     Unknown,
 }
 
@@ -144,7 +144,7 @@ impl From<order::FailureReason> for FailureReason {
             order::FailureReason::OrderNotAcceptable => FailureReason::OrderNotAcceptable,
             order::FailureReason::TimedOut => FailureReason::TimedOut,
             order::FailureReason::InvalidDlcOffer(_) => FailureReason::InvalidDlcOffer,
-            order::FailureReason::OrderRejected => FailureReason::OrderRejected,
+            order::FailureReason::OrderRejected(reason) => FailureReason::OrderRejected(reason),
             order::FailureReason::CollabRevert => FailureReason::CollabRevert,
             order::FailureReason::Unknown => FailureReason::Unknown,
         }

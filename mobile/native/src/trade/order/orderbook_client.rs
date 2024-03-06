@@ -34,8 +34,8 @@ impl OrderbookClient {
             let response = response.json().await?;
             Ok(response)
         } else {
-            tracing::error!("Could not create new order");
-            bail!("Could not create new order: {response:?}")
+            let error = response.text().await?;
+            bail!("Could not create new order: {error}")
         }
     }
 }

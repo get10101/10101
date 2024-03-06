@@ -20,6 +20,9 @@ pub struct User {
     pub fcm_token: String,
     pub last_login: OffsetDateTime,
     pub nickname: Option<String>,
+    // TODO(holzeis): Version is only optional for the first upgrade. Afterwards we should make it
+    // mandatory.
+    pub version: Option<String>,
 }
 
 impl From<RegisterParams> for User {
@@ -32,6 +35,7 @@ impl From<RegisterParams> for User {
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: "".to_owned(),
             last_login: OffsetDateTime::now_utc(),
+            version: value.version,
         }
     }
 }
@@ -53,6 +57,7 @@ pub fn upsert_user(
     trader_id: PublicKey,
     contact: Option<String>,
     nickname: Option<String>,
+    version: Option<String>,
 ) -> QueryResult<User> {
     // If no name or contact has been provided we default to empty string
     let contact = contact.unwrap_or_default();
@@ -68,6 +73,7 @@ pub fn upsert_user(
             timestamp,
             fcm_token: "".to_owned(),
             last_login: timestamp,
+            version: version.clone(),
         })
         .on_conflict(schema::users::pubkey)
         .do_update()
@@ -75,6 +81,7 @@ pub fn upsert_user(
             users::contact.eq(&contact),
             users::nickname.eq(&nickname),
             users::last_login.eq(timestamp),
+            users::version.eq(version),
         ))
         .get_result(conn)?;
     Ok(user)
@@ -103,7 +110,12 @@ pub fn update_nickname(
     Ok(())
 }
 
-pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) -> Result<()> {
+pub fn login_user(
+    conn: &mut PgConnection,
+    trader_id: PublicKey,
+    token: String,
+    version: Option<String>,
+) -> Result<()> {
     tracing::debug!(%trader_id, token, "Updating token for client.");
     let last_login = OffsetDateTime::now_utc();
     let affected_rows = diesel::insert_into(users::table)
@@ -114,6 +126,7 @@ pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) 
             nickname: None,
             timestamp: OffsetDateTime::now_utc(),
             fcm_token: token.clone(),
+            version: version.clone(),
             last_login,
         })
         .on_conflict(schema::users::pubkey)
@@ -121,6 +134,7 @@ pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) 
         .set((
             users::fcm_token.eq(&token),
             users::last_login.eq(last_login),
+            users::version.eq(version),
         ))
         .execute(conn)?;
 
@@ -132,7 +146,7 @@ pub fn login_user(conn: &mut PgConnection, trader_id: PublicKey, token: String) 
     Ok(())
 }
 
-pub fn get_user(conn: &mut PgConnection, trader_id: PublicKey) -> Result<Option<User>> {
+pub fn get_user(conn: &mut PgConnection, trader_id: &PublicKey) -> Result<Option<User>> {
     let maybe_user = users::table
         .filter(users::pubkey.eq(trader_id.to_string()))
         .first(conn)

@@ -1,3 +1,4 @@
+use crate::check_version::check_version;
 use crate::db;
 use crate::db::positions;
 use crate::dlc_protocol;
@@ -168,6 +169,12 @@ impl Node {
             .expect("task to complete")?;
 
         tracing::debug!(%trader_id, "Checking if the users positions is eligible for rollover");
+
+        if check_version(&mut conn, &trader_id).is_err() {
+            tracing::info!(%trader_id, "User is not on the latest version. Skipping check if users position is eligible for rollover");
+            return Ok(());
+        }
+
         if let Some(position) = positions::Position::get_position_by_trader(
             &mut conn,
             trader_id,

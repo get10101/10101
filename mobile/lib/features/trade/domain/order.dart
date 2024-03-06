@@ -66,8 +66,6 @@ class FailureReason {
   static const FailureReason timeout = FailureReason._(
       failureType: FailureReasonType.timeout,
       details: "The order timed out before finding a match");
-  static const FailureReason rejected =
-      FailureReason._(failureType: FailureReasonType.rejected, details: "The order was rejected.");
   static const FailureReason unknown = FailureReason._(
       failureType: FailureReasonType.unknown, details: "An unknown error occurred.");
 
@@ -90,7 +88,8 @@ class FailureReason {
       case bridge.FailureReason_TimedOut():
         return timeout;
       case bridge.FailureReason_OrderRejected():
-        return rejected;
+        return FailureReason._(
+            failureType: FailureReasonType.rejected, details: failureReason.field0);
       case bridge.FailureReason_Unknown():
         return unknown;
     }

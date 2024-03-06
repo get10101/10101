@@ -1,3 +1,4 @@
+use crate::check_version::check_version;
 use crate::orderbook;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::orderbook::trading::TradingError;
@@ -73,6 +74,16 @@ pub async fn post_order(
         .map_err(|_| AppError::Unauthorized)?;
 
     let new_order = new_order_request.value;
+
+    // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
+    if new_order.order_type == OrderType::Market {
+        let mut conn = state
+            .pool
+            .get()
+            .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+        check_version(&mut conn, &new_order.trader_id)
+            .map_err(|e| AppError::BadRequest(e.to_string()))?;
+    }
 
     let settings = state.settings.read().await;
     if new_order.order_type == OrderType::Limit

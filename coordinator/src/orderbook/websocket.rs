@@ -119,6 +119,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                 }
                 Ok(OrderbookRequest::Authenticate {
                     fcm_token,
+                    version,
                     signature,
                 }) => {
                     let msg = create_sign_message(AUTH_SIGN_MESSAGE.to_vec());
@@ -160,7 +161,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             }
 
                             let token = fcm_token.unwrap_or("unavailable".to_string());
-                            if let Err(e) = user::login_user(&mut conn, trader_id, token) {
+                            if let Err(e) = user::login_user(&mut conn, trader_id, token, version) {
                                 tracing::error!(%trader_id, "Failed to update logged in user. Error: {e:#}")
                             }
 

@@ -22,6 +22,7 @@ mod payout_curve;
 pub mod admin;
 pub mod backup;
 pub mod campaign;
+pub mod check_version;
 pub mod cli;
 pub mod db;
 pub mod dlc_handler;

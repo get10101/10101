@@ -26,7 +26,7 @@ async fn main() -> Result<Never> {
 
     loop {
         let (_, mut stream) =
-            orderbook_client::subscribe_with_authentication(url.clone(), &authenticate, None)
+            orderbook_client::subscribe_with_authentication(url.clone(), &authenticate, None, None)
                 .await?;
 
         loop {

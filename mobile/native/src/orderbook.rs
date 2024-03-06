@@ -114,7 +114,8 @@ pub fn subscribe(
         loop {
             let url = url.clone();
             let fcm_token = fcm_token.clone();
-            match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token)
+            let version = env!("CARGO_PKG_VERSION").to_string();
+            match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token, Some(version))
                 .await
             {
                 Ok((mut sink, mut stream)) => {

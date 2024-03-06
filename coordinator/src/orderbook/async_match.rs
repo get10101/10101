@@ -1,3 +1,4 @@
+use crate::check_version::check_version;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::orderbook::db::matches;
@@ -89,6 +90,11 @@ async fn process_pending_match(
     let mut conn = spawn_blocking(move || pool.get())
         .await
         .expect("task to complete")?;
+
+    if check_version(&mut conn, &trader_id).is_err() {
+        tracing::info!(%trader_id, "User is not on the latest version. Skipping check if user needs to be informed about pending matches.");
+        return Ok(());
+    }
 
     if let Some(order) =
         orders::get_by_trader_id_and_state(&mut conn, trader_id, OrderState::Matched)?

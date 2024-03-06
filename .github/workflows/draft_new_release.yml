@@ -63,12 +63,22 @@ jobs:
         run: |
           cargo set-version --package webapp ${{ github.event.inputs.version }}
 
-      - name: Commit changelog and manifest files
+      - name: Bump mobile/native Cargo.toml version
+        uses: stellar/binaries@v13
+        with:
+          name: cargo-edit
+          version: 0.11.6
+      - id: set-mobile-version
+        continue-on-error: true
+        run: |
+          cargo set-version --package mobile/native ${{ github.event.inputs.version }}
+
+      - name: Commit manifest files
         id: make-commit
         run: |
           /home/runner/.dprint/bin/dprint fmt
 
-          git add mobile/pubspec.yaml coordinator/Cargo.toml webapp/Cargo.toml
+          git add mobile/native/Cargo.toml mobile/pubspec.yaml coordinator/Cargo.toml webapp/Cargo.toml Cargo.lock
           git commit --message "Prepare release ${{ github.event.inputs.version }}"
 
           echo "::set-output name=commit::$(git rev-parse HEAD)"
