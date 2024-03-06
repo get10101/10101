@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/auth/login_screen.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -253,6 +254,19 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                                   : [
                                       TextSpan(
                                           text: balance?.onChain.formatted(),
+                                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      const TextSpan(text: " sats"),
+                                    ]),
+                          const SizedBox(width: 30),
+                          TopBarItem(
+                              label: 'Total: ',
+                              value: balance == null
+                                  ? []
+                                  : [
+                                      TextSpan(
+                                          text: balance?.onChain
+                                              .add(balance?.offChain ?? Amount.zero())
+                                              .formatted(),
                                           style: const TextStyle(fontWeight: FontWeight.bold)),
                                       const TextSpan(text: " sats"),
                                     ]),
