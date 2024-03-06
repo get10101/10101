@@ -20,6 +20,8 @@ pub struct User {
     pub fcm_token: String,
     pub last_login: OffsetDateTime,
     pub nickname: Option<String>,
+    // TODO(holzeis): Version is only optional for the first upgrade. Afterwards we should make it
+    // mandatory.
     pub version: Option<String>,
 }
 

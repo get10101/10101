@@ -13,6 +13,7 @@ use crate::admin::roll_back_dlc_channel;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
+use crate::check_version::check_version;
 use crate::collaborative_revert::confirm_collaborative_revert;
 use crate::db;
 use crate::db::user;
@@ -263,6 +264,13 @@ pub async fn post_trade(
     State(state): State<Arc<AppState>>,
     params: Json<TradeAndChannelParams>,
 ) -> Result<(), AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+    check_version(&mut conn, &params.trade_params.pubkey)
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
     state
         .node
         .trade(state.auth_users_notifier.clone(), params.0)
