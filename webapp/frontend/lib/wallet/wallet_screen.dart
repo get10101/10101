@@ -53,7 +53,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
                         children: [
                           Icon(FontAwesomeIcons.arrowUp, size: 20),
                           SizedBox(width: 10),
-                          Text("Withdraw")
+                          Text("Send")
                         ],
                       ),
                     )
