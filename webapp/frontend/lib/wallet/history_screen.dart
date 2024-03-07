@@ -21,51 +21,41 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     final history = walletChangeNotifier.getHistory();
 
-    return Container(
-        padding: const EdgeInsets.only(top: 25),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                      onPressed: refreshing
-                          ? null
-                          : () async {
-                              setState(() {
-                                refreshing = true;
-                              });
-                              await service.sync();
-                              await walletChangeNotifier.refresh();
-                              setState(() {
-                                refreshing = false;
-                              });
-                            },
-                      child:
-                          refreshing ? const CircularProgressIndicator() : const Text("Refresh")),
-                ),
-              ],
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: history == null
+                  ? [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(),
+                      )
+                    ]
+                  : history.map((item) => OnChainPaymentHistoryItem(data: item)).toList(),
             ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    children: history == null
-                        ? [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(),
-                            )
-                          ]
-                        : history.map((item) => OnChainPaymentHistoryItem(data: item)).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ));
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: ElevatedButton(
+              onPressed: refreshing
+                  ? null
+                  : () async {
+                      setState(() {
+                        refreshing = true;
+                      });
+                      await service.sync();
+                      await walletChangeNotifier.refresh();
+                      setState(() {
+                        refreshing = false;
+                      });
+                    },
+              child: refreshing ? const CircularProgressIndicator() : const Text("Refresh")),
+        ),
+      ],
+    );
   }
 }
