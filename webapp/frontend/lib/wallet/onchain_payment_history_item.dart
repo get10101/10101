@@ -30,7 +30,11 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
           elevation: 0,
           child: ListTile(
               onTap: () async {
-                // todo
+                showDialog(
+                    context: context,
+                    builder: (context) {
+                      return WalletHistoryDetailDialog(data: data);
+                    });
               },
               leading: Stack(children: [
                 Container(
