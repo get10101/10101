@@ -527,12 +527,20 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         {
             None => None,
             Some(channel) => {
+                let amount_sats = match details.sent.checked_sub(details.received) {
+                    Some(amount_sats) => amount_sats,
+                    None => {
+                        tracing::warn!("Omitting DLC channel funding transaction that pays to us!");
+                        return None;
+                    }
+                };
+
                 let (status, timestamp) =
                     confirmation_status_to_status_and_timestamp(&details.confirmation_status);
 
                 Some(WalletHistoryItem {
                     flow: PaymentFlow::Outbound,
-                    amount_sats: (details.sent - details.received).to_sat(),
+                    amount_sats: amount_sats.to_sat(),
                     timestamp,
                     status,
                     wallet_type: WalletHistoryItemType::DlcChannelFunding {
