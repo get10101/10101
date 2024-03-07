@@ -15,15 +15,24 @@ import 'package:get_10101/trade/quote_service.dart';
 import 'package:get_10101/settings/settings_service.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl_browser.dart';
 import 'package:provider/provider.dart';
 
 import 'common/color.dart';
 import 'common/theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   buildLogger(false);
   logger.i("Logger initialized");
+
+  // Get the system's default locale
+  String defaultLocale = await findSystemLocale();
+
+  // Initialize the date format data for the system's default locale
+  await initializeDateFormatting(defaultLocale, null);
+
   const walletService = WalletService();
   const channelService = ChannelService();
 
@@ -63,6 +72,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     return MaterialApp.router(
       title: "10101",
       scaffoldMessengerKey: scaffoldMessengerKey,
+      supportedLocales: const [
+        Locale('en', 'US'),
+        Locale('es', 'ES'),
+        Locale('fr', 'FR'),
+        Locale('de', 'DE'),
+      ],
       theme: ThemeData(
         primarySwatch: swatch,
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
