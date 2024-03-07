@@ -21,18 +21,17 @@ class _AmountTextState extends State<AmountTextField> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: widget.label,
-        labelStyle: const TextStyle(color: Colors.black87),
-        errorStyle: TextStyle(
-          color: Colors.red[900],
-        ),
-        errorText: widget.error,
-        filled: true,
-        suffixIcon: widget.suffixIcon,
-        fillColor: Colors.grey[50],
-      ),
-      child: Text(value, style: const TextStyle(fontSize: 15)),
+          contentPadding: const EdgeInsets.fromLTRB(12, 24, 12, 17),
+          border: const OutlineInputBorder(),
+          labelText: widget.label,
+          labelStyle: const TextStyle(color: Colors.black87),
+          errorStyle: TextStyle(
+            color: Colors.red[900],
+          ),
+          errorText: widget.error,
+          filled: true,
+          suffixIcon: widget.suffixIcon,
+      child: Text(value, style: const TextStyle(fontSize: 16)),
     );
   }
 }
