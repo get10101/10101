@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 
 class AmountTextField extends StatefulWidget {
@@ -21,18 +22,18 @@ class _AmountTextState extends State<AmountTextField> {
 
     return InputDecorator(
       decoration: InputDecoration(
-        border: const OutlineInputBorder(),
-        labelText: widget.label,
-        labelStyle: const TextStyle(color: Colors.black87),
-        errorStyle: TextStyle(
-          color: Colors.red[900],
-        ),
-        errorText: widget.error,
-        filled: true,
-        suffixIcon: widget.suffixIcon,
-        fillColor: Colors.grey[50],
-      ),
-      child: Text(value, style: const TextStyle(fontSize: 15)),
+          contentPadding: const EdgeInsets.fromLTRB(12, 24, 12, 17),
+          border: const OutlineInputBorder(),
+          labelText: widget.label,
+          labelStyle: const TextStyle(color: Colors.black87),
+          errorStyle: TextStyle(
+            color: Colors.red[900],
+          ),
+          errorText: widget.error,
+          filled: true,
+          suffixIcon: widget.suffixIcon,
+          fillColor: tenTenOnePurple.shade50.withOpacity(0.3)),
+      child: Text(value, style: const TextStyle(fontSize: 16)),
     );
   }
 }

@@ -39,7 +39,7 @@ class AmountInputField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      style: style ?? const TextStyle(color: Colors.black87),
+      style: style ?? const TextStyle(color: Colors.black87, fontSize: 16),
       enabled: enabled,
       controller: controller,
       initialValue: controller != null ? null : value.formatted(),
