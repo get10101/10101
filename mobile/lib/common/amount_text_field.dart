@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 
 class AmountTextField extends StatefulWidget {
@@ -31,6 +32,7 @@ class _AmountTextState extends State<AmountTextField> {
           errorText: widget.error,
           filled: true,
           suffixIcon: widget.suffixIcon,
+          fillColor: tenTenOnePurple.shade50.withOpacity(0.3)),
       child: Text(value, style: const TextStyle(fontSize: 16)),
     );
   }
