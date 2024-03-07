@@ -15,61 +15,75 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 3, vsync: this);
+  late final _tabController = TabController(length: 2, vsync: this);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 500,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          TabBar(
-            unselectedLabelColor: Colors.black,
-            labelColor: tenTenOnePurple,
-            tabs: const [
-              Tab(
-                  child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(FontAwesomeIcons.clockRotateLeft, size: 20),
-                  SizedBox(width: 10),
-                  Text("History")
-                ],
-              )),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FontAwesomeIcons.arrowDown, size: 20),
-                    SizedBox(width: 10),
-                    Text("Receive")
+    return Row(children: [
+      Expanded(
+          child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey[100],
+        ),
+        child: Column(
+          children: [
+            Expanded(
+                child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                TabBar(
+                  unselectedLabelColor: Colors.black,
+                  labelColor: tenTenOnePurple,
+                  tabs: const [
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(FontAwesomeIcons.arrowDown, size: 20),
+                          SizedBox(width: 10),
+                          Text("Receive")
+                        ],
+                      ),
+                    ),
+                    Tab(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(FontAwesomeIcons.arrowUp, size: 20),
+                          SizedBox(width: 10),
+                          Text("Send")
+                        ],
+                      ),
+                    )
                   ],
+                  controller: _tabController,
+                  indicatorSize: TabBarIndicatorSize.tab,
                 ),
-              ),
-              Tab(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(FontAwesomeIcons.arrowUp, size: 20),
-                    SizedBox(width: 10),
-                    Text("Withdraw")
-                  ],
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: const [ReceiveScreen(), SendScreen()],
+                  ),
                 ),
-              )
-            ],
-            controller: _tabController,
-            indicatorSize: TabBarIndicatorSize.tab,
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: const [HistoryScreen(), ReceiveScreen(), SendScreen()],
-            ),
-          ),
-        ],
+              ],
+            ))
+          ],
+        ),
+      )),
+      const SizedBox(
+        width: 5,
       ),
-    );
+      Expanded(
+          child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.grey[100],
+              ),
+              child: const Column(
+                children: [Expanded(child: HistoryScreen())],
+              )))
+    ]);
   }
 }

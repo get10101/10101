@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/payment.dart';
+import 'package:get_10101/wallet/walle_history_detail_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
@@ -10,6 +11,8 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final formattedDate = DateFormat.yMd().add_jm().format(data.timestamp);
+
     final statusIcon = switch (data.confirmations) {
       >= 3 => const Icon(Icons.check_circle, color: Colors.green, size: 18),
       _ => const Icon(Icons.pending, size: 18)
@@ -29,7 +32,11 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
           elevation: 0,
           child: ListTile(
               onTap: () async {
-                // todo
+                showDialog(
+                    context: context,
+                    builder: (context) {
+                      return WalletHistoryDetailDialog(data: data);
+                    });
               },
               leading: Stack(children: [
                 Container(
@@ -53,7 +60,9 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
                   textWidthBasis: TextWidthBasis.longestLine,
                   text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
                     TextSpan(
-                        text: timeago.format(data.timestamp),
+                        text: wasMoreThanHalfAnHourAgo(data.timestamp)
+                            ? formattedDate
+                            : timeago.format(data.timestamp),
                         style: const TextStyle(color: Colors.grey)),
                   ])),
               trailing: Padding(
@@ -89,4 +98,11 @@ class OnChainPaymentHistoryItem extends StatelessWidget {
       ],
     );
   }
+}
+
+bool wasMoreThanHalfAnHourAgo(DateTime timestamp) {
+  DateTime now = DateTime.now();
+  DateTime oneHourAgo = now.subtract(const Duration(minutes: 30));
+
+  return timestamp.isBefore(oneHourAgo);
 }

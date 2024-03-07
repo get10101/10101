@@ -14,13 +14,13 @@ class WalletChangeNotifier extends ChangeNotifier {
   List<OnChainPayment>? _history;
 
   WalletChangeNotifier(this.service) {
-    _refresh();
+    refresh();
     Timer.periodic(const Duration(seconds: 30), (timer) async {
-      _refresh();
+      await refresh();
     });
   }
 
-  void _refresh() async {
+  Future<void> refresh() async {
     try {
       final data =
           await Future.wait<dynamic>([service.getBalance(), service.getOnChainPaymentHistory()]);

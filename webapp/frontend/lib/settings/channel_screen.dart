@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/channel_state_label.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/common/truncate_text.dart';
 import 'package:get_10101/settings/channel_change_notifier.dart';
 import 'package:get_10101/settings/channel_service.dart';
 import 'package:get_10101/settings/dlc_channel.dart';
@@ -284,12 +285,6 @@ class _ChannelDetailWidgetState extends State<ChannelDetailWidget> {
       ),
     );
   }
-}
-
-String truncateWithEllipsis(int cutoff, String text) {
-  return (text.length <= cutoff)
-      ? text
-      : '${text.substring(0, (cutoff / 2).floor())}...${text.substring(text.length - (cutoff / 2).ceil(), text.length)}';
 }
 
 Uri buildUri(String txId) {
