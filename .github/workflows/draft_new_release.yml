@@ -64,7 +64,7 @@ jobs:
         id: set-mobile-version
         continue-on-error: true
         run: |
-          cargo set-version --package mobile/native ${{ github.event.inputs.version }}
+          cargo set-version --package native ${{ github.event.inputs.version }}
 
       - name: Commit manifest files
         id: make-commit
