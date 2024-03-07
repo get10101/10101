@@ -6,6 +6,7 @@ import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/trade/create_order_confirmation_dialog.dart';
+import 'package:get_10101/trade/leverage_slider.dart';
 import 'package:get_10101/trade/quote_change_notifier.dart';
 import 'package:get_10101/trade/quote_service.dart';
 import 'package:provider/provider.dart';
@@ -70,15 +71,12 @@ class _NewOrderForm extends State<NewOrderForm> {
         spaceBetweenRows,
         Align(
           alignment: AlignmentDirectional.centerEnd,
-          child: AmountInputField(
-            value: _leverage,
-            enabled: true,
-            label: "Leverage",
-            textAlign: TextAlign.right,
-            onChanged: (leverage) => setState(() {
-              _leverage = Leverage(double.parse(leverage));
+          child: LeverageSlider(
+            onLeverageChanged: (leverage) => setState(() {
+              _leverage = Leverage(leverage);
               updateOrderValues();
             }),
+            initialValue: _leverage.asDouble,
           ),
         ),
         spaceBetweenRows,
