@@ -37,6 +37,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 refreshing = true;
                               });
                               await service.sync();
+                              await walletChangeNotifier.refresh();
                               setState(() {
                                 refreshing = false;
                               });
