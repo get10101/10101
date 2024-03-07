@@ -43,35 +43,28 @@ jobs:
           commitChange: false
           updateFile: true
 
-      - name: Bump coordinator Cargo.toml version
+      - name: Install cargo edit
         uses: stellar/binaries@v13
         with:
           name: cargo-edit
           version: 0.11.6
-      - id: set-coordinator-version
+      - name: Bump coordinator Cargo.toml version
+        id: set-coordinator-version
         continue-on-error: true
         run: |
           cargo set-version --package coordinator ${{ github.event.inputs.version }}
 
       - name: Bump webapp Cargo.toml version
-        uses: stellar/binaries@v13
-        with:
-          name: cargo-edit
-          version: 0.11.6
-      - id: set-webapp-version
+        id: set-webapp-version
         continue-on-error: true
         run: |
           cargo set-version --package webapp ${{ github.event.inputs.version }}
 
       - name: Bump mobile/native Cargo.toml version
-        uses: stellar/binaries@v13
-        with:
-          name: cargo-edit
-          version: 0.11.6
-      - id: set-mobile-version
+        id: set-mobile-version
         continue-on-error: true
         run: |
-          cargo set-version --package mobile/native ${{ github.event.inputs.version }}
+          cargo set-version --package native ${{ github.event.inputs.version }}
 
       - name: Commit manifest files
         id: make-commit
