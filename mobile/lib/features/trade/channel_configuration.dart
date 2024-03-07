@@ -141,25 +141,21 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     return Form(
         key: _formKey,
         child: Container(
-            padding: const EdgeInsets.only(top: 5, left: 20, right: 20),
+            padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
             child: Column(children: [
               const Text("DLC Channel Configuration",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-              const SizedBox(
-                height: 20,
-              ),
-              RichText(
-                  text: TextSpan(
-                text:
-                    "This is your first trade. 10101 will open a DLC channel with you, creating your position in the process.\n\nPlease specify your preferred channel size, impacting how much you will be able to win up to.",
-                style: DefaultTextStyle.of(context).style,
-              )),
-              const SizedBox(
-                height: 10,
-              ),
+              const SizedBox(height: 20),
+              Text(
+                  "This is your first trade. 10101 will open a DLC channel with you, creating your position in the process.",
+                  style: DefaultTextStyle.of(context).style),
+              const SizedBox(height: 10),
+              Text(
+                  "Please specify your preferred channel size, impacting how much you will be able to win up to.",
+                  style: DefaultTextStyle.of(context).style),
               Center(
                 child: Container(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 20),
                   child: Column(
                     children: [
                       Wrap(
@@ -203,9 +199,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                   infoText:
                                       "Your total collateral in the dlc channel.\n\nChoose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.",
                                 )),
-                                const SizedBox(
-                                  width: 10,
-                                ),
+                                const SizedBox(width: 10),
                                 Flexible(
                                     child: AmountTextField(
                                   value: counterpartyCollateral,
@@ -214,7 +208,6 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 10),
                           ValueDataRow(
                               type: ValueType.amount,
                               value: ownTotalCollateral,
@@ -244,7 +237,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                               .add(fundingTxFee)
                               .add(channelFeeReserve),
                           label: "Total"),
-                      const SizedBox(height: 17),
+                      const SizedBox(height: 10),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         mainAxisAlignment: MainAxisAlignment.end,
