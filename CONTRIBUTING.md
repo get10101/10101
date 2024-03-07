@@ -10,7 +10,7 @@ There are a couple of things we are going to look out for in PRs and knowing the
    Make sure `just fmt` and `just lint` both finish without any warnings or errors on every commit.
    - If you don't already have `just` installed, you can obtain it by calling `cargo install just`.
    - If you don't already have `dprint` installed (utility used for code formatting), you can obtain it [here](https://dprint.dev/install/).
-2. All text documents (`CHANGELOG.md`, `README.md`, etc) should follow the [semantic linebreaks](https://sembr.org/) specification.
+2. All text documents (`README.md`, etc) should follow the [semantic linebreaks](https://sembr.org/) specification.
 3. We strive for atomic commits with good commit messages.
    As an inspiration, read [this](https://chris.beams.io/posts/git-commit/) blogpost.
    An atomic commit is a cohesive diff with formatting checks, linter and build passing.
