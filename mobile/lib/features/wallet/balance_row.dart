@@ -19,7 +19,7 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
     WalletChangeNotifier walletChangeNotifier = context.watch<WalletChangeNotifier>();
 
     final offchainBalance = walletChangeNotifier.offChain()?.formatted() ?? "n/a";
-    final onchainBalance = walletChangeNotifier.onChain()?.formatted() ?? "n/a";
+    final onchainBalance = walletChangeNotifier.onChain().formatted();
 
     final amountText = switch (widget.walletType) {
       WalletType.offChain => Row(
@@ -42,11 +42,9 @@ class _BalanceRowState extends State<BalanceRow> with SingleTickerProviderStateM
               Text(onchainBalance,
                   style: const TextStyle(
                       fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold)),
-              walletChangeNotifier.onChain() != null
-                  ? const Text(" sats",
-                      style: TextStyle(
-                          fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
-                  : Container()
+              const Text(" sats",
+                  style:
+                      TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.normal))
             ]),
     };
 

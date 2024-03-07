@@ -36,9 +36,9 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     await service.refreshWalletInfo();
   }
 
-  Amount total() => Amount(onChain()?.sats ?? 0 + (offChain()?.sats ?? 0));
+  Amount total() => onChain().add(offChain() ?? Amount.zero());
 
-  Amount? onChain() => walletInfo.balances.onChain;
+  Amount onChain() => walletInfo.balances.onChain;
 
   Amount? offChain() => walletInfo.balances.offChain;
 
