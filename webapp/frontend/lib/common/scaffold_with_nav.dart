@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/auth/login_screen.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/balance.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/currency_change_notifier.dart';
 import 'package:get_10101/common/currency_selection_widget.dart';
 import 'package:get_10101/common/model.dart';
@@ -235,75 +237,92 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                   padding: const EdgeInsets.all(25),
                   child: Row(
                     children: [
-                      Row(
-                        children: [
-                          TopBarItem(
-                              label: 'Latest Bid: ',
-                              value: bestQuote?.bid == null
-                                  ? []
-                                  : [
-                                      TextSpan(
-                                        text: bestQuote?.bid?.toString(),
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      )
-                                    ]),
-                          const SizedBox(width: 30),
-                          TopBarItem(
-                              label: 'Latest Ask: ',
-                              value: bestQuote?.ask == null
-                                  ? []
-                                  : [
-                                      TextSpan(
-                                        text: bestQuote?.ask?.toString(),
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      )
-                                    ]),
-                          const SizedBox(width: 30),
-                          TopBarItem(
-                              label: 'Off-chain: ',
-                              value: balance == null
-                                  ? []
-                                  : [
-                                      formatAmountAsCurrency(
-                                          balance?.offChain, currency, midMarket),
-                                    ]),
-                          const SizedBox(width: 30),
-                          TopBarItem(
-                              label: 'On-chain: ',
-                              value: balance == null
-                                  ? []
-                                  : [
-                                      formatAmountAsCurrency(balance?.onChain, currency, midMarket),
-                                    ]),
-                          const SizedBox(width: 30),
-                          TopBarItem(
-                              label: 'Total: ',
-                              value: balance == null
-                                  ? []
-                                  : [
-                                      formatAmountAsCurrency(
-                                          balance?.onChain.add(balance?.offChain ?? Amount.zero()),
-                                          currency,
-                                          midMarket),
-                                    ]),
-                        ],
-                      ),
                       Expanded(
-                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                          ElevatedButton(
-                              onPressed: () {
-                                context
-                                    .read<AuthService>()
-                                    .signOut()
-                                    .then((value) => GoRouter.of(context).go(LoginScreen.route))
-                                    .catchError((error) {
-                                  final messenger = ScaffoldMessenger.of(context);
-                                  showSnackBar(messenger, error);
-                                });
-                              },
-                              child: const Text("Sign out"))
-                        ]),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              TopBarItem(
+                                  label: 'Latest Bid: ',
+                                  value: bestQuote?.bid == null
+                                      ? []
+                                      : [
+                                          TextSpan(
+                                            text: bestQuote?.bid?.toString(),
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                          )
+                                        ]),
+                              const SizedBox(width: 30),
+                              TopBarItem(
+                                  label: 'Latest Ask: ',
+                                  value: bestQuote?.ask == null
+                                      ? []
+                                      : [
+                                          TextSpan(
+                                            text: bestQuote?.ask?.toString(),
+                                            style: const TextStyle(fontWeight: FontWeight.bold),
+                                          )
+                                        ]),
+                              const SizedBox(width: 30),
+                              TopBarItem(
+                                  label: 'Off-chain: ',
+                                  value: balance == null
+                                      ? []
+                                      : [
+                                          formatAmountAsCurrency(
+                                              balance?.offChain, currency, midMarket),
+                                        ]),
+                              const SizedBox(width: 30),
+                              TopBarItem(
+                                  label: 'On-chain: ',
+                                  value: balance == null
+                                      ? []
+                                      : [
+                                          formatAmountAsCurrency(
+                                              balance?.onChain, currency, midMarket),
+                                        ]),
+                              const SizedBox(width: 30),
+                              TopBarItem(
+                                  label: 'Total: ',
+                                  value: balance == null
+                                      ? []
+                                      : [
+                                          formatAmountAsCurrency(
+                                              balance?.onChain
+                                                  .add(balance?.offChain ?? Amount.zero()),
+                                              currency,
+                                              midMarket),
+                                        ]),
+                            ],
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 10),
+                      IconButton(
+                        onPressed: () {
+                          context
+                              .read<AuthService>()
+                              .signOut()
+                              .then((value) => GoRouter.of(context).go(LoginScreen.route))
+                              .catchError((error) {
+                            final messenger = ScaffoldMessenger.of(context);
+                            showSnackBar(messenger, error);
+                          });
+                        },
+                        icon: const CircleAvatar(
+                          backgroundColor: tenTenOnePurple,
+                          child: Icon(
+                            FontAwesomeIcons.arrowRightFromBracket,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                        color: Colors.white,
+                        iconSize: 16,
+                        padding: const EdgeInsets.all(4),
+                        splashRadius: 15,
+                        constraints: const BoxConstraints(),
+                      )
                     ],
                   ),
                 ),
