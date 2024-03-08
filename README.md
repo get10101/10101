@@ -102,9 +102,9 @@ The following command will build and start all the necessary services, including
 just all-android
 ```
 
-### How to faucet your lightning wallet.
+### How to faucet your wallet.
 
-The app currently works only on `regtest`, which means that the wallet needs to be fauceted with the provided steps before you can start trading.
+You can test the app on `regtest`, which means that the wallet needs to be fauceted with the provided steps before you can start trading.
 
 #### Setup
 
@@ -112,18 +112,18 @@ The app currently works only on `regtest`, which means that the wallet needs to 
 
 2. Start the complete project stack with `just all`.
 
-#### Adding funds to 10101 lightning wallet
+#### Adding funds to 10101 wallet
 
-1. Create an invoice in your 10101 app by navigating to the receive screen.
+1. Navigate to the receive screen.
 
-2. Click on the "pay the invoice with 10101 faucet" button.
+2. Double-click on the generated QR code and click the "Pay with 10101 faucet" button. Note, if you do not specify an amount by
+   default 1 BTC will sent to your regtest wallet.
 
 #### Useful information for local regtest debugging
 
 1. Follow coordinator's logs - `tail -f data/coordinator/regtest.log`
 2. Block explorer - http://localhost:8080/
-3. Lightning & Bitcoin faucet - http://localhost:8080/faucet/
-4. Manually open a lightning channel - http://localhost:8080/channel/
+3. Bitcoin faucet - http://localhost:8080/faucet/
 
 ## Deploy for android beta
 
