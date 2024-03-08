@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_sk_30;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::on_chain_wallet;
 use crate::on_chain_wallet::BdkStorage;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::on_chain_wallet::TransactionDetails;
@@ -69,7 +70,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         address: Address,
         amount_sats: u64,
         fee: ConfirmationTarget,
-    ) -> Result<Amount> {
+    ) -> Result<Amount, on_chain_wallet::EstimateFeeError> {
         self.wallet.estimate_fee(&address, amount_sats, fee)
     }
 

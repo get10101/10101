@@ -13,6 +13,7 @@ use bdk::chain::Append;
 use bdk::chain::ChainPosition;
 use bdk::chain::PersistBackend;
 use bdk::psbt::PsbtUtils;
+use bdk::wallet::IsDust;
 use bdk::KeychainKind;
 use bdk::LocalOutput;
 use bdk::SignOptions;
@@ -377,7 +378,11 @@ where
         recipient: &Address,
         amount_sat_or_drain: u64,
         confirmation_target: ConfirmationTarget,
-    ) -> Result<Amount> {
+    ) -> Result<Amount, EstimateFeeError> {
+        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
+            return Err(EstimateFeeError::SendAmountBelowDust);
+        }
+
         let psbt = self.build_psbt(
             recipient,
             amount_sat_or_drain,
@@ -447,6 +452,14 @@ impl ConfirmationStatus {
             ConfirmationStatus::Unknown | ConfirmationStatus::Mempool { .. } => 0,
         }
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum EstimateFeeError {
+    #[error("Cannot estimate fee for output below dust")]
+    SendAmountBelowDust,
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
 pub trait BdkStorage: PersistBackend<bdk::wallet::ChangeSet> + Send + Sync + 'static {}
