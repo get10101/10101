@@ -415,9 +415,6 @@ fn ln_dlc_node_settings_coordinator() -> LnDlcNodeSettings {
         fee_rate_sync_interval: Duration::from_secs(20),
         sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
         shadow_sync_interval: Duration::from_secs(600),
-        forwarding_fee_proportional_millionths: 50,
-        bdk_client_stop_gap: 20,
-        bdk_client_concurrency: 4,
     }
 }
 
@@ -428,9 +425,6 @@ fn ln_dlc_node_settings_app() -> LnDlcNodeSettings {
         fee_rate_sync_interval: Duration::from_secs(20),
         sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
         shadow_sync_interval: Duration::from_secs(600),
-        forwarding_fee_proportional_millionths: 50,
-        bdk_client_stop_gap: 20,
-        bdk_client_concurrency: 4,
     }
 }
 

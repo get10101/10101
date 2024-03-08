@@ -201,20 +201,6 @@ pub struct LnDlcNodeSettings {
     /// How often we sync the shadow states
     #[serde_as(as = "DurationSeconds")]
     pub shadow_sync_interval: Duration,
-
-    /// Amount (in millionths of a satoshi) charged per satoshi for payments forwarded outbound
-    /// over a channel.
-    pub forwarding_fee_proportional_millionths: u32,
-
-    /// The 'stop gap' parameter used by BDK's wallet sync. This seems to configure the threshold
-    /// number of blocks after which BDK stops looking for scripts belonging to the wallet.
-    /// Note: This constant and value was copied from ldk_node
-    /// XXX: Requires restart of the node to take effect
-    pub bdk_client_stop_gap: usize,
-    /// The number of concurrent requests made against the API provider.
-    /// Note: This constant and value was copied from ldk_node
-    /// XXX: Requires restart of the node to take effect
-    pub bdk_client_concurrency: u8,
 }
 
 impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
