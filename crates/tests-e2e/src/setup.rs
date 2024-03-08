@@ -1,7 +1,6 @@
 use crate::app::refresh_wallet_info;
 use crate::app::run_app;
 use crate::app::submit_channel_opening_order;
-use crate::app::sync_dlc_channels;
 use crate::app::AppHandle;
 use crate::bitcoind::Bitcoind;
 use crate::coordinator::Coordinator;
@@ -141,11 +140,8 @@ impl TestSetup {
 
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        // Includes an on-chain sync.
+        // Includes on-chain sync and DLC channels sync.
         refresh_wallet_info();
-
-        // Relies on the on-chain sync to be able to detect the publication of the fund transaction.
-        sync_dlc_channels();
 
         setup.sync_coordinator().await;
 

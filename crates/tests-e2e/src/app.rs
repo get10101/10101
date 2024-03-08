@@ -77,16 +77,6 @@ pub fn refresh_wallet_info() {
     block_in_place(move || api::refresh_wallet_info().unwrap());
 }
 
-/// Run periodic checks on the DLC channels, including syncing them with the blockchain.
-///
-/// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
-/// (i.e. use `flavor = "multi_thread"` in a `tokio::test`).
-pub fn sync_dlc_channels() {
-    // We must `block_in_place` because calling `sync_dlc_channels` starts a new runtime and that
-    // cannot happen within another runtime.
-    block_in_place(move || api::sync_dlc_channels().unwrap());
-}
-
 /// Force close DLC channel.
 ///
 /// To call this make sure that you are either outside of a runtime or in a multi-threaded runtime
