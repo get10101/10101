@@ -132,6 +132,10 @@ pub async fn refresh_wallet_info() -> Result<()> {
         tracing::error!("On-chain sync failed: {e:#}");
     }
 
+    if let Err(e) = sync_dlc_channels().await {
+        tracing::error!("Failed to sync DLC channels: {e:#}");
+    }
+
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
     let runtime = state::get_or_create_tokio_runtime()?;

@@ -93,13 +93,6 @@ pub async fn refresh_wallet_info() -> Result<()> {
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn sync_dlc_channels() -> Result<()> {
-    ln_dlc::sync_dlc_channels().await?;
-
-    Ok(())
-}
-
-#[tokio::main(flavor = "current_thread")]
 pub async fn full_sync(stop_gap: usize) -> Result<()> {
     ln_dlc::full_sync(stop_gap).await?;
 

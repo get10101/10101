@@ -5,7 +5,6 @@ use native::api::WalletHistoryItemType;
 use rust_decimal_macros::dec;
 use tests_e2e::app::get_dlc_channel_id;
 use tests_e2e::app::refresh_wallet_info;
-use tests_e2e::app::sync_dlc_channels;
 use tests_e2e::coordinator::CollaborativeRevertCoordinatorRequest;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
@@ -47,7 +46,6 @@ async fn can_revert_channel() {
     wait_until!({
         bitcoin.mine(1).await.unwrap();
 
-        sync_dlc_channels();
         refresh_wallet_info();
 
         let app_balance = app.rx.wallet_info().unwrap().balances.on_chain;
