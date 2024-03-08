@@ -384,11 +384,13 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         runtime.spawn({
             let node = node.clone();
             async move {
-                if let Err(e) = node.inner.sync_on_chain_wallet().await {
-                    tracing::error!("Failed on-chain sync: {e:#}");
-                }
+                loop {
+                    if let Err(e) = node.inner.sync_on_chain_wallet().await {
+                        tracing::error!("Failed on-chain sync: {e:#}");
+                    }
 
-                tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                    tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                }
             }
         });
 
