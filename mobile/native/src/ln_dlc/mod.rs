@@ -84,6 +84,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
 use time::OffsetDateTime;
+use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
@@ -97,7 +98,7 @@ mod lightning_subscriber;
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const UPDATE_WALLET_HISTORY_INTERVAL: Duration = Duration::from_secs(5);
 const CHECK_OPEN_ORDERS_INTERVAL: Duration = Duration::from_secs(60);
-const ON_CHAIN_SYNC_INTERVAL: Duration = Duration::from_secs(300);
+const NODE_SYNC_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The name of the BDK wallet database file.
 const WALLET_DB_FILE_NAME: &str = "bdk-wallet";
@@ -116,17 +117,12 @@ const WALLET_DB_PREFIX: &str = "10101-app";
 pub async fn refresh_wallet_info() -> Result<()> {
     let node = state::get_node();
 
-    if let Err(e) = node.inner.sync_on_chain_wallet().await {
-        tracing::error!("On-chain sync failed: {e:#}");
-    }
+    let runtime = state::get_or_create_tokio_runtime()?;
 
-    if let Err(e) = sync_dlc_channels().await {
-        tracing::error!("Failed to sync DLC channels: {e:#}");
-    }
+    sync_node(runtime.handle()).await;
 
     // Spawn into the blocking thread pool of the dedicated backend runtime to avoid blocking the UI
     // thread.
-    let runtime = state::get_or_create_tokio_runtime()?;
     runtime.spawn_blocking(move || {
         if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
             tracing::error!("Failed to keep wallet history up to date: {e:#}");
@@ -136,10 +132,12 @@ pub async fn refresh_wallet_info() -> Result<()> {
     Ok(())
 }
 
-pub async fn sync_dlc_channels() -> Result<()> {
+pub async fn sync_node(runtime: &runtime::Handle) {
     let node = state::get_node();
 
-    let runtime = state::get_or_create_tokio_runtime()?;
+    if let Err(e) = node.inner.sync_on_chain_wallet().await {
+        tracing::error!("On-chain sync failed: {e:#}");
+    }
 
     runtime
         .spawn_blocking(move || {
@@ -149,8 +147,6 @@ pub async fn sync_dlc_channels() -> Result<()> {
         })
         .await
         .expect("task to complete");
-
-    Ok(())
 }
 
 pub async fn full_sync(stop_gap: usize) -> Result<()> {
@@ -335,22 +331,6 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
                 .await
         });
 
-        // Refresh the wallet balance and history eagerly so that it can complete before the
-        // triggering the first on-chain sync. This ensures that the UI appears ready as soon as
-        // possible.
-        //
-        // TODO: This might not be necessary once we rewrite the on-chain wallet with bdk:1.0.0.
-        spawn_blocking({
-            let node = node.clone();
-            move || {
-                if let Err(e) = keep_wallet_balance_and_history_up_to_date(&node) {
-                    tracing::error!("Failed to sync balance and wallet history: {e:#}");
-                }
-            }
-        })
-        .await
-        .expect("task to complete");
-
         runtime.spawn({
             let node = node.clone();
             async move {
@@ -363,21 +343,19 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
                             .await
                             .expect("To spawn blocking task")
                     {
-                        tracing::error!("Failed to sync balance and wallet history: {e:#}");
+                        tracing::error!("Failed to update balance and history: {e:#}");
                     }
                 }
             }
         });
 
         runtime.spawn({
-            let node = node.clone();
+            let runtime = runtime.handle().clone();
             async move {
                 loop {
-                    if let Err(e) = node.inner.sync_on_chain_wallet().await {
-                        tracing::error!("Failed on-chain sync: {e:#}");
-                    }
+                    sync_node(&runtime).await;
 
-                    tokio::time::sleep(ON_CHAIN_SYNC_INTERVAL).await;
+                    tokio::time::sleep(NODE_SYNC_INTERVAL).await;
                 }
             }
         });
