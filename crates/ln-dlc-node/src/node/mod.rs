@@ -29,7 +29,6 @@ use bitcoin::address::NetworkUnchecked;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Address;
-use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::Txid;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
@@ -536,19 +535,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             &self.chain_monitor,
             &self.esplora_client,
         )
-    }
-
-    /// Estimate the fee for sending the given `amount_sats` to the given `address` on-chain with
-    /// the given `fee`.
-    pub fn estimate_fee(
-        &self,
-        address: Address<NetworkUnchecked>,
-        amount_sats: u64,
-        fee: ConfirmationTarget,
-    ) -> Result<Amount> {
-        let address = address.require_network(self.network)?;
-
-        self.wallet.estimate_fee(&address, amount_sats, fee)
     }
 
     /// Send the given `amount_sats` sats to the given unchecked, on-chain `address`.
