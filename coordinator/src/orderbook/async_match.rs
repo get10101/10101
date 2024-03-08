@@ -1,5 +1,4 @@
 use crate::check_version::check_version;
-use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -19,6 +18,7 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use ln_dlc_node::node::event::NodeEvent;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -27,47 +27,39 @@ use tokio::task::spawn_blocking;
 
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
-    tx_user_feed: broadcast::Sender<NewUserMessage>,
+    mut receiver: broadcast::Receiver<NodeEvent>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> RemoteHandle<()> {
-    let mut user_feed = tx_user_feed.subscribe();
     let (fut, remote_handle) = async move {
         loop {
-            match user_feed.recv().await {
-                Ok(new_user_msg) => {
+            match receiver.recv().await {
+                Ok(NodeEvent::Connected { peer: trader_id }) => {
                     tokio::spawn({
                         let notifier = notifier.clone();
                         let pool = pool.clone();
                         async move {
                             tracing::debug!(
-                                trader_id=%new_user_msg.new_user,
+                                %trader_id,
                                 "Checking if the user needs to be notified about pending matches"
                             );
-                            if let Err(e) = process_pending_match(
-                                pool,
-                                notifier,
-                                new_user_msg.new_user,
-                                network,
-                                oracle_pk,
-                            )
-                            .await
+                            if let Err(e) =
+                                process_pending_match(pool, notifier, trader_id, network, oracle_pk)
+                                    .await
                             {
                                 tracing::error!("Failed to process pending match. Error: {e:#}");
                             }
                         }
                     });
                 }
+                Ok(_) => {} // ignoring other node events
                 Err(RecvError::Closed) => {
-                    tracing::error!("New user message sender died! Channel closed.");
+                    tracing::error!("Node event sender died! Channel closed.");
                     break;
                 }
                 Err(RecvError::Lagged(skip)) => {
-                    tracing::warn!(
-                        %skip,
-                        "Lagging behind on new user message."
-                    )
+                    tracing::warn!(%skip, "Lagging behind on node events.")
                 }
             }
         }
