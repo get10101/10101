@@ -4,7 +4,6 @@ use crate::trade::FilledWith;
 use crate::LiquidityOption;
 use anyhow::Result;
 use bitcoin::address::NetworkUnchecked;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
@@ -20,10 +19,6 @@ pub type DlcChannelId = [u8; 32];
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum Message {
     AllOrders(Vec<Order>),
-    LimitOrderFilledMatches {
-        trader_id: PublicKey,
-        matches: Vec<(Uuid, Decimal)>,
-    },
     NewOrder(Order),
     DeleteOrder(Uuid),
     Update(Order),
@@ -67,9 +62,6 @@ pub enum OrderbookRequest {
         version: Option<String>,
         signature: Signature,
     },
-    LimitOrderFilledMatches {
-        trader_id: PublicKey,
-    },
 }
 
 impl TryFrom<OrderbookRequest> for tungstenite::Message {
@@ -86,9 +78,6 @@ impl Display for Message {
         match self {
             Message::AllOrders(_) => {
                 write!(f, "AllOrders")
-            }
-            Message::LimitOrderFilledMatches { .. } => {
-                write!(f, "LimitOrderFilledMatches")
             }
             Message::NewOrder(_) => {
                 write!(f, "NewOrder")

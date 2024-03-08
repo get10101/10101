@@ -338,7 +338,7 @@ async fn handle_orderbook_message(
                 ));
             }
         }
-        msg @ Message::LimitOrderFilledMatches { .. } | msg @ Message::InvalidAuthentication(_) => {
+        msg @ Message::InvalidAuthentication(_) => {
             tracing::debug!(?msg, "Skipping message from orderbook");
         }
         Message::TradeError { order_id, error } => {
