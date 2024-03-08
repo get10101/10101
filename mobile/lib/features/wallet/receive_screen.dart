@@ -109,7 +109,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                             shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.all(Radius.circular(5.0))),
                           ),
-                          child: const Text("Pay the invoice with 10101 faucet"),
+                          child: const Text("Pay with 10101 faucet"),
                         ),
                         const SizedBox(height: 125),
                       ],
