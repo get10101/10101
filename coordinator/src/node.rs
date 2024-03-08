@@ -88,23 +88,13 @@ impl Node {
         }
     }
 
-    /// Returns true or false, whether we can find an usable channel with the provided trader.
-    ///
-    /// Note, we use the usable channel to implicitely check if the user is connected, as it
-    /// wouldn't be usable otherwise.
-    pub fn is_connected(&self, trader: &PublicKey) -> bool {
-        let usable_channels = self.inner.channel_manager.list_usable_channels();
-        let usable_channels = usable_channels
+    /// Returns true or false, whether the given peer_id is connected with us.
+    pub fn is_connected(&self, peer_id: PublicKey) -> bool {
+        self.inner
+            .peer_manager
+            .get_peer_node_ids()
             .iter()
-            .filter(|channel| {
-                channel.is_usable && channel.counterparty.node_id == to_secp_pk_29(*trader)
-            })
-            .collect::<Vec<_>>();
-
-        if usable_channels.len() > 1 {
-            tracing::warn!(peer_id=%trader, "Found more than one usable channel with trader");
-        }
-        !usable_channels.is_empty()
+            .any(|(id, _)| *id == to_secp_pk_29(peer_id))
     }
 
     pub async fn trade(
