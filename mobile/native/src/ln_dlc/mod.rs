@@ -980,7 +980,9 @@ pub fn estimated_funding_tx_fee() -> Result<Amount> {
 }
 
 pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Amount> {
-    let address = address.parse()?;
+    let address: Address<NetworkUnchecked> = address.parse().context("Failed to parse address")?;
+    // This is safe to do because we are only using this address to estimate a fee.
+    let address = address.assume_checked();
 
     let fee = match fee {
         Fee::Priority(target) => state::get_node()

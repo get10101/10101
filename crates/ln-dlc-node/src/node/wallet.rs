@@ -8,7 +8,6 @@ use crate::storage::TenTenOneStorage;
 use anyhow::Context;
 use anyhow::Result;
 use bdk_esplora::EsploraAsyncExt;
-use bitcoin::address::NetworkUnchecked;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
 use bitcoin::Amount;
@@ -67,12 +66,10 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
     /// the given `fee`.
     pub fn estimate_fee(
         &self,
-        address: Address<NetworkUnchecked>,
+        address: Address,
         amount_sats: u64,
         fee: ConfirmationTarget,
     ) -> Result<Amount> {
-        let address = address.require_network(self.network)?;
-
         self.wallet.estimate_fee(&address, amount_sats, fee)
     }
 
