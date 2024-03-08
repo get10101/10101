@@ -11,6 +11,7 @@ use crate::ln::TracingLogger;
 use crate::node::event::NodeEventHandler;
 use crate::node::sub_channel::sub_channel_manager_periodic_check;
 use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::FeeConfig;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::shadow::Shadow;
@@ -23,7 +24,6 @@ use crate::PeerManager;
 use crate::RapidGossipSync;
 use anyhow::Context;
 use anyhow::Result;
-use bdk::FeeRate;
 use bdk_esplora::esplora_client;
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::secp256k1::PublicKey;
@@ -34,7 +34,6 @@ use bitcoin::Txid;
 use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chainmonitor;
 use lightning::chain::Confirm;
 use lightning::ln::msgs::RoutingMessageHandler;
@@ -160,14 +159,6 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     pub scorer: Arc<std::sync::RwLock<Scorer>>,
     electrs_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
-}
-
-/// An on-chain network fee for a transaction
-pub enum Fee {
-    /// A fee given by the transaction's priority
-    Priority(ConfirmationTarget),
-    /// A fix defined sats/vbyte
-    FeeRate(FeeRate),
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -542,14 +533,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         &self,
         address: Address<NetworkUnchecked>,
         amount_sats: u64,
-        fee: Fee,
+        fee_config: FeeConfig,
     ) -> Result<Txid> {
         let address = address.require_network(self.network)?;
 
         let tx = spawn_blocking({
             let wallet = self.wallet.clone();
             move || {
-                let tx = wallet.build_on_chain_payment_tx(&address, amount_sats, fee)?;
+                let tx = wallet.build_on_chain_payment_tx(&address, amount_sats, fee_config)?;
 
                 anyhow::Ok(tx)
             }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/amount_and_fiat_text.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -11,8 +10,8 @@ import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/send/fee_text.dart';
 
 class FeePicker extends StatefulWidget {
-  final void Function(Fee) onChange;
-  final Fee initialSelection;
+  final void Function(FeeConfig) onChange;
+  final FeeConfig initialSelection;
 
   const FeePicker(
       {super.key, this.feeEstimates, required this.onChange, required this.initialSelection});
@@ -23,15 +22,15 @@ class FeePicker extends StatefulWidget {
 }
 
 class _FeePickerState extends State<FeePicker> {
-  late Fee _fee;
+  late FeeConfig _feeConfig;
 
   @override
   void initState() {
     super.initState();
-    _fee = widget.initialSelection;
+    _feeConfig = widget.initialSelection;
   }
 
-  Future<Fee?> _showModal(BuildContext context) => showEditModal<Fee?>(
+  Future<FeeConfig?> _showModal(BuildContext context) => showEditModal<FeeConfig?>(
       context: context,
       builder: (BuildContext context, setVal) => Theme(
             data: Theme.of(context).copyWith(
@@ -39,7 +38,7 @@ class _FeePickerState extends State<FeePicker> {
                     const TextTheme(labelMedium: TextStyle(fontSize: 16, color: Colors.black)),
                 colorScheme: Theme.of(context).colorScheme.copyWith(background: Colors.white)),
             child: _FeePickerModal(
-                feeEstimates: widget.feeEstimates, initialSelection: _fee, setVal: setVal),
+                feeEstimates: widget.feeEstimates, initialSelection: _feeConfig, setVal: setVal),
           ));
 
   @override
@@ -47,8 +46,8 @@ class _FeePickerState extends State<FeePicker> {
     return ElevatedButton(
         onPressed: () {
           _showModal(context).then((val) {
-            setState(() => _fee = val ?? _fee);
-            widget.onChange(_fee);
+            setState(() => _feeConfig = val ?? _feeConfig);
+            widget.onChange(_feeConfig);
           });
         },
         style: ElevatedButton.styleFrom(
@@ -64,9 +63,9 @@ class _FeePickerState extends State<FeePicker> {
         ),
         child: Row(
           children: [
-            Text(_fee.name, style: const TextStyle(fontSize: 16)),
+            Text(_feeConfig.name, style: const TextStyle(fontSize: 16)),
             const Spacer(),
-            feeWidget(widget.feeEstimates, _fee),
+            feeWidget(widget.feeEstimates, _feeConfig),
             const SizedBox(width: 5),
             const Icon(Icons.arrow_drop_down_outlined, size: 36),
           ],
@@ -75,9 +74,9 @@ class _FeePickerState extends State<FeePicker> {
 }
 
 class _FeePickerModal extends StatefulWidget {
-  final Fee initialSelection;
+  final FeeConfig initialSelection;
   final Map<ConfirmationTarget, FeeEstimation>? feeEstimates;
-  final void Function(Fee?) setVal;
+  final void Function(FeeConfig?) setVal;
 
   const _FeePickerModal({this.feeEstimates, required this.initialSelection, required this.setVal});
 
@@ -86,7 +85,7 @@ class _FeePickerModal extends StatefulWidget {
 }
 
 class _FeePickerModalState extends State<_FeePickerModal> {
-  late Fee selected;
+  late FeeConfig selected;
   final TextEditingController _controller = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -96,7 +95,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
     selected = widget.initialSelection;
 
     if (selected is CustomFeeRate) {
-      _controller.text = (selected as CustomFeeRate).amount.formatted();
+      _controller.text = (selected as CustomFeeRate).feeRate.toString();
     }
   }
 
@@ -131,15 +130,15 @@ class _FeePickerModalState extends State<_FeePickerModal> {
     );
   }
 
-  void setValue(Fee fee) => setState(() {
-        selected = fee;
+  void setValue(FeeConfig feeConfig) => setState(() {
+        selected = feeConfig;
         widget.setVal(selected);
       });
 
   void setCustomValue({String? val}) {
     val = val ?? _controller.text;
     if (validateCustomValue(val) == null) {
-      setValue(CustomFeeRate(amount: Amount.parseAmount(val)));
+      setValue(CustomFeeRate(feeRate: int.parse(val)));
     }
   }
 
@@ -153,7 +152,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
     final amt = Amount.parseAmount(val);
 
     if (amt.sats < 1) {
-      return "The minimum fee to broadcast the transaction is 1 sat/vbyte)}.";
+      return "The minimum fee to broadcast the transaction is 1 sat/vByte.";
     }
 
     return null;
@@ -171,7 +170,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
         const SizedBox(height: 25),
         const Padding(
           padding: EdgeInsets.only(left: 25, bottom: 10),
-          child: Text("Custom (sats/vbyte)", style: TextStyle(color: Colors.grey)),
+          child: Text("Custom fee rate", style: TextStyle(color: Colors.grey)),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -185,7 +184,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
                 onTap: () => setCustomValue(),
                 style: const TextStyle(color: Colors.black, fontSize: 20),
                 decoration: InputDecoration(
-                    hintText: minFee.toString(),
+                    hintText: "Enter custom fee rate",
                     border: OutlineInputBorder(
                         borderSide: BorderSide.none, borderRadius: BorderRadius.circular(10)),
                     fillColor: const Color(0xfff4f4f4),
@@ -195,7 +194,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
                     ),
                     errorMaxLines: 3,
                     suffix: const Text(
-                      "sats/vbyte",
+                      "sats/vByte",
                       style: TextStyle(fontSize: 16, color: Color(0xff878787)),
                     )),
                 value: Amount(1)),
@@ -220,12 +219,13 @@ class _FeePickerModalState extends State<_FeePickerModal> {
   }
 }
 
-Widget feeWidget(Map<ConfirmationTarget, FeeEstimation>? feeEstimates, Fee fee) {
-  return switch (fee) {
-    PriorityFee() => switch (feeEstimates?[(fee).priority]) {
+Widget feeWidget(Map<ConfirmationTarget, FeeEstimation>? feeEstimates, FeeConfig feeConfig) {
+  return switch (feeConfig) {
+    PriorityFee() => switch (feeEstimates?[(feeConfig).priority]) {
         null => const SizedBox.square(dimension: 24, child: CircularProgressIndicator()),
         var fee => FeeText(fee: fee),
       },
-    CustomFeeRate() => AmountAndFiatText(amount: (fee).amount),
+    // TODO: Do not hard-code this value.
+    CustomFeeRate() => FeeText(fee: FeeEstimation(satsPerVbyte: 10.0, total: Amount(2000))),
   };
 }

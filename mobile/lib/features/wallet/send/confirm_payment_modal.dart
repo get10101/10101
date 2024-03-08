@@ -18,8 +18,8 @@ import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 void showConfirmPaymentModal(
     BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Amount usdp,
-    {Fee? fee}) {
-  logger.i(fee);
+    {FeeConfig? feeConfig}) {
+  logger.i(feeConfig);
   showModalBottomSheet<void>(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -36,7 +36,7 @@ void showConfirmPaymentModal(
           destination: destination,
           sats: sats,
           usdp: usdp,
-          fee: fee,
+          feeConfig: feeConfig,
         );
       });
 }
@@ -46,7 +46,7 @@ class ConfirmPayment extends StatelessWidget {
   final bool payWithUsdp;
   final Amount sats;
   final Amount usdp;
-  final Fee? fee;
+  final FeeConfig? feeConfig;
 
   const ConfirmPayment(
       {super.key,
@@ -54,7 +54,7 @@ class ConfirmPayment extends StatelessWidget {
       required this.payWithUsdp,
       required this.sats,
       required this.usdp,
-      this.fee});
+      this.feeConfig});
 
   @override
   Widget build(BuildContext context) {
@@ -131,10 +131,10 @@ class ConfirmPayment extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             const Text("Fee", style: TextStyle(fontSize: 16)),
-                            if (fee != null && fee is PriorityFee)
-                              Text("(${(fee as PriorityFee).priority})",
+                            if (feeConfig != null && feeConfig is PriorityFee)
+                              Text("(${(feeConfig as PriorityFee).priority})",
                                   style: const TextStyle(fontSize: 16))
-                            else if (fee != null && fee is CustomFeeRate)
+                            else if (feeConfig != null && feeConfig is CustomFeeRate)
                               const Text("(Custom)", style: TextStyle(fontSize: 16))
                           ],
                         ),
@@ -156,9 +156,9 @@ class ConfirmPayment extends StatelessWidget {
 
                               return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                                 feeWidget,
-                                if (fee != null && fee is PriorityFee)
+                                if (feeConfig != null && feeConfig is PriorityFee)
                                   // TODO: estimate time for fixed fee
-                                  Text((fee as PriorityFee).priority.toTimeEstimate(),
+                                  Text((feeConfig as PriorityFee).priority.toTimeEstimate(),
                                       style: const TextStyle(fontSize: 16, color: Colors.grey)),
                               ]);
                             })
@@ -185,7 +185,7 @@ class ConfirmPayment extends StatelessWidget {
                   final goRouter = GoRouter.of(context);
                   final messenger = ScaffoldMessenger.of(context);
                   try {
-                    var txid = await walletService.sendOnChainPayment(destination, amt, fee: fee);
+                    var txid = await walletService.sendOnChainPayment(destination, amt, feeConfig: feeConfig);
                     showSnackBar(messenger, "Transaction broadcasted $txid");
                     goRouter.pop();
                   } catch (error) {

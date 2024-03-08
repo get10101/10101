@@ -59,12 +59,12 @@ class WalletService {
     return map;
   }
 
-  Future<String> sendOnChainPayment(Destination destination, Amount? amount, {Fee? fee}) {
-    var feeApi = fee!.toAPI();
+  Future<String> sendOnChainPayment(Destination destination, Amount? amount, {FeeConfig? feeConfig}) {
+    var feeConfigApi = feeConfig!.toAPI();
     var sats = amount!.sats;
     var address = destination.raw;
-    logger.i("Sending payment of $amount to $address with fee $feeApi");
+    logger.i("Sending payment of $amount to $address with fee $feeConfigApi");
 
-    return rust.api.sendPayment(address: address, amount: sats, fee: feeApi);
+    return rust.api.sendPayment(address: address, amount: sats, fee: feeConfigApi);
   }
 }

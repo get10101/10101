@@ -18,7 +18,7 @@ use commons::Price;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
 use native::api::Direction;
-use native::api::Fee;
+use native::api::FeeConfig;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::ln_dlc;
@@ -165,7 +165,9 @@ pub async fn send_payment(params: Json<Payment>) -> Result<(), AppError> {
     ln_dlc::send_payment(
         params.0.amount,
         params.0.address,
-        Fee::FeeRate { sats: params.0.fee },
+        FeeConfig::FeeRate {
+            sats_per_vbyte: params.0.fee,
+        },
     )
     .await?;
 

@@ -33,7 +33,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
 
   // null = max
   Amount? _amount = Amount(1000);
-  Fee _fee = PriorityFee(ConfirmationTarget.normal);
+  FeeConfig _feeConfig = PriorityFee(ConfirmationTarget.normal);
   Map<ConfirmationTarget, FeeEstimation>? _feeEstimates;
   late WalletService _walletService;
 
@@ -65,9 +65,11 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   }
 
   Amount currentFee() {
-    return switch (_fee) {
-      PriorityFee() => _feeEstimates?[(_fee as PriorityFee).priority]?.total ?? Amount(0),
-      CustomFeeRate() => (_fee as CustomFeeRate).amount,
+    return switch (_feeConfig) {
+      PriorityFee() => _feeEstimates?[(_feeConfig as PriorityFee).priority]?.total ?? Amount(0),
+      // TODO: Call calculateFeeEstimate here
+      // (_feeConfig as CustomFeeRate).feeRate
+      CustomFeeRate() => Amount(200),
     };
   }
 
@@ -311,9 +313,9 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 10),
                     FeePicker(
-                      initialSelection: _fee,
+                      initialSelection: _feeConfig,
                       feeEstimates: _feeEstimates,
-                      onChange: (target) => setState(() => _fee = target),
+                      onChange: (target) => setState(() => _feeConfig = target),
                     ),
                     const Spacer(),
                     SizedBox(
@@ -321,7 +323,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
                               ? () => showConfirmPaymentModal(context, widget.destination, false,
-                                  _amount ?? Amount.zero(), _amount ?? Amount.zero(), fee: _fee)
+                                  _amount ?? Amount.zero(), _amount ?? Amount.zero(), feeConfig: _feeConfig)
                               : null,
                           style: ButtonStyle(
                               padding:
