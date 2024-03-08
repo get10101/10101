@@ -27,10 +27,6 @@ on:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
-      rgs_server_url:
-        required: false
-        description: "An optional Rapid Gossip Sync server URL"
-        type: string
   workflow_dispatch:
     inputs:
       coordinator_port_http:
@@ -60,10 +56,6 @@ on:
       oracle_pubkey:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
-        type: string
-      rgs_server_url:
-        required: false
-        description: "An optional Rapid Gossip Sync server URL"
         type: string
 
 env:
@@ -173,7 +165,6 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
-          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
       - name: Build Android APK for each platform
         run: |
@@ -185,7 +176,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
-          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
+
       - name: Build Android APK fat bundle
         run: |
           NETWORK=$NETWORK just build-android-app-apk
@@ -196,7 +187,6 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
-          RGS_SERVER_URL: ${{ inputs.rgs_server_url }}
 
       - name: Attach android apks to release
         uses: softprops/action-gh-release@v1

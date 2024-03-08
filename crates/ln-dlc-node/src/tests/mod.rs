@@ -5,7 +5,6 @@ use crate::config::coordinator_config;
 use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
-use crate::node::GossipSourceConfig;
 use crate::node::InMemoryStore;
 use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
@@ -419,7 +418,6 @@ fn ln_dlc_node_settings_coordinator() -> LnDlcNodeSettings {
         forwarding_fee_proportional_millionths: 50,
         bdk_client_stop_gap: 20,
         bdk_client_concurrency: 4,
-        gossip_source_config: GossipSourceConfig::P2pNetwork,
     }
 }
 
@@ -433,7 +431,6 @@ fn ln_dlc_node_settings_app() -> LnDlcNodeSettings {
         forwarding_fee_proportional_millionths: 50,
         bdk_client_stop_gap: 20,
         bdk_client_concurrency: 4,
-        gossip_source_config: GossipSourceConfig::P2pNetwork,
     }
 }
 

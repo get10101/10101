@@ -191,7 +191,6 @@ impl From<Settings> for SettingsFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ln_dlc_node::node::GossipSourceConfig;
     use std::str::FromStr;
 
     #[test]
@@ -212,9 +211,6 @@ mod tests {
                 forwarding_fee_proportional_millionths: 10,
                 bdk_client_stop_gap: 1,
                 bdk_client_concurrency: 2,
-                gossip_source_config: GossipSourceConfig::RapidGossipSync {
-                    server_url: "foo".to_string(),
-                },
             },
             rollover_window_open_scheduler: "foo".to_string(),
             rollover_window_close_scheduler: "bar".to_string(),

@@ -6,7 +6,6 @@ use crate::dlc_custom_signer::CustomKeysManager;
 use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::manage_spendable_outputs;
-use crate::ln::GossipSource;
 use crate::ln::TracingLogger;
 use crate::node::event::NodeEventHandler;
 use crate::node::sub_channel::sub_channel_manager_periodic_check;
@@ -20,7 +19,6 @@ use crate::EventHandlerTrait;
 use crate::NetworkGraph;
 use crate::P2pGossipSync;
 use crate::PeerManager;
-use crate::RapidGossipSync;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
@@ -37,9 +35,8 @@ use futures::FutureExt;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::chain::chainmonitor;
 use lightning::chain::Confirm;
-use lightning::ln::msgs::RoutingMessageHandler;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::ln::peer_handler::MessageHandler;
+use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::routing::scoring::ProbabilisticScoringDecayParameters;
@@ -49,6 +46,7 @@ use lightning::sign::EntropySource;
 use lightning::sign::KeysManager;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
+use lightning_background_processor::GossipSync;
 use lightning_transaction_sync::EsploraSyncClient;
 use ln_dlc_storage::DlcStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
@@ -97,6 +95,9 @@ pub use sub_channel_manager::SubChannelManager;
 const MANAGE_SPENDABLE_OUTPUTS_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
 type Scorer = ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>;
+
+type NodeGossipSync =
+    P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
 
@@ -156,7 +157,7 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     // fields below are needed only to start the node
     #[allow(dead_code)]
     listen_address: SocketAddr, // Irrelevant when using websockets
-    gossip_source: Arc<GossipSource>,
+    gossip_sync: Arc<NodeGossipSync>,
     pub scorer: Arc<std::sync::RwLock<Scorer>>,
     electrs_server_url: String,
     esplora_client: Arc<NodeEsploraClient>,
@@ -214,15 +215,6 @@ pub struct LnDlcNodeSettings {
     /// Note: This constant and value was copied from ldk_node
     /// XXX: Requires restart of the node to take effect
     pub bdk_client_concurrency: u8,
-
-    /// XXX: Requires restart of the node to take effect
-    pub gossip_source_config: GossipSourceConfig,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub enum GossipSourceConfig {
-    P2pNetwork,
-    RapidGossipSync { server_url: String },
 }
 
 impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
@@ -335,26 +327,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
 
         let channel_manager = Arc::new(channel_manager);
 
-        let gossip_source = match &settings.gossip_source_config {
-            GossipSourceConfig::P2pNetwork => {
-                let gossip_sync = Arc::new(P2pGossipSync::new(
-                    network_graph.clone(),
-                    None::<Arc<dyn UtxoLookup + Send + Sync>>,
-                    logger.clone(),
-                ));
-
-                GossipSource::P2pNetwork { gossip_sync }
-            }
-            GossipSourceConfig::RapidGossipSync { server_url } => {
-                let gossip_sync =
-                    Arc::new(RapidGossipSync::new(network_graph.clone(), logger.clone()));
-
-                GossipSource::RapidGossipSync {
-                    gossip_sync,
-                    server_url: server_url.clone(),
-                }
-            }
-        };
+        let gossip_sync = Arc::new(P2pGossipSync::new(
+            network_graph.clone(),
+            None::<Arc<dyn UtxoLookup + Send + Sync>>,
+            logger.clone(),
+        ));
 
         let oracle_clients: Vec<Arc<P2PDOracleClient>> =
             oracle_clients.into_iter().map(Arc::new).collect();
@@ -384,22 +361,13 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
 
         let dlc_message_handler = Arc::new(DlcMessageHandler::new());
 
-        let route_handler = match &gossip_source {
-            GossipSource::P2pNetwork { gossip_sync } => {
-                gossip_sync.clone() as Arc<dyn RoutingMessageHandler + Sync + Send>
-            }
-            GossipSource::RapidGossipSync { .. } => {
-                Arc::new(IgnoringMessageHandler {}) as Arc<dyn RoutingMessageHandler + Sync + Send>
-            }
-        };
-
         let onion_message_handler = Arc::new(TenTenOneOnionMessageHandler::new(
             node_event_handler.clone(),
         ));
 
         let lightning_msg_handler = MessageHandler {
             chan_handler: sub_channel_manager.clone(),
-            route_handler,
+            route_handler: gossip_sync.clone(),
             onion_message_handler,
             custom_message_handler: dlc_message_handler.clone(),
         };
@@ -417,8 +385,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             address: announcement_address,
             is_ws: false,
         };
-
-        let gossip_source = Arc::new(gossip_source);
 
         let settings = Arc::new(RwLock::new(settings));
 
@@ -445,12 +411,12 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             network_graph,
             settings,
             listen_address,
-            gossip_source,
             scorer,
             electrs_server_url,
             esplora_client,
             oracle_pubkey,
             event_handler: node_event_handler,
+            gossip_sync,
         })
     }
 
@@ -498,7 +464,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             self.logger.clone(),
             self.ln_storage.clone(),
             event_handler,
-            self.gossip_source.clone(),
+            self.gossip_sync.clone(),
             self.scorer.clone(),
             mobile_interruptable_platform,
         ));
@@ -601,7 +567,7 @@ fn spawn_background_processor<
     logger: Arc<TracingLogger>,
     persister: Arc<S>,
     event_handler: impl EventHandlerTrait + 'static,
-    gossip_source: Arc<GossipSource>,
+    gossip_sync: Arc<NodeGossipSync>,
     scorer: Arc<std::sync::RwLock<Scorer>>,
     mobile_interruptable_platform: bool,
 ) -> RemoteHandle<()> {
@@ -612,7 +578,7 @@ fn spawn_background_processor<
             |e| event_handler.handle_event(e),
             chain_monitor,
             channel_manager,
-            gossip_source.as_gossip_sync(),
+            GossipSync::p2p(gossip_sync),
             peer_manager,
             logger,
             Some(scorer),

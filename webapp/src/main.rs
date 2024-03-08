@@ -88,7 +88,6 @@ async fn main() -> Result<()> {
         oracle_endpoint,
         oracle_pubkey,
         health_check_interval_secs: 60,
-        rgs_server_url: None,
     };
 
     let seed_dir = data_dir.clone();

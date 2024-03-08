@@ -1,8 +1,3 @@
-use crate::GossipSync;
-use crate::P2pGossipSync;
-use crate::RapidGossipSync;
-use std::sync::Arc;
-
 mod app_event_handler;
 mod contract_details;
 mod coordinator_event_handler;
@@ -26,23 +21,3 @@ pub use event_handler::EventHandlerTrait;
 pub use event_handler::EventSender;
 pub(crate) use logger::TracingLogger;
 pub(crate) use manage_spendable_outputs::manage_spendable_outputs;
-
-#[derive(Clone)]
-pub enum GossipSource {
-    P2pNetwork {
-        gossip_sync: Arc<P2pGossipSync>,
-    },
-    RapidGossipSync {
-        gossip_sync: Arc<RapidGossipSync>,
-        server_url: String,
-    },
-}
-
-impl GossipSource {
-    pub fn as_gossip_sync(&self) -> GossipSync {
-        match self {
-            Self::RapidGossipSync { gossip_sync, .. } => GossipSync::Rapid(gossip_sync.clone()),
-            Self::P2pNetwork { gossip_sync } => GossipSync::P2P(gossip_sync.clone()),
-        }
-    }
-}
