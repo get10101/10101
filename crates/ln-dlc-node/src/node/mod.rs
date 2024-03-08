@@ -21,6 +21,7 @@ use crate::NetworkGraph;
 use crate::P2pGossipSync;
 use crate::PeerManager;
 use crate::RapidGossipSync;
+use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
@@ -221,6 +222,13 @@ pub struct LnDlcNodeSettings {
 
     /// XXX: Requires restart of the node to take effect
     pub gossip_source_config: GossipSourceConfig,
+}
+
+
+#[derive(thiserror::Error, Debug)]
+pub enum EstimateFeeError {
+    BelowDustLimitError,
+    OtherError(anyhow::Error),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -546,7 +554,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         amount_sats: u64,
         fee: ConfirmationTarget,
     ) -> Result<Amount> {
+        use bdk::wallet::IsDust;
+
         let address = address.require_network(self.network)?;
+
+        ensure!(
+            amount_sats.is_dust(&address.script_pubkey()),
+            "Can't estimate fee for value below dust"
+        );
 
         self.wallet.estimate_fee(&address, amount_sats, fee)
     }

@@ -674,7 +674,11 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
             let fee_rate = fee_rate(confirmation_target);
 
             let fee_config = Fee::Priority(confirmation_target);
-            let absolute_fee = ln_dlc::estimate_payment_fee(amount, &address, fee_config).await?;
+            let absolute_fee =
+                match ln_dlc::estimate_payment_fee(amount, &address, fee_config).await {
+                    Ok(absolute_fee) => absolute_fee,
+                    Err(_) => return Ok(fees),
+                };
 
             fees.push(FeeEstimation {
                 sats_per_vbyte: fee_rate.ceil() as u64,
