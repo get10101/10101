@@ -979,18 +979,29 @@ pub fn estimated_funding_tx_fee() -> Result<Amount> {
     Ok(fee)
 }
 
-pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Amount> {
-    let address = address.parse()?;
+pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Option<Amount>> {
+    let address: Address<NetworkUnchecked> = address.parse().context("Failed to parse address")?;
+    // This is safe to do because we are only using this address to estimate a fee.
+    let address = address.assume_checked();
 
     let fee = match fee {
-        Fee::Priority(target) => state::get_node()
-            .inner
-            .estimate_fee(address, amount, target.into())?
-            .to_sat(),
-        Fee::FeeRate { sats } => sats,
+        Fee::Priority(target) => {
+            match state::get_node()
+                .inner
+                .estimate_fee(address, amount, target.into())
+            {
+                Ok(fee) => Some(fee),
+                // It's not sensible to calculate the fee for an amount below dust.
+                Err(ln_dlc_node::EstimateFeeError::SendAmountBelowDust) => None,
+                Err(e) => {
+                    bail!("Failed to estimate payment fee: {e:#}")
+                }
+            }
+        }
+        Fee::FeeRate { sats } => Some(Amount::from_sat(sats)),
     };
 
-    Ok(Amount::from_sat(fee))
+    Ok(fee)
 }
 
 pub async fn trade(

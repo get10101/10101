@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_sk_30;
 use crate::node::Node;
 use crate::node::Storage;
+use crate::on_chain_wallet;
 use crate::on_chain_wallet::BdkStorage;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::on_chain_wallet::TransactionDetails;
@@ -10,9 +11,11 @@ use anyhow::Result;
 use bdk_esplora::EsploraAsyncExt;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Address;
+use bitcoin::Amount;
 use bitcoin::OutPoint;
 use bitcoin::ScriptBuf;
 use bitcoin::TxOut;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
@@ -58,6 +61,17 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
 
     pub fn is_mine(&self, script_pubkey: &ScriptBuf) -> bool {
         self.wallet.is_mine(script_pubkey)
+    }
+
+    /// Estimate the fee for sending the given `amount_sats` to the given `address` on-chain with
+    /// the given `fee`.
+    pub fn estimate_fee(
+        &self,
+        address: Address,
+        amount_sats: u64,
+        fee: ConfirmationTarget,
+    ) -> Result<Amount, on_chain_wallet::EstimateFeeError> {
+        self.wallet.estimate_fee(&address, amount_sats, fee)
     }
 
     /// Sync the state of the on-chain wallet against the blockchain.
