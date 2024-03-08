@@ -256,20 +256,6 @@ pub async fn get_node_info(
     Ok(Json(node_info))
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct InvoiceParams {
-    pub amount: Option<u64>,
-    pub description: Option<String>,
-    pub expiry: Option<u32>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct OpenChannelFeeInvoiceParams {
-    pub amount: u64,
-    pub channel_funding_txid: String,
-    pub expiry: Option<u32>,
-}
-
 // TODO: We might want to have our own ContractInput type here so we can potentially map fields if
 // the library changes?
 #[instrument(skip_all, err(Debug))]
