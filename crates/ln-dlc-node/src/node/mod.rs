@@ -194,9 +194,6 @@ pub struct LnDlcNodeSettings {
     /// How often we update the fee rate
     #[serde_as(as = "DurationSeconds")]
     pub fee_rate_sync_interval: Duration,
-    /// How often we run the [`DlcManager`]'s periodic check.
-    #[serde_as(as = "DurationSeconds")]
-    pub dlc_manager_periodic_check_interval: Duration,
     /// How often we run the [`SubChannelManager`]'s periodic check.
     #[serde_as(as = "DurationSeconds")]
     pub sub_channel_manager_periodic_check_interval: Duration,

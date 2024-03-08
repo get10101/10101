@@ -207,7 +207,6 @@ mod tests {
                 off_chain_sync_interval: std::time::Duration::from_secs(1),
                 on_chain_sync_interval: std::time::Duration::from_secs(1),
                 fee_rate_sync_interval: std::time::Duration::from_secs(1),
-                dlc_manager_periodic_check_interval: std::time::Duration::from_secs(1),
                 sub_channel_manager_periodic_check_interval: std::time::Duration::from_secs(1),
                 shadow_sync_interval: std::time::Duration::from_secs(1),
                 forwarding_fee_proportional_millionths: 10,

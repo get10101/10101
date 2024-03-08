@@ -14,7 +14,6 @@ whitelisted_makers = []
 off_chain_sync_interval = 5
 on_chain_sync_interval = 300
 fee_rate_sync_interval = 20
-dlc_manager_periodic_check_interval = 30
 sub_channel_manager_periodic_check_interval = 30
 shadow_sync_interval = 600
 forwarding_fee_proportional_millionths = 1000

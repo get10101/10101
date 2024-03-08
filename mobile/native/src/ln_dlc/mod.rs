@@ -1038,7 +1038,6 @@ fn ln_dlc_node_settings() -> LnDlcNodeSettings {
         off_chain_sync_interval: Duration::from_secs(5),
         on_chain_sync_interval: Duration::from_secs(300),
         fee_rate_sync_interval: Duration::from_secs(20),
-        dlc_manager_periodic_check_interval: Duration::from_secs(30),
         sub_channel_manager_periodic_check_interval: Duration::from_secs(30),
         shadow_sync_interval: Duration::from_secs(600),
         forwarding_fee_proportional_millionths: 50,
