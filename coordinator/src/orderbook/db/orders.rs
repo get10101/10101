@@ -66,6 +66,7 @@ impl From<OrderState> for OrderBookOrderState {
             OrderState::Taken => OrderBookOrderState::Taken,
             OrderState::Failed => OrderBookOrderState::Failed,
             OrderState::Expired => OrderBookOrderState::Expired,
+            OrderState::Deleted => OrderBookOrderState::Deleted,
         }
     }
 }
@@ -78,6 +79,7 @@ impl From<OrderBookOrderState> for OrderState {
             OrderBookOrderState::Taken => OrderState::Taken,
             OrderBookOrderState::Failed => OrderState::Failed,
             OrderBookOrderState::Expired => OrderState::Expired,
+            OrderBookOrderState::Deleted => OrderState::Deleted,
         }
     }
 }
@@ -264,6 +266,11 @@ pub fn set_is_taken(
     } else {
         set_order_state(conn, id, commons::OrderState::Open)
     }
+}
+
+/// Updates the order state to `Deleted`
+pub fn delete(conn: &mut PgConnection, id: Uuid) -> QueryResult<OrderbookOrder> {
+    set_order_state(conn, id, commons::OrderState::Deleted)
 }
 
 /// Returns the number of affected rows: 1.

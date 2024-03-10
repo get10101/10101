@@ -111,6 +111,7 @@ pub enum OrderState {
     Taken,
     Failed,
     Expired,
+    Deleted,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

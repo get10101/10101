@@ -102,6 +102,8 @@ pub(crate) enum OrderState {
     Failed,
     /// The order expired.
     Expired,
+    /// The order was manually deleted by the trader
+    Deleted,
 }
 
 impl QueryId for OrderStateType {
@@ -121,6 +123,7 @@ impl ToSql<OrderStateType, Pg> for OrderState {
             OrderState::Taken => out.write_all(b"Taken")?,
             OrderState::Failed => out.write_all(b"Failed")?,
             OrderState::Expired => out.write_all(b"Expired")?,
+            OrderState::Deleted => out.write_all(b"Deleted")?,
         }
         Ok(IsNull::No)
     }
@@ -134,6 +137,7 @@ impl FromSql<OrderStateType, Pg> for OrderState {
             b"Taken" => Ok(OrderState::Taken),
             b"Failed" => Ok(OrderState::Failed),
             b"Expired" => Ok(OrderState::Expired),
+            b"Deleted" => Ok(OrderState::Deleted),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

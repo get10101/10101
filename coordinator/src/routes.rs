@@ -26,6 +26,7 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
+use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
@@ -162,7 +163,7 @@ pub fn router(
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
             "/api/orderbook/orders/:order_id",
-            get(get_order).put(put_order),
+            get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
