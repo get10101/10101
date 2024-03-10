@@ -18,6 +18,7 @@ use bitcoin::secp256k1::SECP256K1;
 use commons::best_current_price;
 use commons::Message;
 use commons::Order;
+use commons::OrderState;
 use commons::OrderbookRequest;
 use commons::Prices;
 use commons::Signature;
@@ -298,7 +299,9 @@ async fn handle_orderbook_message(
                 tracing::warn!(?updated_order, "Update without prior knowledge of order");
             }
 
-            orders.push(updated_order);
+            if updated_order.order_state == OrderState::Open {
+                orders.push(updated_order);
+            }
 
             update_prices_if_needed(cached_best_price, &orders);
         }
