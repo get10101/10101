@@ -123,3 +123,54 @@ impl Display for Message {
         }
     }
 }
+
+/// All values are from the perspective of the coordinator
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PositionMessage {
+    /// The current position as seen from the coordinator
+    CurrentPosition {
+        /// if quantity is < 0 then coordinator is short, if > 0, then coordinator is long
+        quantity: f32,
+        average_entry_price: f32,
+    },
+    /// A new trade which was executed successfully
+    NewTrade {
+        /// The coordinator's total position
+        ///
+        /// if quantity is < 0 then coordinator is short, if > 0, then coordinator is long
+        total_quantity: f32,
+        /// The average entry price of the total position
+        total_average_entry_price: f32,
+        /// The quantity of the new trade
+        ///
+        /// if quantity is < 0 then coordinator is short, if > 0, then coordinator is long
+        new_trade_quantity: f32,
+        /// The average entry price of the new trade
+        new_trade_average_entry_price: f32,
+    },
+    Authenticated,
+    InvalidAuthentication(String),
+}
+
+impl TryFrom<PositionMessage> for tungstenite::Message {
+    type Error = anyhow::Error;
+
+    fn try_from(request: PositionMessage) -> Result<Self> {
+        let msg = serde_json::to_string(&request)?;
+        Ok(tungstenite::Message::Text(msg))
+    }
+}
+
+impl TryFrom<PositionMessageRequest> for tungstenite::Message {
+    type Error = anyhow::Error;
+
+    fn try_from(request: PositionMessageRequest) -> Result<Self> {
+        let msg = serde_json::to_string(&request)?;
+        Ok(tungstenite::Message::Text(msg))
+    }
+}
+
+#[derive(Serialize, Clone, Deserialize, Debug)]
+pub enum PositionMessageRequest {
+    Authenticate { signature: Signature },
+}

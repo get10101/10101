@@ -5,6 +5,7 @@ use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
+use crate::trade::websocket::InternalPositionUpdateMessage;
 use crate::trade::TradeExecutor;
 use anyhow::bail;
 use anyhow::Context;
@@ -32,6 +33,7 @@ use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use std::sync::Arc;
+use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
@@ -59,6 +61,7 @@ pub struct Node {
     _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     settings: Arc<RwLock<NodeSettings>>,
+    tx_position_feed: Sender<InternalPositionUpdateMessage>,
 }
 
 impl Node {
@@ -73,12 +76,14 @@ impl Node {
         running: RunningNode,
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,
+        tx_position_feed: Sender<InternalPositionUpdateMessage>,
     ) -> Self {
         Self {
             inner,
             pool,
             settings: Arc::new(RwLock::new(settings)),
             _running: Arc::new(running),
+            tx_position_feed,
         }
     }
 
@@ -281,6 +286,7 @@ impl Node {
                             &node_id,
                             channel.get_contract_id(),
                             channel_id,
+                            self.tx_position_feed.clone(),
                         )?;
                     }
                     ChannelMessage::SettleFinalize(SettleFinalize {
@@ -320,6 +326,7 @@ impl Node {
                             // the settled signed channel does not have a contract
                             None,
                             channel_id,
+                            self.tx_position_feed.clone(),
                         )?;
                     }
                     ChannelMessage::CollaborativeCloseOffer(close_offer) => {
@@ -377,6 +384,7 @@ impl Node {
                             &node_id,
                             channel.get_contract_id(),
                             &channel_id,
+                            self.tx_position_feed.clone(),
                         )?;
                     }
                     ChannelMessage::Reject(reject) => {

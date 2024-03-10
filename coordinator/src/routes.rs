@@ -26,6 +26,7 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
+use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
@@ -35,6 +36,7 @@ use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
+use crate::trade::websocket::InternalPositionUpdateMessage;
 use crate::AppError;
 use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
@@ -96,6 +98,8 @@ pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
     pub tx_price_feed: broadcast::Sender<Message>,
+    /// A channel used to send messages about position updates
+    pub tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     pub tx_user_feed: broadcast::Sender<NewUserMessage>,
     pub trading_sender: mpsc::Sender<NewOrderMessage>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
@@ -119,6 +123,7 @@ pub fn router(
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_price_feed: broadcast::Sender<Message>,
+    tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     notification_sender: mpsc::Sender<Notification>,
@@ -131,6 +136,7 @@ pub fn router(
         pool,
         settings: RwLock::new(settings),
         tx_price_feed,
+        tx_position_feed,
         tx_user_feed,
         trading_sender,
         exporter,
@@ -157,7 +163,7 @@ pub fn router(
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route(
             "/api/orderbook/orders/:order_id",
-            get(get_order).put(put_order),
+            get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
         .route("/api/trade", post(post_trade))
@@ -199,6 +205,10 @@ pub fn router(
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
+        .route(
+            "/api/admin/trade/websocket",
+            get(crate::trade::websocket::websocket_handler),
+        )
         .layer(DefaultBodyLimit::disable())
         .layer(DefaultBodyLimit::max(50 * 1024))
         .with_state(app_state)
