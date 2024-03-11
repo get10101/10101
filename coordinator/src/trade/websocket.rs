@@ -145,7 +145,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                         }
                     };
 
-                    match signature.verify(&msg, &user_id) {
+                    match state.secp.verify_ecdsa(&msg, &signature, &user_id) {
                         Ok(_) => {
                             if let Err(e) = local_sender.send(PositionMessage::Authenticated).await
                             {
