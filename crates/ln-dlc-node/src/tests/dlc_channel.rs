@@ -528,9 +528,6 @@ async fn open_channel_and_position(
     .unwrap();
 
     wait_until(Duration::from_secs(30), || async {
-        if let Err(e) = app.dlc_manager.periodic_chain_monitor() {
-            tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
-        };
         if let Err(e) = app.dlc_manager.periodic_check() {
             tracing::error!("Failed to run DLC manager periodic check: {e:#}");
         };
@@ -547,7 +544,6 @@ async fn open_channel_and_position(
     .unwrap();
 
     wait_until(Duration::from_secs(30), || async {
-        coordinator.dlc_manager.periodic_chain_monitor().unwrap();
         coordinator.dlc_manager.periodic_check().unwrap();
 
         let contract = coordinator

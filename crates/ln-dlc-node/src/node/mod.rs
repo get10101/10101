@@ -506,11 +506,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
 
         handles.push(manage_sub_channels(self.sub_channel_manager.clone()));
 
-        handles.push(manage_dlc_manager(
-            self.dlc_manager.clone(),
-            self.settings.clone(),
-        ));
-
         tokio::spawn(manage_spendable_outputs_task::<D, N>(
             self.electrs_server_url.clone(),
             self.node_storage.clone(),
@@ -821,45 +816,6 @@ fn manage_sub_channels<
                 );
 
                 tokio::time::sleep(Duration::from_secs(30)).await;
-            }
-        }
-    }
-    .remote_handle();
-
-    tokio::spawn(fut);
-
-    remote_handle
-}
-
-/// Spawn a task that manages dlc manager
-fn manage_dlc_manager<
-    D: BdkStorage,
-    S: TenTenOneStorage + 'static,
-    N: Storage + Send + Sync + 'static,
->(
-    dlc_manager: Arc<DlcManager<D, S, N>>,
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
-) -> RemoteHandle<()> {
-    let (fut, remote_handle) = {
-        async move {
-            loop {
-                tracing::trace!("Started DLC manager periodic chain monitor task");
-                let now = Instant::now();
-
-                if let Err(e) = dlc_manager.periodic_chain_monitor() {
-                    tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
-                };
-
-                tracing::trace!(
-                    duration = now.elapsed().as_millis(),
-                    "Finished DLC manager periodic chain monitor task"
-                );
-
-                let interval = {
-                    let guard = settings.read().await;
-                    guard.dlc_manager_periodic_check_interval
-                };
-                tokio::time::sleep(interval).await;
             }
         }
     }

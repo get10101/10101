@@ -2,11 +2,13 @@ use crate::bitcoin_conversion::to_address_29;
 use crate::bitcoin_conversion::to_block_29;
 use crate::bitcoin_conversion::to_network_29;
 use crate::bitcoin_conversion::to_outpoint_29;
+use crate::bitcoin_conversion::to_outpoint_30;
 use crate::bitcoin_conversion::to_psbt_29;
 use crate::bitcoin_conversion::to_psbt_30;
 use crate::bitcoin_conversion::to_script_29;
 use crate::bitcoin_conversion::to_tx_29;
 use crate::bitcoin_conversion::to_tx_30;
+use crate::bitcoin_conversion::to_txid_29;
 use crate::bitcoin_conversion::to_txid_30;
 use crate::bitcoin_conversion::to_txout_29;
 use crate::blockchain::Blockchain;
@@ -138,9 +140,31 @@ where
     ) -> Result<u32, dlc_manager::error::Error> {
         let txid = to_txid_30(*txid);
 
-        let status = self.on_chain_wallet.get_confirmation_status(&txid);
+        let confirmations = self
+            .blockchain
+            .get_transaction_confirmations(&txid)
+            .map_err(|e| {
+                dlc_manager::error::Error::BlockchainError(format!(
+                    "Could not get confirmations for transaction {txid}: {e:#}",
+                ))
+            })?;
 
-        Ok(status.n_confirmations())
+        Ok(confirmations)
+    }
+
+    fn get_txo_confirmations(
+        &self,
+        txo: &bitcoin_old::OutPoint,
+    ) -> Result<Option<(u32, bitcoin_old::Txid)>, dlc_manager::error::Error> {
+        let txo = to_outpoint_30(*txo);
+
+        let confirmations = self.blockchain.get_txo_confirmations(&txo).map_err(|e| {
+            dlc_manager::error::Error::BlockchainError(format!(
+                "Could not get confirmations for txo {txo}: {e:#}",
+            ))
+        })?;
+
+        Ok(confirmations.map(|(confirmations, txid)| (confirmations, to_txid_29(txid))))
     }
 }
 

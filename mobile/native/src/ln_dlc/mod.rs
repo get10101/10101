@@ -155,10 +155,6 @@ pub async fn sync_dlc_channels() -> Result<()> {
 
     runtime
         .spawn_blocking(move || {
-            if let Err(e) = node.inner.dlc_manager.periodic_chain_monitor() {
-                tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
-            };
-
             if let Err(e) = node.inner.dlc_manager.periodic_check() {
                 tracing::error!("Failed to run DLC manager periodic check: {e:#}");
             };
