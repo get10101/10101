@@ -209,11 +209,15 @@ impl<D> OnChainWallet<D> {
             .map(|tx| tx.tx_node.txid)
             .collect();
 
-        // We must watch every UTXO we own (until it is spent).
+        let indexed_outpoints = bdk.spk_index().outpoints().iter().cloned();
         let utxos = bdk
             .tx_graph()
-            .all_txouts()
-            .map(|(outpoint, _)| outpoint)
+            .filter_chain_unspents(
+                &local_chain,
+                local_chain.tip().block_id(),
+                indexed_outpoints,
+            )
+            .map(|(_, utxo)| utxo.outpoint)
             .collect();
 
         (
