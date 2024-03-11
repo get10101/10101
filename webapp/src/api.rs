@@ -500,7 +500,7 @@ pub struct DlcChannel {
     pub buffer_txid: Option<String>,
     pub settle_txid: Option<String>,
     pub close_txid: Option<String>,
-    pub punnish_txid: Option<String>,
+    pub punish_txid: Option<String>,
     pub fund_txid: Option<String>,
     pub fund_txout: Option<usize>,
     pub fee_rate: Option<u64>,
@@ -657,25 +657,25 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
             dlc_manager::channel::Channel::Closed(c) => DlcChannel {
                 dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::Closed),
-                close_txid: Some(hex::encode(c.closing_txid)),
+                close_txid: Some(c.closing_txid.to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::CounterClosed(c) => DlcChannel {
                 dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::CounterClosed),
-                close_txid: Some(hex::encode(c.closing_txid)),
+                close_txid: Some(c.closing_txid.to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::ClosedPunished(c) => DlcChannel {
                 dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::ClosedPunished),
-                punnish_txid: Some(hex::encode(c.punish_txid)),
+                punish_txid: Some(c.punish_txid.to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::CollaborativelyClosed(c) => DlcChannel {
                 dlc_channel_id: Some(hex::encode(c.channel_id)),
                 channel_state: Some(ChannelState::CollaborativelyClosed),
-                close_txid: Some(hex::encode(c.closing_txid)),
+                close_txid: Some(c.closing_txid.to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::FailedAccept(_) => DlcChannel {
