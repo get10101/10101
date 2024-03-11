@@ -345,10 +345,6 @@ pub async fn post_sync(
     }
 
     spawn_blocking(move || {
-        if let Err(e) = state.node.inner.dlc_manager.periodic_chain_monitor() {
-            tracing::error!("Failed to run DLC manager periodic chain monitor task: {e:#}");
-        }
-
         if let Err(e) = state.node.inner.dlc_manager.periodic_check() {
             tracing::error!("Failed to run DLC manager periodic check: {e:#}");
         };

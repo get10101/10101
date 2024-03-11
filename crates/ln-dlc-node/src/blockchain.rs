@@ -3,9 +3,12 @@ use crate::node::Storage;
 use anyhow::Context;
 use anyhow::Result;
 use bdk_esplora::esplora_client;
+use bdk_esplora::esplora_client::OutputStatus;
+use bdk_esplora::esplora_client::TxStatus;
 use bitcoin::consensus::encode::serialize_hex;
 use bitcoin::Block;
 use bitcoin::BlockHash;
+use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use bitcoin::Txid;
 use std::sync::Arc;
@@ -79,6 +82,53 @@ where
             .context("Could not find block")?;
 
         Ok(block)
+    }
+
+    pub fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32> {
+        let status = self.esplora_client_blocking.get_tx_status(txid)?;
+
+        let tx_height = match status.block_height {
+            Some(height) => height,
+            None => return Ok(0),
+        };
+
+        self.tx_height_to_confirmations(tx_height)
+    }
+
+    pub fn get_txo_confirmations(&self, txo: &OutPoint) -> Result<Option<(u32, Txid)>> {
+        let status = self
+            .esplora_client_blocking
+            .get_output_status(&txo.txid, txo.vout as u64)?;
+
+        let (tx_height, txid) = match status {
+            Some(OutputStatus {
+                txid: Some(txid),
+                status:
+                    Some(TxStatus {
+                        block_height: Some(height),
+                        ..
+                    }),
+                ..
+            }) => (height, txid),
+            _ => return Ok(None),
+        };
+
+        let confirmations = self.tx_height_to_confirmations(tx_height)?;
+
+        Ok(Some((confirmations, txid)))
+    }
+
+    fn tx_height_to_confirmations(&self, tx_height: u32) -> Result<u32> {
+        let tip = self.esplora_client_blocking.get_height()?;
+
+        let confirmations = match tip.checked_sub(tx_height) {
+            Some(diff) => diff + 1,
+            // Something is wrong if the tip is behind the transaction confirmation height. We
+            // simply mark the transaction as not confirmed.
+            None => return Ok(0),
+        };
+
+        Ok(confirmations)
     }
 }
 
