@@ -138,7 +138,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         .await
         .expect("task to complete");
 
-        let (graph_update, _) = client
+        let (graph_update, last_active_indices) = client
             .full_scan(all_script_pubkeys, stop_gap, PARALLEL_REQUESTS_SYNC)
             .await?;
 
@@ -153,7 +153,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         let wallet_update = bdk::wallet::Update {
             graph: graph_update.clone(),
             chain: Some(chain_update),
-            ..Default::default()
+            last_active_indices,
         };
 
         spawn_blocking({
