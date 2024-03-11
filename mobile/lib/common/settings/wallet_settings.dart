@@ -66,6 +66,7 @@ class _WalletSettingsState extends State<WalletSettings> {
               height: 20,
             ),
             Expanded(
+                child: SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
@@ -137,7 +138,7 @@ class _WalletSettingsState extends State<WalletSettings> {
                   ],
                 ),
               ),
-            ),
+            )),
           ],
         ),
       )),
