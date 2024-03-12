@@ -37,12 +37,16 @@ impl SessionStore for InMemorySessionStore {
 impl ExpiredDeletion for InMemorySessionStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
         let mut expired_session_ids = vec![];
-        let sessions = self.sessions.read();
-        for session in sessions.iter() {
-            if OffsetDateTime::now_utc() >= session.1.expiry_date {
-                expired_session_ids.push(session.0);
+
+        {
+            let sessions = self.sessions.read();
+            for session in sessions.iter() {
+                if OffsetDateTime::now_utc() >= session.1.expiry_date {
+                    expired_session_ids.push(*session.0);
+                }
             }
         }
+
         for expired_session_id in expired_session_ids.iter() {
             self.sessions.write().remove(expired_session_id);
         }
@@ -76,10 +80,10 @@ mod tests {
     use time::ext::NumericalDuration;
 
     #[tokio::test]
-    async fn delete_expired_method_deadlocks() {
+    async fn delete_expired_method_does_not_deadlock() {
         std::panic::set_hook(Box::new(|_| {
-            // The timeout task panicked because we ran into a deadlock.
-            std::process::exit(0);
+            // We don't get here because we solved the deadlock.
+            std::process::abort();
         }));
 
         let expired_date = OffsetDateTime::now_utc() - 10.minutes();
@@ -100,9 +104,7 @@ mod tests {
             panic!("Ran into deadlock");
         });
 
-        // This method deadlocks.
+        // No deadlock.
         let _ = store.delete_expired().await;
-
-        std::process::exit(1);
     }
 }
