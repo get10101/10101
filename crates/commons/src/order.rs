@@ -97,18 +97,6 @@ impl OrderType {
     }
 }
 
-#[derive(Deserialize)]
-pub struct OrderResponse {
-    pub id: Uuid,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    pub trader_id: PublicKey,
-    pub direction: Direction,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
-    pub order_type: OrderType,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum OrderState {
     Open,

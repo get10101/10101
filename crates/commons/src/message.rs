@@ -10,6 +10,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
+use thiserror::Error;
 use tokio_tungstenite_wasm as tungstenite;
 use uuid::Uuid;
 
@@ -43,8 +44,24 @@ pub enum Message {
     },
     TradeError {
         order_id: Uuid,
-        error: String,
+        error: TradingError,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, Error, Debug, PartialEq)]
+pub enum TradingError {
+    #[error("Invalid order: {0}")]
+    InvalidOrder(String),
+    #[error("No match found: {0}")]
+    NoMatchFound(String),
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<anyhow::Error> for TradingError {
+    fn from(value: anyhow::Error) -> Self {
+        TradingError::Other(value.to_string())
+    }
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]

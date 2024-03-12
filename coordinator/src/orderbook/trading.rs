@@ -12,12 +12,14 @@ use bitcoin::Network;
 use commons::FilledWith;
 use commons::Match;
 use commons::Message;
+use commons::Message::TradeError;
 use commons::NewOrder;
 use commons::Order;
 use commons::OrderReason;
 use commons::OrderState;
 use commons::OrderType;
 use commons::TradeParams;
+use commons::TradingError;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -25,7 +27,6 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
-use thiserror::Error;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -40,15 +41,6 @@ const NEW_ORDERS_BUFFER_SIZE: usize = 100;
 pub struct NewOrderMessage {
     pub new_order: NewOrder,
     pub order_reason: OrderReason,
-    pub sender: mpsc::Sender<Result<Order>>,
-}
-
-#[derive(Error, Debug, PartialEq)]
-pub enum TradingError {
-    #[error("Invalid order: {0}")]
-    InvalidOrder(String),
-    #[error("{0}")]
-    NoMatchFound(String),
 }
 
 #[derive(Clone)]
@@ -84,17 +76,21 @@ pub fn start(
                 let pool = pool.clone();
                 async move {
                     let new_order = new_order_msg.new_order;
+                    let trader_id = new_order.trader_id;
+                    let order_id = new_order.id;
+
                     tracing::trace!(
-                        trader_id = %new_order.trader_id,
+                        %trader_id,
+                        %order_id,
                         order_type = ?new_order.order_type,
                         "Processing new order",
                     );
 
-                    let result = match new_order.order_type {
+                    if let Err(error) = match new_order.order_type {
                         OrderType::Market => {
                             process_new_market_order(
                                 pool,
-                                notifier,
+                                notifier.clone(),
                                 new_order,
                                 new_order_msg.order_reason,
                                 network,
@@ -111,10 +107,19 @@ pub fn start(
                             )
                             .await
                         }
-                    };
-
-                    if let Err(e) = new_order_msg.sender.send(result).await {
-                        tracing::error!("Failed to respond to NewOrderMessage: {e:#}");
+                    } {
+                        // TODO(holzeis): the maker is currently not subscribed to the websocket
+                        // api, hence it wouldn't receive the error message.
+                        if let Err(e) = notifier
+                            .send(OrderbookMessage::TraderMessage {
+                                trader_id,
+                                message: TradeError { order_id, error },
+                                notification: None,
+                            })
+                            .await
+                        {
+                            tracing::error!(%trader_id, %order_id, "Failed to send trade error. Error: {e:#}");
+                        }
                     }
                 }
             });
@@ -134,15 +139,17 @@ pub async fn process_new_limit_order(
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
-) -> Result<Order> {
+) -> Result<Order, TradingError> {
     let mut conn = spawn_blocking(move || pool.get())
         .await
-        .expect("task to complete")?;
+        .expect("task to complete")
+        .map_err(|e| anyhow!("{e:#}"))?;
 
     if new_order.price == Decimal::ZERO {
+        tracing::warn!(trader_id=%new_order.trader_id, "Limit orders with zero price are not allowed");
         return Err(TradingError::InvalidOrder(
             "Limit orders with zero price are not allowed".to_string(),
-        ))?;
+        ));
     }
 
     // Before processing any match we set all expired limit orders to failed, to ensure they do not
@@ -150,11 +157,11 @@ pub async fn process_new_limit_order(
     //
     // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
     // deleted if not wanted anymore.
-    let expired_limit_orders = orders::set_expired_limit_orders_to_expired(&mut conn)?;
+    let expired_limit_orders =
+        orders::set_expired_limit_orders_to_expired(&mut conn).map_err(|e| anyhow!("{e:#}"))?;
     for expired_limit_order in expired_limit_orders {
         tx_price_feed
             .send(Message::DeleteOrder(expired_limit_order.id))
-            .map_err(|e| anyhow!(e))
             .context("Could not update price feed")?;
     }
 
@@ -177,10 +184,11 @@ pub async fn process_new_market_order(
     order_reason: OrderReason,
     network: Network,
     oracle_pk: XOnlyPublicKey,
-) -> Result<Order> {
+) -> Result<Order, TradingError> {
     let mut conn = spawn_blocking(move || pool.get())
         .await
-        .expect("task to complete")?;
+        .expect("task to complete")
+        .map_err(|e| anyhow!("{e:#}"))?;
 
     let order = orders::insert(&mut conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!(e))
@@ -188,9 +196,10 @@ pub async fn process_new_market_order(
 
     // Reject new order if there is already a matched order waiting for execution.
     if let Some(order) =
-        orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)?
+        orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)
+            .map_err(|e| anyhow!("{e:#}"))?
     {
-        bail!(TradingError::InvalidOrder(format!(
+        return Err(TradingError::InvalidOrder(format!(
             "trader_id={}, order_id={}. Order is currently in execution. \
                  Can't accept new orders until the order execution is finished",
             new_order.trader_id, order.id
@@ -202,7 +211,8 @@ pub async fn process_new_market_order(
         order.direction.opposite(),
         OrderType::Limit,
         true,
-    )?;
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
 
     let matched_orders =
         match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
@@ -213,15 +223,17 @@ pub async fn process_new_market_order(
                 // to failed here. But actually we could keep the order until either expired or
                 // a match has been found and then update the state accordingly.
 
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
-                bail!(TradingError::NoMatchFound(format!(
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                    .map_err(|e| anyhow!("{e:#}"))?;
+                return Err(TradingError::NoMatchFound(format!(
                     "Could not match order {}",
                     order.id
                 )));
             }
             Err(e) => {
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
-                bail!("Failed to match order: {e:#}")
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                    .map_err(|e| anyhow!("{e:#}"))?;
+                return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
             }
         };
 
@@ -283,7 +295,8 @@ pub async fn process_new_market_order(
 
         tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
 
-        orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)?;
+        orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)
+            .map_err(|e| anyhow!("{e:#}"))?;
     }
 
     Ok(order)

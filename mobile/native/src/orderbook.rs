@@ -344,7 +344,7 @@ async fn handle_orderbook_message(
         Message::TradeError { order_id, error } => {
             order::handler::order_failed(
                 Some(order_id),
-                FailureReason::TradeResponse(error.clone()),
+                FailureReason::TradeResponse(error.to_string()),
                 anyhow!("Coordinator failed to execute trade: {error}"),
             )
             .context("Could not set order to failed")?;

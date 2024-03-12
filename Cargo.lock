@@ -907,6 +907,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "thiserror",
  "time",
  "tokio-tungstenite-wasm",
  "trade",

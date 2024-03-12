@@ -139,7 +139,7 @@ impl TradeExecutor {
                     trader_id,
                     message: Message::TradeError {
                         order_id,
-                        error: format!("{e:#}"),
+                        error: e.into(),
                     },
                     notification: None,
                 };

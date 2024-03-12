@@ -415,7 +415,7 @@ pub async fn get_user(
         .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
 
     match option {
-        None => Err(AppError::NoMatchFound("No user found".to_string())),
+        None => Err(AppError::BadRequest("No user found".to_string())),
         Some(user) => Ok(Json(user.try_into()?)),
     }
 }
