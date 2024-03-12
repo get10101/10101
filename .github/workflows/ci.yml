@@ -163,6 +163,7 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
+      - uses: ndeloof/install-compose-action@v0.0.1
       - name: Start containers
         run: |
           just docker
@@ -245,6 +246,7 @@ jobs:
             target/debug/coordinator
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - uses: extractions/setup-just@v1
+      - uses: ndeloof/install-compose-action@v0.0.1
       - name: Start containers
         run: |
           just docker

@@ -79,8 +79,11 @@ services:
     container_name: esplora
     depends_on:
       - electrs
-    environment:
-      API_URL: http://localhost:3000
+    env_file:
+      - path: ./.esplora.env
+        required: true
+      - path: ./.override.esplora.env
+        required: false
     ports:
       - "5050:5000"
     restart: unless-stopped
