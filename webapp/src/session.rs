@@ -68,3 +68,41 @@ impl InMemorySessionStore {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use time::ext::NumericalDuration;
+
+    #[tokio::test]
+    async fn delete_expired_method_deadlocks() {
+        std::panic::set_hook(Box::new(|_| {
+            // The timeout task panicked because we ran into a deadlock.
+            std::process::exit(0);
+        }));
+
+        let expired_date = OffsetDateTime::now_utc() - 10.minutes();
+
+        let sessions = Arc::new(RwLock::new(HashMap::from_iter([(
+            Id::default(),
+            Record {
+                id: Id::default(),
+                data: HashMap::default(),
+                expiry_date: expired_date,
+            },
+        )])));
+        let store = InMemorySessionStore { sessions };
+
+        // Timeout task spawned to detect the deadlock.
+        std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_secs(5));
+            panic!("Ran into deadlock");
+        });
+
+        // This method deadlocks.
+        let _ = store.delete_expired().await;
+
+        std::process::exit(1);
+    }
+}
