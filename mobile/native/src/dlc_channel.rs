@@ -87,6 +87,7 @@ impl From<&dlc_manager::channel::signed_channel::SignedChannelState> for SignedC
 }
 
 #[frb]
+#[derive(Debug)]
 pub enum ChannelState {
     Offered {
         contract_id: String,
@@ -123,6 +124,7 @@ pub enum ChannelState {
 }
 
 #[frb]
+#[derive(Debug)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
