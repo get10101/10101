@@ -37,12 +37,16 @@ impl SessionStore for InMemorySessionStore {
 impl ExpiredDeletion for InMemorySessionStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
         let mut expired_session_ids = vec![];
-        let sessions = self.sessions.read();
-        for session in sessions.iter() {
-            if OffsetDateTime::now_utc() >= session.1.expiry_date {
-                expired_session_ids.push(session.0);
+
+        {
+            let sessions = self.sessions.read();
+            for session in sessions.iter() {
+                if OffsetDateTime::now_utc() >= session.1.expiry_date {
+                    expired_session_ids.push(*session.0);
+                }
             }
         }
+
         for expired_session_id in expired_session_ids.iter() {
             self.sessions.write().remove(expired_session_id);
         }
