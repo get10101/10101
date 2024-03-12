@@ -47,3 +47,6 @@ mobile/ios/build
 mobile/ios/fastlane/report.xml
 mobile/ios/fastlane/README.md
 .DS_Store
+
+# esplora override environment variables
+.override.esplora.env
