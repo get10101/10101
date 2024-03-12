@@ -125,9 +125,17 @@ where
     ) -> Result<bitcoin_old::Transaction, dlc_manager::error::Error> {
         let txid = to_txid_30(*txid);
 
-        let tx = self.on_chain_wallet.get_transaction(&txid).ok_or_else(|| {
-            dlc_manager::error::Error::BlockchainError(format!("Transaction {txid} not found"))
-        })?;
+        let tx = self
+            .blockchain
+            .get_transaction(&txid)
+            .map_err(|e| {
+                dlc_manager::error::Error::BlockchainError(format!(
+                    "Could not get transaction {txid}: {e:#}"
+                ))
+            })?
+            .ok_or_else(|| {
+                dlc_manager::error::Error::BlockchainError(format!("Transaction {txid} not found"))
+            })?;
 
         let tx = to_tx_29(tx);
 
