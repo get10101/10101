@@ -83,16 +83,35 @@ pub fn start(
                 let notifier = notifier.clone();
                 let pool = pool.clone();
                 async move {
-                    let result = process_new_order(
-                        pool,
-                        notifier,
-                        tx_price_feed,
-                        new_order_msg.new_order,
-                        new_order_msg.order_reason,
-                        network,
-                        oracle_pk,
-                    )
-                    .await;
+                    let new_order = new_order_msg.new_order;
+                    tracing::trace!(
+                        trader_id = %new_order.trader_id,
+                        order_type = ?new_order.order_type,
+                        "Processing new order",
+                    );
+
+                    let result = match new_order.order_type {
+                        OrderType::Market => {
+                            process_new_market_order(
+                                pool,
+                                notifier,
+                                new_order,
+                                new_order_msg.order_reason,
+                                network,
+                                oracle_pk,
+                            )
+                            .await
+                        }
+                        OrderType::Limit => {
+                            process_new_limit_order(
+                                pool,
+                                tx_price_feed,
+                                new_order,
+                                new_order_msg.order_reason,
+                            )
+                            .await
+                        }
+                    };
 
                     if let Err(e) = new_order_msg.sender.send(result).await {
                         tracing::error!("Failed to respond to NewOrderMessage: {e:#}");
@@ -110,34 +129,17 @@ pub fn start(
     (remote_handle, sender)
 }
 
-/// Process a [`NewOrder`].
-///
-/// If the [`NewOrder`] is of [`OrderType::Limit`]: update the price feed.
-///
-/// If the [`NewOrder`] is of [`OrderType::Market`]: find match and notify traders.
-///
-/// TODO(holzeis): The limit and market order models should be separated so we can process the
-/// models independently.
-pub async fn process_new_order(
+pub async fn process_new_limit_order(
     pool: Pool<ConnectionManager<PgConnection>>,
-    notifier: mpsc::Sender<OrderbookMessage>,
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
-    network: Network,
-    oracle_pk: XOnlyPublicKey,
 ) -> Result<Order> {
-    tracing::trace!(
-        trader_id = %new_order.trader_id,
-        order_type = ?new_order.order_type,
-        "Processing new order",
-    );
-
     let mut conn = spawn_blocking(move || pool.get())
         .await
         .expect("task to complete")?;
 
-    if new_order.order_type == OrderType::Limit && new_order.price == Decimal::ZERO {
+    if new_order.price == Decimal::ZERO {
         return Err(TradingError::InvalidOrder(
             "Limit orders with zero price are not allowed".to_string(),
         ))?;
@@ -160,111 +162,128 @@ pub async fn process_new_order(
         .map_err(|e| anyhow!(e))
         .context("Failed to insert new order into DB")?;
 
-    if new_order.order_type == OrderType::Limit {
-        tx_price_feed
-            .send(Message::NewOrder(order.clone()))
-            .map_err(|e| anyhow!(e))
-            .context("Could not update price feed")?;
-    } else {
-        // Reject new order if there is already a matched order waiting for execution.
-        if let Some(order) =
-            orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)?
-        {
-            bail!(TradingError::InvalidOrder(format!(
-                "trader_id={}, order_id={}. Order is currently in execution. \
+    tx_price_feed
+        .send(Message::NewOrder(order.clone()))
+        .map_err(|e| anyhow!(e))
+        .context("Could not update price feed")?;
+
+    Ok(order)
+}
+
+pub async fn process_new_market_order(
+    pool: Pool<ConnectionManager<PgConnection>>,
+    notifier: mpsc::Sender<OrderbookMessage>,
+    new_order: NewOrder,
+    order_reason: OrderReason,
+    network: Network,
+    oracle_pk: XOnlyPublicKey,
+) -> Result<Order> {
+    let mut conn = spawn_blocking(move || pool.get())
+        .await
+        .expect("task to complete")?;
+
+    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
+        .map_err(|e| anyhow!(e))
+        .context("Failed to insert new order into DB")?;
+
+    // Reject new order if there is already a matched order waiting for execution.
+    if let Some(order) =
+        orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)?
+    {
+        bail!(TradingError::InvalidOrder(format!(
+            "trader_id={}, order_id={}. Order is currently in execution. \
                  Can't accept new orders until the order execution is finished",
-                new_order.trader_id, order.id
-            )));
-        }
+            new_order.trader_id, order.id
+        )));
+    }
 
-        let opposite_direction_limit_orders = orders::all_by_direction_and_type(
-            &mut conn,
-            order.direction.opposite(),
-            OrderType::Limit,
-            true,
-        )?;
+    let opposite_direction_limit_orders = orders::all_by_direction_and_type(
+        &mut conn,
+        order.direction.opposite(),
+        OrderType::Limit,
+        true,
+    )?;
 
-        let matched_orders =
-            match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
-                Ok(Some(matched_orders)) => matched_orders,
-                Ok(None) => {
-                    // TODO(holzeis): Currently we still respond to the user immediately if there
-                    // has been a match or not, that's the reason why we also have to set the order
-                    // to failed here. But actually we could keep the order until either expired or
-                    // a match has been found and then update the state accordingly.
+    let matched_orders =
+        match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
+            Ok(Some(matched_orders)) => matched_orders,
+            Ok(None) => {
+                // TODO(holzeis): Currently we still respond to the user immediately if there
+                // has been a match or not, that's the reason why we also have to set the order
+                // to failed here. But actually we could keep the order until either expired or
+                // a match has been found and then update the state accordingly.
 
-                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
-                    bail!(TradingError::NoMatchFound(format!(
-                        "Could not match order {}",
-                        order.id
-                    )));
-                }
-                Err(e) => {
-                    orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
-                    bail!("Failed to match order: {e:#}")
-                }
-            };
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
+                bail!(TradingError::NoMatchFound(format!(
+                    "Could not match order {}",
+                    order.id
+                )));
+            }
+            Err(e) => {
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)?;
+                bail!("Failed to match order: {e:#}")
+            }
+        };
 
-        tracing::info!(
-            trader_id=%order.trader_id,
-            order_id=%order.id,
-            "Found a match with {} makers for new order",
-            matched_orders.taker_match.filled_with.matches.len()
-        );
+    tracing::info!(
+        trader_id=%order.trader_id,
+        order_id=%order.id,
+        "Found a match with {} makers for new order",
+        matched_orders.taker_match.filled_with.matches.len()
+    );
 
-        for match_param in matched_orders.matches() {
-            matches::insert(&mut conn, match_param)?;
+    for match_param in matched_orders.matches() {
+        matches::insert(&mut conn, match_param)?;
 
-            let trader_id = match_param.trader_id;
-            let order_id = match_param.filled_with.order_id.to_string();
+        let trader_id = match_param.trader_id;
+        let order_id = match_param.filled_with.order_id.to_string();
 
-            tracing::info!(%trader_id, order_id, "Notifying trader about match");
+        tracing::info!(%trader_id, order_id, "Notifying trader about match");
 
-            let message = match &order.order_reason {
-                OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
-                OrderReason::Expired => Message::AsyncMatch {
-                    order: order.clone(),
-                    filled_with: match_param.filled_with.clone(),
-                },
-            };
+        let message = match &order.order_reason {
+            OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
+            OrderReason::Expired => Message::AsyncMatch {
+                order: order.clone(),
+                filled_with: match_param.filled_with.clone(),
+            },
+        };
 
-            let notification = match &order.order_reason {
-                OrderReason::Expired => Some(NotificationKind::PositionExpired),
-                OrderReason::Manual => None,
-            };
+        let notification = match &order.order_reason {
+            OrderReason::Expired => Some(NotificationKind::PositionExpired),
+            OrderReason::Manual => None,
+        };
 
-            let msg = OrderbookMessage::TraderMessage {
-                trader_id,
-                message,
-                notification,
-            };
+        let msg = OrderbookMessage::TraderMessage {
+            trader_id,
+            message,
+            notification,
+        };
 
-            let order_state = match notifier.send(msg).await {
-                Ok(()) => {
-                    tracing::debug!(%trader_id, order_id, "Successfully notified trader");
+        let order_state = match notifier.send(msg).await {
+            Ok(()) => {
+                tracing::debug!(%trader_id, order_id, "Successfully notified trader");
+                OrderState::Matched
+            }
+            Err(e) => {
+                tracing::warn!(%trader_id, order_id, "Failed to send trader message: {e:#}");
+
+                if order.order_type == OrderType::Limit {
+                    // FIXME: The maker is currently not connected to the WebSocket so we can't
+                    // notify him about a trade. However, trades are always accepted by the
+                    // maker at the moment so in order to not have all limit orders in order
+                    // state `Match` we are setting the order to `Taken` even if we couldn't
+                    // notify the maker.
+
+                    OrderState::Taken
+                } else {
                     OrderState::Matched
                 }
-                Err(e) => {
-                    tracing::warn!(%trader_id, order_id, "Failed to send trader message: {e:#}");
+            }
+        };
 
-                    if order.order_type == OrderType::Limit {
-                        // FIXME: The maker is currently not connected to the WebSocket so we can't
-                        // notify him about a trade. However, trades are always accepted by the
-                        // maker at the moment so in order to not have all limit orders in order
-                        // state `Match` we are setting the order to `Taken` even if we couldn't
-                        // notify the maker.
+        tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
 
-                        OrderState::Taken
-                    } else {
-                        OrderState::Matched
-                    }
-                }
-            };
-
-            tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
-
-            orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)?;
-        }
+        orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)?;
     }
 
     Ok(order)
