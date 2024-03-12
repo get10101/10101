@@ -91,7 +91,7 @@ class OpenPositionTable extends StatelessWidget {
               buildTableCell(Text(position.liquidationPrice.toString())),
               buildAmountTableCell(position.collateral, currency, midMarket),
               buildTableCell(Text(position.leverage.formatted())),
-              buildAmountTableCell(position.pnlSats, currency, midMarket),
+              buildPnLAmountTableCell(position.collateral, position.pnlSats, currency, midMarket),
               buildTableCell(
                   Text("${DateFormat('dd-MM-yyyy – HH:mm').format(position.expiry)} UTC")),
               buildTableCell(Center(
@@ -231,5 +231,49 @@ class OpenPositionTable extends StatelessWidget {
       case Currency.sats:
         return buildTableCell(Text(formatSats(child)));
     }
+  }
+
+  TableCell buildPnLAmountTableCell(
+      Amount? margin, Amount? pnl, Currency currency, Price midMarket) {
+    if (margin == null) {
+      return buildTableCell(Text(formatUsd(Usd.zero(), decimalPlaces: 2)));
+    }
+
+    if (pnl == null) {
+      return buildTableCell(Text(formatUsd(Usd.zero(), decimalPlaces: 2)));
+    }
+
+    double percent = (pnl.sats / margin.sats) * 100.0;
+
+    String mainText;
+
+    switch (currency) {
+      case Currency.usd:
+        mainText = formatUsd(pnl * midMarket, decimalPlaces: 2);
+      case Currency.btc:
+        mainText = formatBtc(pnl);
+      case Currency.sats:
+        mainText = formatSats(pnl);
+    }
+
+    return buildTableCell(RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.black,
+        ),
+        children: [
+          TextSpan(
+            text: '$mainText ',
+            style: const TextStyle(
+              fontSize: 15.0,
+            ),
+          ),
+          TextSpan(
+            text: "(${percent.toStringAsFixed(2)}%)",
+          ),
+        ],
+      ),
+    ));
   }
 }
