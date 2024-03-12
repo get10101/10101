@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -70,6 +71,10 @@ class _PositionListItemState extends State<PositionListItem> {
 
     TextStyle dataRowStyle = const TextStyle(fontSize: 14);
 
+    Amount? unrealizedPnl = notNullPosition.unrealizedPnl;
+    double pnlPercent =
+        ((unrealizedPnl?.sats ?? Amount.zero().sats) / notNullPosition.collateral.sats) * 100.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10.0, 10, 10, 0),
@@ -106,11 +111,6 @@ class _PositionListItemState extends State<PositionListItem> {
                             showDialog(
                               context: context,
                               builder: (BuildContext context) {
-                                double unrealizedPnL = notNullPosition.unrealizedPnl?.sats == null
-                                    ? 0.0
-                                    : double.parse(notNullPosition.unrealizedPnl!.sats.toString());
-                                double pnlPercent =
-                                    (unrealizedPnL / notNullPosition.collateral.sats) * 100.0;
                                 return BragWidget(
                                   title: 'Share as image',
                                   onClose: () {
@@ -118,7 +118,7 @@ class _PositionListItemState extends State<PositionListItem> {
                                   },
                                   direction: notNullPosition.direction,
                                   leverage: notNullPosition.leverage,
-                                  pnl: notNullPosition.unrealizedPnl,
+                                  pnl: unrealizedPnl,
                                   pnlPercent: double.parse(pnlPercent.toStringAsFixed(0)).toInt(),
                                   entryPrice: Usd.fromDouble(notNullPosition.averageEntryPrice),
                                 );
@@ -144,18 +144,39 @@ class _PositionListItemState extends State<PositionListItem> {
               child: Wrap(
                 runSpacing: 2,
                 children: [
-                  notNullPosition.unrealizedPnl == null
+                  unrealizedPnl == null
                       ? const ValueDataRow(
                           type: ValueType.loading, value: "", label: "Unrealized P/L")
-                      : ValueDataRow(
-                          type: ValueType.amount,
-                          value: notNullPosition.unrealizedPnl,
-                          label: "Unrealized P/L",
-                          valueTextStyle: dataRowStyle.apply(
-                              color: notNullPosition.unrealizedPnl!.sats.isNegative
-                                  ? tradeTheme.loss
-                                  : tradeTheme.profit),
-                          labelTextStyle: dataRowStyle,
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(children: [
+                              Text(
+                                "Unrealized P/L",
+                                style: dataRowStyle,
+                              ),
+                              const SizedBox(width: 2),
+                              const Text("", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ]),
+                            Row(
+                              children: [
+                                AmountText(
+                                  amount: unrealizedPnl,
+                                  textStyle: dataRowStyle.apply(
+                                      color: unrealizedPnl.sats.isNegative
+                                          ? tradeTheme.loss
+                                          : tradeTheme.profit),
+                                ),
+                                Text(
+                                  " (${pnlPercent.toStringAsFixed(2)}%)",
+                                  style: dataRowStyle.apply(
+                                      color: unrealizedPnl.sats.isNegative
+                                          ? tradeTheme.loss
+                                          : tradeTheme.profit),
+                                ),
+                              ],
+                            )
+                          ],
                         ),
                   ValueDataRow(
                     type: ValueType.amount,
