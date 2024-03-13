@@ -1,6 +1,5 @@
 use crate::config;
 use crate::db::models::Channel;
-use crate::db::models::ChannelOpeningParams;
 use crate::db::models::FailureReason;
 use crate::db::models::NewTrade;
 use crate::db::models::Order;
@@ -518,22 +517,4 @@ pub fn delete_answered_poll_cache() -> Result<()> {
     let mut db = connection()?;
     polls::delete_all(&mut db)?;
     Ok(())
-}
-
-pub fn insert_channel_opening_params(
-    conn: &mut SqliteConnection,
-    channel_opening_params: crate::ln_dlc::ChannelOpeningParams,
-) -> Result<()> {
-    ChannelOpeningParams::insert(conn, channel_opening_params.into())?;
-
-    Ok(())
-}
-
-pub fn get_channel_opening_params_by_order_id(
-    order_id: Uuid,
-) -> Result<Option<crate::ln_dlc::ChannelOpeningParams>> {
-    let mut db = connection()?;
-    let params = ChannelOpeningParams::get_by_order_id(&mut db, order_id)?;
-
-    Ok(params.map(crate::ln_dlc::ChannelOpeningParams::from))
 }

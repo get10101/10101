@@ -1,7 +1,6 @@
 use crate::check_version::check_version;
 use crate::orderbook;
 use crate::orderbook::trading::NewOrderMessage;
-use crate::orderbook::trading::TradingError;
 use crate::orderbook::websocket::websocket_connection;
 use crate::routes::AppState;
 use crate::AppError;
@@ -25,7 +24,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -68,7 +66,7 @@ pub async fn get_orders(State(state): State<Arc<AppState>>) -> Result<Json<Vec<O
 pub async fn post_order(
     State(state): State<Arc<AppState>>,
     Json(new_order_request): Json<NewOrderRequest>,
-) -> Result<Json<Order>, AppError> {
+) -> Result<(), AppError> {
     new_order_request
         .verify(&state.secp)
         .map_err(|_| AppError::Unauthorized)?;
@@ -96,31 +94,16 @@ pub async fn post_order(
         );
         return Err(AppError::Unauthorized);
     }
-
-    let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
-
     let message = NewOrderMessage {
         new_order,
+        channel_opening_params: new_order_request.channel_opening_params,
         order_reason: OrderReason::Manual,
-        sender,
     };
     state.trading_sender.send(message).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;
 
-    let result = receiver
-        .recv()
-        .await
-        .context("Failed to receive response from trading sender")
-        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
-
-    let order = result.map_err(|e| match e.downcast_ref() {
-        Some(TradingError::InvalidOrder(reason)) => AppError::InvalidOrder(reason.to_string()),
-        Some(TradingError::NoMatchFound(message)) => AppError::NoMatchFound(message.to_string()),
-        _ => AppError::InternalServerError(format!("Failed to post order. Error: {e:#}")),
-    })?;
-
-    Ok(Json(order))
+    Ok(())
 }
 
 fn update_pricefeed(pricefeed_msg: Message, sender: Sender<Message>) {

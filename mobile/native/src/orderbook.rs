@@ -25,6 +25,7 @@ use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
+use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -242,20 +243,22 @@ async fn handle_orderbook_message(
                 BackgroundTask::AsyncTrade(order_reason),
             ));
 
-            position::handler::async_trade(order.clone(), filled_with)
-                .await
-                .with_context(|| format!("Failed to process async trade for order {}", order_id))?;
+            order::handler::async_order_filling(order, filled_with).with_context(|| {
+                format!("Failed to process async match update from orderbook. order_id {order_id}")
+            })?;
         }
         Message::Match(filled) => {
             let order_id = filled.order_id;
 
             tracing::info!(%order_id, "Received match from orderbook");
+            let execution_price = filled
+                .average_execution_price()
+                .to_f32()
+                .expect("to fit into f32");
 
-            position::handler::trade(filled.clone())
-                .await
-                .with_context(|| {
-                    format!("Trade request sent to coordinator for order {order_id} failed")
-                })?;
+            order::handler::order_filling(order_id, execution_price).with_context(|| {
+                format!("Failed to process match update from orderbook. order_id = {order_id}")
+            })?;
         }
         Message::AllOrders(initial_orders) => {
             let mut orders = orders.lock();
@@ -338,13 +341,13 @@ async fn handle_orderbook_message(
                 ));
             }
         }
-        msg @ Message::LimitOrderFilledMatches { .. } | msg @ Message::InvalidAuthentication(_) => {
+        msg @ Message::InvalidAuthentication(_) => {
             tracing::debug!(?msg, "Skipping message from orderbook");
         }
         Message::TradeError { order_id, error } => {
             order::handler::order_failed(
                 Some(order_id),
-                FailureReason::TradeResponse(error.clone()),
+                FailureReason::TradeResponse(error.to_string()),
                 anyhow!("Coordinator failed to execute trade: {error}"),
             )
             .context("Could not set order to failed")?;

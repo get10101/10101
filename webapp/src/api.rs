@@ -14,6 +14,7 @@ use axum::Router;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
 use commons::taker_fee;
+use commons::ChannelOpeningParams;
 use commons::Price;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
@@ -23,7 +24,6 @@ use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::ln_dlc;
 use native::ln_dlc::is_dlc_channel_confirmed;
-use native::ln_dlc::ChannelOpeningParams;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
 use native::trade::order::OrderType;
@@ -242,7 +242,6 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
         None
     } else {
         Some(ChannelOpeningParams {
-            order_id: order.id,
             // TODO: Allow webapp to open a DLC channel with additional reserve.
             coordinator_reserve: Amount::ZERO,
             trader_reserve: Amount::ZERO,

@@ -4,13 +4,13 @@ use crate::trade::FilledWith;
 use crate::LiquidityOption;
 use anyhow::Result;
 use bitcoin::address::NetworkUnchecked;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
+use thiserror::Error;
 use tokio_tungstenite_wasm as tungstenite;
 use uuid::Uuid;
 
@@ -20,10 +20,6 @@ pub type DlcChannelId = [u8; 32];
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub enum Message {
     AllOrders(Vec<Order>),
-    LimitOrderFilledMatches {
-        trader_id: PublicKey,
-        matches: Vec<(Uuid, Decimal)>,
-    },
     NewOrder(Order),
     DeleteOrder(Uuid),
     Update(Order),
@@ -48,8 +44,24 @@ pub enum Message {
     },
     TradeError {
         order_id: Uuid,
-        error: String,
+        error: TradingError,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, Error, Debug, PartialEq)]
+pub enum TradingError {
+    #[error("Invalid order: {0}")]
+    InvalidOrder(String),
+    #[error("No match found: {0}")]
+    NoMatchFound(String),
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<anyhow::Error> for TradingError {
+    fn from(value: anyhow::Error) -> Self {
+        TradingError::Other(value.to_string())
+    }
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
@@ -67,9 +79,6 @@ pub enum OrderbookRequest {
         version: Option<String>,
         signature: Signature,
     },
-    LimitOrderFilledMatches {
-        trader_id: PublicKey,
-    },
 }
 
 impl TryFrom<OrderbookRequest> for tungstenite::Message {
@@ -86,9 +95,6 @@ impl Display for Message {
         match self {
             Message::AllOrders(_) => {
                 write!(f, "AllOrders")
-            }
-            Message::LimitOrderFilledMatches { .. } => {
-                write!(f, "LimitOrderFilledMatches")
             }
             Message::NewOrder(_) => {
                 write!(f, "NewOrder")

@@ -13,7 +13,6 @@ use crate::admin::roll_back_dlc_channel;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
-use crate::check_version::check_version;
 use crate::collaborative_revert::confirm_collaborative_revert;
 use crate::db;
 use crate::db::user;
@@ -65,7 +64,6 @@ use commons::Poll;
 use commons::PollAnswers;
 use commons::RegisterParams;
 use commons::Restore;
-use commons::TradeAndChannelParams;
 use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -166,7 +164,6 @@ pub fn router(
             get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
-        .route("/api/trade", post(post_trade))
         .route("/api/rollover/:dlc_channel_id", post(rollover))
         // Deprecated: we just keep it for backwards compatbility as otherwise old apps won't
         // pass registration
@@ -254,43 +251,6 @@ pub async fn get_node_info(
 ) -> Result<Json<NodeInfo>, AppError> {
     let node_info = app_state.node.inner.info;
     Ok(Json(node_info))
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct InvoiceParams {
-    pub amount: Option<u64>,
-    pub description: Option<String>,
-    pub expiry: Option<u32>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct OpenChannelFeeInvoiceParams {
-    pub amount: u64,
-    pub channel_funding_txid: String,
-    pub expiry: Option<u32>,
-}
-
-// TODO: We might want to have our own ContractInput type here so we can potentially map fields if
-// the library changes?
-#[instrument(skip_all, err(Debug))]
-pub async fn post_trade(
-    State(state): State<Arc<AppState>>,
-    params: Json<TradeAndChannelParams>,
-) -> Result<(), AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-    check_version(&mut conn, &params.trade_params.pubkey)
-        .map_err(|e| AppError::BadRequest(e.to_string()))?;
-
-    state
-        .node
-        .trade(state.auth_users_notifier.clone(), params.0)
-        .await
-        .map_err(|e| {
-            AppError::InternalServerError(format!("Could not handle trade request: {e:#}"))
-        })
 }
 
 #[instrument(skip_all, err(Debug))]
@@ -429,7 +389,7 @@ pub async fn get_user(
         .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
 
     match option {
-        None => Err(AppError::NoMatchFound("No user found".to_string())),
+        None => Err(AppError::BadRequest("No user found".to_string())),
         Some(user) => Ok(Json(user.try_into()?)),
     }
 }

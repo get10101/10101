@@ -243,15 +243,15 @@ async fn main() -> Result<()> {
     );
 
     let (_handle, trading_sender) = trading::start(
-        pool.clone(),
+        node.clone(),
         tx_price_feed.clone(),
         auth_users_notifier.clone(),
         network,
         node.inner.oracle_pubkey,
     );
     let _handle = async_match::monitor(
-        pool.clone(),
-        tx_user_feed.clone(),
+        node.clone(),
+        node_event_handler.subscribe(),
         auth_users_notifier.clone(),
         network,
         node.inner.oracle_pubkey,

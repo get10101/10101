@@ -1,3 +1,4 @@
+pub mod channel_opening_params;
 pub mod channels;
 pub mod collaborative_reverts;
 pub mod custom_types;

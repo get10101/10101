@@ -5,12 +5,11 @@ use crate::db::maybe_get_open_orders;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::is_dlc_channel_confirmed;
-use crate::ln_dlc::ChannelOpeningParams;
-use crate::state::get_or_create_tokio_runtime;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
+use crate::trade::order::OrderType;
 use crate::trade::position;
 use crate::trade::position::handler::update_position_after_order_submitted;
 use crate::trade::position::PositionState;
@@ -18,7 +17,10 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use commons::ChannelOpeningParams;
+use commons::FilledWith;
 use reqwest::Url;
+use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
@@ -85,30 +87,14 @@ pub async fn submit_order(
 
     db::insert_order(order.clone()).map_err(SubmitOrderError::Storage)?;
 
-    if let Some(channel_opening_params) = channel_opening_params {
-        let runtime = get_or_create_tokio_runtime().expect("to be able to get runtime");
-        runtime
-            .spawn_blocking({
-                move || {
-                    let mut conn = db::connection()?;
-                    tracing::debug!(
-                        ?channel_opening_params,
-                        "Recording channel-opening parameters"
-                    );
-
-                    db::insert_channel_opening_params(&mut conn, channel_opening_params)
-                }
-            })
-            .await
-            .expect("task to complete")
-            .map_err(SubmitOrderError::Storage)?;
-    }
-
     let url = format!("http://{}", config::get_http_endpoint());
     let url = Url::parse(&url).expect("correct URL");
     let orderbook_client = OrderbookClient::new(url);
 
-    if let Err(err) = orderbook_client.post_new_order(order.clone().into()).await {
+    if let Err(err) = orderbook_client
+        .post_new_order(order.clone().into(), channel_opening_params)
+        .await
+    {
         let order_id = order.id.clone().to_string();
 
         tracing::error!(order_id, "Failed to post new order: {err:#}");
@@ -133,6 +119,53 @@ pub async fn submit_order(
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
 
     Ok(order.id)
+}
+
+pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith) -> Result<()> {
+    let order_type = match order.order_type {
+        commons::OrderType::Market => OrderType::Market,
+        commons::OrderType::Limit => OrderType::Limit {
+            price: order.price.to_f32().expect("to fit into f32"),
+        },
+    };
+
+    let execution_price = filled_with
+        .average_execution_price()
+        .to_f32()
+        .expect("to fit into f32");
+
+    let order = match db::get_order(order.id)? {
+        None => {
+            let order = Order {
+                id: order.id,
+                leverage: order.leverage,
+                quantity: order.quantity.to_f32().expect("to fit into f32"),
+                contract_symbol: order.contract_symbol,
+                direction: order.direction,
+                order_type,
+                state: OrderState::Filling { execution_price },
+                creation_timestamp: order.timestamp,
+                order_expiry_timestamp: order.expiry,
+                reason: order.order_reason.into(),
+                stable: order.stable,
+                failure_reason: None,
+            };
+
+            db::insert_order(order.clone())?
+        }
+        Some(mut order) => {
+            // the order has already been inserted to the database. Most likely because the async
+            // match has already been received. We still want to retry this order as the previous
+            // attempt seems to have failed.
+            db::update_order_state(order.id, OrderState::Filling { execution_price })?;
+            order.state = OrderState::Filling { execution_price };
+            order
+        }
+    };
+
+    event::publish(&EventInternal::OrderUpdateNotification(order.clone()));
+
+    Ok(())
 }
 
 /// Update order to state [`OrderState::Filling`].

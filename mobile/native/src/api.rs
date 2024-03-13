@@ -16,7 +16,6 @@ use crate::event::api::FlutterSubscriber;
 use crate::health;
 use crate::ln_dlc;
 use crate::ln_dlc::get_storage;
-use crate::ln_dlc::ChannelOpeningParams;
 use crate::logger;
 use crate::orderbook;
 use crate::polls;
@@ -32,6 +31,7 @@ use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Amount;
 use commons::order_matching_fee_taker;
+use commons::ChannelOpeningParams;
 use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
@@ -336,13 +336,9 @@ pub async fn submit_channel_opening_order(
     coordinator_reserve: u64,
     trader_reserve: u64,
 ) -> Result<String> {
-    let order = crate::trade::order::Order::from(order);
-    let order_id = order.id;
-
     order::handler::submit_order(
-        order,
+        order.into(),
         Some(ChannelOpeningParams {
-            order_id,
             coordinator_reserve: Amount::from_sat(coordinator_reserve),
             trader_reserve: Amount::from_sat(trader_reserve),
         }),
@@ -497,6 +493,12 @@ fn run_internal(
 
     let (_health, tx) = health::Health::new(runtime);
 
+    // TODO(holzeis): We should probably subscribe to the websocket before starting the node, as
+    // async matches are send via the websocket connection after the trader connected on the p2p
+    // connection.
+    // Note, at the moment the rollover is still acting on the websocket connection instead of the
+    // p2p connection. Once this has been fixed we can safely connect the websocket before starting
+    // the ndoe.
     orderbook::subscribe(
         ln_dlc::get_node_key(),
         runtime,

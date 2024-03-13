@@ -55,8 +55,6 @@ pub fn run_migration(conn: &mut PgConnection) {
 pub enum AppError {
     InternalServerError(String),
     BadRequest(String),
-    NoMatchFound(String),
-    InvalidOrder(String),
     ServiceUnavailable(String),
     Unauthorized,
 }
@@ -66,8 +64,6 @@ impl IntoResponse for AppError {
         let (status, error_message) = match self {
             AppError::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
-            AppError::NoMatchFound(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
-            AppError::InvalidOrder(msg) => (StatusCode::BAD_REQUEST, msg),
             AppError::ServiceUnavailable(msg) => (StatusCode::SERVICE_UNAVAILABLE, msg),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "".to_string()),
         };

@@ -508,7 +508,8 @@ pub async fn is_connected(
     let target = target_pubkey.parse().map_err(|err| {
         AppError::BadRequest(format!("Invalid public key {target_pubkey}. Error: {err}"))
     })?;
-    Ok(Json(state.node.is_connected(&target)))
+
+    Ok(Json(state.node.is_connected(target)))
 }
 
 impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {

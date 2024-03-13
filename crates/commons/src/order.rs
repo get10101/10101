@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bitcoin::hashes::sha256;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use rust_decimal::Decimal;
 use secp256k1::ecdsa::Signature;
 use secp256k1::Message;
@@ -17,6 +18,7 @@ pub struct NewOrderRequest {
     pub value: NewOrder,
     /// A signature of the sha256 of [`value`]
     pub signature: Signature,
+    pub channel_opening_params: Option<ChannelOpeningParams>,
 }
 
 impl NewOrderRequest {
@@ -97,18 +99,6 @@ impl OrderType {
     }
 }
 
-#[derive(Deserialize)]
-pub struct OrderResponse {
-    pub id: Uuid,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub price: Decimal,
-    pub trader_id: PublicKey,
-    pub direction: Direction,
-    #[serde(with = "rust_decimal::serde::float")]
-    pub quantity: Decimal,
-    pub order_type: OrderType,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum OrderState {
     Open,
@@ -144,6 +134,18 @@ pub struct Order {
     pub order_state: OrderState,
     pub order_reason: OrderReason,
     pub stable: bool,
+}
+
+/// Extra information required to open a DLC channel, independent of the [`TradeParams`] associated
+/// with the filled order.
+///
+/// [`TradeParams`]: commons::TradeParams
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct ChannelOpeningParams {
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub trader_reserve: Amount,
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub coordinator_reserve: Amount,
 }
 
 #[cfg(test)]
@@ -216,11 +218,12 @@ pub mod tests {
         let original_request = NewOrderRequest {
             value: original_order,
             signature,
+            channel_opening_params: None,
         };
 
         let original_serialized_request = serde_json::to_string(&original_request).unwrap();
 
-        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":1,\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\"}";
+        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":1,\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\",\"channel_opening_params\":null}";
 
         // replace the signature with the one from above to have the same string
         let serialized_msg =

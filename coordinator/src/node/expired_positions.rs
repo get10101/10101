@@ -10,7 +10,6 @@ use commons::average_execution_price;
 use commons::Match;
 use commons::MatchState;
 use commons::NewOrder;
-use commons::Order;
 use commons::OrderReason;
 use commons::OrderState;
 use commons::OrderType;
@@ -97,29 +96,16 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             stable: position.stable,
         };
 
-        let (sender, mut receiver) = mpsc::channel::<Result<Order>>(1);
         let message = NewOrderMessage {
             new_order: new_order.clone(),
+            channel_opening_params: None,
             order_reason: OrderReason::Expired,
-            sender,
         };
 
         if let Err(e) = trading_sender.send(message).await {
             tracing::error!(order_id=%new_order.id, trader_id=%new_order.trader_id, "Failed to submit new order for closing expired position. Error: {e:#}");
             continue;
         }
-
-        match receiver.recv().await {
-            Some(Ok(order)) => order,
-            Some(Err(e)) => {
-                tracing::error!(order_id=%new_order.id, trader_id=%new_order.trader_id, "Failed to submit new order for closing expired position. Error: {e:#}");
-                continue;
-            }
-            None => {
-                tracing::error!(order_id=%new_order.id, trader_id=%new_order.trader_id, "Failed to receive response from trading.");
-                continue;
-            }
-        };
     }
 
     Ok(())

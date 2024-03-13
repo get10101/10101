@@ -69,6 +69,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    channel_opening_params (order_id) {
+        order_id -> Text,
+        coordinator_reserve -> Int8,
+        trader_reserve -> Int8,
+        created_at -> Int8,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::ChannelStateType;
 
@@ -386,6 +395,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     answers,
+    channel_opening_params,
     channels,
     choices,
     collaborative_reverts,
