@@ -7,6 +7,7 @@ import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/status_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
+import 'package:get_10101/features/welcome/error_screen.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/common/scaffold_with_nav_bar.dart';
 import 'package:get_10101/common/settings/app_info_screen.dart';
@@ -57,6 +58,12 @@ GoRouter createRoutes() {
                         child: SeedPhraseImporter(),
                       )),
             ]),
+        GoRoute(
+            path: ErrorScreen.route,
+            parentNavigatorKey: rootNavigatorKey,
+            pageBuilder: (context, state) => const NoTransitionPage<void>(
+                  child: ErrorScreen(),
+                )),
         GoRoute(
             path: SettingsScreen.route,
             pageBuilder: (BuildContext context, GoRouterState state) {

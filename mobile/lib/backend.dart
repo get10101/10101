@@ -67,23 +67,11 @@ Future<void> runBackend(BuildContext context) async {
     logger.e("Failed to get FCM token $e");
   }
 
-  await _startBackend(seedDir: seedDir, fcmToken: fcmToken);
+  await rust.api.runInFlutter(seedDir: seedDir, fcmToken: fcmToken);
 
   // these notifiers depend on the backend running
   await orderChangeNotifier.initialize();
   await positionChangeNotifier.initialize();
-}
-
-Future<void> _startBackend({seedDir, fcmToken}) async {
-  try {
-    await rust.api.runInFlutter(seedDir: seedDir, fcmToken: fcmToken);
-  } catch (e) {
-    // TODO(holzeis): We should add a more gracefull handling of an error during startup here. At
-    // the moment the user will have no idea what happened and is not able to share his logs.
-    logger.e("Launching the app failed $e");
-    await Future.delayed(const Duration(seconds: 5));
-    exit(-1);
-  }
 }
 
 void _setupRustLogging() {

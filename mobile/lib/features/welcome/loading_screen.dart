@@ -4,6 +4,7 @@ import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get_10101/backend.dart';
+import 'package:get_10101/features/welcome/error_screen.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
@@ -79,6 +80,7 @@ class _LoadingScreenState extends State<LoadingScreen> {
       }
     }).catchError((error) {
       logger.e("Failed to start backend. $error");
+      GoRouter.of(context).go(ErrorScreen.route);
       showSnackBar(ScaffoldMessenger.of(context), "Failed to start 10101! $error");
     });
   }
