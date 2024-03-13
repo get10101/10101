@@ -42,6 +42,7 @@ pub struct NewOrder {
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
     pub order_type: OrderType,
+    #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
 }
@@ -50,21 +51,24 @@ impl NewOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
         let mut id = self.id.as_bytes().to_vec();
-        let seconds = self.expiry.second();
+        let unix_timestamp = self.expiry.unix_timestamp();
+        let mut seconds = unix_timestamp.to_le_bytes().to_vec();
+
         let symbol = self.contract_symbol.label();
         let symbol = symbol.as_bytes();
         let order_type = self.order_type.label();
         let order_type = order_type.as_bytes();
         let direction = self.direction.to_string();
         let direction = direction.as_bytes();
-        let quantity = self.quantity.to_string();
+        let quantity = format!("{:.2}", self.quantity);
         let quantity = quantity.as_bytes();
-        let price = self.price.to_string();
+        let price = format!("{:.2}", self.price);
         let price = price.as_bytes();
-        let string = self.leverage.to_string();
-        let leverage = string.as_bytes();
+        let leverage = format!("{:.2}", self.leverage);
+        let leverage = leverage.as_bytes();
+
         vec.append(&mut id);
-        vec.push(seconds);
+        vec.append(&mut seconds);
         vec.append(&mut symbol.to_vec());
         vec.append(&mut order_type.to_vec());
         vec.append(&mut direction.to_vec());
@@ -183,7 +187,6 @@ pub mod tests {
     }
 
     #[test]
-    #[should_panic]
     pub fn round_trip_order_signature_verification() {
         // setup
         let secret_key =
@@ -217,7 +220,7 @@ pub mod tests {
 
         let original_serialized_request = serde_json::to_string(&original_request).unwrap();
 
-        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":[1970,1,0,0,1,101010101,0,0,0],\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\"}";
+        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":1,\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\"}";
 
         // replace the signature with the one from above to have the same string
         let serialized_msg =
@@ -230,7 +233,8 @@ pub mod tests {
 
         // assert
 
-        // ensure that the two strings are the same, besides the signature (which has a random factor)
+        // ensure that the two strings are the same, besides the signature (which has a random
+        // factor)
         assert_eq!(original_serialized_request, serialized_msg);
 
         assert_eq!(
