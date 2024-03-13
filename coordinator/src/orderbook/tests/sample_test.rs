@@ -98,7 +98,7 @@ fn dummy_order(expiry: OffsetDateTime, order_type: OrderType) -> NewOrder {
         order_type,
         expiry,
         contract_symbol: trade::ContractSymbol::BtcUsd,
-        leverage: 1.0,
+        leverage: dec!(1.0),
         stable: false,
     }
 }

@@ -39,7 +39,8 @@ pub struct NewOrder {
     pub quantity: Decimal,
     pub trader_id: PublicKey,
     pub direction: Direction,
-    pub leverage: f32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
     pub order_type: OrderType,
     pub expiry: OffsetDateTime,
     pub stable: bool,
@@ -166,7 +167,7 @@ pub mod tests {
             quantity: rust_decimal_macros::dec!(2000),
             trader_id: public_key,
             direction: Direction::Long,
-            leverage: 2.0,
+            leverage: rust_decimal_macros::dec!(2.0),
             order_type: OrderType::Market,
             expiry: OffsetDateTime::now_utc(),
             stable: false,
