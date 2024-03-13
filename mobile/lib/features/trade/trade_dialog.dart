@@ -1,12 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/application/clickable_help_text.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/global_keys.dart';
-import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/brag/brag.dart';
@@ -14,7 +12,6 @@ import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class TradeDialog extends StatelessWidget {
   const TradeDialog({super.key});
@@ -148,39 +145,6 @@ Widget createSubmitWidget(
   );
 }
 
-class ClickableHelpText extends StatelessWidget {
-  const ClickableHelpText({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        text: 'Please help us fix this issue and join our telegram group: ',
-        style: DefaultTextStyle.of(context).style,
-        children: [
-          TextSpan(
-            text: 'https://t.me/get10101',
-            style: const TextStyle(
-              color: Colors.blue,
-              decoration: TextDecoration.underline,
-            ),
-            recognizer: TapGestureRecognizer()
-              ..onTap = () async {
-                final httpsUri = Uri(scheme: 'https', host: 't.me', path: 'get10101');
-                if (await canLaunchUrl(httpsUri)) {
-                  await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                } else {
-                  showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!),
-                      "Failed to open link");
-                }
-              },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // Returns a formatted json string if the provided argument is json, else, returns the argument
 String getPrettyJSONString(String jsonObjectString) {
   try {
@@ -253,7 +217,9 @@ class ErrorDetails extends StatelessWidget {
               ),
             ),
           ),
-          const ClickableHelpText(),
+          ClickableHelpText(
+              text: "Please help us fix this issue and join our telegram group: ",
+              style: DefaultTextStyle.of(context).style),
         ],
       ),
     );
