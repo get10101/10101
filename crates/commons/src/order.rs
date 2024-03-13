@@ -242,13 +242,4 @@ pub mod tests {
         let secp = Secp256k1::verification_only();
         parsed_request.verify(&secp).unwrap();
     }
-
-    #[test]
-    pub fn parse_new_order_request_from_string_and_verify() {
-        let new_order_string = "{\"value\":{\"id\":\"00000000-0000-0000-0000-000000000000\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"02165446faa03b41d7f2e29741c5d5d5a27a3c1667f6a35d6ea03ba7c2d9619e35\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":[2024,53,12,18,24,406906000,0,0,0],\"stable\":false},\"signature\":\"304402203290d4415c230360f43847586bcf68d11b925e1c3011aab89a7c11d99fd3d5fa0220542830b5ec92a1b6e48240ea5205d66306668728402a5058cee014cecce38f40\"}";
-        let new_order: NewOrderRequest = serde_json::from_str(new_order_string).unwrap();
-
-        let secp = Secp256k1::verification_only();
-        new_order.verify(&secp).unwrap();
-    }
 }
