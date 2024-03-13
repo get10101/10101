@@ -151,9 +151,12 @@ pub mod tests {
     use secp256k1::Secp256k1;
     use secp256k1::SecretKey;
     use secp256k1::SECP256K1;
+    use std::str::FromStr;
+    use time::ext::NumericalDuration;
     use time::OffsetDateTime;
     use trade::ContractSymbol;
     use trade::Direction;
+    use uuid::Uuid;
 
     #[test]
     pub fn round_trip_signature_new_order() {
@@ -177,6 +180,67 @@ pub mod tests {
 
         let signature = secret_key.sign_ecdsa(message);
         signature.verify(&message, &public_key).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    pub fn round_trip_order_signature_verification() {
+        // setup
+        let secret_key =
+            SecretKey::from_str("01010101010101010001020304050607ffff0000ffff00006363636363636363")
+                .unwrap();
+        let public_key = secret_key.public_key(SECP256K1);
+
+        let original_order = NewOrder {
+            id: Uuid::from_str("67e5504410b1426f9247bb680e5fe0c8").unwrap(),
+            contract_symbol: ContractSymbol::BtcUsd,
+            price: rust_decimal_macros::dec!(53_000),
+            quantity: rust_decimal_macros::dec!(2000),
+            trader_id: public_key,
+            direction: Direction::Long,
+            leverage: rust_decimal_macros::dec!(2.0),
+            order_type: OrderType::Market,
+            // Note: the last 5 is too much as it does not get serialized
+            expiry: OffsetDateTime::UNIX_EPOCH + 1.1010101015.seconds(),
+            stable: false,
+        };
+
+        let message = original_order.clone().message();
+
+        let signature = secret_key.sign_ecdsa(message);
+        signature.verify(&message, &public_key).unwrap();
+
+        let original_request = NewOrderRequest {
+            value: original_order,
+            signature,
+        };
+
+        let original_serialized_request = serde_json::to_string(&original_request).unwrap();
+
+        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":[1970,1,0,0,1,101010101,0,0,0],\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\"}";
+
+        // replace the signature with the one from above to have the same string
+        let serialized_msg =
+            serialized_msg.replace("SIGNATURE_PLACEHOLDER", signature.to_string().as_str());
+
+        // act
+
+        let parsed_request: NewOrderRequest =
+            serde_json::from_str(serialized_msg.as_str()).unwrap();
+
+        // assert
+
+        // ensure that the two strings are the same, besides the signature (which has a random factor)
+        assert_eq!(original_serialized_request, serialized_msg);
+
+        assert_eq!(
+            original_request.value.message(),
+            parsed_request.value.message()
+        );
+
+        // Below would also fail but we don't even get there yet
+        let secp = Secp256k1::verification_only();
+        parsed_request.verify(&secp).unwrap();
     }
 
     #[test]
