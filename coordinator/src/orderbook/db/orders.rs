@@ -179,7 +179,10 @@ impl From<OrderbookNewOrder> for NewOrder {
             expiry: value.expiry,
             order_reason: OrderReason::Manual,
             contract_symbol: value.contract_symbol.into(),
-            leverage: value.leverage,
+            leverage: value
+                .leverage
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
             stable: value.stable,
         }
     }

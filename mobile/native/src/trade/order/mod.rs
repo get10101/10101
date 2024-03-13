@@ -1,5 +1,6 @@
 use crate::calculations::calculate_margin;
 use crate::ln_dlc;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use time::OffsetDateTime;
@@ -199,7 +200,7 @@ impl From<Order> for commons::NewOrder {
             quantity,
             trader_id,
             direction: order.direction,
-            leverage: order.leverage,
+            leverage: Decimal::from_f32(order.leverage).expect("to fit into f32"),
             order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
             stable: order.stable,

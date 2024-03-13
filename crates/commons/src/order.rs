@@ -39,8 +39,10 @@ pub struct NewOrder {
     pub quantity: Decimal,
     pub trader_id: PublicKey,
     pub direction: Direction,
-    pub leverage: f32,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
     pub order_type: OrderType,
+    #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
 }
@@ -49,21 +51,24 @@ impl NewOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
         let mut id = self.id.as_bytes().to_vec();
-        let seconds = self.expiry.second();
+        let unix_timestamp = self.expiry.unix_timestamp();
+        let mut seconds = unix_timestamp.to_le_bytes().to_vec();
+
         let symbol = self.contract_symbol.label();
         let symbol = symbol.as_bytes();
         let order_type = self.order_type.label();
         let order_type = order_type.as_bytes();
         let direction = self.direction.to_string();
         let direction = direction.as_bytes();
-        let quantity = self.quantity.to_string();
+        let quantity = format!("{:.2}", self.quantity);
         let quantity = quantity.as_bytes();
-        let price = self.price.to_string();
+        let price = format!("{:.2}", self.price);
         let price = price.as_bytes();
-        let string = self.leverage.to_string();
-        let leverage = string.as_bytes();
+        let leverage = format!("{:.2}", self.leverage);
+        let leverage = leverage.as_bytes();
+
         vec.append(&mut id);
-        vec.push(seconds);
+        vec.append(&mut seconds);
         vec.append(&mut symbol.to_vec());
         vec.append(&mut order_type.to_vec());
         vec.append(&mut direction.to_vec());
@@ -150,9 +155,12 @@ pub mod tests {
     use secp256k1::Secp256k1;
     use secp256k1::SecretKey;
     use secp256k1::SECP256K1;
+    use std::str::FromStr;
+    use time::ext::NumericalDuration;
     use time::OffsetDateTime;
     use trade::ContractSymbol;
     use trade::Direction;
+    use uuid::Uuid;
 
     #[test]
     pub fn round_trip_signature_new_order() {
@@ -166,7 +174,7 @@ pub mod tests {
             quantity: rust_decimal_macros::dec!(2000),
             trader_id: public_key,
             direction: Direction::Long,
-            leverage: 2.0,
+            leverage: rust_decimal_macros::dec!(2.0),
             order_type: OrderType::Market,
             expiry: OffsetDateTime::now_utc(),
             stable: false,
@@ -179,11 +187,63 @@ pub mod tests {
     }
 
     #[test]
-    pub fn parse_new_order_request_from_string_and_verify() {
-        let new_order_string = "{\"value\":{\"id\":\"00000000-0000-0000-0000-000000000000\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"02165446faa03b41d7f2e29741c5d5d5a27a3c1667f6a35d6ea03ba7c2d9619e35\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":[2024,53,12,18,24,406906000,0,0,0],\"stable\":false},\"signature\":\"304402203290d4415c230360f43847586bcf68d11b925e1c3011aab89a7c11d99fd3d5fa0220542830b5ec92a1b6e48240ea5205d66306668728402a5058cee014cecce38f40\"}";
-        let new_order: NewOrderRequest = serde_json::from_str(new_order_string).unwrap();
+    pub fn round_trip_order_signature_verification() {
+        // setup
+        let secret_key =
+            SecretKey::from_str("01010101010101010001020304050607ffff0000ffff00006363636363636363")
+                .unwrap();
+        let public_key = secret_key.public_key(SECP256K1);
 
+        let original_order = NewOrder {
+            id: Uuid::from_str("67e5504410b1426f9247bb680e5fe0c8").unwrap(),
+            contract_symbol: ContractSymbol::BtcUsd,
+            price: rust_decimal_macros::dec!(53_000),
+            quantity: rust_decimal_macros::dec!(2000),
+            trader_id: public_key,
+            direction: Direction::Long,
+            leverage: rust_decimal_macros::dec!(2.0),
+            order_type: OrderType::Market,
+            // Note: the last 5 is too much as it does not get serialized
+            expiry: OffsetDateTime::UNIX_EPOCH + 1.1010101015.seconds(),
+            stable: false,
+        };
+
+        let message = original_order.clone().message();
+
+        let signature = secret_key.sign_ecdsa(message);
+        signature.verify(&message, &public_key).unwrap();
+
+        let original_request = NewOrderRequest {
+            value: original_order,
+            signature,
+        };
+
+        let original_serialized_request = serde_json::to_string(&original_request).unwrap();
+
+        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":1,\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\"}";
+
+        // replace the signature with the one from above to have the same string
+        let serialized_msg =
+            serialized_msg.replace("SIGNATURE_PLACEHOLDER", signature.to_string().as_str());
+
+        // act
+
+        let parsed_request: NewOrderRequest =
+            serde_json::from_str(serialized_msg.as_str()).unwrap();
+
+        // assert
+
+        // ensure that the two strings are the same, besides the signature (which has a random
+        // factor)
+        assert_eq!(original_serialized_request, serialized_msg);
+
+        assert_eq!(
+            original_request.value.message(),
+            parsed_request.value.message()
+        );
+
+        // Below would also fail but we don't even get there yet
         let secp = Secp256k1::verification_only();
-        new_order.verify(&secp).unwrap();
+        parsed_request.verify(&secp).unwrap();
     }
 }
