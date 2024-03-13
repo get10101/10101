@@ -19,6 +19,7 @@ use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_messages::channel::AcceptChannel;
+use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewFinalize;
 use dlc_messages::channel::SettleFinalize;
 use dlc_messages::channel::SignChannel;
@@ -387,13 +388,33 @@ impl Node {
                             self.tx_position_feed.clone(),
                         )?;
                     }
-                    ChannelMessage::Reject(reject) => {
-                        // TODO(holzeis): if an dlc channel gets rejected we have to deal with the
-                        // counterparty as well.
+                    ChannelMessage::Reject(Reject {
+                        channel_id,
+                        reference_id,
+                        ..
+                    }) => {
+                        let channel_id_hex_string = hex::encode(channel_id);
 
-                        let channel_id_hex_string = hex::encode(reject.channel_id);
+                        let reference_id = match reference_id {
+                            Some(reference_id) => *reference_id,
+                            // If the app did not yet update to the latest version, it will not
+                            // send us the reference id in the message. In that case we will
+                            // have to look up the reference id ourselves from the channel.
+                            // TODO(holzeis): Remove this fallback handling once not needed
+                            // anymore.
+                            None => self
+                                .inner
+                                .get_dlc_channel_by_id(channel_id)?
+                                .get_reference_id()
+                                .context("missing reference id")?,
+                        };
+                        let protocol_id = ProtocolId::try_from(reference_id)?;
 
-                        let channel = self.inner.get_dlc_channel_by_id(&reject.channel_id)?;
+                        let protocol_executor =
+                            dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+                        protocol_executor.fail_dlc_protocol(protocol_id)?;
+
+                        let channel = self.inner.get_dlc_channel_by_id(channel_id)?;
                         let mut connection = self.pool.get()?;
 
                         match channel {
