@@ -1,3 +1,4 @@
+use crate::db;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::NotificationKind;
@@ -184,6 +185,8 @@ pub async fn process_new_limit_order(
     Ok(order)
 }
 
+// TODO(holzeis): This functions runs multiple inserts in separate db transactions. This should only
+// happen in a single transaction to ensure either all data or nothing is stored to the database.
 pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
@@ -307,6 +310,11 @@ pub async fn process_new_market_order(
         tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
 
         orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)
+            .map_err(|e| anyhow!("{e:#}"))?;
+    }
+
+    if let Some(channel_opening_params) = channel_opening_params {
+        db::channel_opening_params::insert(&mut conn, order.id, channel_opening_params)
             .map_err(|e| anyhow!("{e:#}"))?;
     }
 

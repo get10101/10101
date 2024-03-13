@@ -1,15 +1,6 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    channel_opening_params (order_id) {
-        order_id -> Text,
-        coordinator_reserve -> BigInt,
-        trader_reserve -> BigInt,
-        created_at -> BigInt,
-    }
-}
-
-diesel::table! {
     answered_polls (id) {
         id -> Integer,
         poll_id -> Integer,
@@ -152,7 +143,6 @@ diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 
 diesel::allow_tables_to_appear_in_same_query!(
     answered_polls,
-    channel_opening_params,
     channels,
     dlc_messages,
     ignored_polls,

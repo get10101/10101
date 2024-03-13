@@ -1,4 +1,5 @@
 use crate::check_version::check_version;
+use crate::db;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
@@ -122,6 +123,9 @@ async fn process_pending_match(
             tracing::error!("Failed to send notification. Error: {e:#}");
         }
 
+        let channel_opening_params =
+            db::channel_opening_params::get_by_order_id(&mut conn, order.id)?;
+
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node, notifier);
 
@@ -136,8 +140,8 @@ async fn process_pending_match(
                         direction: order.direction,
                         filled_with,
                     },
-                    trader_reserve: None,
-                    coordinator_reserve: None,
+                    trader_reserve: channel_opening_params.map(|c| c.trader_reserve),
+                    coordinator_reserve: channel_opening_params.map(|c| c.coordinator_reserve),
                 })
                 .await;
         });
