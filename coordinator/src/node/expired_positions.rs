@@ -98,6 +98,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
 
         let message = NewOrderMessage {
             new_order: new_order.clone(),
+            channel_opening_params: None,
             order_reason: OrderReason::Expired,
         };
 

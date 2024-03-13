@@ -5,15 +5,13 @@ use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
-use crate::node::storage::NodeStorage;
-use crate::node::NodeSettings;
+use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
-use crate::storage::CoordinatorTenTenOneStorage;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -27,8 +25,6 @@ use commons::Message;
 use commons::OrderState;
 use commons::TradeAndChannelParams;
 use commons::TradeParams;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
 use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -42,14 +38,11 @@ use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
-use ln_dlc_node::node;
 use ln_dlc_node::node::signed_channel_state_name;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use tokio::sync::RwLock;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_short_liquidation_price;
@@ -74,37 +67,13 @@ pub enum TradeAction {
 }
 
 pub struct TradeExecutor {
-    node: Arc<
-        node::Node<
-            bdk_file_store::Store<bdk::wallet::ChangeSet>,
-            CoordinatorTenTenOneStorage,
-            NodeStorage,
-        >,
-    >,
-    pool: Pool<ConnectionManager<PgConnection>>,
-    settings: Arc<RwLock<NodeSettings>>,
+    node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 impl TradeExecutor {
-    pub fn new(
-        node: Arc<
-            node::Node<
-                bdk_file_store::Store<bdk::wallet::ChangeSet>,
-                CoordinatorTenTenOneStorage,
-                NodeStorage,
-            >,
-        >,
-        pool: Pool<ConnectionManager<PgConnection>>,
-        settings: Arc<RwLock<NodeSettings>>,
-        notifier: mpsc::Sender<OrderbookMessage>,
-    ) -> Self {
-        Self {
-            node,
-            pool,
-            settings,
-            notifier,
-        }
+    pub fn new(node: Node, notifier: mpsc::Sender<OrderbookMessage>) -> Self {
+        Self { node, notifier }
     }
 
     pub async fn execute(&self, params: &TradeAndChannelParams) {
@@ -163,7 +132,7 @@ impl TradeExecutor {
     ///
     /// 3. If a position of differing quantity is found, we resize the position.
     async fn execute_internal(&self, params: &TradeAndChannelParams) -> Result<()> {
-        let mut connection = self.pool.get()?;
+        let mut connection = self.node.pool.get()?;
 
         let order_id = params.trade_params.filled_with.order_id;
         let trader_id = params.trade_params.pubkey;
@@ -299,6 +268,7 @@ impl TradeExecutor {
 
         let sats_per_vbyte = self
             .node
+            .inner
             .fee_rate_estimator
             .get(ConfirmationTarget::Normal)
             .as_sat_per_vb()
@@ -339,11 +309,12 @@ impl TradeExecutor {
 
         let (temporary_contract_id, temporary_channel_id) = self
             .node
+            .inner
             .propose_dlc_channel(contract_input, trade_params.pubkey, protocol_id.into())
             .await
             .context("Could not propose DLC channel")?;
 
-        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
@@ -469,6 +440,7 @@ impl TradeExecutor {
 
         let sats_per_vbyte = self
             .node
+            .inner
             .fee_rate_estimator
             .get(ConfirmationTarget::Normal)
             .as_sat_per_vb()
@@ -503,7 +475,7 @@ impl TradeExecutor {
         };
 
         let protocol_id = ProtocolId::new();
-        let channel = self.node.get_dlc_channel_by_id(&dlc_channel_id)?;
+        let channel = self.node.inner.get_dlc_channel_by_id(&dlc_channel_id)?;
         let previous_id = match channel.get_reference_id() {
             Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
             None => None,
@@ -511,11 +483,12 @@ impl TradeExecutor {
 
         let temporary_contract_id = self
             .node
+            .inner
             .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id.into())
             .await
             .context("Could not propose DLC channel update")?;
 
-        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
@@ -586,7 +559,7 @@ impl TradeExecutor {
         trade_params: &TradeParams,
         channel_id: DlcChannelId,
     ) -> Result<()> {
-        if !self.node.is_dlc_channel_confirmed(&channel_id)? {
+        if !self.node.inner.is_dlc_channel_confirmed(&channel_id)? {
             bail!("Underlying DLC channel not yet confirmed");
         }
 
@@ -594,8 +567,10 @@ impl TradeExecutor {
         let position_settlement_amount_coordinator =
             position.calculate_coordinator_settlement_amount(closing_price)?;
 
-        let collateral_reserve_coordinator =
-            self.node.get_dlc_channel_usable_balance(&channel_id)?;
+        let collateral_reserve_coordinator = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance(&channel_id)?;
         let dlc_channel_settlement_amount_coordinator =
             position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
 
@@ -611,14 +586,17 @@ impl TradeExecutor {
             "Closing position by settling DLC channel off-chain",
         );
 
-        let total_collateral = self.node.signed_dlc_channel_total_collateral(&channel_id)?;
+        let total_collateral = self
+            .node
+            .inner
+            .signed_dlc_channel_total_collateral(&channel_id)?;
 
         let settlement_amount_trader = total_collateral
             .to_sat()
             .checked_sub(dlc_channel_settlement_amount_coordinator)
             .unwrap_or_default();
 
-        let channel = self.node.get_dlc_channel_by_id(&channel_id)?;
+        let channel = self.node.inner.get_dlc_channel_by_id(&channel_id)?;
         let contract_id = channel.get_contract_id().context("missing contract id")?;
         let previous_id = match channel.get_reference_id() {
             Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
@@ -626,6 +604,7 @@ impl TradeExecutor {
         };
 
         self.node
+            .inner
             .propose_dlc_channel_collaborative_settlement(
                 &channel_id,
                 settlement_amount_trader,
@@ -633,7 +612,7 @@ impl TradeExecutor {
             )
             .await?;
 
-        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
@@ -659,7 +638,7 @@ impl TradeExecutor {
         match_state: MatchState,
         order_state: OrderState,
     ) -> Result<()> {
-        let mut connection = self.pool.get()?;
+        let mut connection = self.node.pool.get()?;
         connection
             .transaction(|connection| {
                 matches::set_match_state(connection, order_id, match_state)?;
@@ -680,17 +659,19 @@ impl TradeExecutor {
 
         let trade_action = match self
             .node
+            .inner
             .get_signed_dlc_channel_by_counterparty(&trader_id)?
         {
             None => {
                 ensure!(
-                    self.settings.read().await.allow_opening_positions,
+                    self.node.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
 
                 ensure!(
                     !self
                         .node
+                        .inner
                         .list_dlc_channels()?
                         .iter()
                         .filter(|c| c.get_counter_party_id() == to_secp_pk_29(trader_id))
@@ -711,7 +692,7 @@ impl TradeExecutor {
                 ..
             }) => {
                 ensure!(
-                    self.settings.read().await.allow_opening_positions,
+                    self.node.settings.read().await.allow_opening_positions,
                     "Opening positions is disabled"
                 );
 
@@ -754,7 +735,7 @@ impl TradeExecutor {
                     }
                 } else {
                     ensure!(
-                        self.settings.read().await.allow_opening_positions,
+                        self.node.settings.read().await.allow_opening_positions,
                         "Resizing positions is disabled"
                     );
 

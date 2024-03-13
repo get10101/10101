@@ -1,7 +1,9 @@
 use crate::message::OrderbookMessage;
+use crate::node::Node;
 use crate::notifications::NotificationKind;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
+use crate::trade::TradeExecutor;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -9,6 +11,7 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Network;
+use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use commons::Match;
 use commons::Message;
@@ -18,19 +21,19 @@ use commons::Order;
 use commons::OrderReason;
 use commons::OrderState;
 use commons::OrderType;
+use commons::TradeAndChannelParams;
 use commons::TradeParams;
 use commons::TradingError;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
+use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
 
@@ -41,6 +44,7 @@ const NEW_ORDERS_BUFFER_SIZE: usize = 100;
 pub struct NewOrderMessage {
     pub new_order: NewOrder,
     pub order_reason: OrderReason,
+    pub channel_opening_params: Option<ChannelOpeningParams>,
 }
 
 #[derive(Clone)]
@@ -60,7 +64,7 @@ pub struct TraderMatchParams {
 /// To feed messages to this task, the caller can use the corresponding
 /// [`mpsc::Sender<NewOrderMessage>`] returned.
 pub fn start(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     tx_price_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
@@ -73,11 +77,13 @@ pub fn start(
             tokio::spawn({
                 let tx_price_feed = tx_price_feed.clone();
                 let notifier = notifier.clone();
-                let pool = pool.clone();
+                let node = node.clone();
                 async move {
                     let new_order = new_order_msg.new_order;
                     let trader_id = new_order.trader_id;
                     let order_id = new_order.id;
+                    let order_reason = new_order_msg.order_reason;
+                    let channel_opening_params = new_order_msg.channel_opening_params;
 
                     tracing::trace!(
                         %trader_id,
@@ -89,21 +95,22 @@ pub fn start(
                     if let Err(error) = match new_order.order_type {
                         OrderType::Market => {
                             process_new_market_order(
-                                pool,
+                                node,
                                 notifier.clone(),
                                 new_order,
-                                new_order_msg.order_reason,
+                                order_reason,
                                 network,
                                 oracle_pk,
+                                channel_opening_params
                             )
                             .await
                         }
                         OrderType::Limit => {
                             process_new_limit_order(
-                                pool,
+                                node,
                                 tx_price_feed,
                                 new_order,
-                                new_order_msg.order_reason,
+                                order_reason,
                             )
                             .await
                         }
@@ -135,12 +142,12 @@ pub fn start(
 }
 
 pub async fn process_new_limit_order(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     tx_price_feed: broadcast::Sender<Message>,
     new_order: NewOrder,
     order_reason: OrderReason,
 ) -> Result<Order, TradingError> {
-    let mut conn = spawn_blocking(move || pool.get())
+    let mut conn = spawn_blocking(move || node.pool.get())
         .await
         .expect("task to complete")
         .map_err(|e| anyhow!("{e:#}"))?;
@@ -178,17 +185,21 @@ pub async fn process_new_limit_order(
 }
 
 pub async fn process_new_market_order(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
     new_order: NewOrder,
     order_reason: OrderReason,
     network: Network,
     oracle_pk: XOnlyPublicKey,
+    channel_opening_params: Option<ChannelOpeningParams>,
 ) -> Result<Order, TradingError> {
-    let mut conn = spawn_blocking(move || pool.get())
-        .await
-        .expect("task to complete")
-        .map_err(|e| anyhow!("{e:#}"))?;
+    let mut conn = spawn_blocking({
+        let node = node.clone();
+        move || node.pool.get()
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| anyhow!("{e:#}"))?;
 
     let order = orders::insert(&mut conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!(e))
@@ -297,6 +308,37 @@ pub async fn process_new_market_order(
 
         orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)
             .map_err(|e| anyhow!("{e:#}"))?;
+    }
+
+    if node.inner.is_connected(order.trader_id) {
+        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, "Executing trade for match");
+        let trade_executor = TradeExecutor::new(node.clone(), notifier);
+
+        tokio::spawn(async move {
+            trade_executor
+                .execute(&TradeAndChannelParams {
+                    trade_params: TradeParams {
+                        pubkey: order.trader_id,
+                        contract_symbol: ContractSymbol::BtcUsd,
+                        leverage: order.leverage,
+                        quantity: order.quantity.to_f32().expect("to fit into f32"),
+                        direction: order.direction,
+                        filled_with: matched_orders.taker_match.filled_with,
+                    },
+                    trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
+                    coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
+                })
+                .await;
+        });
+    } else {
+        match order.order_reason {
+            OrderReason::Manual => {
+                tracing::warn!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
+            }
+            OrderReason::Expired => {
+                tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
+            }
+        }
     }
 
     Ok(order)

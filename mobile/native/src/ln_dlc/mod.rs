@@ -42,7 +42,6 @@ use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
 use commons::CollaborativeRevertTraderResponse;
-use commons::TradeAndChannelParams;
 use dlc::PartyParams;
 use dlc_manager::channel::Channel as DlcChannel;
 use itertools::chain;
@@ -109,17 +108,6 @@ const WALLET_DB_FILE_NAME: &str = "bdk-wallet";
 /// We hard-code the prefix so that we can always be sure that we are loading the correct file on
 /// start-up.
 const WALLET_DB_PREFIX: &str = "10101-app";
-
-/// Extra information required to open a DLC channel, independent of the [`TradeParams`] associated
-/// with the filled order.
-///
-/// [`TradeParams`]: commons::TradeParams
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ChannelOpeningParams {
-    pub order_id: Uuid,
-    pub coordinator_reserve: Amount,
-    pub trader_reserve: Amount,
-}
 
 /// Trigger an on-chain sync followed by an update to the wallet balance and history.
 ///
@@ -1002,37 +990,6 @@ pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Resul
     };
 
     Ok(fee)
-}
-
-pub async fn trade(
-    trade_params: TradeAndChannelParams,
-) -> Result<(), (FailureReason, anyhow::Error)> {
-    let client = reqwest_client();
-    let response = client
-        .post(format!("http://{}/api/trade", config::get_http_endpoint()))
-        .json(&trade_params)
-        .send()
-        .await
-        .context("Failed to send trade request to coordinator")
-        .map_err(|e| (FailureReason::TradeRequest, e))?;
-
-    if !response.status().is_success() {
-        let response_text = match response.text().await {
-            Ok(text) => text,
-            Err(err) => {
-                format!("could not decode response {err:#}")
-            }
-        };
-        return Err((
-            // TODO(bonomat): extract the error message
-            FailureReason::TradeResponse(response_text.clone()),
-            anyhow!("Coordinator failed to handle our trade request: {response_text}"),
-        ));
-    }
-
-    tracing::info!("Sent trade request to coordinator successfully");
-
-    Ok(())
 }
 
 /// initiates the rollover protocol with the coordinator

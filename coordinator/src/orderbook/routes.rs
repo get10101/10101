@@ -96,6 +96,7 @@ pub async fn post_order(
     }
     let message = NewOrderMessage {
         new_order,
+        channel_opening_params: new_order_request.channel_opening_params,
         order_reason: OrderReason::Manual,
     };
     state.trading_sender.send(message).await.map_err(|e| {

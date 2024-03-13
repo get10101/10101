@@ -1,7 +1,9 @@
 use crate::check_version::check_version;
 use crate::message::OrderbookMessage;
+use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
+use crate::trade::TradeExecutor;
 use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -13,20 +15,21 @@ use commons::Matches;
 use commons::Message;
 use commons::OrderReason;
 use commons::OrderState;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
+use commons::TradeAndChannelParams;
+use commons::TradeParams;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use ln_dlc_node::node::event::NodeEvent;
+use rust_decimal::prelude::ToPrimitive;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
+use trade::ContractSymbol;
 
 pub fn monitor(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     mut receiver: broadcast::Receiver<NodeEvent>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
@@ -38,14 +41,14 @@ pub fn monitor(
                 Ok(NodeEvent::Connected { peer: trader_id }) => {
                     tokio::spawn({
                         let notifier = notifier.clone();
-                        let pool = pool.clone();
+                        let node = node.clone();
                         async move {
                             tracing::debug!(
                                 %trader_id,
                                 "Checking if the user needs to be notified about pending matches"
                             );
                             if let Err(e) =
-                                process_pending_match(pool, notifier, trader_id, network, oracle_pk)
+                                process_pending_match(node, notifier, trader_id, network, oracle_pk)
                                     .await
                             {
                                 tracing::error!("Failed to process pending match. Error: {e:#}");
@@ -73,15 +76,18 @@ pub fn monitor(
 
 /// Checks if there are any pending matches
 async fn process_pending_match(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
     trader_id: PublicKey,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<()> {
-    let mut conn = spawn_blocking(move || pool.get())
-        .await
-        .expect("task to complete")?;
+    let mut conn = spawn_blocking({
+        let node = node.clone();
+        move || node.pool.get()
+    })
+    .await
+    .expect("task to complete")?;
 
     if check_version(&mut conn, &trader_id).is_err() {
         tracing::info!(%trader_id, "User is not on the latest version. Skipping check if user needs to be informed about pending matches.");
@@ -97,8 +103,11 @@ async fn process_pending_match(
         let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {
-            OrderReason::Manual => Message::Match(filled_with),
-            OrderReason::Expired => Message::AsyncMatch { order, filled_with },
+            OrderReason::Manual => Message::Match(filled_with.clone()),
+            OrderReason::Expired => Message::AsyncMatch {
+                order: order.clone(),
+                filled_with: filled_with.clone(),
+            },
         };
 
         // Sending no optional push notification as this is only executed if the user just
@@ -112,6 +121,26 @@ async fn process_pending_match(
         if let Err(e) = notifier.send(msg).await {
             tracing::error!("Failed to send notification. Error: {e:#}");
         }
+
+        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, "Executing trade for match");
+        let trade_executor = TradeExecutor::new(node, notifier);
+
+        tokio::spawn(async move {
+            trade_executor
+                .execute(&TradeAndChannelParams {
+                    trade_params: TradeParams {
+                        pubkey: trader_id,
+                        contract_symbol: ContractSymbol::BtcUsd,
+                        leverage: order.leverage,
+                        quantity: order.quantity.to_f32().expect("to fit into f32"),
+                        direction: order.direction,
+                        filled_with,
+                    },
+                    trader_reserve: None,
+                    coordinator_reserve: None,
+                })
+                .await;
+        });
     }
 
     Ok(())

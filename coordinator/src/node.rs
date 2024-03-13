@@ -1,17 +1,14 @@
 use crate::db;
 use crate::dlc_protocol;
 use crate::dlc_protocol::ProtocolId;
-use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
 use crate::trade::websocket::InternalPositionUpdateMessage;
-use crate::trade::TradeExecutor;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::TradeAndChannelParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -35,7 +32,6 @@ use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::RunningNode;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
 pub mod expired_positions;
@@ -61,7 +57,7 @@ pub struct Node {
     >,
     _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
-    settings: Arc<RwLock<NodeSettings>>,
+    pub settings: Arc<RwLock<NodeSettings>>,
     tx_position_feed: Sender<InternalPositionUpdateMessage>,
 }
 
@@ -95,25 +91,6 @@ impl Node {
             .get_peer_node_ids()
             .iter()
             .any(|(id, _)| *id == to_secp_pk_29(peer_id))
-    }
-
-    pub async fn trade(
-        &self,
-        notifier: mpsc::Sender<OrderbookMessage>,
-        params: TradeAndChannelParams,
-    ) -> Result<()> {
-        let trade_executor = TradeExecutor::new(
-            self.inner.clone(),
-            self.pool.clone(),
-            self.settings.clone(),
-            notifier,
-        );
-
-        tokio::spawn(async move {
-            trade_executor.execute(&params).await;
-        });
-
-        Ok(())
     }
 
     pub fn process_incoming_dlc_messages(&self) {
