@@ -126,7 +126,7 @@ async fn process_pending_match(
         let channel_opening_params =
             db::channel_opening_params::get_by_order_id(&mut conn, order.id)?;
 
-        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, "Executing trade for match");
+        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node, notifier);
 
         tokio::spawn(async move {

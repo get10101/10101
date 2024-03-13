@@ -319,7 +319,7 @@ pub async fn process_new_market_order(
     }
 
     if node.inner.is_connected(order.trader_id) {
-        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, "Executing trade for match");
+        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), notifier);
 
         tokio::spawn(async move {
