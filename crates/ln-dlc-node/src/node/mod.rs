@@ -480,6 +480,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             self.wallet.clone(),
         ));
 
+        // TODO: Remove once all pending production subchannels are gone.
         tokio::spawn(periodic_lightning_wallet_sync(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
@@ -492,6 +493,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             self.fee_rate_estimator.clone(),
         ));
 
+        // TODO: Remove once all pending production subchannels are gone.
         handles.push(spawn_background_processor(
             self.peer_manager.clone(),
             self.channel_manager.clone(),
@@ -504,6 +506,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             mobile_interruptable_platform,
         ));
 
+        // TODO: Remove once all pending production subchannels are gone.
         handles.push(manage_sub_channels(self.sub_channel_manager.clone()));
 
         tokio::spawn(manage_spendable_outputs_task::<D, N>(
