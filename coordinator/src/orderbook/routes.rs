@@ -146,7 +146,7 @@ pub async fn delete_order(
     let order = orderbook::db::orders::delete(&mut conn, order_id)
         .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
     let sender = state.tx_price_feed.clone();
-    update_pricefeed(Message::Update(order.clone()), sender);
+    update_pricefeed(Message::DeleteOrder(order_id), sender);
 
     Ok(Json(order))
 }
