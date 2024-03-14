@@ -6,6 +6,7 @@ use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
+use crate::notifications::NotificationKind;
 use crate::position::models::PositionState;
 use anyhow::bail;
 use anyhow::Context;
@@ -170,41 +171,58 @@ impl Node {
             return Ok(());
         }
 
-        if let Some(position) = positions::Position::get_position_by_trader(
+        let position = match positions::Position::get_position_by_trader(
             &mut conn,
             trader_id,
             vec![PositionState::Open, PositionState::Rollover],
         )? {
-            let signed_channel = self
-                .inner
-                .get_signed_channel_by_trader_id(position.trader)?;
+            Some(position) => position,
+            None => return Ok(()),
+        };
 
-            let contract_id = signed_channel.get_contract_id();
+        self.check_rollover(
+            position.trader,
+            position.expiry_timestamp,
+            network,
+            &notifier,
+            None,
+        )
+        .await
+    }
 
-            if commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
-                && !position.is_expired()
-            {
-                let next_expiry =
-                    commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-                if position.expiry_timestamp == next_expiry {
-                    tracing::trace!(%trader_id, position_id=position.id, "Position has already been rolled over");
-                    return Ok(());
-                }
+    pub async fn check_rollover(
+        &self,
+        trader_id: PublicKey,
+        expiry_timestamp: OffsetDateTime,
+        network: Network,
+        notifier: &mpsc::Sender<OrderbookMessage>,
+        notification: Option<NotificationKind>,
+    ) -> Result<()> {
+        let signed_channel = self.inner.get_signed_channel_by_trader_id(trader_id)?;
 
-                tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover user's position");
+        let contract_id = signed_channel.get_contract_id();
 
-                let message = OrderbookMessage::TraderMessage {
-                    trader_id,
-                    message: Message::Rollover(contract_id.map(hex::encode)),
-                    // Ignore push notifying the user for that message as this is anyways only
-                    // triggered when the user just connected to the websocket
-                    // and we have a separate task that is push notifying the
-                    // user if the rollover window is about to start.
-                    notification: None,
-                };
-                if let Err(e) = notifier.send(message).await {
-                    tracing::debug!("Failed to notify trader. Error: {e:#}");
-                }
+        if commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
+            // not expired
+            && OffsetDateTime::now_utc() < expiry_timestamp
+        {
+            let next_expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+            if expiry_timestamp >= next_expiry {
+                tracing::trace!(%trader_id, "Position has already been rolled over");
+                return Ok(());
+            }
+
+            tracing::debug!(%trader_id, "Notifying user about rollover");
+
+            let message = OrderbookMessage::TraderMessage {
+                trader_id,
+                message: Message::Rollover(contract_id.map(hex::encode)),
+                notification,
+            };
+
+            if let Err(e) = notifier.send(message).await {
+                tracing::debug!("Failed to notify trader. Error: {e:#}");
+            }
             }
         }
 

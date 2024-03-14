@@ -4,12 +4,9 @@ use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
-use crate::position::models::Position;
 use crate::settings::Settings;
-use anyhow::anyhow;
 use anyhow::Result;
 use bitcoin::Network;
-use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -165,10 +162,17 @@ fn build_rollover_notification_job(
                 let node = node.clone();
                 async move {
                     for position in positions {
-                        if let Err(e) =
-                            send_rollover_reminder(&notifier, &node, &position, &notification).await
+                        if let Err(e) = node
+                            .check_rollover(
+                                position.trader,
+                                position.expiry_timestamp,
+                                node.inner.network,
+                                &notifier,
+                                Some(notification.clone()),
+                            )
+                            .await
                         {
-                            tracing::error!(trader_id=%position.trader, "Failed to notify trader to rollover. {e:#}");
+                            tracing::error!(trader_id=%position.trader, "Failed to check rollover. {e:#}");
                         }
                     }
                 }
@@ -178,28 +182,6 @@ fn build_rollover_notification_job(
             }),
         }
     })
-}
-
-async fn send_rollover_reminder(
-    notifier: &mpsc::Sender<OrderbookMessage>,
-    node: &Node,
-    position: &Position,
-    notification: &NotificationKind,
-) -> Result<()> {
-    let trader_id = position.trader;
-    tracing::debug!(%trader_id, "Sending rollover reminder.");
-
-    let signed_channel = node.inner.get_signed_channel_by_trader_id(trader_id)?;
-
-    tracing::debug!(%trader_id, position_id=position.id, "Proposing to rollover user's position");
-
-    let message = OrderbookMessage::TraderMessage {
-        trader_id,
-        message: Message::Rollover(signed_channel.get_contract_id().map(hex::encode)),
-        notification: Some(notification.clone()),
-    };
-
-    notifier.send(message).await.map_err(|e| anyhow!("{e:#}"))
 }
 
 fn build_remind_to_close_expired_position_notification_job(
