@@ -16,7 +16,9 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
+use dlc_manager::DlcChannelId;
 use dlc_manager::Storage;
+use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::node::NodeInfo;
 use rust_decimal::prelude::FromPrimitive;
@@ -514,6 +516,31 @@ pub async fn is_connected(
     })?;
 
     Ok(Json(state.node.is_connected(target)))
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn rollover(
+    State(state): State<Arc<AppState>>,
+    Path(dlc_channel_id): Path<String>,
+) -> Result<(), AppError> {
+    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
+        AppError::InternalServerError(format!(
+            "Could not decode dlc channel id from {dlc_channel_id}: {e:#}"
+        ))
+    })?;
+
+    state
+        .node
+        .propose_rollover(&dlc_channel_id, state.node.inner.network)
+        .await
+        .map_err(|e| {
+            AppError::InternalServerError(format!(
+                "Failed to rollover dlc channel with id {}: {e:#}",
+                hex::encode(dlc_channel_id)
+            ))
+        })?;
+
+    Ok(())
 }
 
 impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {

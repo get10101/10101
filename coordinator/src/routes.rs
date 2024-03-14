@@ -10,6 +10,7 @@ use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
 use crate::admin::roll_back_dlc_channel;
+use crate::admin::rollover;
 use crate::admin::sign_message;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
@@ -68,8 +69,6 @@ use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use dlc_manager::DlcChannelId;
-use hex::FromHex;
 use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
@@ -164,13 +163,13 @@ pub fn router(
             get(get_order).put(put_order).delete(delete_order),
         )
         .route("/api/orderbook/websocket", get(websocket_handler))
-        .route("/api/rollover/:dlc_channel_id", post(rollover))
         // Deprecated: we just keep it for backwards compatbility as otherwise old apps won't
         // pass registration
         .route("/api/register", post(post_register))
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
+        .route("/api/admin/rollover/:dlc_channel_id", post(rollover))
         .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/wallet/utxos", get(get_utxos))
         .route("/api/admin/channels/:channel_id", delete(close_channel))
@@ -251,31 +250,6 @@ pub async fn get_node_info(
 ) -> Result<Json<NodeInfo>, AppError> {
     let node_info = app_state.node.inner.info;
     Ok(Json(node_info))
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn rollover(
-    State(state): State<Arc<AppState>>,
-    Path(dlc_channel_id): Path<String>,
-) -> Result<(), AppError> {
-    let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
-        AppError::InternalServerError(format!(
-            "Could not decode dlc channel id from {dlc_channel_id}: {e:#}"
-        ))
-    })?;
-
-    state
-        .node
-        .propose_rollover(&dlc_channel_id, state.node.inner.network)
-        .await
-        .map_err(|e| {
-            AppError::InternalServerError(format!(
-                "Failed to rollover dlc channel with id {}: {e:#}",
-                hex::encode(dlc_channel_id)
-            ))
-        })?;
-
-    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
