@@ -33,6 +33,8 @@ class OrderListItem extends StatelessWidget {
       OrderState.rejected => const Icon(Icons.error, color: Colors.red, size: iconSize),
     };
 
+    NumberFormat priceFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+
     return Column(
       children: [
         Card(
@@ -77,7 +79,10 @@ class OrderListItem extends StatelessWidget {
                 textWidthBasis: TextWidthBasis.longestLine,
                 text: TextSpan(style: DefaultTextStyle.of(context).style, children: <TextSpan>[
                   const TextSpan(text: "@ ", style: TextStyle(color: Colors.grey)),
-                  TextSpan(text: "${order.executionPrice ?? "Market Price"}")
+                  TextSpan(
+                      text: order.executionPrice != null
+                          ? priceFormatter.format(order.executionPrice)
+                          : "Market Price")
                 ])),
           ),
         ),
