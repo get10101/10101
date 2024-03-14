@@ -185,6 +185,17 @@ async fn main() -> Result<()> {
                     tracing::info!("On-chain sync failed: {e:#}");
                 }
 
+                spawn_blocking({
+                    let node = node.clone();
+                    move || {
+                        if let Err(e) = node.inner.dlc_manager.periodic_check() {
+                            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+                        }
+                    }
+                })
+                .await
+                .expect("task to complete");
+
                 tokio::time::sleep(interval).await;
             }
         }

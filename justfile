@@ -135,7 +135,6 @@ run-mainnet args="":
         --dart-define="ORACLE_ENDPOINT=http://oracle.10101.finance" \
         --dart-define="NETWORK=mainnet" \
         --dart-define="ORACLE_PUBKEY=93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0" \
-        --dart-define="RGS_SERVER_URL=https://rapidsync.lightningdevkit.org/snapshot"
 
 # Specify correct Android flavor to run against our public regtest server
 run-regtest-android args="":
@@ -470,7 +469,6 @@ build-ipa args="":
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
            --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
            --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
-           --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
            --build-number=${BUILD_NUMBER} \
            {{args}}
 
@@ -558,7 +556,6 @@ build-android-app-bundle:
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
-      --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
        "${flavor_arg[@]}"
 
 build-android-app-apk args="":
@@ -591,7 +588,6 @@ build-android-app-apk args="":
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
-      --dart-define="RGS_SERVER_URL=${RGS_SERVER_URL}" \
        "${flavor_arg[@]}"
 
 upload-app-bundle:

@@ -2364,7 +2364,6 @@ dependencies = [
  "lightning-background-processor",
  "lightning-invoice",
  "lightning-persister",
- "lightning-rapid-gossip-sync",
  "lightning-transaction-sync",
  "ln-dlc-storage",
  "log",

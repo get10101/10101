@@ -132,6 +132,5 @@ fn test_config() -> native::config::api::Config {
         oracle_pubkey: "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
             .to_string(),
         health_check_interval_secs: 1, // We want to measure health more often in tests
-        rgs_server_url: None,
     }
 }
