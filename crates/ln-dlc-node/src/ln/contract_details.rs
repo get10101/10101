@@ -10,8 +10,8 @@ pub struct ContractDetails {
     #[serde(serialize_with = "contract_id_as_hex")]
     pub temporary_contract_id: ContractId,
     pub contract_state: ContractState,
-    pub offered_collateral_sats: Option<u64>,
-    pub accepted_collateral_sats: Option<u64>,
+    pub offered_funding_sats: Option<u64>,
+    pub accepted_funding_sats: Option<u64>,
     pub fee_rate_per_vb: Option<u64>,
     pub event_id: Option<String>,
 }
@@ -34,8 +34,8 @@ impl From<Contract> for ContractDetails {
     fn from(contract: Contract) -> Self {
         let (
             contract_state,
-            offered_collateral_sats,
-            accepted_collateral_sats,
+            offered_funding_sats,
+            accepted_funding_sats,
             fee_rate_per_vb,
             event_id,
         ) = match &contract {
@@ -174,8 +174,8 @@ impl From<Contract> for ContractDetails {
             contract_id: contract.get_id(),
             temporary_contract_id: contract.get_temporary_id(),
             contract_state,
-            offered_collateral_sats,
-            accepted_collateral_sats,
+            offered_funding_sats,
+            accepted_funding_sats,
             fee_rate_per_vb,
             event_id: event_id.flatten(),
         }
