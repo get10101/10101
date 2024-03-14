@@ -259,12 +259,8 @@ pub fn get_storage() -> TenTenOneNodeStorage {
 
 /// Start the node
 ///
-/// Allows specifying a data directory and a seed directory to decouple
-/// data and seed storage (e.g. data is useful for debugging, seed location
-/// should be more protected).
-pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
-    let network = config::get_network();
-
+/// Assumes that the seed has already been initialized
+pub fn run(runtime: &Runtime) -> Result<()> {
     runtime.block_on(async move {
         event::publish(&EventInternal::Init("Starting full ldk node".to_string()));
 
@@ -277,11 +273,6 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             let listener = TcpListener::bind("0.0.0.0:0")?;
             listener.local_addr().expect("To get a free local address")
         };
-
-        let seed_dir = Path::new(&seed_dir).join(network.to_string());
-        let seed_path = seed_dir.join("seed");
-        let seed = Bip39Seed::initialize(&seed_path)?;
-        state::set_seed(seed.clone());
 
         let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
 
@@ -301,7 +292,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
         let node = ln_dlc_node::node::Node::new(
             app_config(),
             "10101",
-            network,
+            config::get_network(),
             Path::new(&storage.data_dir),
             storage.clone(),
             node_storage,
@@ -309,7 +300,7 @@ pub fn run(seed_dir: String, runtime: &Runtime) -> Result<()> {
             address,
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
             config::get_electrs_endpoint(),
-            seed,
+            state::get_seed(),
             ephemeral_randomness,
             ln_dlc_node_settings(),
             vec![config::get_oracle_info().into()],

@@ -37,10 +37,12 @@ use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
+use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
 use std::fmt;
+use std::path::Path;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -489,23 +491,24 @@ fn run_internal(
     db::init_db(&config::get_data_dir(), get_network())?;
 
     let runtime = crate::state::get_or_create_tokio_runtime()?;
-    ln_dlc::run(seed_dir, runtime)?;
+
+    let seed_dir = Path::new(&seed_dir).join(get_network().to_string());
+    let seed_path = seed_dir.join("seed");
+    let seed = Bip39Seed::initialize(&seed_path)?;
+
+    crate::state::set_seed(seed.clone());
 
     let (_health, tx) = health::Health::new(runtime);
 
-    // TODO(holzeis): We should probably subscribe to the websocket before starting the node, as
-    // async matches are send via the websocket connection after the trader connected on the p2p
-    // connection.
-    // Note, at the moment the rollover is still acting on the websocket connection instead of the
-    // p2p connection. Once this has been fixed we can safely connect the websocket before starting
-    // the ndoe.
     orderbook::subscribe(
         ln_dlc::get_node_key(),
         runtime,
         tx.orderbook,
         fcm_token,
         tx_websocket,
-    )
+    )?;
+
+    ln_dlc::run(runtime)
 }
 
 pub fn get_new_address() -> Result<String> {
