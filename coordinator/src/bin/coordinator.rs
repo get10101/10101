@@ -269,7 +269,7 @@ async fn main() -> Result<()> {
     );
     let _handle = rollover::monitor(
         pool.clone(),
-        tx_user_feed.clone(),
+        node_event_handler.subscribe(),
         auth_users_notifier.clone(),
         network,
         node.clone(),
