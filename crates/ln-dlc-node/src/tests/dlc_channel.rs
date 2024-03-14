@@ -12,6 +12,7 @@ use crate::tests::new_reference_id;
 use crate::tests::wait_until;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::signed_channel::SignedChannelStateType;
 use dlc_manager::contract::Contract;
 use dlc_manager::Storage;
@@ -215,7 +216,7 @@ async fn can_open_and_collaboratively_close_channel() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]
-async fn can_open_and_force_close_channel() {
+async fn can_open_and_force_close_settled_channel() {
     init_tracing();
 
     let ((app, _running_app), (coordinator, _running_coordinator), _, coordinator_signed_channel) =
@@ -244,19 +245,21 @@ async fn can_open_and_force_close_channel() {
         .unwrap();
 
     wait_until(Duration::from_secs(10), || async {
-        mine(1).await.unwrap();
-
         let dlc_channels = coordinator
             .dlc_manager
             .get_store()
             .get_signed_channels(None)?;
-        Ok(dlc_channels.is_empty().then_some(()))
+
+        Ok(dlc_channels
+            .iter()
+            .find(|dlc_channel| {
+                dlc_channel.counter_party == to_secp_pk_29(app.info.pubkey)
+                    && matches!(dlc_channel.state, SignedChannelState::SettledClosing { .. })
+            })
+            .cloned())
     })
     .await
     .unwrap();
-
-    // TODO: we could also test that the DLCs are being spent, but for that we would need a TARDIS
-    // or similar
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -280,7 +283,7 @@ async fn funding_transaction_pays_expected_fees() {
 
     // Act
 
-    let (app_signed_channel, _) = open_channel_and_position(
+    let (app_signed_channel, _) = open_channel_and_position_and_settle_position(
         app.clone(),
         coordinator.clone(),
         app_dlc_collateral,
@@ -334,7 +337,7 @@ async fn dlc_channel_includes_expected_fee_reserve() {
     let (coordinator, _running_coordinator) =
         start_and_fund_coordinator(coordinator_dlc_collateral * 2, 1).await;
 
-    let (app_signed_channel, _) = open_channel_and_position(
+    let (app_signed_channel, _) = open_channel_and_position_and_settle_position(
         app.clone(),
         coordinator.clone(),
         app_dlc_collateral,
@@ -404,14 +407,15 @@ async fn set_up_channel_with_position() -> (
     let (coordinator, running_coordinator) =
         start_and_fund_coordinator(Amount::from_sat(10_000_000), 10).await;
 
-    let (app_signed_channel, coordinator_signed_channel) = open_channel_and_position(
-        app.clone(),
-        coordinator.clone(),
-        app_dlc_collateral,
-        coordinator_dlc_collateral,
-        None,
-    )
-    .await;
+    let (app_signed_channel, coordinator_signed_channel) =
+        open_channel_and_position_and_settle_position(
+            app.clone(),
+            coordinator.clone(),
+            app_dlc_collateral,
+            coordinator_dlc_collateral,
+            None,
+        )
+        .await;
 
     (
         (app, running_app),
@@ -421,7 +425,7 @@ async fn set_up_channel_with_position() -> (
     )
 }
 
-async fn open_channel_and_position(
+async fn open_channel_and_position_and_settle_position(
     app: Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
     coordinator: Arc<
         Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>,

@@ -1,32 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/settings/dlc_channel.dart';
 
-class SubchannelStateLabel extends StatelessWidget {
+class SignedChannelStateLabel extends StatelessWidget {
   final DlcChannel? channel;
 
-  const SubchannelStateLabel({Key? key, this.channel}) : super(key: key);
+  const SignedChannelStateLabel({Key? key, this.channel}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     Widget label = _buildLabel("Unknown state", Colors.green.shade300);
-    if (channel != null && channel!.subchannelState != null) {
-      switch (channel!.subchannelState) {
-        case SubchannelState.established:
-        case SubchannelState.settled:
+    if (channel != null && channel!.signedChannelState != null) {
+      switch (channel!.signedChannelState) {
+        case SignedChannelState.established:
+        case SignedChannelState.settled:
           label = _buildLabel("Active", Colors.green.shade300);
           break;
-        case SubchannelState.settledOffered:
-        case SubchannelState.settledReceived:
-        case SubchannelState.settledAccepted:
-        case SubchannelState.settledConfirmed:
-        case SubchannelState.renewOffered:
-        case SubchannelState.renewAccepted:
-        case SubchannelState.renewConfirmed:
-        case SubchannelState.renewFinalized:
+        case SignedChannelState.settledOffered:
+        case SignedChannelState.settledReceived:
+        case SignedChannelState.settledAccepted:
+        case SignedChannelState.settledConfirmed:
+        case SignedChannelState.renewOffered:
+        case SignedChannelState.renewAccepted:
+        case SignedChannelState.renewConfirmed:
+        case SignedChannelState.renewFinalized:
           label = _buildLabel("Pending", Colors.green.shade300);
           break;
-        case SubchannelState.closing:
-        case SubchannelState.collaborativeCloseOffered:
+        case SignedChannelState.closing:
+        case SignedChannelState.collaborativeCloseOffered:
           label = _buildLabel("Closing", Colors.orange.shade300);
           break;
         case null:

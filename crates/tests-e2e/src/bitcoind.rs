@@ -29,6 +29,8 @@ impl Bitcoind {
 
     /// Instructs `bitcoind` to generate to address.
     pub async fn mine(&self, n: u16) -> Result<()> {
+        tracing::info!(n, "Mining blocks");
+
         let response: GetNewAddressResponse = self
             .client
             .post(&self.host)

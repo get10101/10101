@@ -115,6 +115,8 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
         return ChannelStatus.renewing;
       case SignedChannelState.closing:
         return ChannelStatus.notOpen;
+      case SignedChannelState.settledClosing:
+        return ChannelStatus.notOpen;
       case SignedChannelState.collaborativeCloseOffered:
         return ChannelStatus.unknown;
     }

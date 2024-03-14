@@ -37,6 +37,12 @@ impl Coordinator {
         Ok(())
     }
 
+    pub async fn get_balance(&self) -> Result<Balance> {
+        let balance = self.get("/api/admin/wallet/balance").await?.json().await?;
+
+        Ok(balance)
+    }
+
     pub async fn get_new_address(&self) -> Result<Address<NetworkUnchecked>> {
         Ok(self.get("/api/newaddress").await?.text().await?.parse()?)
     }
@@ -90,6 +96,12 @@ impl Coordinator {
             .error_for_status()
             .context("Coordinator did not return 200 OK")
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Balance {
+    pub onchain: u64,
+    pub dlc_channel: u64,
 }
 
 #[derive(Deserialize, Debug)]

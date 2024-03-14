@@ -43,6 +43,9 @@ impl From<&Channel> for DlcChannel {
                 buffer_txid: c.buffer_transaction.txid().to_string(),
                 contract_id: hex::encode(c.contract_id),
             },
+            Channel::SettledClosing(c) => ChannelState::SettledClosing {
+                settle_txid: c.claim_transaction.txid().to_string(),
+            },
             Channel::Closed(c) => ChannelState::Closed {
                 closing_txid: c.closing_txid.to_string()
             },
@@ -82,11 +85,13 @@ impl From<&dlc_manager::channel::signed_channel::SignedChannelState> for SignedC
             dlc_manager::channel::signed_channel::SignedChannelState::RenewFinalized { .. } => SignedChannelState::RenewFinalized,
             dlc_manager::channel::signed_channel::SignedChannelState::Closing { .. } => SignedChannelState::Closing,
             dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered { .. } => SignedChannelState::CollaborativeCloseOffered,
+            dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing { .. } => SignedChannelState::SettledClosing,
         }
     }
 }
 
 #[frb]
+#[derive(Debug)]
 pub enum ChannelState {
     Offered {
         contract_id: String,
@@ -104,6 +109,9 @@ pub enum ChannelState {
     Closing {
         contract_id: String,
         buffer_txid: String,
+    },
+    SettledClosing {
+        settle_txid: String,
     },
     Closed {
         closing_txid: String,
@@ -123,6 +131,7 @@ pub enum ChannelState {
 }
 
 #[frb]
+#[derive(Debug)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
@@ -130,6 +139,7 @@ pub enum SignedChannelState {
     SettledAccepted,
     SettledConfirmed,
     Settled,
+    SettledClosing,
     RenewOffered,
     RenewAccepted,
     RenewConfirmed,

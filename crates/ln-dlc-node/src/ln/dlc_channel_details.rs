@@ -35,6 +35,7 @@ pub enum SignedChannelState {
     RenewFinalized,
     Closing,
     CollaborativeCloseOffered,
+    SettledClosing,
 }
 
 #[derive(Serialize, Debug, Eq, Ord, PartialOrd, PartialEq)]
@@ -43,6 +44,7 @@ pub enum ChannelState {
     Accepted,
     Signed,
     Closing,
+    SettledClosing,
     Closed,
     CounterClosed,
     ClosedPunished,
@@ -123,6 +125,7 @@ impl From<Channel> for ChannelState {
             Channel::Accepted(_) => ChannelState::Accepted,
             Channel::Signed(_) => ChannelState::Signed,
             Channel::Closing(_) => ChannelState::Closing,
+            Channel::SettledClosing(_) => ChannelState::SettledClosing,
             Channel::Closed(_) => ChannelState::Closed,
             Channel::CounterClosed(_) => ChannelState::CounterClosed,
             Channel::ClosedPunished(_) => ChannelState::ClosedPunished,
@@ -150,6 +153,7 @@ impl From<dlc_manager::channel::signed_channel::SignedChannelState> for SignedCh
             RenewFinalized { .. } => SignedChannelState::RenewFinalized,
             Closing { .. } => SignedChannelState::Closing,
             CollaborativeCloseOffered { .. } => SignedChannelState::CollaborativeCloseOffered,
+            SettledClosing { .. } => SignedChannelState::SettledClosing,
         }
     }
 }

@@ -103,8 +103,8 @@ class OpenPositionTable extends StatelessWidget {
                         position.expiry.isAfter(DateTime.now()) &&
                             channel != null &&
                             channel.channelState == ChannelState.signed &&
-                            channel.subchannelState != null &&
-                            channel.subchannelState == SubchannelState.established,
+                            channel.signedChannelState != null &&
+                            channel.signedChannelState == SignedChannelState.established,
                     replacement: actionReplacementLabel,
                     child: ElevatedButton(
                         onPressed: () {
@@ -139,9 +139,9 @@ class OpenPositionTable extends StatelessWidget {
 
   Widget createActionReplacementLabel(DlcChannel? channel) {
     Widget actionReplacementLabel = const SizedBox.shrink();
-    if (channel != null && channel.subchannelState != null) {
-      switch (channel.subchannelState) {
-        case SubchannelState.established:
+    if (channel != null && channel.signedChannelState != null) {
+      switch (channel.signedChannelState) {
+        case SignedChannelState.established:
           actionReplacementLabel = Container(
               decoration: BoxDecoration(
                   color: Colors.green.shade300, borderRadius: BorderRadius.circular(15)),
@@ -153,14 +153,14 @@ class OpenPositionTable extends StatelessWidget {
                 )),
               ));
           break;
-        case SubchannelState.settledOffered:
-        case SubchannelState.settledReceived:
-        case SubchannelState.settledAccepted:
-        case SubchannelState.settledConfirmed:
-        case SubchannelState.renewOffered:
-        case SubchannelState.renewAccepted:
-        case SubchannelState.renewConfirmed:
-        case SubchannelState.renewFinalized:
+        case SignedChannelState.settledOffered:
+        case SignedChannelState.settledReceived:
+        case SignedChannelState.settledAccepted:
+        case SignedChannelState.settledConfirmed:
+        case SignedChannelState.renewOffered:
+        case SignedChannelState.renewAccepted:
+        case SignedChannelState.renewConfirmed:
+        case SignedChannelState.renewFinalized:
           actionReplacementLabel = Container(
               decoration: BoxDecoration(
                   color: Colors.green.shade300, borderRadius: BorderRadius.circular(15)),
@@ -172,7 +172,7 @@ class OpenPositionTable extends StatelessWidget {
                 )),
               ));
           break;
-        case SubchannelState.settled:
+        case SignedChannelState.settled:
           actionReplacementLabel = Container(
               decoration: BoxDecoration(
                   color: Colors.green.shade300,
@@ -181,8 +181,8 @@ class OpenPositionTable extends StatelessWidget {
                 "Channel is active",
               ));
           break;
-        case SubchannelState.closing:
-        case SubchannelState.collaborativeCloseOffered:
+        case SignedChannelState.closing:
+        case SignedChannelState.collaborativeCloseOffered:
           actionReplacementLabel = Container(
               decoration: BoxDecoration(
                   color: Colors.orange.shade300, borderRadius: BorderRadius.circular(15)),

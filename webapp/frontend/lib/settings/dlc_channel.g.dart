@@ -15,7 +15,8 @@ DlcChannel _$DlcChannelFromJson(Map<String, dynamic> json) => DlcChannel(
       fundTxid: json['fund_txid'] as String?,
       fundTxout: json['fund_txout'] as num?,
       feeRate: json['fee_rate'] as num?,
-      subchannelState: $enumDecodeNullable(_$SubchannelStateEnumMap, json['subchannel_state']),
+      signedChannelState:
+          $enumDecodeNullable(_$SignedChannelStateEnumMap, json['signed_channel_state']),
       closeTxid: json['close_txid'] as String?,
       settleTxid: json['settle_txid'] as String?,
     );
@@ -31,7 +32,7 @@ Map<String, dynamic> _$DlcChannelToJson(DlcChannel instance) => <String, dynamic
       'close_txid': instance.closeTxid,
       'settle_txid': instance.settleTxid,
       'fee_rate': instance.feeRate,
-      'subchannel_state': _$SubchannelStateEnumMap[instance.subchannelState],
+      'signed_channel_state': _$SignedChannelStateEnumMap[instance.signedChannelState],
     };
 
 const _$ChannelStateEnumMap = {
@@ -48,17 +49,17 @@ const _$ChannelStateEnumMap = {
   ChannelState.cancelled: 'Cancelled',
 };
 
-const _$SubchannelStateEnumMap = {
-  SubchannelState.established: 'Established',
-  SubchannelState.settledOffered: 'SettledOffered',
-  SubchannelState.settledReceived: 'SettledReceived',
-  SubchannelState.settledAccepted: 'SettledAccepted',
-  SubchannelState.settledConfirmed: 'SettledConfirmed',
-  SubchannelState.settled: 'Settled',
-  SubchannelState.renewOffered: 'RenewOffered',
-  SubchannelState.renewAccepted: 'RenewAccepted',
-  SubchannelState.renewConfirmed: 'RenewConfirmed',
-  SubchannelState.renewFinalized: 'RenewFinalized',
-  SubchannelState.closing: 'Closing',
-  SubchannelState.collaborativeCloseOffered: 'CollaborativeCloseOffered',
+const _$SignedChannelStateEnumMap = {
+  SignedChannelState.established: 'Established',
+  SignedChannelState.settledOffered: 'SettledOffered',
+  SignedChannelState.settledReceived: 'SettledReceived',
+  SignedChannelState.settledAccepted: 'SettledAccepted',
+  SignedChannelState.settledConfirmed: 'SettledConfirmed',
+  SignedChannelState.settled: 'Settled',
+  SignedChannelState.renewOffered: 'RenewOffered',
+  SignedChannelState.renewAccepted: 'RenewAccepted',
+  SignedChannelState.renewConfirmed: 'RenewConfirmed',
+  SignedChannelState.renewFinalized: 'RenewFinalized',
+  SignedChannelState.closing: 'Closing',
+  SignedChannelState.collaborativeCloseOffered: 'CollaborativeCloseOffered',
 };

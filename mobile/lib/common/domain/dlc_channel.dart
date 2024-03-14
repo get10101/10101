@@ -46,6 +46,14 @@ class DlcChannel {
             bufferTxid: closing.bufferTxid,
           );
         }
+      case (bridge.ChannelState_SettledClosing closing):
+        {
+          return SettledClosingDlcChannel(
+            id: dlcChannel.dlcChannelId,
+            state: ChannelState.closing,
+            settleTxid: closing.settleTxid,
+          );
+        }
       case (bridge.ChannelState_Closed c):
         {
           return ClosedDlcChannel(
@@ -146,6 +154,12 @@ class ClosingDlcChannel extends DlcChannel {
   }
 }
 
+class SettledClosingDlcChannel extends DlcChannel {
+  String settleTxid;
+
+  SettledClosingDlcChannel({required super.id, required super.state, required this.settleTxid});
+}
+
 class ClosedDlcChannel extends DlcChannel {
   String closingTxid;
 
@@ -217,6 +231,7 @@ enum SignedChannelState {
   renewConfirmed,
   renewFinalized,
   closing,
+  settledClosing,
   collaborativeCloseOffered;
 
   static SignedChannelState fromApi(bridge.SignedChannelState state) {
@@ -243,6 +258,8 @@ enum SignedChannelState {
         return SignedChannelState.renewFinalized;
       case bridge.SignedChannelState.Closing:
         return SignedChannelState.closing;
+      case bridge.SignedChannelState.SettledClosing:
+        return SignedChannelState.settledClosing;
       case bridge.SignedChannelState.CollaborativeCloseOffered:
         return SignedChannelState.collaborativeCloseOffered;
     }
@@ -273,6 +290,8 @@ enum SignedChannelState {
         return "Renew Finalized";
       case SignedChannelState.closing:
         return "Closing";
+      case SignedChannelState.settledClosing:
+        return "SettledClosing";
       case SignedChannelState.collaborativeCloseOffered:
         return "Collaborative Close Offered";
     }

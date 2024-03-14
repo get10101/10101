@@ -27,7 +27,7 @@ enum ChannelState {
   cancelled,
 }
 
-enum SubchannelState {
+enum SignedChannelState {
   @JsonValue('Established')
   established,
   @JsonValue('SettledOffered')
@@ -76,8 +76,8 @@ class DlcChannel {
   final String? settleTxid;
   @JsonKey(name: 'fee_rate')
   final num? feeRate;
-  @JsonKey(name: 'subchannel_state')
-  final SubchannelState? subchannelState;
+  @JsonKey(name: 'signed_channel_state')
+  final SignedChannelState? signedChannelState;
 
   DlcChannel({
     this.dlcChannelId,
@@ -88,7 +88,7 @@ class DlcChannel {
     this.fundTxid,
     this.fundTxout,
     this.feeRate,
-    this.subchannelState,
+    this.signedChannelState,
     this.closeTxid,
     this.settleTxid,
   });

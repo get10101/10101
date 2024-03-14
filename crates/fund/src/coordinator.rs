@@ -46,8 +46,8 @@ pub struct DlcChannel {
     pub channel_id: String,
     pub dlc_channel_id: Option<String>,
     pub counter_party: String,
-    pub subchannel_state: SubChannelState,
 }
+
 #[derive(Deserialize, Debug)]
 pub struct Channel {
     pub channel_id: String,
@@ -55,18 +55,6 @@ pub struct Channel {
     pub funding_txo: Option<String>,
     pub original_funding_txo: Option<String>,
     pub outbound_capacity_msat: u64,
-}
-
-#[derive(Deserialize, Debug, PartialEq, Eq)]
-pub enum SubChannelState {
-    Signed,
-    Closing,
-    OnChainClosed,
-    CounterOnChainClosed,
-    CloseConfirmed,
-    // We don't care about other states for now
-    #[serde(other)]
-    Other,
 }
 
 impl Coordinator {

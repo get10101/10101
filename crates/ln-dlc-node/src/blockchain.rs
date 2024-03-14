@@ -84,6 +84,12 @@ where
         Ok(block)
     }
 
+    pub fn get_transaction(&self, txid: &Txid) -> Result<Option<Transaction>> {
+        let tx = self.esplora_client_blocking.get_tx(txid)?;
+
+        Ok(tx)
+    }
+
     pub fn get_transaction_confirmations(&self, txid: &Txid) -> Result<u32> {
         let status = self.esplora_client_blocking.get_tx_status(txid)?;
 
