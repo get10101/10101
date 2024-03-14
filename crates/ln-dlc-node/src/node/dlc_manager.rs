@@ -77,6 +77,7 @@ pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {
         SignedChannelState::RenewFinalized { .. } => "RenewFinalized",
         SignedChannelState::Closing { .. } => "Closing",
         SignedChannelState::CollaborativeCloseOffered { .. } => "CollaborativeCloseOffered",
+        SignedChannelState::SettledClosing { .. } => "SettledClosing",
     };
 
     name.to_string()

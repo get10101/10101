@@ -473,6 +473,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             | Channel::FailedSign(_)
             | Channel::Cancelled(_) => false,
             Channel::Closing(_)
+            | Channel::SettledClosing(_)
             | Channel::Closed(_)
             | Channel::CounterClosed(_)
             | Channel::ClosedPunished(_)

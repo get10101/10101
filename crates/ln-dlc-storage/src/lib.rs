@@ -12,6 +12,7 @@ use dlc_manager::channel::ClosedPunishedChannel;
 use dlc_manager::channel::ClosingChannel;
 use dlc_manager::channel::FailedAccept;
 use dlc_manager::channel::FailedSign;
+use dlc_manager::channel::SettledClosingChannel;
 use dlc_manager::contract::accepted_contract::AcceptedContract;
 use dlc_manager::contract::offered_contract::OfferedContract;
 use dlc_manager::contract::ser::Serializable;
@@ -142,7 +143,8 @@ convertible_enum!(
         CollaborativelyClosed,
         FailedAccept,
         FailedSign,
-        Cancelled,;
+        Cancelled,
+        SettledClosing,;
     },
     Channel
 );
@@ -161,6 +163,7 @@ convertible_enum!(
         RenewOffered,
         RenewConfirmed,
         RenewFinalized,
+        SettledClosing,
     },
     SignedChannelStateType
 );
@@ -435,6 +438,18 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         self.get_data_with_prefix(&channels, &[ChannelPrefix::Offered.into()], None)
     }
 
+    fn get_settled_closing_channels(&self) -> Result<Vec<SettledClosingChannel>, Error> {
+        let channels = self
+            .store
+            .read(CHANNEL, None)
+            .map_err(to_storage_error)?
+            .into_iter()
+            .map(|x| x.value)
+            .collect::<Vec<Vec<u8>>>();
+
+        self.get_data_with_prefix(&channels, &[ChannelPrefix::SettledClosing.into()], None)
+    }
+
     fn persist_chain_monitor(&self, monitor: &ChainMonitor) -> Result<(), Error> {
         self.store
             .write(
@@ -664,6 +679,7 @@ fn serialize_channel(channel: &Channel) -> Result<Vec<u8>, ::std::io::Error> {
         Channel::FailedAccept(f) => f.serialize(),
         Channel::FailedSign(f) => f.serialize(),
         Channel::Closing(c) => c.serialize(),
+        Channel::SettledClosing(c) => c.serialize(),
         Channel::Closed(c) | Channel::CounterClosed(c) | Channel::CollaborativelyClosed(c) => {
             c.serialize()
         }
@@ -706,6 +722,9 @@ fn deserialize_channel(buff: &Vec<u8>) -> Result<Channel, Error> {
         ChannelPrefix::Closing => {
             Channel::Closing(ClosingChannel::deserialize(&mut cursor).map_err(to_storage_error)?)
         }
+        ChannelPrefix::SettledClosing => Channel::SettledClosing(
+            SettledClosingChannel::deserialize(&mut cursor).map_err(to_storage_error)?,
+        ),
         ChannelPrefix::Closed => {
             Channel::Closed(ClosedChannel::deserialize(&mut cursor).map_err(to_storage_error)?)
         }

@@ -64,8 +64,8 @@ class _ChannelDetailWidgetState extends State<ChannelDetailWidget> {
     final ChannelService service = context.read<ChannelService>();
     return ExpansionTile(
       initiallyExpanded: widget.channel.channelState == ChannelState.signed &&
-          (widget.channel.subchannelState == SubchannelState.settled ||
-              widget.channel.subchannelState == SubchannelState.established),
+          (widget.channel.signedChannelState == SignedChannelState.settled ||
+              widget.channel.signedChannelState == SignedChannelState.established),
       title: Padding(
         padding: const EdgeInsets.all(4.0),
         child: Row(
@@ -115,26 +115,26 @@ class _ChannelDetailWidgetState extends State<ChannelDetailWidget> {
                   ),
                 ),
                 Visibility(
-                  visible: widget.channel.subchannelState?.name != null,
+                  visible: widget.channel.signedChannelState?.name != null,
                   child: Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text("Subchannel state"),
+                        const Text("Signed channel state"),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            SubchannelStateLabel(
+                            SignedChannelStateLabel(
                               channel: widget.channel,
                             ),
                             IconButton(
                                 padding: EdgeInsets.zero,
                                 onPressed: () async {
                                   showSnackBar(ScaffoldMessenger.of(context),
-                                      "Copied ${widget.channel.subchannelState?.name}");
+                                      "Copied ${widget.channel.signedChannelState?.name}");
                                   await Clipboard.setData(ClipboardData(
-                                      text: widget.channel.subchannelState?.name ?? ""));
+                                      text: widget.channel.signedChannelState?.name ?? ""));
                                 },
                                 icon: const Icon(Icons.copy, size: 18))
                           ],
@@ -148,9 +148,9 @@ class _ChannelDetailWidgetState extends State<ChannelDetailWidget> {
                 buildCopyableTxId(context, "Close TxId", widget.channel.closeTxid),
                 Visibility(
                     visible: widget.channel.channelState == ChannelState.signed &&
-                        widget.channel.subchannelState != null &&
-                        (widget.channel.subchannelState! == SubchannelState.established ||
-                            widget.channel.subchannelState! == SubchannelState.settled),
+                        widget.channel.signedChannelState != null &&
+                        (widget.channel.signedChannelState! == SignedChannelState.established ||
+                            widget.channel.signedChannelState! == SignedChannelState.settled),
                     child: Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Row(

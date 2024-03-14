@@ -16,7 +16,6 @@ use commons::order_matching_fee_taker;
 use commons::taker_fee;
 use commons::ChannelOpeningParams;
 use commons::Price;
-use dlc_manager::channel::signed_channel::SignedChannelState;
 use native::api::ContractSymbol;
 use native::api::Direction;
 use native::api::Fee;
@@ -498,12 +497,13 @@ pub struct DlcChannel {
     pub channel_state: Option<ChannelState>,
     pub buffer_txid: Option<String>,
     pub settle_txid: Option<String>,
+    pub claim_txid: Option<String>,
     pub close_txid: Option<String>,
     pub punish_txid: Option<String>,
     pub fund_txid: Option<String>,
     pub fund_txout: Option<usize>,
     pub fee_rate: Option<u64>,
-    pub subchannel_state: Option<SubChannelState>,
+    pub signed_channel_state: Option<SignedChannelState>,
 }
 
 #[derive(Serialize)]
@@ -512,6 +512,7 @@ pub enum ChannelState {
     Accepted,
     Signed,
     Closing,
+    SettledClosing,
     Closed,
     CounterClosed,
     ClosedPunished,
@@ -522,7 +523,7 @@ pub enum ChannelState {
 }
 
 #[derive(Serialize)]
-pub enum SubChannelState {
+pub enum SignedChannelState {
     Established,
     SettledOffered,
     SettledReceived,
@@ -560,73 +561,85 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::Signed(s) => {
-                let (subchannel_state, settle_tx, buffer_tx, close_tx) = match &s.state {
-                    SignedChannelState::Established {
-                        buffer_transaction, ..
+                let (signed_channel_state, settle_tx, buffer_tx, close_tx) = match &s.state {
+                    dlc_manager::channel::signed_channel::SignedChannelState::Established {
+                        buffer_transaction,
+                        ..
                     } => (
-                        SubChannelState::Established,
+                        SignedChannelState::Established,
                         None,
                         Some(buffer_transaction),
                         None,
                     ),
-                    SignedChannelState::SettledOffered { .. } => {
-                        (SubChannelState::SettledOffered, None, None, None)
-                    }
-                    SignedChannelState::SettledReceived { .. } => {
-                        (SubChannelState::SettledReceived, None, None, None)
-                    }
-                    SignedChannelState::SettledAccepted { settle_tx, .. } => (
-                        SubChannelState::SettledAccepted,
+                    dlc_manager::channel::signed_channel::SignedChannelState::SettledOffered {
+                        ..
+                    } => (SignedChannelState::SettledOffered, None, None, None),
+                    dlc_manager::channel::signed_channel::SignedChannelState::SettledReceived {
+                        ..
+                    } => (SignedChannelState::SettledReceived, None, None, None),
+                    dlc_manager::channel::signed_channel::SignedChannelState::SettledAccepted {
+                        settle_tx,
+                        ..
+                    } => (
+                        SignedChannelState::SettledAccepted,
                         Some(settle_tx),
                         None,
                         None,
                     ),
-                    SignedChannelState::SettledConfirmed { settle_tx, .. } => (
-                        SubChannelState::SettledConfirmed,
+                    dlc_manager::channel::signed_channel::SignedChannelState::SettledConfirmed { settle_tx, .. } => (
+                        SignedChannelState::SettledConfirmed,
                         Some(settle_tx),
                         None,
                         None,
                     ),
-                    SignedChannelState::Settled { settle_tx, .. } => {
-                        (SubChannelState::Settled, Some(settle_tx), None, None)
+                    dlc_manager::channel::signed_channel::SignedChannelState::Settled { settle_tx, .. } => {
+                        (SignedChannelState::Settled, Some(settle_tx), None, None)
                     }
-                    SignedChannelState::RenewOffered { .. } => {
-                        (SubChannelState::RenewOffered, None, None, None)
+                    dlc_manager::channel::signed_channel::SignedChannelState::RenewOffered { .. } => {
+                        (SignedChannelState::RenewOffered, None, None, None)
                     }
-                    SignedChannelState::RenewAccepted {
+                    dlc_manager::channel::signed_channel::SignedChannelState::RenewAccepted {
                         buffer_transaction, ..
                     } => (
-                        SubChannelState::RenewAccepted,
+                        SignedChannelState::RenewAccepted,
                         None,
                         Some(buffer_transaction),
                         None,
                     ),
-                    SignedChannelState::RenewConfirmed {
+                    dlc_manager::channel::signed_channel::SignedChannelState::RenewConfirmed {
                         buffer_transaction, ..
                     } => (
-                        SubChannelState::RenewConfirmed,
+                        SignedChannelState::RenewConfirmed,
                         None,
                         Some(buffer_transaction),
                         None,
                     ),
-                    SignedChannelState::RenewFinalized {
+                    dlc_manager::channel::signed_channel::SignedChannelState::RenewFinalized {
                         buffer_transaction, ..
                     } => (
-                        SubChannelState::RenewFinalized,
+                        SignedChannelState::RenewFinalized,
                         None,
                         Some(buffer_transaction),
                         None,
                     ),
-                    SignedChannelState::Closing {
+                    dlc_manager::channel::signed_channel::SignedChannelState::Closing {
                         buffer_transaction, ..
                     } => (
-                        SubChannelState::Closing,
+                        SignedChannelState::Closing,
                         None,
                         Some(buffer_transaction),
                         None,
                     ),
-                    SignedChannelState::CollaborativeCloseOffered { close_tx, .. } => (
-                        SubChannelState::CollaborativeCloseOffered,
+                    dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing {
+                        settle_transaction, ..
+                    } => (
+                        SignedChannelState::Closing,
+                        None,
+                        Some(settle_transaction),
+                        None,
+                    ),
+                    dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered { close_tx, .. } => (
+                        SignedChannelState::CollaborativeCloseOffered,
                         None,
                         None,
                         Some(close_tx),
@@ -642,7 +655,7 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                     buffer_txid: buffer_tx.map(|tx| tx.txid().to_string()),
                     settle_txid: settle_tx.map(|tx| tx.txid().to_string()),
                     close_txid: close_tx.map(|tx| tx.txid().to_string()),
-                    subchannel_state: Some(subchannel_state),
+                    signed_channel_state: Some(signed_channel_state),
                     ..DlcChannel::default()
                 }
             }
@@ -651,6 +664,13 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                 contract_id: Some(hex::encode(c.contract_id)),
                 channel_state: Some(ChannelState::Closing),
                 buffer_txid: Some(c.buffer_transaction.txid().to_string()),
+                ..DlcChannel::default()
+            },
+            dlc_manager::channel::Channel::SettledClosing(c) => DlcChannel {
+                dlc_channel_id: Some(hex::encode(c.channel_id)),
+                channel_state: Some(ChannelState::SettledClosing),
+                settle_txid: Some(c.settle_transaction.txid().to_string()),
+                claim_txid: Some(c.claim_transaction.txid().to_string()),
                 ..DlcChannel::default()
             },
             dlc_manager::channel::Channel::Closed(c) => DlcChannel {
