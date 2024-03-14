@@ -223,6 +223,13 @@ impl Node {
             if let Err(e) = notifier.send(message).await {
                 tracing::debug!("Failed to notify trader. Error: {e:#}");
             }
+
+            if self.is_connected(trader_id) {
+                tracing::info!(%trader_id, "Proposing to rollover dlc channel");
+                self.propose_rollover(&signed_channel.channel_id, self.inner.network)
+                    .await?;
+            } else {
+                tracing::warn!(%trader_id, "Skipping rollover, user is not connected.");
             }
         }
 

@@ -10,7 +10,6 @@ use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::position;
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
@@ -216,19 +215,11 @@ async fn handle_orderbook_message(
             state::set_lsp_config(lsp_config.clone());
             event::publish(&EventInternal::Authenticated(lsp_config));
         }
-        Message::Rollover(contract_id) => {
-            tracing::info!("Received a rollover request from orderbook.");
+        Message::Rollover(_) => {
+            tracing::info!("Received a rollover notification from orderbook.");
             event::publish(&EventInternal::BackgroundNotification(
                 BackgroundTask::Rollover(TaskStatus::Pending),
             ));
-
-            if let Err(e) = position::handler::rollover(contract_id).await {
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::Rollover(TaskStatus::Failed),
-                ));
-
-                bail!("Failed to rollover DLC: {e:#}");
-            }
         }
         Message::AsyncMatch { order, filled_with } => {
             let order_id = order.id;

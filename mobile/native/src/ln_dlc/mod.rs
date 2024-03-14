@@ -51,7 +51,6 @@ use lightning::ln::ChannelId;
 use lightning::sign::KeysManager;
 use ln_dlc_node::bitcoin_conversion::to_ecdsa_signature_30;
 use ln_dlc_node::bitcoin_conversion::to_script_29;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_secp_sk_30;
 use ln_dlc_node::bitcoin_conversion::to_tx_30;
 use ln_dlc_node::bitcoin_conversion::to_txid_29;
@@ -966,64 +965,6 @@ pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Resul
     };
 
     Ok(fee)
-}
-
-/// initiates the rollover protocol with the coordinator
-pub async fn rollover(contract_id: Option<String>) -> Result<()> {
-    let node = state::get_node();
-
-    let dlc_channels = node.inner.list_signed_dlc_channels()?;
-
-    let dlc_channel = dlc_channels
-        .into_iter()
-        .find(|chan| chan.counter_party == to_secp_pk_29(config::get_coordinator_info().pubkey))
-        .context("Couldn't find dlc channel to rollover")?;
-
-    let dlc_channel_id = dlc_channel.channel_id;
-
-    let current_contract_id = dlc_channel.get_contract_id().map(hex::encode);
-    if current_contract_id != contract_id {
-        bail!("Rejecting to rollover a contract that we are not aware of. Expected: {current_contract_id:?}, Got: {contract_id:?}");
-    }
-
-    tracing::debug!(
-        channel_id = hex::encode(dlc_channel_id),
-        "Asking coordinator for rolling over DLC channel"
-    );
-
-    let client = reqwest_client();
-    let response = client
-        .post(format!(
-            "http://{}/api/rollover/{}",
-            config::get_http_endpoint(),
-            hex::encode(dlc_channel_id)
-        ))
-        .send()
-        .await
-        .with_context(|| {
-            format!(
-                "Failed to rollover dlc with id {}",
-                hex::encode(dlc_channel_id)
-            )
-        })?;
-
-    if !response.status().is_success() {
-        let response_text = match response.text().await {
-            Ok(text) => text,
-            Err(err) => {
-                format!("could not decode response {err:#}")
-            }
-        };
-
-        bail!(
-            "Failed to rollover dlc with id {}. Error: {response_text}",
-            hex::encode(dlc_channel_id)
-        )
-    }
-
-    tracing::info!("Sent rollover request to coordinator successfully");
-
-    Ok(())
 }
 
 fn ln_dlc_node_settings() -> LnDlcNodeSettings {
