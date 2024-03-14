@@ -58,9 +58,6 @@ on:
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
 
-env:
-  FLUTTER_VERSION: "3.19.1"
-
 jobs:
   build:
     runs-on: macos-latest
@@ -76,13 +73,10 @@ jobs:
       - name: List used Xcode version
         run: /usr/bin/xcodebuild -version
 
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup-fvm
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: "stable"
-          cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}-macos-latest
-          cache-path: ${{ runner.tool_cache }}/flutter
+          fvm_config: ./mobile/.fvmrc
+          working_dir: ./mobile
 
       - uses: actions/cache@v4
         id: cache-deps

@@ -50,3 +50,5 @@ mobile/ios/fastlane/README.md
 
 # esplora override environment variables
 .override.esplora.env
+
+.fvm/

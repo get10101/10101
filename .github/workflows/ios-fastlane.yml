@@ -74,9 +74,6 @@ on:
         description: "For regtest enter 'test' or mainnet enter 'Runner'"
         type: string
 
-env:
-  FLUTTER_VERSION: "3.19.1"
-
 jobs:
   build:
     runs-on: macos-14
@@ -96,13 +93,10 @@ jobs:
       - name: List used Xcode version
         run: /usr/bin/xcodebuild -version
 
-      - uses: subosito/flutter-action@v2
+      - uses: ./.github/actions/setup-fvm
         with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: "stable"
-          cache: true
-          cache-key: flutter-${{ env.FLUTTER_VERSION }}-macos-14
-          cache-path: ${{ runner.tool_cache }}/flutter
+          fvm_config: ./mobile/.fvmrc
+          working_dir: ./mobile
 
       - name: Check cocoapods version
         run: /usr/local/bin/pod --version
