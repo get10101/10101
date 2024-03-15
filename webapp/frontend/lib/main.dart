@@ -79,10 +79,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [
-        Locale('en', 'US'),
-        Locale('es', 'ES'),
-        Locale('fr', 'FR'),
-        Locale('de', 'DE'),
+        Locale('en', ''),
+        Locale('es', ''),
+        Locale('fr', ''),
+        Locale('de', ''),
       ],
       theme: ThemeData(
         primarySwatch: swatch,
