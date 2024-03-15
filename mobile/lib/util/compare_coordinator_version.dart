@@ -26,8 +26,11 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
 
     if (coordinatorVersion.version > clientVersion) {
       logger.w("Client out of date. Current version: ${clientVersion.toString()}");
+      while (shellNavigatorKey.currentContext == null) {
+        await Future.delayed(const Duration(milliseconds: 100)); // Adjust delay as needed
+      }
       showDialog(
-          context: rootNavigatorKey.currentContext!,
+          context: shellNavigatorKey.currentContext!,
           builder: (context) => AlertDialog(
                   title: const Text("Update available"),
                   content: Text("A new version of 10101 is available: "
@@ -41,16 +44,19 @@ Future<void> compareCoordinatorVersion(bridge.Config config) async {
                     ),
                   ]));
     } else if (coordinatorVersion.version < clientVersion) {
-      logger.w("10101 is newer than LSP: ${coordinatorVersion.version.toString()}");
+      logger.w("10101 is newer than coordinator: ${coordinatorVersion.version.toString()}");
     } else {
       logger.i("Client is up to date: ${clientVersion.toString()}");
     }
   } catch (e) {
     logger.e("Error getting coordinator version: ${e.toString()}");
+    while (shellNavigatorKey.currentContext == null) {
+      await Future.delayed(const Duration(milliseconds: 100)); // Adjust delay as needed
+    }
     showDialog(
-        context: rootNavigatorKey.currentContext!,
+        context: shellNavigatorKey.currentContext!,
         builder: (context) => AlertDialog(
-                title: const Text("Cannot reach LSP"),
+                title: const Text("Cannot reach coordinator"),
                 content: const Text("Please check your Internet connection.\n"
                     "Please note that without Internet access, the app "
                     "functionality is severely limited."),
