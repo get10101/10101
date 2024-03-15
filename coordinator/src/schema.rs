@@ -277,6 +277,15 @@ diesel::table! {
         question -> Text,
         active -> Bool,
         creation_timestamp -> Timestamptz,
+        whitelisted -> Bool,
+    }
+}
+
+diesel::table! {
+    polls_whitelist (id) {
+        id -> Int4,
+        poll_id -> Int4,
+        trader_pubkey -> Text,
     }
 }
 
@@ -392,6 +401,7 @@ diesel::joinable!(answers -> choices (choice_id));
 diesel::joinable!(choices -> polls (poll_id));
 diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 diesel::joinable!(liquidity_request_logs -> liquidity_options (liquidity_option));
+diesel::joinable!(polls_whitelist -> polls (poll_id));
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -410,6 +420,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     orders,
     payments,
     polls,
+    polls_whitelist,
     positions,
     routing_fees,
     spendable_outputs,

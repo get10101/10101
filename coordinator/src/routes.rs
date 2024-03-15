@@ -148,7 +148,8 @@ pub fn router(
     Router::new()
         .route("/", get(lightning_peer_ws_handler))
         .route("/api/version", get(version))
-        .route("/api/polls", get(get_polls).post(post_poll_answer))
+        .route("/api/polls", post(post_poll_answer))
+        .route("/api/polls/:node_id", get(get_polls))
         .route(
             "/api/fee_rate_estimate/:target",
             get(get_fee_rate_estimation),
@@ -442,12 +443,18 @@ pub async fn version() -> Result<Json<Version>, AppError> {
     }))
 }
 
-pub async fn get_polls(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Poll>>, AppError> {
+pub async fn get_polls(
+    Path(node_id): Path<String>,
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<Vec<Poll>>, AppError> {
+    let node_id = PublicKey::from_str(&node_id)
+        .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
+
     let mut connection = state
         .pool
         .get()
         .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-    let polls = db::polls::active(&mut connection).map_err(|error| {
+    let polls = db::polls::active(&mut connection, &node_id).map_err(|error| {
         AppError::InternalServerError(format!("Could not fetch new polls {error}"))
     })?;
     Ok(Json(polls))

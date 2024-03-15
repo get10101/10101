@@ -1,11 +1,16 @@
 use crate::schema::answers;
 use crate::schema::choices;
 use crate::schema::polls;
+use crate::schema::polls_whitelist;
 use crate::schema::sql_types::PollTypeType;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
+use diesel::dsl::exists;
 use diesel::query_builder::QueryId;
+use diesel::select;
 use diesel::AsExpression;
+use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
 use diesel::Identifiable;
 use diesel::Insertable;
@@ -44,6 +49,7 @@ pub struct Poll {
     pub question: String,
     pub active: bool,
     pub creation_timestamp: OffsetDateTime,
+    pub whitelisted: bool,
 }
 
 #[derive(Insertable, Queryable, Identifiable, Selectable, Debug, Clone, Eq, PartialEq)]
@@ -56,6 +62,7 @@ pub struct Choice {
     pub value: String,
     pub editable: bool,
 }
+
 #[derive(Insertable, Queryable, Identifiable, Debug, Clone)]
 #[diesel(primary_key(id))]
 pub struct Answer {
@@ -66,7 +73,7 @@ pub struct Answer {
     pub creation_timestamp: OffsetDateTime,
 }
 
-pub fn active(conn: &mut PgConnection) -> QueryResult<Vec<commons::Poll>> {
+pub fn active(conn: &mut PgConnection, trader_id: &PublicKey) -> QueryResult<Vec<commons::Poll>> {
     let _polls: Vec<Poll> = polls::table.load(conn)?;
     let _choices: Vec<Choice> = choices::table.load(conn)?;
 
@@ -77,6 +84,19 @@ pub fn active(conn: &mut PgConnection) -> QueryResult<Vec<commons::Poll>> {
 
     let mut polls_with_choices = HashMap::new();
     for (poll, choice) in results {
+        if poll.whitelisted {
+            let whitelisted: bool = select(exists(
+                polls_whitelist::table
+                    .filter(polls_whitelist::trader_pubkey.eq(trader_id.to_string())),
+            ))
+            .get_result(conn)?;
+
+            if !whitelisted {
+                // skip polls which are note whitelisted for this user.
+                continue;
+            }
+        }
+
         let entry = polls_with_choices.entry(poll).or_insert_with(Vec::new);
         if let Some(choice) = choice {
             entry.push(choice);
