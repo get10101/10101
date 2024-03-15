@@ -6,6 +6,7 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -196,8 +197,10 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
                                     return null;
                                   },
-                                  infoText:
-                                      "Your total collateral in the dlc channel.\n\nChoose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.",
+                                  suffixIcon: const ModalBottomSheetInfo(
+                                      closeButtonText: "Back",
+                                      child: Text(
+                                          "Your total collateral in the dlc channel.\n\nChoose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.")),
                                 )),
                                 const SizedBox(width: 10),
                                 Flexible(

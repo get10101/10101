@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/numeric_text_formatter.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 
 class AmountInputField extends StatelessWidget {
   /// If `decoration` is passed, then `isLoading`, `hint`, `label`, `infoText`,
-  /// and `isLoading` are overwritten.
+  /// and `isLoading` are overridden.
   const AmountInputField(
       {super.key,
       this.enabled = true,
@@ -15,7 +14,7 @@ class AmountInputField extends StatelessWidget {
       this.onChanged,
       required this.value,
       this.isLoading = false,
-      this.infoText,
+      this.suffixIcon,
       this.controller,
       this.validator,
       this.decoration,
@@ -28,7 +27,7 @@ class AmountInputField extends StatelessWidget {
   final bool enabled;
   final String label;
   final String hint;
-  final String? infoText;
+  final Widget? suffixIcon;
   final bool isLoading;
   final Function(String)? onChanged;
   final Function()? onTap;
@@ -55,11 +54,7 @@ class AmountInputField extends StatelessWidget {
             errorStyle: TextStyle(
               color: Colors.red[900],
             ),
-            suffixIcon: isLoading
-                ? const CircularProgressIndicator()
-                : infoText != null
-                    ? ModalBottomSheetInfo(closeButtonText: "Back", child: Text(infoText!))
-                    : null,
+            suffixIcon: isLoading ? const CircularProgressIndicator() : suffixIcon,
           ),
       inputFormatters: <TextInputFormatter>[
         FilteringTextInputFormatter.digitsOnly,
