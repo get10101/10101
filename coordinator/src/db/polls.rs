@@ -54,6 +54,7 @@ pub struct Choice {
     pub id: i32,
     pub poll_id: i32,
     pub value: String,
+    pub editable: bool,
 }
 #[derive(Insertable, Queryable, Identifiable, Debug, Clone)]
 #[diesel(primary_key(id))]
@@ -93,6 +94,7 @@ pub fn active(conn: &mut PgConnection) -> QueryResult<Vec<commons::Poll>> {
                 .map(|choice| commons::Choice {
                     id: choice.id,
                     value: choice.value,
+                    editable: choice.editable,
                 })
                 .collect(),
         })

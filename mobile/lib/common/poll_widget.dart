@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/ffi.dart';
 import 'package:get_10101/util/poll_change_notified.dart';
 import 'package:provider/provider.dart';
 
@@ -12,7 +13,7 @@ class PollWidget extends StatefulWidget {
 }
 
 class _PollWidgetState extends State<PollWidget> {
-  int? _selectedAnswer;
+  Choice? _selectedAnswer;
   bool showPoll = true;
 
   @override
@@ -54,15 +55,15 @@ class _PollWidgetState extends State<PollWidget> {
                         children: poll.choices
                             .map(
                               (choice) => PollChoice(
-                                label: choice.value,
                                 padding: const EdgeInsets.symmetric(horizontal: 5.0),
-                                value: choice.id,
+                                value: choice,
                                 groupValue: _selectedAnswer,
-                                onChanged: (int newValue) {
+                                onChanged: (Choice answer) {
                                   setState(() {
-                                    _selectedAnswer = newValue;
+                                    _selectedAnswer = answer;
                                   });
                                 },
+                                selected: _selectedAnswer?.id == choice.id,
                               ),
                             )
                             .toList()),
@@ -98,6 +99,7 @@ class _PollWidgetState extends State<PollWidget> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 5),
                                 const Icon(
                                   Icons.cancel,
                                   size: 16,
@@ -132,6 +134,7 @@ class _PollWidgetState extends State<PollWidget> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 5),
                                 const Icon(
                                   Icons.send,
                                   size: 16,
@@ -166,31 +169,29 @@ class _PollWidgetState extends State<PollWidget> {
   }
 
   Future<void> answerPoll(
-      PollChangeNotifier pollChangeNotifier, Poll poll, int selectedAnswer) async {
-    await pollChangeNotifier.answer(
-        poll.choices.firstWhere((choice) => choice.id == selectedAnswer), poll);
+      PollChangeNotifier pollChangeNotifier, Poll poll, Choice selectedAnswer) async {
+    await pollChangeNotifier.answer(selectedAnswer, poll);
   }
 }
 
 class PollChoice extends StatelessWidget {
+  final EdgeInsets padding;
+  final Choice? groupValue;
+  final Choice value;
+  final ValueChanged<Choice> onChanged;
+  final bool selected;
+
   const PollChoice({
     super.key,
-    required this.label,
     required this.padding,
     required this.groupValue,
     required this.value,
     required this.onChanged,
+    required this.selected,
   });
-
-  final String label;
-  final EdgeInsets padding;
-  final int? groupValue;
-  final int value;
-  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    // return Container(color: Colors.blue,);
     return InkWell(
       onTap: () {
         if (value != groupValue) {
@@ -199,16 +200,31 @@ class PollChoice extends StatelessWidget {
       },
       child: Padding(
         padding: padding,
-        child: Row(
-          children: <Widget>[
-            Radio<int>(
-              groupValue: groupValue,
-              value: value,
-              onChanged: (int? newValue) {
-                onChanged(newValue!);
-              },
+        child: Column(
+          children: [
+            Row(
+              children: <Widget>[
+                Radio<int>(
+                  groupValue: groupValue?.id,
+                  value: value.id,
+                  onChanged: (int? newValue) {
+                    onChanged(value);
+                  },
+                ),
+                value.editable
+                    ? Expanded(
+                        child: TextField(
+                          enabled: selected,
+                          onChanged: (answer) =>
+                              {onChanged(Choice(id: value.id, value: answer, editable: true))},
+                          decoration: InputDecoration(
+                            hintText: value.value,
+                          ),
+                        ),
+                      )
+                    : Text(value.value),
+              ],
             ),
-            Text(label),
           ],
         ),
       ),
