@@ -156,74 +156,59 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                   padding: const EdgeInsets.only(top: 20),
                   child: Column(
                     children: [
-                      Wrap(
-                        runSpacing: 5,
-                        children: [
-                          SizedBox(
-                            height: 80,
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Flexible(
-                                    child: AmountInputField(
-                                  value: ownTotalCollateral,
-                                  label: 'Your collateral (sats)',
-                                  onChanged: (value) {
-                                    setState(() {
-                                      ownTotalCollateral = Amount.parseAmount(value);
+                      AmountInputField(
+                        value: ownTotalCollateral,
+                        label: 'Your collateral (sats)',
+                        onChanged: (value) {
+                          setState(() {
+                            ownTotalCollateral = Amount.parseAmount(value);
 
-                                      updateCounterpartyCollateral();
-                                    });
-                                  },
-                                  validator: (value) {
-                                    if (ownTotalCollateral.sats < minMargin.sats) {
-                                      return "Min collateral: $minMargin";
-                                    }
+                            updateCounterpartyCollateral();
+                          });
+                        },
+                        validator: (value) {
+                          if (ownTotalCollateral.sats < minMargin.sats) {
+                            return "Min collateral: $minMargin";
+                          }
 
-                                    // TODO(holzeis): Add validation considering the on-chain fees
+                          // TODO(holzeis): Add validation considering the on-chain fees
 
-                                    if (ownTotalCollateral.add(orderMatchingFees).sats >
-                                        maxOnChainSpending.sats) {
-                                      return "Max on-chain: ${Amount(maxOnChainSpending.sats - orderMatchingFees.sats)}";
-                                    }
+                          if (ownTotalCollateral.add(orderMatchingFees).sats >
+                              maxOnChainSpending.sats) {
+                            return "Max on-chain: ${Amount(maxOnChainSpending.sats - orderMatchingFees.sats)}";
+                          }
 
-                                    if (maxCounterpartyCollateral.sats <
-                                        counterpartyCollateral.sats) {
-                                      return "Over limit: $maxCounterpartyCollateral";
-                                    }
+                          if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
+                            return "Over limit: $maxCounterpartyCollateral";
+                          }
 
-                                    return null;
-                                  },
-                                )),
-                                const SizedBox(width: 10),
-                                Flexible(
-                                    child: AmountTextField(
-                                  value: counterpartyCollateral,
-                                  label: 'Win up to (sats)',
-                                ))
-                              ],
-                            ),
-                          ),
-                          ValueDataRow(
-                              type: ValueType.amount,
-                              value: ownTotalCollateral,
-                              label: 'Your collateral'),
-                          ValueDataRow(
-                            type: ValueType.amount,
-                            value: openingFee,
-                            label: 'Channel-opening fee',
-                          ),
-                          ValueDataRow(
-                            type: ValueType.amount,
-                            value: fundingTxFee,
-                            label: 'Transaction fee estimate',
-                          ),
-                          ValueDataRow(
-                            type: ValueType.amount,
-                            value: channelFeeReserve,
-                            label: 'Channel fee reserve',
-                          ),
-                        ],
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      AmountTextField(
+                        value: counterpartyCollateral,
+                        label: 'Win up to (sats)',
+                      ),
+                      const SizedBox(height: 15),
+                      ValueDataRow(
+                          type: ValueType.amount,
+                          value: ownTotalCollateral,
+                          label: 'Your collateral'),
+                      ValueDataRow(
+                        type: ValueType.amount,
+                        value: openingFee,
+                        label: 'Channel-opening fee',
+                      ),
+                      ValueDataRow(
+                        type: ValueType.amount,
+                        value: fundingTxFee,
+                        label: 'Transaction fee estimate',
+                      ),
+                      ValueDataRow(
+                        type: ValueType.amount,
+                        value: channelFeeReserve,
+                        label: 'Channel fee reserve',
                       ),
                       const Divider(),
                       ValueDataRow(
