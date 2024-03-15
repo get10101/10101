@@ -10,7 +10,8 @@ use commons::PollAnswers;
 use reqwest::Url;
 
 pub(crate) async fn get_new_polls() -> Result<Vec<Poll>> {
-    let new_polls = fetch_polls().await?;
+    let node = crate::state::get_node();
+    let new_polls = fetch_polls(&node.inner.info.pubkey).await?;
     tracing::debug!(new_polls = new_polls.len(), "Fetched new polls");
     let answered_polls = db::load_ignored_or_answered_polls()?;
     let unanswered_polls = new_polls
@@ -42,11 +43,11 @@ pub(crate) fn ignore_poll(poll_id: i32) -> Result<()> {
     Ok(())
 }
 
-async fn fetch_polls() -> Result<Vec<Poll>> {
+async fn fetch_polls(node_id: &PublicKey) -> Result<Vec<Poll>> {
     let client = reqwest_client();
     let url = format!("http://{}", config::get_http_endpoint());
     let url = Url::parse(&url).expect("correct URL");
-    let url = url.join("/api/polls")?;
+    let url = url.join(format!("/api/polls/{node_id}").as_str())?;
     let response = client.get(url).send().await?;
     let polls = response.json().await?;
     Ok(polls)
