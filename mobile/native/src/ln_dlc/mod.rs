@@ -311,7 +311,9 @@ pub fn run(runtime: &Runtime) -> Result<()> {
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
         let _running = node.start(event_handler, true)?;
+
         let node = Arc::new(Node::new(node, _running));
+        state::set_node(node.clone());
 
         let dlc_handler = DlcHandler::new(node.clone());
         runtime.spawn(async move {
@@ -384,8 +386,6 @@ pub fn run(runtime: &Runtime) -> Result<()> {
                 tokio::time::sleep(CHECK_OPEN_ORDERS_INTERVAL).await;
             }
         });
-
-        state::set_node(node.clone());
 
         event::publish(&EventInternal::Init("10101 is ready.".to_string()));
 
