@@ -2,7 +2,6 @@ use crate::calculations::calculate_margin;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
@@ -12,11 +11,6 @@ use anyhow::Result;
 use commons::Prices;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
-
-/// Rollover dlc to new expiry timestamp
-pub async fn rollover(contract_id: Option<String>) -> Result<()> {
-    ln_dlc::rollover(contract_id).await
-}
 
 /// Fetch the positions from the database
 pub fn get_positions() -> Result<Vec<Position>> {

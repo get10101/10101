@@ -52,8 +52,11 @@ impl Coordinator {
     }
 
     pub async fn rollover(&self, dlc_channel_id: &str) -> Result<reqwest::Response> {
-        self.post::<()>(format!("/api/rollover/{dlc_channel_id}").as_str(), None)
-            .await
+        self.post::<()>(
+            format!("/api/admin/rollover/{dlc_channel_id}").as_str(),
+            None,
+        )
+        .await
     }
 
     pub async fn collaborative_revert(
