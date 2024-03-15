@@ -37,7 +37,7 @@ class _FeePickerState extends State<FeePicker> {
             data: Theme.of(context).copyWith(
                 textTheme:
                     const TextTheme(labelMedium: TextStyle(fontSize: 16, color: Colors.black)),
-                colorScheme: Theme.of(context).colorScheme.copyWith(background: Colors.white)),
+                colorScheme: Theme.of(context).colorScheme.copyWith(onSurface: Colors.white)),
             child: _FeePickerModal(
                 feeEstimates: widget.feeEstimates, initialSelection: _fee, setVal: setVal),
           ));
