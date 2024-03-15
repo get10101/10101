@@ -51,6 +51,8 @@ dependencies:
   url_launcher: ^6.2.4
   syncfusion_flutter_sliders: ^24.2.9
   syncfusion_flutter_core: ^24.2.9
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   build_runner: ^2.4.8
