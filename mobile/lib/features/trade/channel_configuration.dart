@@ -6,7 +6,6 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -148,6 +147,10 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
               Text(
                   "Please specify your preferred channel size, impacting how much you will be able to win up to.",
                   style: DefaultTextStyle.of(context).style),
+              const SizedBox(height: 10),
+              Text(
+                  "Choose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.",
+                  style: DefaultTextStyle.of(context).style),
               Center(
                 child: Container(
                   padding: const EdgeInsets.only(top: 20),
@@ -191,10 +194,6 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
                                     return null;
                                   },
-                                  suffixIcon: const ModalBottomSheetInfo(
-                                      closeButtonText: "Back",
-                                      child: Text(
-                                          "Your total collateral in the dlc channel.\n\nChoose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.")),
                                 )),
                                 const SizedBox(width: 10),
                                 Flexible(
@@ -240,7 +239,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(top: 8, left: 8, right: 8),
+                            padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 40),
                             child: ElevatedButton(
                               key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
                               onPressed:
