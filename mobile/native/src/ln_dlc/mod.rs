@@ -315,6 +315,16 @@ pub fn run(runtime: &Runtime) -> Result<()> {
         let node = Arc::new(Node::new(node, _running));
         state::set_node(node.clone());
 
+        if let Err(e) = spawn_blocking({
+            let node = node.clone();
+            move || keep_wallet_balance_and_history_up_to_date(&node)
+        })
+        .await
+        .expect("To spawn blocking task")
+        {
+            tracing::error!("Failed to update balance and history: {e:#}");
+        }
+
         let dlc_handler = DlcHandler::new(node.clone());
         runtime.spawn(async move {
             dlc_handler::handle_outbound_dlc_messages(dlc_handler, node_event_handler.subscribe())
