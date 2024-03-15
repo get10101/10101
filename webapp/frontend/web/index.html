@@ -59,5 +59,21 @@
         });
     });
 </script>
+<script>
+    const wait_until = setInterval(() => {
+        var elt = document.querySelector('flt-glass-pane');
+        if (elt) {
+            clearInterval(wait_until);
+
+            // pointer-events to resolve issue when widgets over the IFrame ignore clicks.
+            // Read more https://github.com/rodydavis/easy_web_view/issues/7#issuecomment-752326934
+
+            var css = 'flt-scene-host { pointer-events: auto !important; }';
+            var style = document.createElement('style');
+            style.innerHTML = css;
+            elt.shadowRoot.appendChild(style);
+        }
+    }, 500);
+</script>
 </body>
 </html>
