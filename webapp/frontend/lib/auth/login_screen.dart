@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get_10101/auth/auth_service.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
@@ -45,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       maxWidth: max(screenWidth, minWidth),
                     ),
                     child: SizedBox(
-                        height: 350, width: 350, child: Image.asset('assets/10101_logo_icon.png')),
+                        height: 350, width: 350, child: SvgPicture.asset('assets/10101_logo.svg')),
                   ),
                   Center(
                     child: SizedBox(
