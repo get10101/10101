@@ -6,7 +6,7 @@ import 'package:get_10101/common/modal_bottom_sheet_info.dart';
 
 class AmountInputField extends StatelessWidget {
   /// If `decoration` is passed, then `isLoading`, `hint`, `label`, `infoText`,
-  /// and `isLoading` are overriden.
+  /// and `isLoading` are overwritten.
   const AmountInputField(
       {super.key,
       this.enabled = true,
