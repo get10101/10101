@@ -16,7 +16,6 @@ use bitcoin::Transaction;
 use bitcoin::TxOut;
 use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::Channel;
-use dlc_manager::contract::Contract;
 use dlc_manager::Storage;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::node::NodeInfo;
@@ -239,24 +238,10 @@ pub struct DlcChannelDetails {
     pub user_email: String,
     #[serde(with = "time::serde::rfc3339::option")]
     pub user_registration_timestamp: Option<OffsetDateTime>,
-}
-
-impl From<(Channel, Option<Contract>, String, Option<OffsetDateTime>)> for DlcChannelDetails {
-    fn from(
-        (channel_details, contract, user_email, user_registration_timestamp): (
-            Channel,
-            Option<Contract>,
-            String,
-            Option<OffsetDateTime>,
-        ),
-    ) -> Self {
-        DlcChannelDetails {
-            channel_details: ln_dlc_node::DlcChannelDetails::from(channel_details),
-            contract_details: contract.map(ln_dlc_node::ContractDetails::from),
-            user_email,
-            user_registration_timestamp,
-        }
-    }
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
+    pub coordinator_reserve_sats: Option<Amount>,
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
+    pub trader_reserve_sats: Option<Amount>,
 }
 
 #[instrument(skip_all, err(Debug))]
@@ -292,7 +277,26 @@ pub async fn list_dlc_channels(
                 Err(_) => None,
             };
 
-            DlcChannelDetails::from((dlc_channel, contract, email, registration_timestamp))
+            let coordinator_reserve_sats = state
+                .node
+                .inner
+                .get_dlc_channel_usable_balance(&dlc_channel_id)
+                .ok();
+
+            let trader_reserve_sats = state
+                .node
+                .inner
+                .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)
+                .ok();
+
+            DlcChannelDetails {
+                channel_details: ln_dlc_node::DlcChannelDetails::from(dlc_channel),
+                contract_details: contract.map(ln_dlc_node::ContractDetails::from),
+                user_email: email,
+                user_registration_timestamp: registration_timestamp,
+                coordinator_reserve_sats,
+                trader_reserve_sats,
+            }
         })
         .collect::<Vec<_>>();
 
