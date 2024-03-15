@@ -18,6 +18,7 @@ import 'package:get_10101/wallet/wallet_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl_browser.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'common/color.dart';
 import 'common/theme.dart';
@@ -72,6 +73,11 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
     return MaterialApp.router(
       title: "10101",
       scaffoldMessengerKey: scaffoldMessengerKey,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       supportedLocales: const [
         Locale('en', 'US'),
         Locale('es', 'ES'),
