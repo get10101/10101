@@ -38,27 +38,21 @@ channelConfiguration({
       context: context,
       useSafeArea: true,
       builder: (BuildContext context) {
-        return SafeArea(
-          child: Container(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-            child: GestureDetector(
-                onTap: () {
-                  FocusScopeNode currentFocus = FocusScope.of(context);
-
-                  if (!currentFocus.hasPrimaryFocus) {
-                    currentFocus.unfocus();
-                  }
-                },
-                child: SingleChildScrollView(
-                  child: SizedBox(
-                    height: 500,
-                    child: ChannelConfiguration(
-                      tradeValues: tradeValues,
-                      onConfirmation: onConfirmation,
-                    ),
-                  ),
-                )),
-          ),
+        return Wrap(
+          children: [
+            GestureDetector(
+              onTap: () {
+                FocusScopeNode currentFocus = FocusScope.of(context);
+                if (!currentFocus.hasPrimaryFocus) {
+                  currentFocus.unfocus();
+                }
+              },
+              child: ChannelConfiguration(
+                tradeValues: tradeValues,
+                onConfirmation: onConfirmation,
+              ),
+            )
+          ],
         );
       });
 }
