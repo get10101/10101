@@ -15,6 +15,7 @@ pub struct Poll {
 pub struct Choice {
     pub id: i32,
     pub value: String,
+    pub editable: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

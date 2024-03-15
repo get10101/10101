@@ -113,6 +113,7 @@ pub struct Poll {
 pub struct Choice {
     pub id: i32,
     pub value: String,
+    pub editable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -148,6 +149,7 @@ impl From<commons::Choice> for Choice {
         Choice {
             id: value.id,
             value: value.value,
+            editable: value.editable,
         }
     }
 }
@@ -157,6 +159,7 @@ impl From<Choice> for commons::Choice {
         commons::Choice {
             id: value.id,
             value: value.value,
+            editable: value.editable,
         }
     }
 }

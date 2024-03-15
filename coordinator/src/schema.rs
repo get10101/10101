@@ -101,6 +101,7 @@ diesel::table! {
         id -> Int4,
         poll_id -> Int4,
         value -> Text,
+        editable -> Bool,
     }
 }
 

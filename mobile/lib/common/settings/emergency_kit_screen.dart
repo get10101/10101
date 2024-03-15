@@ -207,6 +207,8 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                             title: "Reset answered poll cache",
                             onPressed: () {
                               final messenger = ScaffoldMessenger.of(context);
+                              final goRouter = GoRouter.of(context);
+
                               try {
                                 rust.api.resetAllAnsweredPolls();
                                 showSnackBar(messenger,
@@ -214,6 +216,8 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                               } catch (e) {
                                 showSnackBar(messenger, "Failed to reset answered polls: $e");
                               }
+
+                              goRouter.pop();
                             })),
                   ])),
             ],
