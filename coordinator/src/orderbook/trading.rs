@@ -14,6 +14,7 @@ use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Network;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
+use commons::LimitOrder;
 use commons::Match;
 use commons::Message;
 use commons::Message::TradeError;
@@ -81,41 +82,44 @@ pub fn start(
                 let node = node.clone();
                 async move {
                     let new_order = new_order_msg.new_order;
-                    let trader_id = new_order.trader_id;
-                    let order_id = new_order.id;
+                    let trader_id = new_order.trader_id();
+                    let order_id = new_order.id();
                     let order_reason = new_order_msg.order_reason;
                     let channel_opening_params = new_order_msg.channel_opening_params;
 
                     tracing::trace!(
                         %trader_id,
                         %order_id,
-                        order_type = ?new_order.order_type,
+                        order_type = ?new_order.order_type(),
                         "Processing new order",
                     );
 
-                    if let Err(error) = match new_order.order_type {
-                        OrderType::Market => {
+                    let process_order_result = match new_order {
+                        NewOrder::Market(o) => {
                             process_new_market_order(
                                 node,
                                 notifier.clone(),
-                                new_order,
+                                o,
                                 order_reason,
                                 network,
                                 oracle_pk,
                                 channel_opening_params
                             )
-                            .await
+                                .await
                         }
-                        OrderType::Limit => {
+                        NewOrder::Limit(o) => {
                             process_new_limit_order(
                                 node,
                                 tx_price_feed,
-                                new_order,
+                                o,
                                 order_reason,
                             )
-                            .await
+                                .await
                         }
-                    } {
+                    };
+
+
+                    if let Err(error) = process_order_result {
                         // TODO(holzeis): the maker is currently not subscribed to the websocket
                         // api, hence it wouldn't receive the error message.
                         if let Err(e) = notifier
@@ -145,7 +149,7 @@ pub fn start(
 pub async fn process_new_limit_order(
     node: Node,
     tx_price_feed: broadcast::Sender<Message>,
-    new_order: NewOrder,
+    new_order: LimitOrder,
     order_reason: OrderReason,
 ) -> Result<Order, TradingError> {
     let mut conn = spawn_blocking(move || node.pool.get())
@@ -173,7 +177,7 @@ pub async fn process_new_limit_order(
             .context("Could not update price feed")?;
     }
 
-    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
+    let order = orders::insert_limit_order(&mut conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!(e))
         .context("Failed to insert new order into DB")?;
 
@@ -190,7 +194,7 @@ pub async fn process_new_limit_order(
 pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
-    new_order: NewOrder,
+    new_order: LimitOrder,
     order_reason: OrderReason,
     network: Network,
     oracle_pk: XOnlyPublicKey,
@@ -204,7 +208,7 @@ pub async fn process_new_market_order(
     .expect("task to complete")
     .map_err(|e| anyhow!("{e:#}"))?;
 
-    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
+    let order = orders::insert_market_order(&mut conn, new_order.clone(), order_reason)
         .map_err(|e| anyhow!(e))
         .context("Failed to insert new order into DB")?;
 

@@ -187,11 +187,11 @@ impl Order {
     }
 }
 
-impl From<Order> for commons::NewOrder {
+impl From<Order> for commons::LimitOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
         let trader_id = ln_dlc::get_node_pubkey();
-        commons::NewOrder {
+        commons::LimitOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,
             // todo: this is left out intentionally as market orders do not set a price. this field

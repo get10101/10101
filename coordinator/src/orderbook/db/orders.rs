@@ -7,7 +7,7 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewOrder as OrderbookNewOrder;
+use commons::LimitOrder;
 use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
 use commons::OrderState as OrderBookOrderState;
@@ -159,8 +159,8 @@ struct NewOrder {
     pub stable: bool,
 }
 
-impl From<OrderbookNewOrder> for NewOrder {
-    fn from(value: OrderbookNewOrder) -> Self {
+impl From<LimitOrder> for NewOrder {
+    fn from(value: LimitOrder) -> Self {
         NewOrder {
             trader_order_id: value.id,
             price: value
@@ -242,9 +242,27 @@ pub fn get_all_orders(
 }
 
 /// Returns the number of affected rows: 1.
-pub fn insert(
+pub fn insert_limit_order(
     conn: &mut PgConnection,
-    order: OrderbookNewOrder,
+    order: LimitOrder,
+    order_reason: OrderBookOrderReason,
+) -> QueryResult<OrderbookOrder> {
+    let new_order = NewOrder {
+        order_reason: OrderReason::from(order_reason),
+        ..NewOrder::from(order)
+    };
+    let order: Order = diesel::insert_into(orders::table)
+        .values(new_order)
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
+/// Returns the number of affected rows: 1.
+pub fn insert_market_order(
+    conn: &mut PgConnection,
+    // TODO: use market order here
+    order: LimitOrder,
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {

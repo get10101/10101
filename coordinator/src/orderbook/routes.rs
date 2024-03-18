@@ -12,6 +12,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use commons::Message;
+use commons::NewOrder;
 use commons::NewOrderRequest;
 use commons::Order;
 use commons::OrderReason;
@@ -73,27 +74,27 @@ pub async fn post_order(
 
     let new_order = new_order_request.value;
 
-    // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
-    if new_order.order_type == OrderType::Market {
+    if let NewOrder::Market(o) = &new_order {
+        // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
         let mut conn = state
             .pool
             .get()
             .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        check_version(&mut conn, &new_order.trader_id)
-            .map_err(|e| AppError::BadRequest(e.to_string()))?;
+        check_version(&mut conn, &o.trader_id).map_err(|e| AppError::BadRequest(e.to_string()))?;
     }
 
     let settings = state.settings.read().await;
-    if new_order.order_type == OrderType::Limit
-        && settings.whitelist_enabled
-        && !settings.whitelisted_makers.contains(&new_order.trader_id)
-    {
-        tracing::warn!(
-            trader_id = %new_order.trader_id,
-            "Trader tried to post limit order but was not whitelisted"
-        );
-        return Err(AppError::Unauthorized);
+
+    if let NewOrder::Limit(o) = &new_order {
+        if settings.whitelist_enabled && !settings.whitelisted_makers.contains(&o.trader_id) {
+            tracing::warn!(
+                trader_id = %o.trader_id,
+                "Trader tried to post limit order but was not whitelisted"
+            );
+            return Err(AppError::Unauthorized);
+        }
     }
+
     let message = NewOrderMessage {
         new_order,
         channel_opening_params: new_order_request.channel_opening_params,

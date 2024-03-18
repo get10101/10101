@@ -2,6 +2,7 @@ use crate::commons::reqwest_client;
 use crate::ln_dlc::get_node_key;
 use anyhow::Result;
 use commons::ChannelOpeningParams;
+use commons::LimitOrder;
 use commons::NewOrder;
 use commons::NewOrderRequest;
 use reqwest::Url;
@@ -17,14 +18,15 @@ impl OrderbookClient {
 
     pub(crate) async fn post_new_order(
         &self,
-        order: NewOrder,
+        // TODO: use market order
+        order: LimitOrder,
         channel_opening_params: Option<ChannelOpeningParams>,
     ) -> Result<()> {
         let secret_key = get_node_key();
         let message = order.message();
         let signature = secret_key.sign_ecdsa(message);
         let new_order_request = NewOrderRequest {
-            value: order,
+            value: NewOrder::Market(order),
             signature,
             channel_opening_params,
         };
