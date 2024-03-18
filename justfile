@@ -187,7 +187,7 @@ wipe: wipe-docker wipe-coordinator wipe-maker wipe-app wipe-webapp
 wipe-docker:
     #!/usr/bin/env bash
     set -euxo pipefail
-    docker-compose down -v
+    docker compose down -v
 
 wipe-coordinator:
     pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
@@ -326,7 +326,7 @@ ln-dlc-node-test args="": docker
 # Runs background Docker services
 docker:
     #!/usr/bin/env bash
-    docker-compose up -d
+    docker compose up -d
 
     height=$(docker exec bitcoin bitcoin-cli --regtest -rpcuser=admin1 -rpcpassword=123 getblockcount)
     height="${height%%[[:cntrl:]]}"
@@ -338,7 +338,7 @@ docker:
     fi
 
 docker-logs:
-    docker-compose logs
+    docker compose logs
 
 # Starts coordinator process in the background, piping logs to a file (used in other recipes)
 run-coordinator-detached:

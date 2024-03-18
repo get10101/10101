@@ -367,7 +367,7 @@ async fn start_and_fund_app(
     Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
     RunningNode,
 ) {
-    let (node, running_node) = Node::start_test_app("app").unwrap();
+    let (node, running_node) = Node::start_test_app("app").await.unwrap();
 
     node.fund(amount, n_utxos).await.unwrap();
 
@@ -381,7 +381,7 @@ async fn start_and_fund_coordinator(
     Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
     RunningNode,
 ) {
-    let (node, running_node) = Node::start_test_coordinator("coordinator").unwrap();
+    let (node, running_node) = Node::start_test_coordinator("coordinator").await.unwrap();
 
     node.fund(amount, n_utxos).await.unwrap();
 

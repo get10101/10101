@@ -28,7 +28,7 @@ pub type DlcManager<D, S, N> = dlc_manager::manager::Manager<
     Arc<FeeRateEstimator>,
 >;
 
-pub fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
+pub fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static>(
     data_dir: &Path,
     wallet: Arc<DlcWallet<D, S, N>>,
     dlc_storage: Arc<DlcStorageProvider<S>>,

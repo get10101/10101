@@ -119,27 +119,30 @@ async fn main() -> Result<()> {
         data_dir.join("wallet"),
     )?;
 
-    let node = Arc::new(ln_dlc_node::node::Node::new(
-        ln_dlc_node::config::coordinator_config(),
-        NODE_ALIAS,
-        network,
-        data_dir.as_path(),
-        storage,
-        node_storage,
-        wallet_storage,
-        address,
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
-        opts.electrs.clone(),
-        seed,
-        ephemeral_randomness,
-        settings.ln_dlc.clone(),
-        opts.get_oracle_infos()
-            .into_iter()
-            .map(|o| o.into())
-            .collect(),
-        XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
-        node_event_handler.clone(),
-    )?);
+    let node = Arc::new(
+        ln_dlc_node::node::Node::new(
+            ln_dlc_node::config::coordinator_config(),
+            NODE_ALIAS,
+            network,
+            data_dir.as_path(),
+            storage,
+            node_storage,
+            wallet_storage,
+            address,
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), address.port()),
+            opts.electrs.clone(),
+            seed,
+            ephemeral_randomness,
+            settings.ln_dlc.clone(),
+            opts.get_oracle_infos()
+                .into_iter()
+                .map(|o| o.into())
+                .collect(),
+            XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
+            node_event_handler.clone(),
+        )
+        .await?,
+    );
 
     let dlc_handler = DlcHandler::new(pool.clone(), node.clone());
     let _handle = dlc_handler::spawn_handling_outbound_dlc_messages(

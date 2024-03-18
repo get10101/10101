@@ -23,7 +23,7 @@ resolver = "2"
 dlc-manager = { git = "https://github.com/get10101/rust-dlc", rev = "a569d3e" }
 dlc-messages = { git = "https://github.com/get10101/rust-dlc", rev = "a569d3e" }
 dlc = { git = "https://github.com/get10101/rust-dlc", rev = "a569d3e" }
-p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc", rev = "a569d3e" }
+p2pd-oracle-client = { git = "https://github.com/get10101/rust-dlc/", rev = "caba716" }
 dlc-trie = { git = "https://github.com/get10101/rust-dlc", rev = "a569d3e" }
 
 # We should usually track the `p2pderivatives/split-tx-experiment[-10101]` branch. For now we depend
@@ -33,9 +33,8 @@ lightning-background-processor = { git = "https://github.com/bonomat/rust-lightn
 lightning-transaction-sync = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 lightning-persister = { git = "https://github.com/bonomat/rust-lightning-p2p-derivatives", rev = "e49030e" }
 
-rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection" }
-
-esplora-client = { git = "https://github.com/bitcoindevkit/rust-esplora-client", rev = "269360f" }
+rust-bitcoin-coin-selection = { git = "https://github.com/p2pderivatives/rust-bitcoin-coin-selection", rev = "4054519" }
+esplora-client = { git = "https://github.com/get10101/rust-esplora-client", rev = "24508f7" }
 
 [profile.test.package.proptest]
 opt-level = 3

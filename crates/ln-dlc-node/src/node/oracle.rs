@@ -25,7 +25,7 @@ impl From<OracleInfo> for P2PDOracleClient {
     }
 }
 
-impl<D: BdkStorage, S: TenTenOneStorage, N: Storage> Node<D, S, N> {
+impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync> Node<D, S, N> {
     pub fn oracle_pk(&self) -> Vec<XOnlyPublicKey> {
         self.oracles
             .clone()

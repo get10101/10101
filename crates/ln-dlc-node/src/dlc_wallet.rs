@@ -28,6 +28,7 @@ use bdk_coin_select::Target;
 use bitcoin::secp256k1::KeyPair;
 use bitcoin::Network;
 use bitcoin::TxIn;
+use futures::executor::block_on;
 use ln_dlc_storage::DlcStorageProvider;
 use ln_dlc_storage::WalletStorage;
 use std::sync::Arc;
@@ -58,7 +59,7 @@ impl<D, S, N> DlcWallet<D, S, N> {
 impl<D, S, N> dlc_manager::Blockchain for DlcWallet<D, S, N>
 where
     D: BdkStorage,
-    N: Storage,
+    N: Storage + Send + Sync + 'static,
 {
     fn send_transaction(
         &self,
@@ -66,8 +67,7 @@ where
     ) -> Result<(), dlc_manager::error::Error> {
         let tx = to_tx_30(tx.clone());
 
-        self.blockchain
-            .broadcast_transaction_blocking(&tx)
+        block_on(self.blockchain.broadcast_transaction(&tx))
             .map_err(|e| dlc_manager::error::Error::WalletError(format!("{e:#}").into()))?;
 
         Ok(())
@@ -100,21 +100,18 @@ where
         &self,
         height: u64,
     ) -> Result<bitcoin_old::Block, dlc_manager::error::Error> {
-        let block_hash = self.blockchain.get_block_hash(height).map_err(|e| {
+        let block_hash = block_on(self.blockchain.get_block_hash(height)).map_err(|e| {
             dlc_manager::error::Error::BlockchainError(format!(
                 "Could not find block hash at height {height}: {e:#}"
             ))
         })?;
 
-        let block = self
-            .blockchain
-            .get_block_by_hash(&block_hash)
-            .map_err(|e| {
-                dlc_manager::error::Error::BlockchainError(format!(
-                    "Could not find block by hash {}: {e:#}",
-                    block_hash
-                ))
-            })?;
+        let block = block_on(self.blockchain.get_block_by_hash(&block_hash)).map_err(|e| {
+            dlc_manager::error::Error::BlockchainError(format!(
+                "Could not find block by hash {}: {e:#}",
+                block_hash
+            ))
+        })?;
 
         Ok(to_block_29(block))
     }
@@ -125,9 +122,7 @@ where
     ) -> Result<bitcoin_old::Transaction, dlc_manager::error::Error> {
         let txid = to_txid_30(*txid);
 
-        let tx = self
-            .blockchain
-            .get_transaction(&txid)
+        let tx = block_on(self.blockchain.get_transaction(&txid))
             .map_err(|e| {
                 dlc_manager::error::Error::BlockchainError(format!(
                     "Could not get transaction {txid}: {e:#}"
@@ -148,9 +143,7 @@ where
     ) -> Result<u32, dlc_manager::error::Error> {
         let txid = to_txid_30(*txid);
 
-        let confirmations = self
-            .blockchain
-            .get_transaction_confirmations(&txid)
+        let confirmations = block_on(self.blockchain.get_transaction_confirmations(&txid))
             .map_err(|e| {
                 dlc_manager::error::Error::BlockchainError(format!(
                     "Could not get confirmations for transaction {txid}: {e:#}",
@@ -166,7 +159,7 @@ where
     ) -> Result<Option<(u32, bitcoin_old::Txid)>, dlc_manager::error::Error> {
         let txo = to_outpoint_30(*txo);
 
-        let confirmations = self.blockchain.get_txo_confirmations(&txo).map_err(|e| {
+        let confirmations = block_on(self.blockchain.get_txo_confirmations(&txo)).map_err(|e| {
             dlc_manager::error::Error::BlockchainError(format!(
                 "Could not get confirmations for txo {txo}: {e:#}",
             ))

@@ -7,24 +7,28 @@ use crate::storage::TenTenOneStorage;
 use crate::EventHandlerTrait;
 use anyhow::bail;
 use anyhow::Result;
-use async_trait::async_trait;
 use lightning::events::Event;
 use std::sync::Arc;
 
 /// Event handler for the coordinator node.
 // TODO: Move it out of this crate
-pub struct CoordinatorEventHandler<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
+pub struct CoordinatorEventHandler<
+    D: BdkStorage,
+    S: TenTenOneStorage,
+    N: Storage + Sync + Send + 'static,
+> {
     pub(crate) node: Arc<Node<D, S, N>>,
     pub(crate) event_sender: Option<EventSender>,
 }
 
-impl<D: BdkStorage, S: TenTenOneStorage, N: Storage> CoordinatorEventHandler<D, S, N> {
+impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Sync + Send>
+    CoordinatorEventHandler<D, S, N>
+{
     pub fn new(node: Arc<Node<D, S, N>>, event_sender: Option<EventSender>) -> Self {
         Self { node, event_sender }
     }
 }
 
-#[async_trait]
 impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 'static>
     EventHandlerTrait for CoordinatorEventHandler<D, S, N>
 {
@@ -40,7 +44,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Send + Sync + 's
             } => {
                 // TODO(holzeis): Update shadow channel to store the commitment transaction closing
                 // the channel.
-                common_handlers::handle_spendable_outputs(&self.node, outputs)?;
+                common_handlers::handle_spendable_outputs(&self.node, outputs).await?;
             }
             _ => {
                 bail!("Unhandled event");

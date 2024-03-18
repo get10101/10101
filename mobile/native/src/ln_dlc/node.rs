@@ -98,8 +98,8 @@ pub struct WalletHistory {
 }
 
 impl Node {
-    pub fn get_blockchain_height(&self) -> Result<u64> {
-        self.inner.get_blockchain_height()
+    pub async fn get_blockchain_height(&self) -> Result<u64> {
+        self.inner.get_blockchain_height().await
     }
 
     pub fn get_wallet_balances(&self) -> Balances {

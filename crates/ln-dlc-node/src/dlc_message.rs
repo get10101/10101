@@ -6,7 +6,6 @@ use sha2::digest::FixedOutput;
 use sha2::Digest;
 use sha2::Sha256;
 use time::OffsetDateTime;
-use ureq::serde_json;
 
 #[derive(Clone)]
 pub struct DlcMessage {

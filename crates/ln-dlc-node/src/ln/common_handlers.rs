@@ -10,11 +10,15 @@ use lightning::chain::chaininterface::FeeEstimator;
 use lightning::sign::SpendableOutputDescriptor;
 use secp256k1_zkp::Secp256k1;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
-pub fn handle_spendable_outputs<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
+pub async fn handle_spendable_outputs<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
     node: &Arc<Node<D, S, N>>,
     outputs: Vec<SpendableOutputDescriptor>,
-) -> Result<()> {
+) -> Result<()>
+where
+    N: Send + Sync + 'static,
+{
     let ldk_outputs = outputs
         .iter()
         .filter(|output| {
@@ -26,10 +30,9 @@ pub fn handle_spendable_outputs<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
         return Ok(());
     }
     for spendable_output in ldk_outputs.iter() {
-        if let Err(e) = node
-            .node_storage
-            .insert_spendable_output((*spendable_output).clone())
-        {
+        let out = (*spendable_output).clone();
+        let storage = node.node_storage.clone();
+        if let Err(e) = spawn_blocking(move || storage.insert_spendable_output(out)).await {
             tracing::error!("Failed to persist spendable output: {e:#}")
         }
     }
@@ -46,7 +49,8 @@ pub fn handle_spendable_outputs<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
     )?;
 
     node.blockchain
-        .broadcast_transaction_blocking(&to_tx_30(spending_tx))?;
+        .broadcast_transaction(&to_tx_30(spending_tx))
+        .await?;
 
     Ok(())
 }

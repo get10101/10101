@@ -80,6 +80,7 @@ pub mod dlc_channel;
 pub mod event;
 pub mod peer_manager;
 
+use crate::spawn;
 pub use ::dlc_manager as rust_dlc_manager;
 pub use channel_manager::ChannelManager;
 pub use connection::TenTenOneOnionMessageHandler;
@@ -113,7 +114,7 @@ pub struct LiquidityRequest {
 }
 
 /// An LN-DLC node.
-pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
+pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,
 
@@ -212,7 +213,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub async fn new(
         // Supplied configuration of LDK node.
         ldk_config: UserConfig,
         alias: &str,
@@ -298,6 +299,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             scoring_fee_params,
         ));
 
+        let ldk_config_read = *ldk_config.read();
         let channel_manager = channel_manager::build(
             keys_manager.clone(),
             blockchain.clone(),
@@ -305,11 +307,12 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             esplora_client.clone(),
             logger.clone(),
             chain_monitor.clone(),
-            *ldk_config.read(),
+            ldk_config_read,
             network,
             ln_storage.clone(),
             router,
-        )?;
+        )
+        .await?;
 
         let channel_manager = Arc::new(channel_manager);
 
@@ -430,14 +433,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         ));
 
         // TODO: Remove once all pending production subchannels are gone.
-        tokio::spawn(periodic_lightning_wallet_sync(
+        spawn(periodic_lightning_wallet_sync(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
             self.settings.clone(),
             self.esplora_client.clone(),
         ));
 
-        tokio::spawn(update_fee_rate_estimates(
+        spawn(update_fee_rate_estimates(
             self.settings.clone(),
             self.fee_rate_estimator.clone(),
         ));
@@ -458,7 +461,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         // TODO: Remove once all pending production subchannels are gone.
         handles.push(manage_sub_channels(self.sub_channel_manager.clone()));
 
-        tokio::spawn(manage_spendable_outputs_task::<D, N>(
+        spawn(manage_spendable_outputs_task::<D, N>(
             self.electrs_server_url.clone(),
             self.node_storage.clone(),
             self.wallet.clone(),
@@ -476,12 +479,13 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         sub_channel_manager_periodic_check(self.sub_channel_manager.clone()).await
     }
 
-    pub fn sync_lightning_wallet(&self) -> Result<()> {
+    pub async fn sync_lightning_wallet(&self) -> Result<()> {
         lightning_wallet_sync(
             &self.channel_manager,
             &self.chain_monitor,
             &self.esplora_client,
         )
+        .await
     }
 
     /// Send the given `amount_sats` sats to the given unchecked, on-chain `address`.
@@ -504,7 +508,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         .await
         .expect("task to complete")?;
 
-        let txid = self.blockchain.broadcast_transaction_blocking(&tx)?;
+        let txid = self.blockchain.broadcast_transaction(&tx).await?;
 
         Ok(txid)
     }
@@ -582,14 +586,14 @@ fn spawn_background_processor<
         }
     }
     .remote_handle();
-    tokio::spawn(fut);
+    spawn(fut);
     remote_handle
 }
 
 async fn periodic_lightning_wallet_sync<
     D: BdkStorage,
     S: TenTenOneStorage,
-    N: Storage + Sync + Send,
+    N: Storage + Sync + Send + 'static,
 >(
     channel_manager: Arc<ChannelManager<D, S, N>>,
     chain_monitor: Arc<ChainMonitor<S, N>>,
@@ -597,7 +601,9 @@ async fn periodic_lightning_wallet_sync<
     esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
 ) {
     loop {
-        if let Err(e) = lightning_wallet_sync(&channel_manager, &chain_monitor, &esplora_client) {
+        if let Err(e) =
+            lightning_wallet_sync(&channel_manager, &chain_monitor, &esplora_client).await
+        {
             tracing::error!("Background sync of Lightning wallet failed: {e:#}")
         }
 
@@ -609,7 +615,11 @@ async fn periodic_lightning_wallet_sync<
     }
 }
 
-fn lightning_wallet_sync<D: BdkStorage, S: TenTenOneStorage, N: Storage + Sync + Send>(
+async fn lightning_wallet_sync<
+    D: BdkStorage,
+    S: TenTenOneStorage,
+    N: Storage + Sync + Send + 'static,
+>(
     channel_manager: &ChannelManager<D, S, N>,
     chain_monitor: &ChainMonitor<S, N>,
     esplora_client: &EsploraSyncClient<Arc<TracingLogger>>,
@@ -621,6 +631,7 @@ fn lightning_wallet_sync<D: BdkStorage, S: TenTenOneStorage, N: Storage + Sync +
     ];
     esplora_client
         .sync(confirmables)
+        .await
         .context("Lightning wallet sync failed")?;
 
     tracing::trace!(
@@ -690,12 +701,12 @@ fn spawn_connection_management<
 
             connection_handles.push(connection_handle);
 
-            tokio::spawn(fut);
+            spawn(fut);
         }
     }
     .remote_handle();
 
-    tokio::spawn(fut);
+    spawn(fut);
 
     tracing::info!("Listening on {listen_address}");
 
@@ -710,31 +721,29 @@ async fn manage_spendable_outputs_task<D: BdkStorage, N: Storage + Sync + Send +
     fee_rate_estimator: Arc<FeeRateEstimator>,
     keys_manager: Arc<CustomKeysManager<D>>,
 ) {
-    let client = Arc::new(esplora_client::BlockingClient::from_agent(
-        electrs_server_url,
-        ureq::agent(),
-    ));
+    let client = Arc::new(
+        esplora_client::Builder::new(&electrs_server_url)
+            .build_async()
+            .expect("Failed to create esplora client - should be impossible!"),
+    );
+
     loop {
-        if let Err(e) = spawn_blocking({
-            let client = client.clone();
-            let node_storage = node_storage.clone();
-            let ln_dlc_wallet = wallet.clone();
-            let blockchain = blockchain.clone();
-            let fee_rate_estimator = fee_rate_estimator.clone();
-            let keys_manager = keys_manager.clone();
-            move || {
-                manage_spendable_outputs(
-                    node_storage,
-                    client,
-                    ln_dlc_wallet,
-                    blockchain,
-                    fee_rate_estimator,
-                    keys_manager,
-                )
-            }
-        })
+        let client = client.clone();
+        let node_storage = node_storage.clone();
+        let ln_dlc_wallet = wallet.clone();
+        let blockchain = blockchain.clone();
+        let fee_rate_estimator = fee_rate_estimator.clone();
+        let keys_manager = keys_manager.clone();
+
+        if let Err(e) = manage_spendable_outputs(
+            node_storage,
+            client,
+            ln_dlc_wallet,
+            blockchain,
+            fee_rate_estimator,
+            keys_manager,
+        )
         .await
-        .expect("task to complete")
         {
             tracing::error!("Failed to deal with spendable outputs: {e:#}");
         };
@@ -773,7 +782,7 @@ fn manage_sub_channels<
     }
     .remote_handle();
 
-    tokio::spawn(fut);
+    spawn(fut);
 
     remote_handle
 }

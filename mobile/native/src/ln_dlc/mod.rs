@@ -306,7 +306,8 @@ pub fn run(runtime: &Runtime) -> Result<()> {
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
             node_event_handler.clone(),
-        )?;
+        )
+        .await?;
         let node = Arc::new(node);
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
