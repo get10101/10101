@@ -47,6 +47,9 @@ dependencies:
   fl_chart: 0.64.0
   card_swiper: ^3.0.1
   screenshot: ^2.1.0
+  syncfusion_flutter_sliders: ^24.2.9
+  syncfusion_flutter_core: ^24.2.9
+
 dependency_overrides:
   intl: ^0.18.0
 dev_dependencies:
