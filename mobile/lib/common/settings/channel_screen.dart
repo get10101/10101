@@ -46,6 +46,7 @@ class _ChannelScreenState extends State<ChannelScreen> {
       ...dlcChannelChangeNotifier.getAllAcceptedDlcChannels(),
       ...dlcChannelChangeNotifier.getAllCancelledDlcChannels(),
       ...dlcChannelChangeNotifier.getAllClosingDlcChannels(),
+      ...dlcChannelChangeNotifier.getAllSettledClosingDlcChannels(),
       ...dlcChannelChangeNotifier.getAllClosedDlcChannels(),
       ...dlcChannelChangeNotifier.getAllOtherDlcChannels()
     ];
@@ -222,6 +223,11 @@ class ChannelsTile extends StatelessWidget {
                     ? ListTile(
                         leading: const Text('Buffer TXID', style: TextStyle(fontSize: 17)),
                         title: TransactionIdText(channel.bufferTxid))
+                    : Container(),
+                channel is SettledClosingDlcChannel
+                    ? ListTile(
+                        leading: const Text('Settle TXID', style: TextStyle(fontSize: 17)),
+                        title: TransactionIdText(channel.settleTxid))
                     : Container(),
                 channel is ClosedDlcChannel
                     ? ListTile(
