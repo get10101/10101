@@ -97,21 +97,23 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     if (event is bridge.Event_OrderUpdateNotification) {
       Order order = Order.fromApi(event.field0);
 
-      switch (order.state) {
-        case OrderState.open:
-        case OrderState.filling:
-          return;
-        case OrderState.filled:
-          _pendingOrder!.state = PendingOrderState.orderFilled;
-          break;
-        case OrderState.failed:
-        case OrderState.rejected:
-          _pendingOrder!.state = PendingOrderState.orderFailed;
-          break;
-      }
-      _pendingOrder!.failureReason = order.failureReason;
+      if (pendingOrder != null) {
+        switch (order.state) {
+          case OrderState.open:
+          case OrderState.filling:
+            return;
+          case OrderState.filled:
+            _pendingOrder!.state = PendingOrderState.orderFilled;
+            break;
+          case OrderState.failed:
+          case OrderState.rejected:
+            _pendingOrder!.state = PendingOrderState.orderFailed;
+            break;
+        }
+        _pendingOrder!.failureReason = order.failureReason;
 
-      notifyListeners();
+        notifyListeners();
+      }
     } else {
       logger.w("Received unexpected event: ${event.toString()}");
     }
