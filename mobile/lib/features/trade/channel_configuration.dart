@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/collateral_slider.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
@@ -68,6 +71,8 @@ class ChannelConfiguration extends StatefulWidget {
 }
 
 class _ChannelConfiguration extends State<ChannelConfiguration> {
+  final TextEditingController _collateralController = TextEditingController();
+
   late final LspChangeNotifier lspChangeNotifier;
   late final DlcChannelChangeNotifier dlcChannelChangeNotifier;
 
@@ -112,6 +117,8 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
         ? Amount(tradeConstraints.minMargin)
         : widget.tradeValues.margin!;
 
+    _collateralController.text = ownTotalCollateral.formatted();
+
     orderMatchingFees = widget.tradeValues.fee ?? Amount.zero();
 
     updateCounterpartyCollateral();
@@ -132,6 +139,11 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
   @override
   Widget build(BuildContext context) {
+    final maxUsableOnChainBalance =
+        maxOnChainSpending - orderMatchingFees - fundingTxFee - channelFeeReserve;
+    final maxCounterpartyCollateralSats =
+        (maxCounterpartyCollateral.sats * counterpartyLeverage).toInt();
+
     return Form(
         key: _formKey,
         child: Container(
@@ -158,10 +170,12 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                     children: [
                       AmountInputField(
                         value: ownTotalCollateral,
+                        controller: _collateralController,
                         label: 'Your collateral (sats)',
                         onChanged: (value) {
                           setState(() {
                             ownTotalCollateral = Amount.parseAmount(value);
+                            _collateralController.text = ownTotalCollateral.formatted();
 
                             updateCounterpartyCollateral();
                           });
@@ -175,7 +189,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
                           if (ownTotalCollateral.add(orderMatchingFees).sats >
                               maxOnChainSpending.sats) {
-                            return "Max on-chain: ${Amount(maxOnChainSpending.sats - orderMatchingFees.sats)}";
+                            return "Max on-chain: $maxUsableOnChainBalance";
                           }
 
                           if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
@@ -184,6 +198,20 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 10),
+                      CollateralSlider(
+                        onValueChanged: (newValue) {
+                          setState(() {
+                            ownTotalCollateral = Amount(newValue);
+                            _collateralController.text = ownTotalCollateral.formatted();
+                            updateCounterpartyCollateral();
+                          });
+                        },
+                        minValue: minMargin.sats,
+                        maxValue: min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.toInt),
+                        labelText: 'Your collateral (sats)',
+                        value: ownTotalCollateral.sats,
                       ),
                       const SizedBox(height: 10),
                       AmountTextField(
