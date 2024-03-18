@@ -3,7 +3,7 @@ use crate::orderbook::db::orders;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewOrder;
+use commons::LimitOrder;
 use commons::OrderReason;
 use commons::OrderState;
 use commons::OrderType;
@@ -24,7 +24,7 @@ async fn crud_test() {
 
     let mut conn = setup_db(conn_spec);
 
-    let order = orders::insert(
+    let order = orders::insert_limit_order(
         &mut conn,
         dummy_order(
             OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -50,7 +50,7 @@ async fn test_all_limit_orders() {
     let orders = orders::all_limit_orders(&mut conn).unwrap();
     assert!(orders.is_empty());
 
-    orders::insert(
+    orders::insert_limit_order(
         &mut conn,
         dummy_order(
             OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -60,7 +60,7 @@ async fn test_all_limit_orders() {
     )
     .unwrap();
 
-    let second_order = orders::insert(
+    let second_order = orders::insert_limit_order(
         &mut conn,
         dummy_order(
             OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -71,7 +71,7 @@ async fn test_all_limit_orders() {
     .unwrap();
     orders::set_order_state(&mut conn, second_order.id, OrderState::Failed).unwrap();
 
-    orders::insert(
+    orders::insert_limit_order(
         &mut conn,
         dummy_order(
             OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -85,8 +85,8 @@ async fn test_all_limit_orders() {
     assert_eq!(orders.len(), 1);
 }
 
-fn dummy_order(expiry: OffsetDateTime, order_type: OrderType) -> NewOrder {
-    NewOrder {
+fn dummy_order(expiry: OffsetDateTime, order_type: OrderType) -> LimitOrder {
+    LimitOrder {
         id: Uuid::new_v4(),
         price: dec!(20000.00),
         trader_id: PublicKey::from_str(

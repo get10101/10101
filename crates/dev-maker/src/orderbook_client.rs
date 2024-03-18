@@ -31,9 +31,9 @@ impl OrderbookClient {
         let url = self.url.join("/api/orderbook/orders")?;
 
         tracing::info!(
-            id = order.id.to_string(),
-            direction = order.direction.to_string(),
-            price = order.price.to_string(),
+            id = order.id().to_string(),
+            direction = order.direction().to_string(),
+            price = order.price().to_string(),
             "Posting order"
         );
         let message = order.message();

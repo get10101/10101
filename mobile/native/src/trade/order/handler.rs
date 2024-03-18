@@ -92,7 +92,7 @@ pub async fn submit_order(
     let orderbook_client = OrderbookClient::new(url);
 
     if let Err(err) = orderbook_client
-        .post_new_order(order.clone().into(), channel_opening_params)
+        .post_new_market_order(order.clone().into(), channel_opening_params)
         .await
     {
         let order_id = order.id.clone().to_string();

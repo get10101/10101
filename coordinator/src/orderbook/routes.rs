@@ -14,6 +14,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::Json;
 use commons::Message;
+use commons::NewOrder;
 use commons::NewOrderRequest;
 use commons::Order;
 use commons::OrderReason;
@@ -76,7 +77,7 @@ pub async fn post_order(
     let new_order = new_order_request.value;
 
     // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
-    if new_order.order_type == OrderType::Market {
+    if let NewOrder::Market(new_order) = &new_order {
         let mut conn = state
             .pool
             .get()
@@ -87,7 +88,7 @@ pub async fn post_order(
 
     let settings = state.settings.read().await;
 
-    if OrderType::Limit == new_order.order_type {
+    if let NewOrder::Limit(new_order) = &new_order {
         if settings.whitelist_enabled && !settings.whitelisted_makers.contains(&new_order.trader_id)
         {
             tracing::warn!(
@@ -105,12 +106,20 @@ pub async fn post_order(
     }
 
     let pool = state.pool.clone();
+    let new_order = new_order.clone();
     let order = spawn_blocking(move || {
         let mut conn = pool.get()?;
 
-        let order = orders::insert(&mut conn, new_order.clone(), OrderReason::Manual)
-            .map_err(|e| anyhow!(e))
-            .context("Failed to insert new order into DB")?;
+        let order = match new_order {
+            NewOrder::Market(o) => {
+                orders::insert_market_order(&mut conn, o.clone(), OrderReason::Manual)
+            }
+            NewOrder::Limit(o) => {
+                orders::insert_limit_order(&mut conn, o.clone(), OrderReason::Manual)
+            }
+        }
+        .map_err(|e| anyhow!(e))
+        .context("Failed to insert new order into DB")?;
 
         anyhow::Ok(order)
     })

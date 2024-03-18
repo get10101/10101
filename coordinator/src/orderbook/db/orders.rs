@@ -7,7 +7,8 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewOrder as OrderbookNewOrder;
+use commons::LimitOrder;
+use commons::MarketOrder;
 use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
 use commons::OrderState as OrderBookOrderState;
@@ -159,8 +160,8 @@ struct NewOrder {
     pub stable: bool,
 }
 
-impl From<OrderbookNewOrder> for NewOrder {
-    fn from(value: OrderbookNewOrder) -> Self {
+impl From<LimitOrder> for NewOrder {
+    fn from(value: LimitOrder) -> Self {
         NewOrder {
             trader_order_id: value.id,
             price: value
@@ -168,6 +169,32 @@ impl From<OrderbookNewOrder> for NewOrder {
                 .round_dp(2)
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
+            trader_id: value.trader_id.to_string(),
+            direction: value.direction.into(),
+            quantity: value
+                .quantity
+                .round_dp(2)
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            order_type: value.order_type.into(),
+            expiry: value.expiry,
+            order_reason: OrderReason::Manual,
+            contract_symbol: value.contract_symbol.into(),
+            leverage: value
+                .leverage
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            stable: value.stable,
+        }
+    }
+}
+
+impl From<MarketOrder> for NewOrder {
+    fn from(value: MarketOrder) -> Self {
+        NewOrder {
+            trader_order_id: value.id,
+            // TODO: it would be cool to get rid of this as well
+            price: 0.0,
             trader_id: value.trader_id.to_string(),
             direction: value.direction.into(),
             quantity: value
@@ -242,9 +269,26 @@ pub fn get_all_orders(
 }
 
 /// Returns the number of affected rows: 1.
-pub fn insert(
+pub fn insert_limit_order(
     conn: &mut PgConnection,
-    order: OrderbookNewOrder,
+    order: LimitOrder,
+    order_reason: OrderBookOrderReason,
+) -> QueryResult<OrderbookOrder> {
+    let new_order = NewOrder {
+        order_reason: OrderReason::from(order_reason),
+        ..NewOrder::from(order)
+    };
+    let order: Order = diesel::insert_into(orders::table)
+        .values(new_order)
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
+/// Returns the number of affected rows: 1.
+pub fn insert_market_order(
+    conn: &mut PgConnection,
+    order: MarketOrder,
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {
