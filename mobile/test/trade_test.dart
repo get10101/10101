@@ -163,7 +163,7 @@ void main() {
 
     // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
     walletChangeNotifier.update(WalletInfo(
-        balances: WalletBalances(onChain: Amount(0), offChain: Amount(10000)), history: []));
+        balances: WalletBalances(onChain: Amount(251000), offChain: Amount(100000)), history: []));
 
     await tester.pumpAndSettle();
 
@@ -180,6 +180,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(tradeScreenBottomSheetChannelConfigurationConfirmButton), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(tradeScreenBottomSheetChannelConfigurationConfirmButton));
 
     // click confirm button to go to confirmation screen
     await tester.tap(find.byKey(tradeScreenBottomSheetChannelConfigurationConfirmButton));
