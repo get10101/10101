@@ -347,6 +347,7 @@ impl TradeExecutor {
             temporary_contract_id,
             leverage_coordinator,
             stable,
+            Amount::from_sat(order_matching_fee),
         )
         .await
     }
@@ -507,6 +508,7 @@ impl TradeExecutor {
             temporary_contract_id,
             leverage_coordinator,
             stable,
+            Amount::from_sat(order_matching_fee),
         )
         .await
     }
@@ -519,6 +521,7 @@ impl TradeExecutor {
         temporary_contract_id: ContractId,
         coordinator_leverage: f32,
         stable: bool,
+        order_matching_fees: Amount,
     ) -> Result<()> {
         let price = trade_params.average_execution_price();
         let maintenance_margin_rate = { self.node.settings.read().await.maintenance_margin_rate };
@@ -562,6 +565,7 @@ impl TradeExecutor {
             coordinator_leverage,
             trader_margin: margin_trader as i64,
             stable,
+            order_matching_fees,
         };
         tracing::debug!(?new_position, "Inserting new position into db");
 

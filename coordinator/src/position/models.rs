@@ -37,6 +37,7 @@ pub struct NewPosition {
     pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
+    pub order_matching_fees: Amount,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -87,6 +88,9 @@ pub struct Position {
     pub coordinator_leverage: f32,
 
     pub position_state: PositionState,
+
+    /// Accumulated order matching fees for the lifetime of the position.
+    pub order_matching_fees: Amount,
 
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
@@ -499,6 +503,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -534,6 +539,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -569,6 +575,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -1019,6 +1026,7 @@ mod tests {
                 trader_margin: 1000,
                 stable: false,
                 trader_realized_pnl_sat: None,
+                order_matching_fees: Amount::ZERO,
             }
         }
 

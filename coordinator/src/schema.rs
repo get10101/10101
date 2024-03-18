@@ -380,6 +380,7 @@ diesel::table! {
         trader_margin -> Int8,
         stable -> Bool,
         coordinator_liquidation_price -> Float4,
+        order_matching_fees -> Int8,
     }
 }
 

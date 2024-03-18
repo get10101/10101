@@ -6,6 +6,7 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
@@ -41,6 +42,7 @@ pub struct Position {
     pub trader_margin: i64,
     pub stable: bool,
     pub coordinator_liquidation_price: f32,
+    pub order_matching_fees: i64,
 }
 
 impl Position {
@@ -411,6 +413,7 @@ impl From<Position> for crate::position::models::Position {
             trader_margin: value.trader_margin,
             stable: value.stable,
             trader_realized_pnl_sat: value.trader_realized_pnl_sat,
+            order_matching_fees: Amount::from_sat(value.order_matching_fees as u64),
         }
     }
 }
@@ -433,6 +436,7 @@ struct NewPosition {
     pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
+    pub order_matching_fees: i64,
 }
 
 impl From<crate::position::models::NewPosition> for NewPosition {
@@ -459,6 +463,7 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             coordinator_leverage: value.coordinator_leverage,
             trader_margin: value.trader_margin,
             stable: value.stable,
+            order_matching_fees: value.order_matching_fees.to_sat() as i64,
         }
     }
 }
