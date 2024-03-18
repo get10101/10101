@@ -176,7 +176,7 @@ impl From<LimitOrder> for NewOrder {
                 .round_dp(2)
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
-            order_type: value.order_type.into(),
+            order_type: OrderType::Limit,
             expiry: value.expiry,
             order_reason: OrderReason::Manual,
             contract_symbol: value.contract_symbol.into(),
@@ -202,7 +202,7 @@ impl From<MarketOrder> for NewOrder {
                 .round_dp(2)
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
-            order_type: value.order_type.into(),
+            order_type: OrderType::Market,
             expiry: value.expiry,
             order_reason: OrderReason::Manual,
             contract_symbol: value.contract_symbol.into(),

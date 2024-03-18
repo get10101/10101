@@ -92,7 +92,6 @@ pub struct MarketOrder {
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
-    pub order_type: OrderType,
     #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
@@ -110,7 +109,6 @@ pub struct LimitOrder {
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
-    pub order_type: OrderType,
     #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
@@ -125,8 +123,6 @@ impl LimitOrder {
 
         let symbol = self.contract_symbol.label();
         let symbol = symbol.as_bytes();
-        let order_type = self.order_type.label();
-        let order_type = order_type.as_bytes();
         let direction = self.direction.to_string();
         let direction = direction.as_bytes();
         let quantity = format!("{:.2}", self.quantity);
@@ -139,7 +135,6 @@ impl LimitOrder {
         vec.append(&mut id);
         vec.append(&mut seconds);
         vec.append(&mut symbol.to_vec());
-        vec.append(&mut order_type.to_vec());
         vec.append(&mut direction.to_vec());
         vec.append(&mut quantity.to_vec());
         vec.append(&mut price.to_vec());
@@ -158,8 +153,6 @@ impl MarketOrder {
 
         let symbol = self.contract_symbol.label();
         let symbol = symbol.as_bytes();
-        let order_type = self.order_type.label();
-        let order_type = order_type.as_bytes();
         let direction = self.direction.to_string();
         let direction = direction.as_bytes();
         let quantity = format!("{:.2}", self.quantity);
@@ -170,7 +163,6 @@ impl MarketOrder {
         vec.append(&mut id);
         vec.append(&mut seconds);
         vec.append(&mut symbol.to_vec());
-        vec.append(&mut order_type.to_vec());
         vec.append(&mut direction.to_vec());
         vec.append(&mut quantity.to_vec());
         vec.append(&mut leverage.to_vec());
@@ -250,7 +242,6 @@ pub mod tests {
     use crate::LimitOrder;
     use crate::NewOrder;
     use crate::NewOrderRequest;
-    use crate::OrderType;
     use secp256k1::rand;
     use secp256k1::Secp256k1;
     use secp256k1::SecretKey;
@@ -275,7 +266,6 @@ pub mod tests {
             trader_id: public_key,
             direction: Direction::Long,
             leverage: rust_decimal_macros::dec!(2.0),
-            order_type: OrderType::Market,
             expiry: OffsetDateTime::now_utc(),
             stable: false,
         };
@@ -302,7 +292,6 @@ pub mod tests {
             trader_id: public_key,
             direction: Direction::Long,
             leverage: rust_decimal_macros::dec!(2.0),
-            order_type: OrderType::Market,
             // Note: the last 5 is too much as it does not get serialized
             expiry: OffsetDateTime::UNIX_EPOCH + 1.1010101015.seconds(),
             stable: false,

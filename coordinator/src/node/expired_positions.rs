@@ -14,7 +14,6 @@ use commons::Match;
 use commons::MatchState;
 use commons::OrderReason;
 use commons::OrderState;
-use commons::OrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -87,7 +86,6 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             trader_id: position.trader,
             direction: position.trader_direction.opposite(),
             leverage: Decimal::from_f32(position.trader_leverage).expect("to fit into decimal"),
-            order_type: OrderType::Market,
             // This order can basically not expire, but if the user does not come back online within
             // a certain time period we can assume the channel to be abandoned and we should force
             // close.
