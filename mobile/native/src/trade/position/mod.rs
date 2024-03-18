@@ -272,7 +272,7 @@ impl Position {
 
                     // `margin_before_btc` is a positive number so we have to make it negative so
                     // that reducing the position results in a negative `trade_cost` i.e. money into
-                    // the Lightning wallet.
+                    // the off-chain wallet.
                     SignedAmount::from_btc(-margin_before_btc)
                         .expect("margin diff to fit into SignedAmount")
                 };
@@ -432,7 +432,7 @@ impl Position {
 
                     // `margin_before_btc` is a positive number so we have to make it negative so
                     // that reducing the position results in a negative `trade_cost` i.e. money into
-                    // the Lightning wallet.
+                    // the off-chain wallet.
                     SignedAmount::from_btc(-margin_before_btc)
                         .expect("margin to fit into SignedAmount")
                 };
