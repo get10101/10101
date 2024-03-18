@@ -180,6 +180,21 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                             updateCounterpartyCollateral();
                           });
                         },
+                        suffixIcon: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              ownTotalCollateral = Amount(
+                                  (maxCounterpartyCollateral.sats * counterpartyLeverage).toInt());
+                              _collateralController.text = ownTotalCollateral.formatted();
+
+                              updateCounterpartyCollateral();
+                            });
+                          },
+                          child: const Text(
+                            "Max",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
                         validator: (value) {
                           if (ownTotalCollateral.sats < minMargin.sats) {
                             return "Min collateral: $minMargin";
