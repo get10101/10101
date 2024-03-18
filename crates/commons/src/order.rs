@@ -34,7 +34,7 @@ impl NewOrderRequest {
 #[derive(Serialize, Deserialize, Clone)]
 pub enum NewOrder {
     // TODO: introduce MarketOrder
-    Market(LimitOrder),
+    Market(MarketOrder),
     Limit(LimitOrder),
 }
 
@@ -67,6 +67,22 @@ impl NewOrder {
         }
         .to_string()
     }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MarketOrder {
+    pub id: Uuid,
+    pub contract_symbol: ContractSymbol,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub trader_id: PublicKey,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
+    pub order_type: OrderType,
+    #[serde(with = "time::serde::timestamp")]
+    pub expiry: OffsetDateTime,
+    pub stable: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -114,6 +130,36 @@ impl LimitOrder {
         vec.append(&mut direction.to_vec());
         vec.append(&mut quantity.to_vec());
         vec.append(&mut price.to_vec());
+        vec.append(&mut leverage.to_vec());
+
+        Message::from_hashed_data::<sha256::Hash>(vec.as_slice())
+    }
+}
+
+impl MarketOrder {
+    pub fn message(&self) -> Message {
+        let mut vec: Vec<u8> = vec![];
+        let mut id = self.id.as_bytes().to_vec();
+        let unix_timestamp = self.expiry.unix_timestamp();
+        let mut seconds = unix_timestamp.to_le_bytes().to_vec();
+
+        let symbol = self.contract_symbol.label();
+        let symbol = symbol.as_bytes();
+        let order_type = self.order_type.label();
+        let order_type = order_type.as_bytes();
+        let direction = self.direction.to_string();
+        let direction = direction.as_bytes();
+        let quantity = format!("{:.2}", self.quantity);
+        let quantity = quantity.as_bytes();
+        let leverage = format!("{:.2}", self.leverage);
+        let leverage = leverage.as_bytes();
+
+        vec.append(&mut id);
+        vec.append(&mut seconds);
+        vec.append(&mut symbol.to_vec());
+        vec.append(&mut order_type.to_vec());
+        vec.append(&mut direction.to_vec());
+        vec.append(&mut quantity.to_vec());
         vec.append(&mut leverage.to_vec());
 
         Message::from_hashed_data::<sha256::Hash>(vec.as_slice())

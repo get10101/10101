@@ -8,6 +8,7 @@ use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
 use commons::LimitOrder;
+use commons::MarketOrder;
 use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
 use commons::OrderState as OrderBookOrderState;
@@ -188,6 +189,32 @@ impl From<LimitOrder> for NewOrder {
     }
 }
 
+impl From<MarketOrder> for NewOrder {
+    fn from(value: MarketOrder) -> Self {
+        NewOrder {
+            trader_order_id: value.id,
+            // TODO: it would be cool to get rid of this as well
+            price: 0.0,
+            trader_id: value.trader_id.to_string(),
+            direction: value.direction.into(),
+            quantity: value
+                .quantity
+                .round_dp(2)
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            order_type: value.order_type.into(),
+            expiry: value.expiry,
+            order_reason: OrderReason::Manual,
+            contract_symbol: value.contract_symbol.into(),
+            leverage: value
+                .leverage
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            stable: value.stable,
+        }
+    }
+}
+
 pub fn all_limit_orders(conn: &mut PgConnection) -> QueryResult<Vec<OrderbookOrder>> {
     let orders = orders::table
         .filter(orders::order_type.eq(OrderType::Limit))
@@ -262,7 +289,7 @@ pub fn insert_limit_order(
 pub fn insert_market_order(
     conn: &mut PgConnection,
     // TODO: use market order here
-    order: LimitOrder,
+    order: MarketOrder,
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {

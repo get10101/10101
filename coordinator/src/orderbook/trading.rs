@@ -15,6 +15,7 @@ use bitcoin::Network;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use commons::LimitOrder;
+use commons::MarketOrder;
 use commons::Match;
 use commons::Message;
 use commons::Message::TradeError;
@@ -194,7 +195,7 @@ pub async fn process_new_limit_order(
 pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
-    new_order: LimitOrder,
+    new_order: MarketOrder,
     order_reason: OrderReason,
     network: Network,
     oracle_pk: XOnlyPublicKey,

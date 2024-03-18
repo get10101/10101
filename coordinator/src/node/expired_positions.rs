@@ -7,7 +7,7 @@ use crate::position::models::PositionState;
 use anyhow::Context;
 use anyhow::Result;
 use commons::average_execution_price;
-use commons::LimitOrder;
+use commons::MarketOrder;
 use commons::Match;
 use commons::MatchState;
 use commons::NewOrder;
@@ -79,12 +79,9 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
 
         tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
 
-        let new_order = LimitOrder {
+        let new_order = MarketOrder {
             id: uuid::Uuid::new_v4(),
             contract_symbol: position.contract_symbol,
-            // TODO(holzeis): we should not have to set the price for a market order. we propably
-            // need separate models for a limit and a market order.
-            price: Decimal::ZERO,
             quantity: Decimal::try_from(position.quantity).expect("to fit into decimal"),
             trader_id: position.trader,
             direction: position.trader_direction.opposite(),
