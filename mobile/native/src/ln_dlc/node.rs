@@ -295,6 +295,11 @@ impl Node {
                                     expiry_timestamp,
                                 )
                                 .context("Failed to update position after DLC creation")?;
+
+                                // In case of a restart.
+                                event::publish(&EventInternal::BackgroundNotification(
+                                    BackgroundTask::RecoverDlc(TaskStatus::Success),
+                                ));
                             }
                             // If there is no order in `Filling` we must be rolling over.
                             None => {
