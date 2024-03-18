@@ -11,7 +11,7 @@ class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
   late TaskStatus taskStatus;
 
   @override
-  void notify(bridge.Event event) {
+  void notify(bridge.Event event) async {
     if (event is bridge.Event_BackgroundNotification) {
       if (event.field0 is! bridge.BackgroundTask_RecoverDlc) {
         // ignoring other kinds of background tasks
@@ -23,6 +23,9 @@ class RecoverDlcChangeNotifier extends ChangeNotifier implements Subscriber {
       taskStatus = recoverDlc.taskStatus;
 
       if (taskStatus == TaskStatus.pending) {
+        while (shellNavigatorKey.currentContext == null) {
+          await Future.delayed(const Duration(milliseconds: 100)); // Adjust delay as needed
+        }
         // initialize dialog for the pending task
         showDialog(
           context: shellNavigatorKey.currentContext!,
