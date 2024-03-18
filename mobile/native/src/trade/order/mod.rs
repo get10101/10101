@@ -198,7 +198,6 @@ impl From<Order> for commons::MarketOrder {
             trader_id,
             direction: order.direction,
             leverage: Decimal::from_f32(order.leverage).expect("to fit into f32"),
-            order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
             stable: order.stable,
         }
