@@ -321,23 +321,20 @@ pub async fn process_new_market_order(
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), notifier);
-
-        tokio::spawn(async move {
-            trade_executor
-                .execute(&TradeAndChannelParams {
-                    trade_params: TradeParams {
-                        pubkey: order.trader_id,
-                        contract_symbol: ContractSymbol::BtcUsd,
-                        leverage: order.leverage,
-                        quantity: order.quantity.to_f32().expect("to fit into f32"),
-                        direction: order.direction,
-                        filled_with: matched_orders.taker_match.filled_with,
-                    },
-                    trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
-                    coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
-                })
-                .await;
-        });
+        trade_executor
+            .execute(&TradeAndChannelParams {
+                trade_params: TradeParams {
+                    pubkey: order.trader_id,
+                    contract_symbol: ContractSymbol::BtcUsd,
+                    leverage: order.leverage,
+                    quantity: order.quantity.to_f32().expect("to fit into f32"),
+                    direction: order.direction,
+                    filled_with: matched_orders.taker_match.filled_with,
+                },
+                trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
+                coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
+            })
+            .await;
     } else {
         match order.order_reason {
             OrderReason::Manual => {

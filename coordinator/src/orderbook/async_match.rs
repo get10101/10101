@@ -128,23 +128,20 @@ async fn process_pending_match(
 
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node, notifier);
-
-        tokio::spawn(async move {
-            trade_executor
-                .execute(&TradeAndChannelParams {
-                    trade_params: TradeParams {
-                        pubkey: trader_id,
-                        contract_symbol: ContractSymbol::BtcUsd,
-                        leverage: order.leverage,
-                        quantity: order.quantity.to_f32().expect("to fit into f32"),
-                        direction: order.direction,
-                        filled_with,
-                    },
-                    trader_reserve: channel_opening_params.map(|c| c.trader_reserve),
-                    coordinator_reserve: channel_opening_params.map(|c| c.coordinator_reserve),
-                })
-                .await;
-        });
+        trade_executor
+            .execute(&TradeAndChannelParams {
+                trade_params: TradeParams {
+                    pubkey: trader_id,
+                    contract_symbol: ContractSymbol::BtcUsd,
+                    leverage: order.leverage,
+                    quantity: order.quantity.to_f32().expect("to fit into f32"),
+                    direction: order.direction,
+                    filled_with,
+                },
+                trader_reserve: channel_opening_params.map(|c| c.trader_reserve),
+                coordinator_reserve: channel_opening_params.map(|c| c.coordinator_reserve),
+            })
+            .await;
     }
 
     Ok(())
