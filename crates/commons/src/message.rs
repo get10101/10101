@@ -60,7 +60,7 @@ pub enum TradingError {
 
 impl From<anyhow::Error> for TradingError {
     fn from(value: anyhow::Error) -> Self {
-        TradingError::Other(value.to_string())
+        TradingError::Other(format!("{value:#}"))
     }
 }
 
