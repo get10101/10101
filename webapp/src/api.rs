@@ -634,8 +634,8 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
                         settle_transaction, ..
                     } => (
                         SignedChannelState::Closing,
-                        None,
                         Some(settle_transaction),
+                        None,
                         None,
                     ),
                     dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered { close_tx, .. } => (

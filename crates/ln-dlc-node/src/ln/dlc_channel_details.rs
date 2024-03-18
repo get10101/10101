@@ -75,6 +75,23 @@ impl From<Channel> for DlcChannelDetails {
                     Some(fund_tx.txid().to_string()),
                     Some(fund_output_index),
                     Some(close_tx.txid().to_string())),
+                Channel::Signed(SignedChannel {
+                    update_idx,
+                    fee_rate_per_vb,
+                    fund_tx,
+                    fund_output_index,
+                    state: dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing {
+                        settle_transaction,
+                        ..
+                    },
+                    ..
+                }) => (
+                    Some(update_idx),
+                    Some(SignedChannelState::SettledClosing),
+                    Some(fee_rate_per_vb),
+                    Some(fund_tx.txid().to_string()),
+                    Some(fund_output_index),
+                    Some(settle_transaction.txid().to_string())),
                 Channel::Signed(signed_channel) => (
                     Some(signed_channel.update_idx),
                     Some(SignedChannelState::from(signed_channel.state)),

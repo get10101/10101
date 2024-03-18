@@ -64,6 +64,13 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
         .toList();
   }
 
+  List<SettledClosingDlcChannel> getAllSettledClosingDlcChannels() {
+    return channels
+        .where((channel) => channel.state == ChannelState.settledClosing)
+        .map((channel) => channel as SettledClosingDlcChannel)
+        .toList();
+  }
+
   List<ClosedDlcChannel> getAllClosedDlcChannels() {
     return channels
         .where((channel) => [

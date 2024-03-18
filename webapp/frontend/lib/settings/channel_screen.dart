@@ -146,6 +146,7 @@ class _ChannelDetailWidgetState extends State<ChannelDetailWidget> {
                 buildCopyableTxId(context, "Funding TxId", widget.channel.fundTxid),
                 buildCopyableTxId(context, "Buffer TxId", widget.channel.bufferTxid),
                 buildCopyableTxId(context, "Close TxId", widget.channel.closeTxid),
+                buildCopyableTxId(context, "Settle TxId", widget.channel.settleTxid),
                 Visibility(
                     visible: widget.channel.channelState == ChannelState.signed &&
                         widget.channel.signedChannelState != null &&

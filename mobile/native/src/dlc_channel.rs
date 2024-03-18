@@ -32,6 +32,21 @@ impl From<&Channel> for DlcChannel {
                 closing_txid: Some(close_tx.txid().to_string()),
                 state: SignedChannelState::CollaborativeCloseOffered,
             },
+            s @ Channel::Signed(SignedChannel {
+                state: dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing {
+                    settle_transaction,
+                    ..
+                },
+                fund_tx,
+                fund_output_index,
+                ..
+            }) => ChannelState::Signed {
+                contract_id: s.get_contract_id().map(hex::encode),
+                funding_txid: fund_tx.txid().to_string(),
+                funding_tx_vout: *fund_output_index,
+                closing_txid: Some(settle_transaction.txid().to_string()),
+                state: SignedChannelState::SettledClosing,
+            },
             Channel::Signed(s) => ChannelState::Signed {
                 contract_id: s.get_contract_id().map(hex::encode),
                 funding_txid: s.fund_tx.txid().to_string(),

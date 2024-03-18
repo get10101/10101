@@ -50,7 +50,7 @@ class DlcChannel {
         {
           return SettledClosingDlcChannel(
             id: dlcChannel.dlcChannelId,
-            state: ChannelState.closing,
+            state: ChannelState.settledClosing,
             settleTxid: closing.settleTxid,
           );
         }
@@ -182,6 +182,7 @@ enum ChannelState {
   accepted,
   signed,
   closing,
+  settledClosing,
   closed,
   counterClosed,
   closedPunished,
@@ -201,6 +202,8 @@ enum ChannelState {
         return "Signed";
       case ChannelState.closing:
         return "Closing";
+      case ChannelState.settledClosing:
+        return "Settled Closing";
       case ChannelState.closed:
         return "Closed";
       case ChannelState.counterClosed:
