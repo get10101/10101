@@ -73,7 +73,7 @@ class _SendScreenState extends State<SendScreen> {
                 ),
                 const SizedBox(height: 20),
                 AmountInputField(
-                  value: amount != null ? amount! : Amount.zero(),
+                  initialValue: amount != null ? amount! : Amount.zero(),
                   label: "Amount in sats",
                   controller: _amountController,
                   validator: (value) {
@@ -88,7 +88,7 @@ class _SendScreenState extends State<SendScreen> {
                 ),
                 const SizedBox(height: 20),
                 AmountInputField(
-                  value: fee != null ? fee! : Amount.zero(),
+                  initialValue: fee != null ? fee! : Amount.zero(),
                   label: "Sats/vb",
                   controller: _feeController,
                   validator: (value) {

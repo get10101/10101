@@ -224,7 +224,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           children: [
             Flexible(
                 child: AmountInputField(
-              value: tradeValues.quantity ?? Amount.zero(),
+              initialValue: tradeValues.quantity ?? Amount.zero(),
               hint: "e.g. 100 USD",
               label: "Quantity (USD)",
               onChanged: (value) {

@@ -168,7 +168,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                               children: [
                                 Flexible(
                                     child: AmountInputField(
-                                  value: ownTotalCollateral,
+                                  initialValue: ownTotalCollateral,
                                   label: 'Your collateral (sats)',
                                   onChanged: (value) {
                                     setState(() {

@@ -198,7 +198,7 @@ class _FeePickerModalState extends State<_FeePickerModal> {
                       "sats/vbyte",
                       style: TextStyle(fontSize: 16, color: Color(0xff878787)),
                     )),
-                value: Amount(1)),
+                initialValue: Amount(1)),
           ),
         ),
         const SizedBox(height: 25),
