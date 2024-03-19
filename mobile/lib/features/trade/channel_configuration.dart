@@ -40,9 +40,23 @@ channelConfiguration({
       context: context,
       useSafeArea: true,
       builder: (BuildContext context) {
-        return ChannelConfiguration(
-          tradeValues: tradeValues,
-          onConfirmation: onConfirmation,
+        return Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: GestureDetector(
+            onTap: () {
+              FocusScopeNode currentFocus = FocusScope.of(context);
+
+              if (!currentFocus.hasPrimaryFocus) {
+                currentFocus.unfocus();
+              }
+            },
+            child: SingleChildScrollView(
+              child: ChannelConfiguration(
+                tradeValues: tradeValues,
+                onConfirmation: onConfirmation,
+              ),
+            ),
+          ),
         );
       });
 }
@@ -134,138 +148,130 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
     return Form(
       key: _formKey,
-      child: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("DLC Channel Configuration",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-              const SizedBox(height: 20),
-              Text(
-                  "This is your first trade which will open a DLC Channel, creating your position in the process.",
-                  style: DefaultTextStyle.of(context).style),
-              const SizedBox(height: 10),
-              Text(
-                  "Specify your preferred channel size, impacting how much you will be able to win up to.",
-                  style: DefaultTextStyle.of(context).style),
-              const SizedBox(height: 10),
-              Text(
-                  "Choose a bigger amount here if you plan to make bigger trades in the future and don't want to open a new channel.",
-                  style: DefaultTextStyle.of(context).style),
-              const SizedBox(height: 20),
-              AmountInputField(
-                value: ownTotalCollateral,
-                controller: _collateralController,
-                label: 'Your collateral (sats)',
-                onChanged: (value) {
+      child: Container(
+        padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("DLC Channel Configuration",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            const SizedBox(height: 20),
+            Text("This is your first trade which will open a DLC Channel and opens your position.",
+                style: DefaultTextStyle.of(context).style),
+            const SizedBox(height: 10),
+            Text(
+                "Specify your preferred channel size, impacting how much you will be able to win up to.",
+                style: DefaultTextStyle.of(context).style),
+            const SizedBox(height: 20),
+            AmountInputField(
+              value: ownTotalCollateral,
+              controller: _collateralController,
+              label: 'Your collateral (sats)',
+              onChanged: (value) {
+                setState(() {
+                  ownTotalCollateral = Amount.parseAmount(value);
+                  _collateralController.text = ownTotalCollateral.formatted();
+
+                  updateCounterpartyCollateral();
+                });
+              },
+              suffixIcon: TextButton(
+                onPressed: () {
                   setState(() {
-                    ownTotalCollateral = Amount.parseAmount(value);
+                    ownTotalCollateral =
+                        Amount(min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.sats));
                     _collateralController.text = ownTotalCollateral.formatted();
 
                     updateCounterpartyCollateral();
                   });
                 },
-                suffixIcon: TextButton(
-                  onPressed: () {
-                    setState(() {
-                      ownTotalCollateral =
-                          Amount(min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.sats));
-                      _collateralController.text = ownTotalCollateral.formatted();
-
-                      updateCounterpartyCollateral();
-                    });
-                  },
-                  child: const Text(
-                    "Max",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-                validator: (value) {
-                  if (ownTotalCollateral.sats < minMargin.sats) {
-                    return "Min collateral: $minMargin";
-                  }
-
-                  // TODO(holzeis): Add validation considering the on-chain fees
-
-                  if (ownTotalCollateral.add(orderMatchingFees).sats > maxOnChainSpending.sats) {
-                    return "Max on-chain: $maxUsableOnChainBalance";
-                  }
-
-                  if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
-                    return "Over limit: $maxCounterpartyCollateral";
-                  }
-
-                  return null;
-                },
-              ),
-              const SizedBox(height: 10),
-              CollateralSlider(
-                onValueChanged: (newValue) {
-                  setState(() {
-                    ownTotalCollateral = Amount(newValue);
-                    _collateralController.text = ownTotalCollateral.formatted();
-                    updateCounterpartyCollateral();
-                  });
-                },
-                minValue: minMargin.sats,
-                maxValue: min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.toInt),
-                labelText: 'Your collateral (sats)',
-                value: ownTotalCollateral.sats,
-              ),
-              const SizedBox(height: 10),
-              AmountTextField(
-                value: counterpartyCollateral,
-                label: 'Win up to (sats)',
-              ),
-              const SizedBox(height: 15),
-              ValueDataRow(
-                  type: ValueType.amount, value: ownTotalCollateral, label: 'Your collateral'),
-              ValueDataRow(
-                type: ValueType.amount,
-                value: openingFee,
-                label: 'Channel-opening fee',
-              ),
-              ValueDataRow(
-                type: ValueType.amount,
-                value: fundingTxFee,
-                label: 'Transaction fee estimate',
-              ),
-              ValueDataRow(
-                type: ValueType.amount,
-                value: channelFeeReserve,
-                label: 'Channel fee reserve',
-              ),
-              const Divider(),
-              ValueDataRow(
-                  type: ValueType.amount,
-                  value:
-                      ownTotalCollateral.add(openingFee).add(fundingTxFee).add(channelFeeReserve),
-                  label: "Total"),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 40),
-                child: ElevatedButton(
-                  key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
-                  onPressed: _formKey.currentState != null && _formKey.currentState!.validate()
-                      ? () {
-                          GoRouter.of(context).pop();
-                          widget.onConfirmation(ChannelOpeningParams(
-                              coordinatorCollateral: counterpartyCollateral,
-                              traderCollateral: ownTotalCollateral));
-                        }
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50), backgroundColor: tenTenOnePurple),
-                  child: const Text(
-                    "Confirm",
-                    style: TextStyle(color: Colors.white),
-                  ),
+                child: const Text(
+                  "Max",
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-            ],
-          ),
+              validator: (value) {
+                if (ownTotalCollateral.sats < minMargin.sats) {
+                  return "Min collateral: $minMargin";
+                }
+
+                // TODO(holzeis): Add validation considering the on-chain fees
+
+                if (ownTotalCollateral.add(orderMatchingFees).sats > maxOnChainSpending.sats) {
+                  return "Max on-chain: $maxUsableOnChainBalance";
+                }
+
+                if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
+                  return "Over limit: $maxCounterpartyCollateral";
+                }
+
+                return null;
+              },
+            ),
+            const SizedBox(height: 10),
+            CollateralSlider(
+              onValueChanged: (newValue) {
+                setState(() {
+                  ownTotalCollateral = Amount(newValue);
+                  _collateralController.text = ownTotalCollateral.formatted();
+                  updateCounterpartyCollateral();
+                });
+              },
+              minValue: minMargin.sats,
+              maxValue: min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.toInt),
+              labelText: 'Your collateral (sats)',
+              value: ownTotalCollateral.sats,
+            ),
+            const SizedBox(height: 10),
+            AmountTextField(
+              value: counterpartyCollateral,
+              label: 'Win up to (sats)',
+            ),
+            const SizedBox(height: 15),
+            ValueDataRow(
+                type: ValueType.amount, value: ownTotalCollateral, label: 'Your collateral'),
+            ValueDataRow(
+              type: ValueType.amount,
+              value: openingFee,
+              label: 'Channel-opening fee',
+            ),
+            ValueDataRow(
+              type: ValueType.amount,
+              value: fundingTxFee,
+              label: 'Transaction fee estimate',
+            ),
+            ValueDataRow(
+              type: ValueType.amount,
+              value: channelFeeReserve,
+              label: 'Channel fee reserve',
+            ),
+            const Divider(),
+            ValueDataRow(
+                type: ValueType.amount,
+                value: ownTotalCollateral.add(openingFee).add(fundingTxFee).add(channelFeeReserve),
+                label: "Total"),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(top: 8, left: 8, right: 8, bottom: 40),
+              child: ElevatedButton(
+                key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
+                onPressed: _formKey.currentState != null && _formKey.currentState!.validate()
+                    ? () {
+                        GoRouter.of(context).pop();
+                        widget.onConfirmation(ChannelOpeningParams(
+                            coordinatorCollateral: counterpartyCollateral,
+                            traderCollateral: ownTotalCollateral));
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50), backgroundColor: tenTenOnePurple),
+                child: const Text(
+                  "Confirm",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
