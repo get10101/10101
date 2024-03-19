@@ -55,6 +55,7 @@ pub async fn handle_outbound_dlc_messages(
                     tracing::error!(peer=%peer, "Failed to process end dlc message event. {e:#}");
                 }
             }
+            Ok(NodeEvent::DlcChannelEvent { .. }) => {} // ignored
             Err(RecvError::Lagged(skipped)) => {
                 tracing::warn!("Skipped {skipped} messages");
             }

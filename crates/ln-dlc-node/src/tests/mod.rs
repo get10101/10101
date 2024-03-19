@@ -39,6 +39,7 @@ use dlc_manager::ReferenceId;
 use futures::Future;
 use lightning::events::Event;
 use lightning::util::config::UserConfig;
+use ln_dlc_storage::DlcChannelEvent;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
@@ -48,6 +49,7 @@ use std::net::TcpListener;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::string::ToString;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
@@ -173,6 +175,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         let storage = TenTenOneInMemoryStorage::new();
         let wallet_storage = on_chain_wallet::InMemoryStorage::new();
 
+        let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
         let event_handler = Arc::new(NodeEventHandler::new());
         let node = Node::new(
             ldk_config,
@@ -191,6 +194,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             event_handler.clone(),
+            dlc_event_sender,
         )?;
         let node = Arc::new(node);
 
@@ -209,6 +213,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
                             );
                         }
                         Ok(NodeEvent::Connected { .. }) => {} // ignored
+                        Ok(NodeEvent::DlcChannelEvent { .. }) => {} // ignored
                         Err(_) => {
                             tracing::error!(
                                 "Failed to receive message from node event handler channel."
@@ -221,7 +226,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         });
 
         let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
-        let running = node.start(event_handler, false)?;
+        let running = node.start(event_handler, dlc_event_receiver, false)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 

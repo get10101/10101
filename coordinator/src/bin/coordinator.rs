@@ -31,6 +31,7 @@ use diesel::PgConnection;
 use ln_dlc_node::node::event::NodeEventHandler;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::CoordinatorEventHandler;
+use ln_dlc_storage::DlcChannelEvent;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -38,6 +39,7 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::str::FromStr;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
@@ -119,6 +121,7 @@ async fn main() -> Result<()> {
         data_dir.join("wallet"),
     )?;
 
+    let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
     let node = Arc::new(ln_dlc_node::node::Node::new(
         ln_dlc_node::config::coordinator_config(),
         NODE_ALIAS,
@@ -139,6 +142,7 @@ async fn main() -> Result<()> {
             .collect(),
         XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
         node_event_handler.clone(),
+        dlc_event_sender,
     )?);
 
     let dlc_handler = DlcHandler::new(pool.clone(), node.clone());
@@ -148,7 +152,7 @@ async fn main() -> Result<()> {
     );
 
     let event_handler = CoordinatorEventHandler::new(node.clone(), None);
-    let running = node.start(event_handler, false)?;
+    let running = node.start(event_handler, dlc_event_receiver, false)?;
 
     // an internal channel to send updates about our position
     let (tx_position_feed, _rx) = broadcast::channel::<InternalPositionUpdateMessage>(100);
