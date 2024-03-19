@@ -1,7 +1,6 @@
 use crate::bitcoin_conversion::to_network_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::blockchain::Blockchain;
-use crate::channel::UserChannelId;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
@@ -100,17 +99,6 @@ type NodeGossipSync =
     P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
-
-#[derive(Clone, Debug)]
-pub struct LiquidityRequest {
-    pub user_channel_id: UserChannelId,
-    pub liquidity_option_id: i32,
-    pub trader_id: PublicKey,
-    pub trade_up_to_sats: u64,
-    pub max_deposit_sats: u64,
-    pub coordinator_leverage: f32,
-    pub fee_sats: u64,
-}
 
 /// An LN-DLC node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {

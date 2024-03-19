@@ -10,7 +10,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
 use bitcoin::Txid;
@@ -20,10 +19,8 @@ use diesel::sql_types::Text;
 use diesel::AsExpression;
 use diesel::FromSqlRow;
 use diesel::Queryable;
-use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
-use ln_dlc_node::channel::UserChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -1013,91 +1010,6 @@ impl From<Transaction> for ln_dlc_node::transaction::Transaction {
     }
 }
 
-impl From<ln_dlc_node::channel::Channel> for Channel {
-    fn from(value: ln_dlc_node::channel::Channel) -> Self {
-        Channel {
-            user_channel_id: value.user_channel_id.to_string(),
-            channel_id: value.channel_id.map(|cid| hex::encode(cid.0)),
-            inbound: value.inbound_sats as i64,
-            outbound: value.outbound_sats as i64,
-            funding_txid: value.funding_txid.map(|txid| txid.to_string()),
-            channel_state: value.channel_state.into(),
-            counterparty_pubkey: value.counterparty.to_string(),
-            created_at: value.created_at.unix_timestamp(),
-            updated_at: value.updated_at.unix_timestamp(),
-            liquidity_option_id: value.liquidity_option_id,
-            fee_sats: value.fee_sats.map(|fee| fee as i64),
-            open_channel_payment_hash: value.open_channel_payment_hash,
-        }
-    }
-}
-
-impl From<ln_dlc_node::channel::ChannelState> for ChannelState {
-    fn from(value: ln_dlc_node::channel::ChannelState) -> Self {
-        match value {
-            ln_dlc_node::channel::ChannelState::Announced => ChannelState::Announced,
-            ln_dlc_node::channel::ChannelState::Pending => ChannelState::Pending,
-            ln_dlc_node::channel::ChannelState::OpenUnpaid => ChannelState::OpenUnpaid,
-            ln_dlc_node::channel::ChannelState::Open => ChannelState::Open,
-            ln_dlc_node::channel::ChannelState::Closed => ChannelState::Closed,
-            ln_dlc_node::channel::ChannelState::ForceClosedLocal => ChannelState::ForceClosedLocal,
-            ln_dlc_node::channel::ChannelState::ForceClosedRemote => {
-                ChannelState::ForceClosedRemote
-            }
-        }
-    }
-}
-
-impl From<Channel> for ln_dlc_node::channel::Channel {
-    fn from(value: Channel) -> Self {
-        let channel_id = match value.channel_id {
-            Some(channel_id) => {
-                let channel_id = hex::decode(channel_id).expect("to get decoded");
-                let channel_id: [u8; 32] = channel_id.try_into().expect("to fit into 32 bytes");
-                Some(ChannelId(channel_id))
-            }
-            None => None,
-        };
-
-        ln_dlc_node::channel::Channel {
-            user_channel_id: UserChannelId::try_from(value.user_channel_id)
-                .expect("valid user channel id"),
-            channel_id,
-            liquidity_option_id: value.liquidity_option_id,
-            inbound_sats: value.inbound as u64,
-            outbound_sats: value.outbound as u64,
-            funding_txid: value
-                .funding_txid
-                .map(|txid| Txid::from_str(&txid).expect("valid transaction id")),
-            channel_state: value.channel_state.into(),
-            counterparty: PublicKey::from_str(&value.counterparty_pubkey)
-                .expect("valid public key"),
-            created_at: OffsetDateTime::from_unix_timestamp(value.created_at)
-                .expect("valid timestamp"),
-            updated_at: OffsetDateTime::from_unix_timestamp(value.updated_at)
-                .expect("valid timestamp"),
-            fee_sats: value.fee_sats.map(|fee| fee as u64),
-            open_channel_payment_hash: value.open_channel_payment_hash,
-        }
-    }
-}
-
-impl From<ChannelState> for ln_dlc_node::channel::ChannelState {
-    fn from(value: ChannelState) -> Self {
-        match value {
-            ChannelState::Announced => ln_dlc_node::channel::ChannelState::Announced,
-            ChannelState::Pending => ln_dlc_node::channel::ChannelState::Pending,
-            ChannelState::OpenUnpaid => ln_dlc_node::channel::ChannelState::OpenUnpaid,
-            ChannelState::Open => ln_dlc_node::channel::ChannelState::Open,
-            ChannelState::Closed => ln_dlc_node::channel::ChannelState::Closed,
-            ChannelState::ForceClosedLocal => ln_dlc_node::channel::ChannelState::ForceClosedLocal,
-            ChannelState::ForceClosedRemote => {
-                ln_dlc_node::channel::ChannelState::ForceClosedRemote
-            }
-        }
-    }
-}
-
 #[derive(Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = trades)]
 pub struct NewTrade {
@@ -1468,68 +1380,6 @@ pub mod test {
                 panic!("Expected to not be able to find deleted spendable output");
             }
         };
-    }
-
-    #[test]
-    fn channel_round_trip() {
-        let mut connection = SqliteConnection::establish(":memory:").unwrap();
-        connection.run_pending_migrations(MIGRATIONS).unwrap();
-
-        let channel = ln_dlc_node::channel::Channel {
-            user_channel_id: UserChannelId::new(),
-            channel_id: None,
-            liquidity_option_id: None,
-            inbound_sats: 0,
-            outbound_sats: 0,
-            funding_txid: None,
-            channel_state: ln_dlc_node::channel::ChannelState::Pending,
-            counterparty: PublicKey::from_str(
-                "03f75f318471d32d39be3c86c622e2c51bd5731bf95f98aaa3ed5d6e1c0025927f",
-            )
-            .expect("is a valid public key"),
-            // we need to set the time manually as the nano seconds are not stored in sql.
-            created_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
-            updated_at: OffsetDateTime::now_utc().replace_time(Time::from_hms(0, 0, 0).unwrap()),
-            fee_sats: Some(10_000),
-            open_channel_payment_hash: None,
-        };
-        Channel::upsert(channel.clone().into(), &mut connection).unwrap();
-
-        // Verify that we can load the right channel by the `user_channel_id`
-        let mut loaded: ln_dlc_node::channel::Channel =
-            Channel::get(&channel.user_channel_id.to_string(), &mut connection)
-                .unwrap()
-                .unwrap()
-                .into();
-        assert_eq!(channel, loaded);
-
-        // Verify that pending channels are not returned when fetching all open channel
-        let channels = Channel::get_all_non_pending_channels(&mut connection).unwrap();
-        assert_eq!(0, channels.len());
-
-        // Verify that we can update the channel by `user_channel_id`
-        loaded.channel_state = ln_dlc_node::channel::ChannelState::Open;
-        loaded.updated_at = OffsetDateTime::now_utc();
-        loaded.funding_txid = Some(
-            Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0")
-                .unwrap(),
-        );
-        Channel::upsert(loaded.into(), &mut connection).unwrap();
-
-        let channels = Channel::get_all(&mut connection).unwrap();
-        assert_eq!(1, channels.len());
-
-        let loaded: ln_dlc_node::channel::Channel = (*channels.first().unwrap()).clone().into();
-        assert_eq!(
-            ln_dlc_node::channel::ChannelState::Open,
-            loaded.channel_state
-        );
-        assert_eq!(channel.created_at, loaded.created_at);
-        assert_ne!(channel.updated_at, loaded.updated_at);
-
-        // Verify that open channels are returned when fetching all non pending channels
-        let channels = Channel::get_all_non_pending_channels(&mut connection).unwrap();
-        assert_eq!(1, channels.len());
     }
 
     #[test]

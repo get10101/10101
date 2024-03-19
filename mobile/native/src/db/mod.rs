@@ -1,5 +1,4 @@
 use crate::config;
-use crate::db::models::Channel;
 use crate::db::models::FailureReason;
 use crate::db::models::NewTrade;
 use crate::db::models::Order;
@@ -13,7 +12,6 @@ use crate::trade;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
@@ -384,67 +382,6 @@ pub fn get_spendable_outputs() -> Result<Vec<lightning::sign::SpendableOutputDes
     tracing::debug!(?outputs, "Got all spendable outputs");
 
     Ok(outputs)
-}
-
-pub fn upsert_channel(channel: ln_dlc_node::channel::Channel) -> Result<()> {
-    tracing::debug!(?channel, "Inserting channel");
-    let mut db = connection()?;
-    Channel::upsert(channel.into(), &mut db)
-}
-
-pub fn get_channel(user_channel_id: &str) -> Result<Option<ln_dlc_node::channel::Channel>> {
-    tracing::debug!(%user_channel_id, "Getting channel");
-
-    let mut db = connection()?;
-
-    let channel = Channel::get(user_channel_id, &mut db)
-        .map_err(|e| anyhow!("{e:#}"))?
-        .map(|c| c.into());
-
-    Ok(channel)
-}
-
-pub fn get_all_non_pending_channels() -> Result<Vec<ln_dlc_node::channel::Channel>> {
-    tracing::debug!("Getting all non-pending channels");
-
-    let mut db = connection()?;
-
-    let channels = Channel::get_all_non_pending_channels(&mut db)?
-        .into_iter()
-        .map(|c| c.into())
-        .collect::<Vec<_>>();
-
-    tracing::trace!(?channels, "Got all non-pending channels");
-
-    Ok(channels)
-}
-
-pub fn get_announced_channel(
-    counterparty_pubkey: PublicKey,
-) -> Result<Option<ln_dlc_node::channel::Channel>> {
-    tracing::debug!(%counterparty_pubkey, "Getting announced channel");
-
-    let mut db = connection()?;
-
-    let channel = Channel::get_announced_channel(&mut db, &counterparty_pubkey.to_string())
-        .map_err(|e| anyhow!("{e:#}"))?
-        .map(|c| c.into());
-
-    Ok(channel)
-}
-
-pub fn get_channel_by_payment_hash(
-    payment_hash: String,
-) -> Result<Option<ln_dlc_node::channel::Channel>> {
-    tracing::debug!(payment_hash, "Getting channel by payment hash");
-
-    let mut db = connection()?;
-
-    let channel = Channel::get_channel_by_payment_hash(&mut db, &payment_hash)
-        .map_err(|e| anyhow!("{e:#}"))?
-        .map(|c| c.into());
-
-    Ok(channel)
 }
 
 // Transaction

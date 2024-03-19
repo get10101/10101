@@ -1,8 +1,5 @@
-use crate::channel::Channel;
-use crate::channel::ChannelState;
 use crate::transaction::Transaction;
 use anyhow::Result;
-use bitcoin::secp256k1::PublicKey;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
@@ -36,21 +33,6 @@ pub trait Storage {
     /// Get all [`SpendableOutputDescriptor`]s stored.
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>>;
 
-    // Channel
-
-    /// Insert or update a channel
-    fn upsert_channel(&self, channel: Channel) -> Result<()>;
-    /// Get channel by `user_channel_id`
-    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>>;
-    /// Get all non pending channels.
-    fn all_non_pending_channels(&self) -> Result<Vec<Channel>>;
-    /// Get announced channel with counterparty
-    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>>;
-    /// Get channel by payment hash.
-    ///
-    /// The payment from which the open channel fee was deducted.
-    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>>;
-
     // Transaction
 
     /// Insert or update a transaction
@@ -64,7 +46,6 @@ pub trait Storage {
 #[derive(Default, Clone)]
 pub struct InMemoryStore {
     spendable_outputs: Arc<Mutex<HashMap<OutPoint, SpendableOutputDescriptor>>>,
-    channels: Arc<Mutex<HashMap<String, Channel>>>,
     transactions: Arc<Mutex<HashMap<String, Transaction>>>,
 }
 
@@ -101,49 +82,6 @@ impl Storage for InMemoryStore {
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         Ok(self.spendable_outputs.lock().values().cloned().collect())
-    }
-
-    // Channels
-
-    fn upsert_channel(&self, channel: Channel) -> Result<()> {
-        let user_channel_id = channel.user_channel_id.to_string();
-        self.channels.lock().insert(user_channel_id, channel);
-        Ok(())
-    }
-
-    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
-        let channel = self.channels.lock().get(user_channel_id).cloned();
-        Ok(channel)
-    }
-
-    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
-        Ok(self
-            .channels
-            .lock()
-            .values()
-            .filter(|c| c.channel_state != ChannelState::Pending && c.funding_txid.is_some())
-            .cloned()
-            .collect())
-    }
-
-    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>> {
-        Ok(self
-            .channels
-            .lock()
-            .values()
-            .find(|c| {
-                c.channel_state == ChannelState::Announced && c.counterparty == counterparty_pubkey
-            })
-            .cloned())
-    }
-
-    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>> {
-        Ok(self
-            .channels
-            .lock()
-            .values()
-            .find(|c| c.open_channel_payment_hash == Some(payment_hash.clone()))
-            .cloned())
     }
 
     // Transaction

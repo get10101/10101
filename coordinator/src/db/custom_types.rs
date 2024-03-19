@@ -1,11 +1,9 @@
-use crate::db::channels::ChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::dlc_protocols::DlcProtocolState;
 use crate::db::dlc_protocols::DlcProtocolType;
 use crate::db::polls::PollType;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
-use crate::schema::sql_types::ChannelStateType;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::MessageTypeType;
@@ -69,34 +67,6 @@ impl FromSql<PositionStateType, Pg> for PositionState {
             b"Proposed" => Ok(PositionState::Proposed),
             b"Failed" => Ok(PositionState::Failed),
             b"ResizeProposed" => Ok(PositionState::ResizeProposed),
-            _ => Err("Unrecognized enum variant".into()),
-        }
-    }
-}
-
-impl ToSql<ChannelStateType, Pg> for ChannelState {
-    fn to_sql(&self, out: &mut Output<Pg>) -> serialize::Result {
-        match *self {
-            ChannelState::Announced => out.write_all(b"Announced")?,
-            ChannelState::Pending => out.write_all(b"Pending")?,
-            ChannelState::Open => out.write_all(b"Open")?,
-            ChannelState::Closed => out.write_all(b"Closed")?,
-            ChannelState::ForceClosedRemote => out.write_all(b"ForceClosedRemote")?,
-            ChannelState::ForceClosedLocal => out.write_all(b"ForceClosedLocal")?,
-        }
-        Ok(IsNull::No)
-    }
-}
-
-impl FromSql<ChannelStateType, Pg> for ChannelState {
-    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
-        match bytes.as_bytes() {
-            b"Announced" => Ok(ChannelState::Announced),
-            b"Pending" => Ok(ChannelState::Pending),
-            b"Open" => Ok(ChannelState::Open),
-            b"Closed" => Ok(ChannelState::Closed),
-            b"ForceClosedRemote" => Ok(ChannelState::ForceClosedRemote),
-            b"ForceClosedLocal" => Ok(ChannelState::ForceClosedLocal),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
