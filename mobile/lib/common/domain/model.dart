@@ -108,7 +108,7 @@ class Usd {
 
   String formatted() {
     final formatter = NumberFormat("#,###,###,###,###", "en");
-    return formatter.format(_usd);
+    return formatter.format(_usd.toDouble());
   }
 
   @override

@@ -320,8 +320,15 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
-                              ? () => showConfirmPaymentModal(context, widget.destination, false,
-                                  _amount ?? Amount.zero(), _amount ?? Amount.zero(), fee: _fee)
+                              ? () => showConfirmPaymentModal(
+                                  context,
+                                  widget.destination,
+                                  false,
+                                  _amount ?? Amount.zero(),
+                                  // this value doesn't matter at the moment because we do not support USDP sending
+                                  // TODO: remove USDP leftovers
+                                  Usd.zero(),
+                                  fee: _fee)
                               : null,
                           style: ButtonStyle(
                               padding:

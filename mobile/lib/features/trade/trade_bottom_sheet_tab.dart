@@ -49,6 +49,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   bool showCapacityInfo = false;
 
+  bool marginInputFieldEnabled = false;
+  bool quantityInputFieldEnabled = true;
+
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
@@ -224,21 +227,19 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           children: [
             Flexible(
                 child: AmountInputField(
-              initialValue: tradeValues.quantity ?? Amount.zero(),
+              initialValue: Amount(tradeValues.quantity?.toInt ?? 0),
               hint: "e.g. 100 USD",
               label: "Quantity (USD)",
               onChanged: (value) {
-                Amount quantity = Amount.zero();
+                Usd quantity = Usd.zero();
                 try {
                   if (value.isNotEmpty) {
-                    quantity = Amount.parseAmount(value);
+                    quantity = Usd.parseString(value);
                   }
 
                   context.read<TradeValuesChangeNotifier>().updateQuantity(direction, quantity);
                 } on Exception {
-                  context
-                      .read<TradeValuesChangeNotifier>()
-                      .updateQuantity(direction, Amount.zero());
+                  context.read<TradeValuesChangeNotifier>().updateQuantity(direction, Usd.zero());
                 }
                 _formKey.currentState?.validate();
               },
