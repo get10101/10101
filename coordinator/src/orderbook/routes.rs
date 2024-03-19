@@ -95,8 +95,15 @@ pub async fn post_order(
         }
     }
 
+    tracing::debug!(
+        channel_opening_params = ?new_order_request.channel_opening_params,
+        "Opening channel with "
+    );
+
     let message = NewOrderMessage {
         new_order,
+        // TODO(bonomat): we should do a check on the `new_order_request.channel_opening_params` if
+        // they adhere to our channel creation criteria
         channel_opening_params: new_order_request.channel_opening_params,
         order_reason: OrderReason::Manual,
     };

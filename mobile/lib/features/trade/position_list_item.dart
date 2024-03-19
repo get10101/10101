@@ -201,7 +201,7 @@ class _PositionListItemState extends State<PositionListItem> {
                   ),
                   ValueDataRow(
                     type: ValueType.contracts,
-                    value: formatter.format(notNullPosition.quantity.toInt),
+                    value: notNullPosition.quantity.formatted(),
                     label: "Quantity",
                     valueTextStyle: dataRowStyle,
                     labelTextStyle: dataRowStyle,

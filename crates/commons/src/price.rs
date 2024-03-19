@@ -99,6 +99,7 @@ mod test {
             leverage: 1.0,
             contract_symbol: BtcUsd,
             quantity: 100.into(),
+            margin_sats: Default::default(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc(),

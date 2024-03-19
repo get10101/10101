@@ -74,13 +74,17 @@ class Usd {
 
   int get usd => _usd.toBigInt().toInt();
 
-  int get toInt => _usd.toBigInt().toInt();
-
   Usd.zero() : _usd = Decimal.zero;
 
-  double asDouble() => _usd.toDouble();
+  // we take at most 2 decimal places
+  double asDouble() => double.parse(_usd.toStringAsFixed(2));
 
-  Usd.fromDouble(double value) : _usd = Decimal.parse(value.toString());
+  Usd.fromDouble(double value) {
+    // Limit the number of decimal places to at most 2
+    String formattedValue = value.toStringAsFixed(2);
+    _usd = Decimal.parse(formattedValue);
+  }
+
   Usd.parse(dynamic value) : _usd = Decimal.parse(value);
 
   Usd.parseString(String? value) {
@@ -102,8 +106,9 @@ class Usd {
   }
 
   String formatted() {
-    final formatter = NumberFormat("#,###,###,###,###", "en");
-    return formatter.format(_usd.toDouble());
+    var asDouble = this.asDouble();
+    final formatter = NumberFormat("#,###,###,###,##0.00", "en");
+    return formatter.format(asDouble);
   }
 
   @override

@@ -35,7 +35,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             price: null,
             fundingRate: fundingRateBuy,
             direction: direction,
-            tradeValuesService: tradeValuesService);
+            tradeValuesService: tradeValuesService,
+            isMarginOrder: false);
       case Direction.short:
         return TradeValues.fromQuantity(
             quantity: defaultQuantity,
@@ -43,26 +44,21 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             price: null,
             fundingRate: fundingRateSell,
             direction: direction,
-            tradeValuesService: tradeValuesService);
+            tradeValuesService: tradeValuesService,
+            isMarginOrder: false);
     }
   }
 
-  /// Calculates the counterparty margin based on leverage one
-  int? counterpartyMargin(Direction direction, double leverage) {
+  /// Calculates the counterparty margin
+  int? counterpartyMargin(Direction direction, double leverage, double price, Usd quantity) {
     switch (direction) {
       case Direction.long:
         return tradeValuesService
-            .calculateMargin(
-                price: _buyTradeValues.price,
-                quantity: _buyTradeValues.quantity,
-                leverage: Leverage(leverage))
+            .calculateMargin(price: price, quantity: quantity, leverage: Leverage(leverage))
             ?.sats;
       case Direction.short:
         return tradeValuesService
-            .calculateMargin(
-                price: _sellTradeValues.price,
-                quantity: _sellTradeValues.quantity,
-                leverage: Leverage(leverage))
+            .calculateMargin(price: price, quantity: quantity, leverage: Leverage(leverage))
             ?.sats;
     }
   }
@@ -103,6 +99,11 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     if (update) {
       notifyListeners();
     }
+  }
+
+  void updateIsMargin(Direction direction, bool isMargin) {
+    fromDirection(direction).updateIsMargin(isMargin);
+    notifyListeners();
   }
 
   Price? getPrice() {

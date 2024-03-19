@@ -197,7 +197,8 @@ void main() {
         sliderLocation + const Offset(10, -15), const Offset(280, 0), const Duration(seconds: 2),
         pointer: 7);
 
-    verify(orderService.submitChannelOpeningMarketOrder(any, any, any, any, any, any, any))
+    verify(orderService.submitChannelOpeningMarketOrder(
+            any, any, any, any, any, any, any, any, any))
         .called(1);
   });
 
@@ -208,10 +209,10 @@ void main() {
             leverage: anyNamed('leverage')))
         .thenReturn(Amount(1000));
     when(tradeValueService.calculateLiquidationPrice(
-            price: anyNamed('price'),
-            leverage: anyNamed('leverage'),
-            direction: anyNamed('direction')))
-        .thenReturn(10000);
+      price: anyNamed('price'),
+      leverage: anyNamed('leverage'),
+      direction: anyNamed('direction'),
+    )).thenReturn(10000);
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
         .thenReturn(Usd(1));
@@ -303,7 +304,7 @@ void main() {
         const Offset(275, 0), const Duration(seconds: 2),
         pointer: 7);
 
-    verify(orderService.submitMarketOrder(any, any, any, any, any)).called(1);
+    verify(orderService.submitMarketOrder(any, any, any, any, any, any, any)).called(1);
   });
 }
 

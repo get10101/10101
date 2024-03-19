@@ -32,6 +32,7 @@ async fn can_open_position_with_multiple_small_utxos() {
         quantity: 100.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     };
 
     // We take the ask price because the app is going long.

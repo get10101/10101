@@ -8,6 +8,7 @@ use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
 use commons::LimitOrder;
+use commons::MarginOrder;
 use commons::MarketOrder;
 use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
@@ -46,6 +47,7 @@ impl From<OrderType> for OrderBookOrderType {
         match value {
             OrderType::Market => OrderBookOrderType::Market,
             OrderType::Limit => OrderBookOrderType::Limit,
+            OrderType::Margin => OrderBookOrderType::Margin,
         }
     }
 }
@@ -55,6 +57,7 @@ impl From<OrderBookOrderType> for OrderType {
         match value {
             OrderBookOrderType::Market => OrderType::Market,
             OrderBookOrderType::Limit => OrderType::Limit,
+            OrderBookOrderType::Margin => OrderType::Margin,
         }
     }
 }
@@ -103,6 +106,10 @@ struct Order {
     pub leverage: f32,
     pub order_reason: OrderReason,
     pub stable: bool,
+    // we don't read this field anymore, but this field should be here so that we can store it in
+    // the db
+    #[allow(dead_code)]
+    pub margin_sats: Option<f32>,
 }
 
 impl From<Order> for OrderbookOrder {
@@ -116,6 +123,8 @@ impl From<Order> for OrderbookOrder {
             direction: value.direction.into(),
             quantity: Decimal::from_f32(value.quantity)
                 .expect("To be able to convert f32 to decimal"),
+            margin_sats: Decimal::from_f32(value.margin_sats.unwrap_or_default())
+                .expect("to be able to parse into decimal"),
             order_type: value.order_type.into(),
             timestamp: value.timestamp,
             expiry: value.expiry,
@@ -158,6 +167,7 @@ struct NewOrder {
     pub contract_symbol: ContractSymbol,
     pub leverage: f32,
     pub stable: bool,
+    pub margin_sats: Option<f32>,
 }
 
 impl From<LimitOrder> for NewOrder {
@@ -185,6 +195,7 @@ impl From<LimitOrder> for NewOrder {
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
             stable: value.stable,
+            margin_sats: None,
         }
     }
 }
@@ -211,6 +222,7 @@ impl From<MarketOrder> for NewOrder {
                 .to_f32()
                 .expect("To be able to convert decimal to f32"),
             stable: value.stable,
+            margin_sats: None,
         }
     }
 }
@@ -304,6 +316,48 @@ pub fn insert_market_order(
 }
 
 /// Returns the number of affected rows: 1.
+pub fn insert_margin_order(
+    conn: &mut PgConnection,
+    order: MarginOrder,
+    quantity: Decimal,
+    order_reason: OrderBookOrderReason,
+) -> QueryResult<OrderbookOrder> {
+    let new_order = NewOrder {
+        order_reason: OrderReason::from(order_reason),
+        ..NewOrder {
+            trader_order_id: order.id,
+            price: 0.0,
+            trader_id: order.trader_id.to_string(),
+            direction: order.direction.into(),
+            quantity: quantity
+                .round_dp(2)
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            order_type: OrderType::Margin,
+            expiry: order.expiry,
+            order_reason: OrderReason::Manual,
+            contract_symbol: order.contract_symbol.into(),
+            leverage: order
+                .leverage
+                .to_f32()
+                .expect("To be able to convert decimal to f32"),
+            stable: order.stable,
+            margin_sats: Some(
+                order
+                    .margin
+                    .to_f32()
+                    .expect("To be able to convert decimal to f32"),
+            ),
+        }
+    };
+    let order: Order = diesel::insert_into(orders::table)
+        .values(new_order)
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
+/// Returns the number of affected rows: 1.
 pub fn set_is_taken(
     conn: &mut PgConnection,
     id: Uuid,
@@ -330,6 +384,20 @@ pub fn set_order_state(
     let order: Order = diesel::update(orders::table)
         .filter(orders::trader_order_id.eq(id))
         .set((orders::order_state.eq(OrderState::from(order_state)),))
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
+/// Returns the updated order
+pub fn update_quantity(
+    conn: &mut PgConnection,
+    id: Uuid,
+    quantity: f32,
+) -> QueryResult<OrderbookOrder> {
+    let order: Order = diesel::update(orders::table)
+        .filter(orders::trader_order_id.eq(id))
+        .set((orders::quantity.eq(quantity),))
         .get_result(conn)?;
 
     Ok(OrderbookOrder::from(order))

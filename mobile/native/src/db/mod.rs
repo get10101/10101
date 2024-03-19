@@ -160,6 +160,16 @@ pub fn update_order_state(
 
     Ok(order.try_into()?)
 }
+pub fn update_order_quantity(order_id: Uuid, quantity: f32) -> Result<trade::order::Order> {
+    let mut db = connection()?;
+
+    // we ensure that the quantity in the db as only 2 decimal places
+    let rounded_quantity = (quantity * 100.0).round() / 100.0;
+    let order = Order::update_quantity(order_id.to_string(), rounded_quantity, &mut db)
+        .context("Failed to update order state")?;
+
+    Ok(order.try_into()?)
+}
 
 pub fn get_order(order_id: Uuid) -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;

@@ -36,6 +36,7 @@ pub enum NewOrder {
     // TODO: introduce MarketOrder
     Market(MarketOrder),
     Limit(LimitOrder),
+    Margin(MarginOrder),
 }
 
 impl NewOrder {
@@ -43,6 +44,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => o.message(),
             NewOrder::Limit(o) => o.message(),
+            NewOrder::Margin(o) => o.message(),
         }
     }
 
@@ -50,6 +52,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => o.trader_id,
             NewOrder::Limit(o) => o.trader_id,
+            NewOrder::Margin(o) => o.trader_id,
         }
     }
 
@@ -57,6 +60,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => o.id,
             NewOrder::Limit(o) => o.id,
+            NewOrder::Margin(o) => o.id,
         }
     }
 
@@ -64,6 +68,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(_) => "Market",
             NewOrder::Limit(_) => "Limit",
+            NewOrder::Margin(_) => "Margin",
         }
         .to_string()
     }
@@ -75,6 +80,21 @@ pub struct MarketOrder {
     pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
+    pub trader_id: PublicKey,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
+    #[serde(with = "time::serde::timestamp")]
+    pub expiry: OffsetDateTime,
+    pub stable: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct MarginOrder {
+    pub id: Uuid,
+    pub contract_symbol: ContractSymbol,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub margin: Decimal,
     pub trader_id: PublicKey,
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
@@ -99,6 +119,33 @@ pub struct LimitOrder {
     #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
+}
+
+impl MarginOrder {
+    pub fn message(&self) -> Message {
+        let mut vec: Vec<u8> = vec![];
+        let mut id = self.id.as_bytes().to_vec();
+        let unix_timestamp = self.expiry.unix_timestamp();
+        let mut seconds = unix_timestamp.to_le_bytes().to_vec();
+
+        let symbol = self.contract_symbol.label();
+        let symbol = symbol.as_bytes();
+        let direction = self.direction.to_string();
+        let direction = direction.as_bytes();
+        let quantity = format!("{:.2}", self.margin);
+        let quantity = quantity.as_bytes();
+        let leverage = format!("{:.2}", self.leverage);
+        let leverage = leverage.as_bytes();
+
+        vec.append(&mut id);
+        vec.append(&mut seconds);
+        vec.append(&mut symbol.to_vec());
+        vec.append(&mut direction.to_vec());
+        vec.append(&mut quantity.to_vec());
+        vec.append(&mut leverage.to_vec());
+
+        Message::from_hashed_data::<sha256::Hash>(vec.as_slice())
+    }
 }
 
 impl LimitOrder {
@@ -163,6 +210,9 @@ pub enum OrderType {
     #[allow(dead_code)]
     Market,
     Limit,
+    // Basically a market order. The difference is the the quantity is defined as wanted margin,
+    // not contract quantity.
+    Margin,
 }
 
 impl OrderType {
@@ -170,6 +220,7 @@ impl OrderType {
         match self {
             OrderType::Market => "Market",
             OrderType::Limit => "Limit",
+            OrderType::Margin => "Margin",
         }
         .to_string()
     }
@@ -191,6 +242,7 @@ pub enum OrderReason {
     Expired,
 }
 
+// TODO(bonomat): this should probably also be an enum, or maybe a coordinator internal class
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Order {
     pub id: Uuid,
@@ -202,6 +254,8 @@ pub struct Order {
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub margin_sats: Decimal,
     pub order_type: OrderType,
     #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,

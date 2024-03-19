@@ -28,6 +28,7 @@ async fn reject_offer() {
         quantity: 2000.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     };
 
     // submit order for which the app does not have enough liquidity. will fail with `Failed to
@@ -64,6 +65,7 @@ async fn reject_offer() {
         quantity: 100.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     };
 
     // give the coordinator some time to process the reject message, before submitting the next

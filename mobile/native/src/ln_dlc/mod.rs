@@ -805,6 +805,7 @@ fn update_state_after_collab_revert(
                 id: Uuid::new_v4(),
                 leverage: position.leverage,
                 quantity: position.quantity,
+                margin_sats: position.collateral as f32,
                 contract_symbol: position.contract_symbol,
                 direction: position.direction.opposite(),
                 order_type: OrderType::Market,

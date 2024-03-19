@@ -17,6 +17,7 @@ mod orderbook_client;
 // This is likely a bug in frb.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub enum OrderType {
+    Margin,
     Market,
     Limit { price: f32 },
 }
@@ -144,6 +145,7 @@ pub struct Order {
     pub id: Uuid,
     pub leverage: f32,
     pub quantity: f32,
+    pub margin_sats: f32,
     pub contract_symbol: ContractSymbol,
     pub direction: Direction,
     pub order_type: OrderType,
@@ -204,11 +206,28 @@ impl From<Order> for commons::MarketOrder {
     }
 }
 
+impl From<Order> for commons::MarginOrder {
+    fn from(order: Order) -> Self {
+        let trader_id = ln_dlc::get_node_pubkey();
+        commons::MarginOrder {
+            id: order.id,
+            contract_symbol: order.contract_symbol,
+            trader_id,
+            direction: order.direction,
+            leverage: Decimal::from_f32(order.leverage).expect("to fit into f32"),
+            expiry: order.order_expiry_timestamp,
+            stable: order.stable,
+            margin: Decimal::from_f32(order.margin_sats).expect("to fit into f32"),
+        }
+    }
+}
+
 impl From<OrderType> for commons::OrderType {
     fn from(order_type: OrderType) -> Self {
         match order_type {
             OrderType::Market => commons::OrderType::Market,
             OrderType::Limit { .. } => commons::OrderType::Limit,
+            OrderType::Margin => commons::OrderType::Margin,
         }
     }
 }

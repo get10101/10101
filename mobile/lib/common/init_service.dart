@@ -71,7 +71,8 @@ List<SingleChildWidget> createProviders() {
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService),
     Provider(create: (context) => pollService),
-    Provider(create: (context) => githubService)
+    Provider(create: (context) => githubService),
+    Provider(create: (context) => tradeValuesService)
   ];
   if (config.network == "regtest") {
     providers.add(Provider(create: (context) => FaucetService()));

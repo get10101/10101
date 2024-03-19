@@ -3,6 +3,7 @@ use crate::db;
 use crate::event;
 use crate::event::EventInternal;
 use crate::trade::order::Order;
+use crate::trade::order::OrderType;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
 use anyhow::bail;
@@ -86,13 +87,17 @@ pub fn update_position_after_dlc_channel_creation_or_update(
         .execution_price()
         .expect("filled order to have a price");
 
-    // This used to be determined by the DLC collateral, but we now allow part of
-    // the DLC collateral to be excluded from the trade (the collateral reserve).
-    let margin = calculate_margin(
-        execution_price,
-        filled_order.quantity,
-        filled_order.leverage,
-    );
+    let margin = if let OrderType::Margin = filled_order.order_type {
+        filled_order.margin_sats as u64
+    } else {
+        // This used to be determined by the DLC collateral, but we now allow part of
+        // the DLC collateral to be excluded from the trade (the collateral reserve).
+        calculate_margin(
+            execution_price,
+            filled_order.quantity,
+            filled_order.leverage,
+        )
+    };
 
     let (position, trades) = match db::get_positions()?.first() {
         None => {

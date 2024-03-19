@@ -152,8 +152,7 @@ class TradeScreen extends StatelessWidget {
                                 direction: direction,
                                 channelOpeningParams: null,
                                 onConfirmation: () {
-                                  submitOrderChangeNotifier.closePosition(
-                                      position, tradeValues.price, tradeValues.fee);
+                                  submitOrderChangeNotifier.closePosition(position, tradeValues);
 
                                   // Return to the trade screen before submitting the pending order so that the dialog is displayed correctly
                                   GoRouter.of(context).pop();
@@ -168,7 +167,8 @@ class TradeScreen extends StatelessWidget {
                                         return const TradeDialog();
                                       });
                                 },
-                                tradeAction: TradeAction.closePosition);
+                                tradeAction: TradeAction.closePosition,
+                                tradeValues: tradeValues);
                           },
                         );
                       },

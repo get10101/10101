@@ -9,6 +9,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy)]
 pub enum OrderType {
     Market,
+    Margin,
     Limit { price: f32 },
 }
 
@@ -56,6 +57,8 @@ pub struct NewOrder {
     #[frb(non_final)]
     pub quantity: f32,
     #[frb(non_final)]
+    pub margin_sats: f32,
+    #[frb(non_final)]
     pub contract_symbol: ContractSymbol,
     #[frb(non_final)]
     pub direction: Direction,
@@ -89,6 +92,7 @@ impl From<order::OrderType> for OrderType {
         match value {
             order::OrderType::Market => OrderType::Market,
             order::OrderType::Limit { price } => OrderType::Limit { price },
+            order::OrderType::Margin => OrderType::Margin,
         }
     }
 }
@@ -156,6 +160,7 @@ impl From<OrderType> for order::OrderType {
         match value {
             OrderType::Market => order::OrderType::Market,
             OrderType::Limit { price } => order::OrderType::Limit { price },
+            OrderType::Margin => order::OrderType::Margin,
         }
     }
 }
@@ -181,6 +186,7 @@ impl From<NewOrder> for order::Order {
             id: Uuid::new_v4(),
             leverage: value.leverage,
             quantity: value.quantity,
+            margin_sats: value.margin_sats,
             contract_symbol: value.contract_symbol,
             direction: value.direction,
             order_type: (*value.order_type).into(),

@@ -58,6 +58,7 @@ impl FromSql<DirectionType, Pg> for Direction {
 pub enum OrderType {
     Market,
     Limit,
+    Margin,
 }
 
 impl QueryId for OrderTypeType {
@@ -74,6 +75,7 @@ impl ToSql<OrderTypeType, Pg> for OrderType {
         match *self {
             OrderType::Market => out.write_all(b"market")?,
             OrderType::Limit => out.write_all(b"limit")?,
+            OrderType::Margin => out.write_all(b"margin")?,
         }
         Ok(IsNull::No)
     }
@@ -84,6 +86,7 @@ impl FromSql<OrderTypeType, Pg> for OrderType {
         match bytes.as_bytes() {
             b"market" => Ok(OrderType::Market),
             b"limit" => Ok(OrderType::Limit),
+            b"margin" => Ok(OrderType::Margin),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

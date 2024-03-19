@@ -12,7 +12,6 @@ import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
-import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
@@ -28,7 +27,8 @@ tradeBottomSheetConfirmation(
     required Direction direction,
     required TradeAction tradeAction,
     required Function() onConfirmation,
-    required ChannelOpeningParams? channelOpeningParams}) {
+    required ChannelOpeningParams? channelOpeningParams,
+    required TradeValues tradeValues}) {
   final sliderKey = direction == Direction.long
       ? tradeScreenBottomSheetConfirmationSliderBuy
       : tradeScreenBottomSheetConfirmationSliderSell;
@@ -85,6 +85,7 @@ tradeBottomSheetConfirmation(
                     traderCollateral: channelOpeningParams?.traderCollateral,
                     channelFeeReserve: channelFeeReserve,
                     fundingTxFee: fundingTxFee,
+                    tradeValues: tradeValues,
                   )),
             ),
           ),
@@ -124,6 +125,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
   final Key sliderButtonKey;
   final Function() onConfirmation;
   final TradeAction tradeAction;
+  final TradeValues tradeValues;
 
   final Amount? traderCollateral;
   final Amount? channelFeeReserve;
@@ -139,15 +141,13 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     this.traderCollateral,
     this.channelFeeReserve,
     this.fundingTxFee,
+    required this.tradeValues,
   });
 
   @override
   Widget build(BuildContext context) {
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
-
-    TradeValues tradeValues =
-        Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
     bool isClose = tradeAction == TradeAction.closePosition;
     bool isChannelOpen = tradeAction == TradeAction.openChannel;

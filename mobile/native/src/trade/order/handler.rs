@@ -1,3 +1,4 @@
+use crate::calculations::calculate_quantity;
 use crate::config;
 use crate::db;
 use crate::db::get_order_in_filling;
@@ -92,7 +93,7 @@ pub async fn submit_order(
     let orderbook_client = OrderbookClient::new(url);
 
     if let Err(err) = orderbook_client
-        .post_new_market_order(order.clone().into(), channel_opening_params)
+        .post_new_order(order.clone(), channel_opening_params)
         .await
     {
         let order_id = order.id.clone().to_string();
@@ -127,6 +128,7 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
         commons::OrderType::Limit => OrderType::Limit {
             price: order.price.to_f32().expect("to fit into f32"),
         },
+        commons::OrderType::Margin => OrderType::Margin,
     };
 
     let execution_price = filled_with
@@ -140,6 +142,7 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
                 id: order.id,
                 leverage: order.leverage,
                 quantity: order.quantity.to_f32().expect("to fit into f32"),
+                margin_sats: order.margin_sats.to_f32().expect("to fit into f32"),
                 contract_symbol: order.contract_symbol,
                 direction: order.direction,
                 order_type,
@@ -285,6 +288,21 @@ pub fn check_open_orders() -> Result<()> {
 }
 
 fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {
+    if let OrderState::Filled { execution_price } = state {
+        let order =
+            db::get_order(order_id)?.with_context(|| format!("Failed to get order {order_id}"))?;
+        if let OrderType::Margin = order.order_type {
+            let quantity = calculate_quantity(
+                execution_price,
+                order.margin_sats.to_u64().expect("to fit into u64"),
+                order.leverage,
+            );
+            db::update_order_quantity(order_id, quantity).with_context(|| {
+                format!("Failed to update order quantity for {order_id} to {quantity}")
+            })?;
+        }
+    }
+
     let order = db::update_order_state(order_id, state.clone())
         .with_context(|| format!("Failed to update order {order_id} with state {state:?}"))?;
 

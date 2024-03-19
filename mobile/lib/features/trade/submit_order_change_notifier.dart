@@ -75,10 +75,18 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             tradeValues.direction,
             stable,
             Amount(coordinatorReserve),
-            Amount(traderReserve));
+            Amount(traderReserve),
+            tradeValues.margin!,
+            tradeValues.isMarginOrder);
       } else {
-        _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
-            tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
+        _pendingOrder!.id = await orderService.submitMarketOrder(
+            tradeValues.leverage,
+            tradeValues.quantity!,
+            ContractSymbol.btcusd,
+            tradeValues.direction,
+            stable,
+            tradeValues.margin!,
+            tradeValues.isMarginOrder);
       }
 
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
@@ -119,20 +127,25 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     }
   }
 
-  Future<void> closePosition(Position position, double? closingPrice, Amount? fee,
+  Future<void> closePosition(Position position, TradeValues tradeValues,
       {bool stable = false}) async {
     await submitPendingOrder(
         TradeValues(
-            direction: position.direction.opposite(),
-            margin: position.collateral,
-            quantity: position.quantity,
-            leverage: position.leverage,
-            price: closingPrice,
-            liquidationPrice: position.liquidationPrice,
-            fee: fee,
-            fundingRate: 0,
-            expiry: position.expiry,
-            tradeValuesService: TradeValuesService()),
+          direction: position.direction.opposite(),
+          margin: position.collateral,
+          quantity: position.quantity,
+          leverage: position.leverage,
+          price: tradeValues.price,
+          liquidationPrice: position.liquidationPrice,
+          fee: tradeValues.fee,
+          fundingRate: 0,
+          expiry: position.expiry,
+          tradeValuesService: TradeValuesService(),
+          isMarginOrder: false,
+          quantityController: tradeValues.quantityController,
+          marginController: tradeValues.marginController,
+          priceController: tradeValues.priceController,
+        ),
         PositionAction.close,
         pnl: position.unrealizedPnl,
         stable: stable);

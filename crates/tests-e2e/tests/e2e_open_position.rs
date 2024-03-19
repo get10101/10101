@@ -22,6 +22,7 @@ async fn can_open_position() {
         quantity: 1.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     };
     submit_channel_opening_order(order.clone(), 10_000, 10_000);
 

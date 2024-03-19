@@ -242,6 +242,7 @@ diesel::table! {
         leverage -> Float4,
         order_reason -> OrderReasonType,
         stable -> Bool,
+        margin_sats -> Nullable<Float4>,
     }
 }
 

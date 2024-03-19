@@ -65,7 +65,7 @@ class Position {
   static Position fromApi(bridge.Position position) {
     return Position(
       leverage: Leverage(position.leverage),
-      quantity: Usd(position.quantity.ceil()),
+      quantity: Usd.fromDouble(position.quantity),
       contractSymbol: ContractSymbol.fromApi(position.contractSymbol),
       direction: Direction.fromApi(position.direction),
       positionState: PositionState.fromApi(position.positionState),

@@ -6,6 +6,7 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/channel_configuration.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -21,6 +22,7 @@ import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -37,13 +39,10 @@ class TradeBottomSheetTab extends StatefulWidget {
 }
 
 class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
-  late final TradeValuesChangeNotifier provider;
+  late final TradeValuesChangeNotifier tradeValueChangeNotifier;
   late final LspChangeNotifier lspChangeNotifier;
   late final PositionChangeNotifier positionChangeNotifier;
-
-  TextEditingController marginController = TextEditingController();
-  TextEditingController quantityController = TextEditingController();
-  TextEditingController priceController = TextEditingController();
+  late final TradeValuesService tradeValuesService;
 
   final _formKey = GlobalKey<FormState>();
 
@@ -52,24 +51,20 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   bool marginInputFieldEnabled = false;
   bool quantityInputFieldEnabled = true;
 
-  // Amount quantity = Amount(sats);
-
   @override
   void initState() {
-    provider = context.read<TradeValuesChangeNotifier>();
+    tradeValueChangeNotifier = context.read<TradeValuesChangeNotifier>();
     lspChangeNotifier = context.read<LspChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
+    tradeValuesService = tradeValueChangeNotifier.tradeValuesService;
 
     context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
+
     super.initState();
   }
 
   @override
   void dispose() {
-    marginController.dispose();
-    quantityController.dispose();
-    priceController.dispose();
-
     super.dispose();
   }
 
@@ -109,18 +104,17 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               ElevatedButton(
                   key: widget.buttonKey,
                   onPressed: () {
-                    TradeValues tradeValues =
-                        context.read<TradeValuesChangeNotifier>().fromDirection(direction);
                     if (_formKey.currentState!.validate()) {
                       final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
 
                       final tradeAction = hasChannel ? TradeAction.trade : TradeAction.openChannel;
 
+                      final tradeValues =
+                          context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+
                       switch (tradeAction) {
                         case TradeAction.openChannel:
                           {
-                            final tradeValues =
-                                context.read<TradeValuesChangeNotifier>().fromDirection(direction);
                             channelConfiguration(
                               context: context,
                               tradeValues: tradeValues,
@@ -132,6 +126,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                                   onConfirmation: () => onConfirmation(
                                       submitOrderChangeNotifier, tradeValues, channelOpeningParams),
                                   channelOpeningParams: channelOpeningParams,
+                                  tradeValues: tradeValues,
                                 );
                               },
                             );
@@ -139,6 +134,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                           }
                         case TradeAction.trade:
                         case TradeAction.closePosition:
+                          logger.i("Opening dialog with: ${tradeValues.margin}");
                           tradeBottomSheetConfirmation(
                             context: context,
                             direction: direction,
@@ -146,6 +142,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                             onConfirmation: () =>
                                 onConfirmation(submitOrderChangeNotifier, tradeValues, null),
                             channelOpeningParams: null,
+                            tradeValues: tradeValues,
                           );
                       }
                     }
@@ -185,7 +182,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
       BuildContext context, ChannelInfoService channelInfoService, GlobalKey<FormState> formKey) {
-    final tradeValues = context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+    var tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
+    final tradeValues = tradeValuesChangeNotifier.fromDirection(direction);
 
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
@@ -198,9 +196,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     int usableBalance = channelTradeConstraints.maxLocalMarginSats;
 
     // We compute the max quantity based on the margin needed for the counterparty and how much he has available.
-    double price = tradeValues.price ?? 0.0;
+    // TODO: this won't be updated but I guess it's ok because the price won't move too much.
+    final double priceForMaxQuantity = tradeValues.price ?? 0.0;
     double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
-        price *
+        priceForMaxQuantity *
         channelTradeConstraints.coordinatorLeverage;
 
     return Wrap(
@@ -228,115 +227,127 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Flexible(
-                child: AmountInputField(
-              initialValue: tradeValues.quantity ?? Amount.zero(),
-              hint: "e.g. 100 USD",
-              label: "Quantity (USD)",
-              onChanged: (value) {
-                Amount quantity = Amount.zero();
-                try {
-                  if (value.isNotEmpty) {
-                    quantity = Amount.parseAmount(value);
+                child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  marginInputFieldEnabled = false;
+                  quantityInputFieldEnabled = true;
+                  tradeValuesChangeNotifier.updateIsMargin(direction, false);
+                });
+              },
+              child: AmountInputField(
+                controller: tradeValues.quantityController,
+                enabled: quantityInputFieldEnabled,
+                hint: "e.g. 100 USD",
+                label: "Quantity (USD)",
+                onChanged: (value) {
+                  Usd innerQuantity = Usd.zero();
+                  try {
+                    if (value.isNotEmpty) {
+                      innerQuantity = Usd.parseString(value);
+                    }
+                    tradeValuesChangeNotifier.updateQuantity(direction, innerQuantity);
+                  } on Exception {
+                    tradeValuesChangeNotifier.updateQuantity(direction, Usd.zero());
+                  }
+                  _formKey.currentState?.validate();
+                },
+                validator: (ignored) {
+                  Usd quantity = tradeValues.quantity ?? Usd.zero();
+                  Amount margin = tradeValues.margin ?? Amount.zero();
+
+                  if (quantity.asDouble() < channelTradeConstraints.minQuantity.toDouble()) {
+                    return "Min quantity is ${channelTradeConstraints.minQuantity}";
                   }
 
-                  context.read<TradeValuesChangeNotifier>().updateQuantity(direction, quantity);
-                } on Exception {
-                  context
-                      .read<TradeValuesChangeNotifier>()
-                      .updateQuantity(direction, Amount.zero());
-                }
-                _formKey.currentState?.validate();
-              },
-              validator: (value) {
-                Amount quantity = Amount.parseAmount(value);
+                  if (quantity.asDouble() > maxQuantity.toDouble()) {
+                    setState(() => showCapacityInfo = true);
+                    return "Max quantity is ${maxQuantity.toInt()}";
+                  }
 
-                if (quantity.toInt < channelTradeConstraints.minQuantity) {
-                  return "Min quantity is ${channelTradeConstraints.minQuantity}";
-                }
+                  double coordinatorLeverage = channelTradeConstraints.coordinatorLeverage;
 
-                if (quantity.toInt > maxQuantity) {
-                  setState(() => showCapacityInfo = true);
-                  return "Max quantity is ${maxQuantity.toInt()}";
-                }
+                  int? optCounterPartyMargin = tradeValueChangeNotifier.counterpartyMargin(
+                      direction,
+                      coordinatorLeverage,
+                      tradeValues.price?.toDouble() ?? 0.0,
+                      quantity);
+                  if (optCounterPartyMargin == null) {
+                    return "Counterparty margin not available";
+                  }
+                  int neededCounterpartyMarginSats = optCounterPartyMargin;
 
-                double coordinatorLeverage = channelTradeConstraints.coordinatorLeverage;
+                  // This condition has to stay as the first thing to check, so we reset showing the info
+                  int maxCounterpartyMarginSats = channelTradeConstraints.maxCounterpartyMarginSats;
+                  int maxLocalMarginSats = channelTradeConstraints.maxLocalMarginSats;
 
-                int? optCounterPartyMargin =
-                    provider.counterpartyMargin(direction, coordinatorLeverage);
-                if (optCounterPartyMargin == null) {
-                  return "Counterparty margin not available";
-                }
-                int neededCounterpartyMarginSats = optCounterPartyMargin;
+                  // First we check if we have enough money, then we check if counterparty would have enough money
+                  Amount fee =
+                      tradeValueChangeNotifier.orderMatchingFee(direction) ?? Amount.zero();
 
-                // This condition has to stay as the first thing to check, so we reset showing the info
-                int maxCounterpartyMarginSats = channelTradeConstraints.maxCounterpartyMarginSats;
-                int maxLocalMarginSats = channelTradeConstraints.maxLocalMarginSats;
+                  int neededLocalMarginSats = margin.sats + fee.sats;
 
-                // First we check if we have enough money, then we check if counterparty would have enough money
-                Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
+                  if (neededLocalMarginSats > maxLocalMarginSats) {
+                    setState(() => showCapacityInfo = true);
+                    return "Insufficient balance";
+                  }
 
-                Amount margin = tradeValues.margin!;
-                int neededLocalMarginSats = margin.sats + fee.sats;
+                  if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
+                    setState(() => showCapacityInfo = true);
+                    return "Counterparty has insufficient balance";
+                  }
 
-                if (neededLocalMarginSats > maxLocalMarginSats) {
-                  setState(() => showCapacityInfo = true);
-                  return "Insufficient balance";
-                }
-
-                if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
-                  setState(() => showCapacityInfo = true);
-                  return "Counterparty has insufficient balance";
-                }
-
-                setState(() {
-                  showCapacityInfo = false;
-                });
-                return null;
-              },
+                  setState(() {
+                    showCapacityInfo = false;
+                  });
+                  return null;
+                },
+              ),
             )),
             const SizedBox(
               width: 10,
             ),
             Flexible(
-                child: Selector<TradeValuesChangeNotifier, Amount>(
-                    selector: (_, provider) =>
-                        provider.fromDirection(direction).margin ?? Amount.zero(),
-                    builder: (context, margin, child) {
-                      return AmountTextField(
-                        value: margin,
-                        label: "Margin (sats)",
-                      );
-                    })),
+                child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  marginInputFieldEnabled = true;
+                  quantityInputFieldEnabled = false;
+                  tradeValuesChangeNotifier.updateIsMargin(direction, true);
+                });
+              },
+              child: AmountInputField(
+                  enabled: marginInputFieldEnabled,
+                  controller: tradeValues.marginController,
+                  label: "Margin (sats)",
+                  onChanged: (newMarginValue) {
+                    Amount newMargin = Amount.zero();
+                    try {
+                      if (newMarginValue.isNotEmpty) {
+                        newMargin = Amount.parseAmount(newMarginValue);
+                      }
+                      tradeValuesChangeNotifier.updateMargin(direction, newMargin);
+                    } on Exception {
+                      tradeValues.updateMargin(Amount.zero());
+                    }
+                    _formKey.currentState?.validate();
+                  }),
+            )),
           ],
         ),
         LeverageSlider(
-            initialValue: positionLeverage ??
-                context
-                    .read<TradeValuesChangeNotifier>()
-                    .fromDirection(direction)
-                    .leverage
-                    .leverage,
+            initialValue: positionLeverage ?? tradeValues.leverage.leverage,
             isActive: !hasPosition,
             onLeverageChanged: (value) {
-              context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
-              // When the slider changes, we validate the whole form.
+              tradeValues.updateLeverage(Leverage(value));
               formKey.currentState!.validate();
             }),
         Row(
           children: [
-            Selector<TradeValuesChangeNotifier, double>(
-                selector: (_, provider) =>
-                    provider.fromDirection(direction).liquidationPrice ?? 0.0,
-                builder: (context, liquidationPrice, child) {
-                  return ValueDataRow(
-                      type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
-                }),
+            ValueDataRow(
+                type: ValueType.fiat, value: tradeValues.liquidationPrice, label: "Liquidation:"),
             const SizedBox(width: 55),
-            Selector<TradeValuesChangeNotifier, Amount>(
-                selector: (_, provider) => provider.orderMatchingFee(direction) ?? Amount.zero(),
-                builder: (context, fee, child) {
-                  return ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:");
-                }),
+            ValueDataRow(type: ValueType.amount, value: tradeValues.fee, label: "Fee:"),
           ],
         )
       ],

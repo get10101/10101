@@ -93,7 +93,9 @@ impl Position {
 
         let contracts = decimal_from_f32(order.quantity);
 
-        {
+        // we care about checking the margin only if it is not a margin order. If it is a margin
+        // order, then the margin has been defined in the order
+        if OrderType::Margin != order.order_type {
             let leverage = decimal_from_f32(order.leverage);
             let average_entry_price = decimal_from_f32(average_entry_price);
 
@@ -107,7 +109,12 @@ impl Position {
                 .expect("collateral to fit into Amount")
                 .to_sat();
 
-            debug_assert!(actual_collateral_sat == calculated_collateral_sat);
+            debug_assert!(
+                actual_collateral_sat == calculated_collateral_sat,
+                "actual_collateral_sat = {}, calculated_collateral_sat = {}",
+                actual_collateral_sat,
+                calculated_collateral_sat
+            );
 
             if actual_collateral_sat != calculated_collateral_sat {
                 tracing::debug!(
@@ -627,6 +634,7 @@ mod tests {
             id: Uuid::new_v4(),
             leverage: 1.0,
             quantity: 25.0,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: Direction::Short,
             order_type: OrderType::Market,
@@ -688,6 +696,7 @@ mod tests {
             id: Uuid::new_v4(),
             leverage: 2.0,
             quantity: 10.0,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: Direction::Short,
             order_type: OrderType::Market,
@@ -750,6 +759,7 @@ mod tests {
             id: Uuid::new_v4(),
             leverage: 2.0,
             quantity: 5.0,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: Direction::Long,
             order_type: OrderType::Market,
@@ -821,6 +831,7 @@ mod tests {
             id: Uuid::new_v4(),
             leverage: 2.0,
             quantity: 5.0,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: Direction::Short,
             order_type: OrderType::Market,
@@ -898,6 +909,7 @@ mod tests {
             id: Uuid::new_v4(),
             leverage: 2.0,
             quantity: 20.0,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: Direction::Short,
             order_type: OrderType::Market,

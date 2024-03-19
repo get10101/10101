@@ -11,10 +11,12 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
+use bitcoin::Amount;
 use bitcoin::Network;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use commons::LimitOrder;
+use commons::MarginOrder;
 use commons::MarketOrder;
 use commons::Match;
 use commons::Message;
@@ -29,6 +31,7 @@ use commons::TradeParams;
 use commons::TradingError;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::cmp::Ordering;
@@ -36,6 +39,7 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
+use trade::cfd::calculate_quantity;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
@@ -114,6 +118,18 @@ pub fn start(
                                 tx_price_feed,
                                 o,
                                 order_reason,
+                            )
+                                .await
+                        }
+                        NewOrder::Margin(o) => {
+                            process_margin_order(
+                                node,
+                                notifier.clone(),
+                                o,
+                                order_reason,
+                                network,
+                                oracle_pk,
+                                channel_opening_params
                             )
                                 .await
                         }
@@ -354,41 +370,226 @@ pub async fn process_new_market_order(
     Ok(order)
 }
 
-/// Matches an [`Order`] of [`OrderType::Market`] with a list of [`Order`]s of [`OrderType::Limit`].
+// TODO(holzeis): This functions runs multiple inserts in separate db transactions. This should only
+// happen in a single transaction to ensure either all data or nothing is stored to the database.
+pub async fn process_margin_order(
+    node: Node,
+    notifier: mpsc::Sender<OrderbookMessage>,
+    new_order: MarginOrder,
+    order_reason: OrderReason,
+    network: Network,
+    oracle_pk: XOnlyPublicKey,
+    channel_opening_params: Option<ChannelOpeningParams>,
+) -> Result<Order, TradingError> {
+    let mut conn = spawn_blocking({
+        let node = node.clone();
+        move || node.pool.get()
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| anyhow!("{e:#}"))?;
+
+    let mut order =
+        orders::insert_margin_order(&mut conn, new_order.clone(), Decimal::ZERO, order_reason)
+            .map_err(|e| anyhow!(e))
+            .context("Failed to insert new order into DB")?;
+
+    // Reject new order if there is already a matched order waiting for execution.
+    if let Some(order) =
+        orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)
+            .map_err(|e| anyhow!("{e:#}"))?
+    {
+        return Err(TradingError::InvalidOrder(format!(
+            "trader_id={}, order_id={}. Order is currently in execution. \
+                 Can't accept new orders until the order execution is finished",
+            new_order.trader_id, order.id
+        )));
+    }
+
+    let opposite_direction_limit_orders = orders::all_by_direction_and_type(
+        &mut conn,
+        order.direction.opposite(),
+        OrderType::Limit,
+        true,
+    )
+    .map_err(|e| anyhow!("{e:#}"))?;
+
+    let matched_orders =
+        match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
+            Ok(Some(matched_orders)) => matched_orders,
+            Ok(None) => {
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                    .map_err(|e| anyhow!("{e:#}"))?;
+                return Err(TradingError::NoMatchFound(format!(
+                    "Could not match order {}",
+                    order.id
+                )));
+            }
+            Err(e) => {
+                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                    .map_err(|e| anyhow!("{e:#}"))?;
+                return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
+            }
+        };
+
+    // we have a match, now we can calculate the quantity
+    let calculated_quantity = calculate_quantity(
+        matched_orders
+            .taker_match
+            .filled_with
+            .average_execution_price()
+            .to_f32()
+            .expect("to fit into f32"),
+        order.margin_sats.to_u64().expect("to fit into u64"),
+        order.leverage,
+    );
+
+    tracing::info!(
+        trader_id=%order.trader_id,
+        order_id=%order.id,
+        number_of_makers = matched_orders.taker_match.filled_with.matches.len(),
+        quantity = calculated_quantity,
+        margin = order.margin_sats.to_string(),
+        "Found a match for new margin order",
+    );
+
+    // now that we know the quantity we can overwrite it in the order for internal processing
+    order.quantity = Decimal::from_f32(calculated_quantity).expect("to be able to parse f32");
+
+    if let Err(err) = orders::update_quantity(&mut conn, order.id, calculated_quantity) {
+        return Err(TradingError::Other(format!(
+            "Failed to update order's quantity: {err:#}"
+        )));
+    }
+
+    for match_param in matched_orders.matches() {
+        matches::insert(&mut conn, match_param)?;
+
+        let trader_id = match_param.trader_id;
+        let order_id = match_param.filled_with.order_id.to_string();
+
+        tracing::info!(%trader_id, order_id, "Notifying trader about match");
+
+        let message = match &order.order_reason {
+            OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
+            OrderReason::Expired => Message::AsyncMatch {
+                order: order.clone(),
+                filled_with: match_param.filled_with.clone(),
+            },
+        };
+
+        let notification = match &order.order_reason {
+            OrderReason::Expired => Some(NotificationKind::PositionExpired),
+            OrderReason::Manual => None,
+        };
+
+        let msg = OrderbookMessage::TraderMessage {
+            trader_id,
+            message,
+            notification,
+        };
+
+        let order_state = match notifier.send(msg).await {
+            Ok(()) => {
+                tracing::debug!(%trader_id, order_id, "Successfully notified trader");
+                OrderState::Matched
+            }
+            Err(e) => {
+                tracing::warn!(%trader_id, order_id, "Failed to send trader message: {e:#}");
+
+                if order.order_type == OrderType::Limit {
+                    // FIXME: The maker is currently not connected to the WebSocket so we can't
+                    // notify him about a trade. However, trades are always accepted by the
+                    // maker at the moment so in order to not have all limit orders in order
+                    // state `Match` we are setting the order to `Taken` even if we couldn't
+                    // notify the maker.
+
+                    OrderState::Taken
+                } else {
+                    OrderState::Matched
+                }
+            }
+        };
+
+        tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
+
+        orders::set_order_state(&mut conn, match_param.filled_with.order_id, order_state)
+            .map_err(|e| anyhow!("{e:#}"))?;
+    }
+
+    if let Some(channel_opening_params) = channel_opening_params {
+        db::channel_opening_params::insert(&mut conn, order.id, channel_opening_params)
+            .map_err(|e| anyhow!("{e:#}"))?;
+    }
+
+    if node.inner.is_connected(order.trader_id) {
+        tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
+        let trade_executor = TradeExecutor::new(node.clone(), notifier);
+
+        tokio::spawn(async move {
+            let quantity = order.quantity.to_f32().expect("to fit into f32");
+            let rounded_quantity = (quantity * 100.0).round() / 100.0;
+            trade_executor
+                .execute(&TradeAndChannelParams {
+                    trade_params: TradeParams {
+                        pubkey: order.trader_id,
+                        contract_symbol: ContractSymbol::BtcUsd,
+                        leverage: order.leverage,
+                        quantity: rounded_quantity,
+                        direction: order.direction,
+                        filled_with: matched_orders.taker_match.filled_with,
+                    },
+                    trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
+                    coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
+                })
+                .await;
+        });
+    } else {
+        match order.order_reason {
+            OrderReason::Manual => {
+                tracing::warn!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
+            }
+            OrderReason::Expired => {
+                tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
+            }
+        }
+    }
+
+    Ok(order)
+}
+
+/// Matches an [`Order`] of [`OrderType::Market`] or [`OrderType::Margin`] with a list of [`Order`]s
+/// of [`OrderType::Limit`].
 ///
 /// The caller is expected to provide a list of `opposite_direction_orders` of [`OrderType::Limit`]
 /// and opposite [`Direction`] to the `market_order`. We nevertheless ensure that this is the case
 /// to be on the safe side.
-
 fn match_order(
-    market_order: &Order,
+    order: &Order,
     opposite_direction_orders: Vec<Order>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> Result<Option<MatchParams>> {
-    if market_order.order_type == OrderType::Limit {
+    if order.order_type == OrderType::Limit {
         // We don't match limit orders with other limit orders at the moment.
         return Ok(None);
     }
 
     let opposite_direction_orders = opposite_direction_orders
         .into_iter()
-        .filter(|o| !o.direction.eq(&market_order.direction))
+        .filter(|o| !o.direction.eq(&order.direction))
         .collect();
 
-    let mut orders = sort_orders(opposite_direction_orders, market_order.direction);
+    let mut orders = sort_orders(opposite_direction_orders, order.direction);
 
-    let mut remaining_quantity = market_order.quantity;
-    let mut matched_orders = vec![];
-    while !orders.is_empty() {
-        let matched_order = orders.remove(0);
-        remaining_quantity -= matched_order.quantity;
-        matched_orders.push(matched_order);
-
-        if remaining_quantity <= Decimal::ZERO {
-            break;
+    let matched_orders = match order.order_type {
+        OrderType::Market => match_market_order(order, &mut orders),
+        OrderType::Limit => {
+            // already handled above, we don't match limit orders atm
+            return Ok(None);
         }
-    }
+        OrderType::Margin => match_margin_order(order, &mut orders),
+    };
 
     // For the time being we do not want to support multi-matches.
     if matched_orders.len() > 1 {
@@ -400,6 +601,23 @@ fn match_order(
     }
 
     let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+
+    let quantity = match &order.order_type {
+        OrderType::Market => order.quantity.to_f32().expect("to fit into f32"),
+        OrderType::Limit => {
+            bail!("Not supported here")
+        }
+        OrderType::Margin => {
+            // now that we have all the matches, we can calculate the average execution price and
+            // the quantity
+            let average_execution_price = average_execution_price(&matched_orders);
+            calculate_quantity(
+                average_execution_price.to_f32().expect("to fit into f32"),
+                order.margin_sats.to_u64().expect("to fit into u64"),
+                order.leverage,
+            )
+        }
+    };
 
     let matches = matched_orders
         .iter()
@@ -413,9 +631,9 @@ fn match_order(
                         oracle_pk,
                         matches: vec![Match {
                             id: Uuid::new_v4(),
-                            order_id: market_order.id,
-                            quantity: market_order.quantity,
-                            pubkey: market_order.trader_id,
+                            order_id: order.id,
+                            quantity: maker_order.quantity,
+                            pubkey: order.trader_id,
                             execution_price: maker_order.price,
                         }],
                     },
@@ -423,7 +641,7 @@ fn match_order(
                 Match {
                     id: Uuid::new_v4(),
                     order_id: maker_order.id,
-                    quantity: market_order.quantity,
+                    quantity: Decimal::from_f32(quantity).expect("To fit into f32"),
                     pubkey: maker_order.trader_id,
                     execution_price: maker_order.price,
                 },
@@ -441,9 +659,9 @@ fn match_order(
 
     Ok(Some(MatchParams {
         taker_match: TraderMatchParams {
-            trader_id: market_order.trader_id,
+            trader_id: order.trader_id,
             filled_with: FilledWith {
-                order_id: market_order.id,
+                order_id: order.id,
                 expiry_timestamp,
                 oracle_pk,
                 matches: taker_matches,
@@ -451,6 +669,69 @@ fn match_order(
         },
         makers_matches: maker_matches,
     }))
+}
+
+fn match_market_order(order: &Order, orders: &mut Vec<Order>) -> Vec<Order> {
+    let mut remaining_quantity = order.quantity;
+    let mut matched_orders = vec![];
+    while !orders.is_empty() {
+        let mut matched_order = orders.remove(0);
+
+        let tmp_remaining_quantity_of_matched_order = matched_order.quantity - remaining_quantity;
+        if tmp_remaining_quantity_of_matched_order > Decimal::ZERO {
+            // there is still some quantity remaining, so we update the matched order with the
+            // amount we need
+            matched_order.quantity = remaining_quantity;
+            // TODO: we should also update the margin of the matched_order if we actually have a
+            // counterparty. For now this is good enough as we don't care at the moment.
+        }
+
+        remaining_quantity -= matched_order.quantity;
+        matched_orders.push(matched_order);
+
+        if remaining_quantity <= Decimal::ZERO {
+            break;
+        }
+    }
+    matched_orders
+}
+
+fn match_margin_order(order: &Order, orders: &mut Vec<Order>) -> Vec<Order> {
+    let mut remaining_needed_margin = order.margin_sats;
+    let mut matched_orders = vec![];
+    while !orders.is_empty() {
+        let leverage = Decimal::from_f32(order.leverage).expect("to be able to parse from f32");
+        let one_btc_as_sats =
+            Decimal::from_u64(Amount::ONE_BTC.to_sat()).expect("to be able to parse u64");
+        let mut matched_limit_order = orders.remove(0);
+        // first we calculate how much margin is available in the limit order
+        let available_margin_to_match = (matched_limit_order.quantity
+            / (matched_limit_order.price * leverage))
+            * one_btc_as_sats;
+
+        let tmp_remaining_margin = available_margin_to_match - remaining_needed_margin;
+        // if we don't use all the margin, we update the matched order with the needed quantity and
+        // margin
+        if tmp_remaining_margin > Decimal::ZERO {
+            matched_limit_order.quantity = remaining_needed_margin
+                * matched_limit_order.price
+                // note: this quantity might now be bigger than the original `matched_limit_order.quantity` because we take the `order.leverage`. 
+                // we need to do this, because later we need to calculate the average entry price for the `order`. 
+                // The quantity of the `maker` might be wrong here though. 
+                * leverage
+                / one_btc_as_sats;
+            matched_limit_order.margin_sats = remaining_needed_margin;
+        }
+        matched_orders.push(matched_limit_order);
+
+        // last we update the remaining needed margin
+        remaining_needed_margin -= available_margin_to_match;
+
+        if remaining_needed_margin <= Decimal::ZERO {
+            break;
+        }
+    }
+    matched_orders
 }
 
 /// Sort the provided list of limit [`Order`]s based on the [`Direction`] of the market order to be
@@ -503,6 +784,24 @@ impl From<&TradeParams> for TraderMatchParams {
             filled_with: value.filled_with.clone(),
         }
     }
+}
+
+/// calculates the average execution price for inverse contracts
+///
+/// The average execution price follows a simple formula:
+/// `total_order_quantity / (quantity_order_0 / price_order_0 + quantity_order_1 /
+/// price_order_1 )`
+pub fn average_execution_price(orders: &[Order]) -> Decimal {
+    if orders.len() == 1 {
+        return orders.first().expect("to be exactly one").price;
+    }
+    let sum_quantity = orders.iter().fold(Decimal::ZERO, |acc, m| acc + m.quantity);
+
+    let nominal_prices: Decimal = orders
+        .iter()
+        .fold(Decimal::ZERO, |acc, m| acc + (m.quantity / m.price));
+
+    sum_quantity / nominal_prices
 }
 
 #[cfg(test)]
@@ -645,6 +944,7 @@ mod tests {
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(100),
+            margin_sats: Default::default(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -727,6 +1027,7 @@ mod tests {
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(200),
+            margin_sats: Default::default(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -784,6 +1085,7 @@ mod tests {
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
             quantity: dec!(200),
+            margin_sats: Default::default(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -820,6 +1122,7 @@ mod tests {
             leverage: 1.0,
             contract_symbol: ContractSymbol::BtcUsd,
             quantity,
+            margin_sats: Default::default(),
             order_type: OrderType::Limit,
             timestamp: OffsetDateTime::now_utc() + timestamp_delay,
             expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
@@ -827,6 +1130,126 @@ mod tests {
             order_reason: OrderReason::Manual,
             stable: false,
         }
+    }
+
+    #[test]
+    fn given_one_limit_and_margin_without_quantity_then_match_and_updated_quantities() {
+        // setup
+        let opening_price = dec!(20_000);
+        let all_orders = vec![
+            // Note: total available margin for this order would be 500,000 sats
+            dummy_long_order(
+                opening_price,
+                Uuid::new_v4(),
+                dec!(100),
+                Duration::seconds(0),
+            ),
+        ];
+
+        let order = Order {
+            id: Uuid::new_v4(),
+            price: Default::default(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
+            direction: Direction::Short,
+            leverage: 1.0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            quantity: dec!(0),
+            margin_sats: dec!(100_000),
+            order_type: OrderType::Margin,
+            timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        };
+
+        // act
+        let matched_orders = match_order(
+            &order,
+            all_orders,
+            Network::Bitcoin,
+            get_oracle_public_key(),
+        )
+        .unwrap()
+        .unwrap();
+
+        // assert
+
+        assert_eq!(matched_orders.makers_matches.len(), 1);
+        let maker_matches = matched_orders
+            .makers_matches
+            .first()
+            .unwrap()
+            .filled_with
+            .matches
+            .clone();
+        assert_eq!(maker_matches.len(), 1);
+        // quantity is 20 = quantity(100_000) * price(20,000) * leverage(1) / BTC(1)
+        assert_eq!(maker_matches.first().unwrap().quantity, dec!(20));
+
+        assert_eq!(matched_orders.taker_match.filled_with.order_id, order.id);
+        assert_eq!(matched_orders.taker_match.filled_with.matches.len(), 1);
+        assert_eq!(
+            matched_orders
+                .taker_match
+                .filled_with
+                .matches
+                .first()
+                .unwrap()
+                .quantity,
+            // we expect the quantity field to be set now
+            dec!(20)
+        );
+    }
+
+    // we do not support multiple matches for margin only orders neither
+    #[test]
+    fn given_multiple_limit_and_margin_without_quantity_then_error() {
+        // setup
+        // since we are going short, these orders will be sorted ascending according to their price
+        let all_orders = vec![
+            // available margin for this order is 59,524 sats
+            dummy_long_order(dec!(42_000), Uuid::new_v4(), dec!(50), Duration::seconds(0)),
+            // available margin for this order is 62,500 sats
+            dummy_long_order(dec!(40_000), Uuid::new_v4(), dec!(50), Duration::seconds(0)),
+            // available margin for this order is 12,821 sats
+            dummy_long_order(dec!(39_000), Uuid::new_v4(), dec!(10), Duration::seconds(0)),
+        ];
+
+        let order = Order {
+            id: Uuid::new_v4(),
+            price: Default::default(),
+            trader_id: PublicKey::from_str(
+                "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
+            )
+            .unwrap(),
+            direction: Direction::Short,
+            leverage: 2.0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            quantity: dec!(0),
+            margin_sats: dec!(100_000),
+            order_type: OrderType::Margin,
+            timestamp: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        };
+
+        // act
+        let error = match_order(
+            &order,
+            all_orders,
+            Network::Bitcoin,
+            get_oracle_public_key(),
+        );
+
+        // verify
+
+        assert!(error.is_err());
     }
 
     fn get_oracle_public_key() -> XOnlyPublicKey {

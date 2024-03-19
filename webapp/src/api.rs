@@ -201,6 +201,7 @@ pub struct NewOrderParams {
     pub direction: Direction,
 }
 
+// TODO: support margin orders in webapp as well
 impl TryFrom<NewOrderParams> for native::trade::order::Order {
     type Error = anyhow::Error;
     fn try_from(value: NewOrderParams) -> Result<Self> {
@@ -214,6 +215,7 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
                 .quantity
                 .to_f32()
                 .context("To be able to parse leverage into f32")?,
+            margin_sats: 0.0,
             contract_symbol: ContractSymbol::BtcUsd,
             direction: value.direction,
             // We only support market orders for now

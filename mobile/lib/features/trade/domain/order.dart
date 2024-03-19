@@ -97,21 +97,26 @@ class FailureReason {
 }
 
 enum OrderType {
-  market;
+  market,
+  margin;
 
   static OrderType fromApi(bridge.OrderType orderType) {
     if (orderType is bridge.OrderType_Market) {
       return OrderType.market;
     }
+    if (orderType is bridge.OrderType_Margin) {
+      return OrderType.margin;
+    }
 
-    throw Exception("Only market orders are supported! Received unexpected order type $orderType");
+    throw Exception(
+        "Only market or margin orders are supported! Received unexpected order type $orderType");
   }
 }
 
 class Order {
   late String id;
   final Leverage leverage;
-  final Amount quantity;
+  final Usd quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
   final OrderState state;
@@ -138,7 +143,7 @@ class Order {
     return Order(
         id: order.id,
         leverage: Leverage(order.leverage),
-        quantity: Amount(order.quantity.ceil()),
+        quantity: Usd.fromDouble(order.quantity),
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
         state: OrderState.fromApi(order.state),

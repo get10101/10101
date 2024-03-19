@@ -163,5 +163,6 @@ pub fn dummy_order() -> NewOrder {
         quantity: 1000.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     }
 }

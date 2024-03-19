@@ -7,14 +7,24 @@ import 'package:get_10101/ffi.dart' as rust;
 
 class OrderService {
   Future<String> submitMarketOrder(Leverage leverage, Usd quantity, ContractSymbol contractSymbol,
-      Direction direction, bool stable) async {
+      Direction direction, bool stable, Amount margin, bool isMarginOrder) async {
+    Usd updatedQuantity = quantity;
+    rust.OrderType orderType = const rust.OrderType.market();
+
+    if (isMarginOrder) {
+      // just to be on the safe side we set quantity to 0
+      updatedQuantity = Usd.zero();
+      orderType = const rust.OrderType.margin();
+    }
+
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
-        quantity: quantity.asDouble(),
+        quantity: updatedQuantity.asDouble(),
         contractSymbol: contractSymbol.toApi(),
         direction: direction.toApi(),
-        orderType: const rust.OrderType.market(),
-        stable: stable);
+        orderType: orderType,
+        stable: stable,
+        marginSats: margin.asDouble());
 
     return await rust.api.submitOrder(order: order);
   }
@@ -26,14 +36,26 @@ class OrderService {
       Direction direction,
       bool stable,
       Amount coordinatorReserve,
-      Amount traderReserve) async {
+      Amount traderReserve,
+      Amount margin,
+      bool isMarginOrder) async {
+    Usd updatedQuantity = quantity;
+    rust.OrderType orderType = const rust.OrderType.market();
+
+    if (isMarginOrder) {
+      // just to be on the safe side we set quantity to 0
+      updatedQuantity = Usd.zero();
+      orderType = const rust.OrderType.margin();
+    }
+
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
-        quantity: quantity.asDouble(),
+        quantity: updatedQuantity.asDouble(),
         contractSymbol: contractSymbol.toApi(),
         direction: direction.toApi(),
-        orderType: const rust.OrderType.market(),
-        stable: stable);
+        orderType: orderType,
+        stable: stable,
+        marginSats: margin.asDouble());
 
     return await rust.api.submitChannelOpeningOrder(
         order: order,

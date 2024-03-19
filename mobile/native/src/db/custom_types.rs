@@ -23,6 +23,7 @@ impl ToSql<Text, Sqlite> for OrderType {
         let text = match *self {
             OrderType::Market => "market".to_string(),
             OrderType::Limit => "limit".to_string(),
+            OrderType::Margin => "margin".to_string(),
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -36,6 +37,7 @@ impl FromSql<Text, Sqlite> for OrderType {
         return match string.as_str() {
             "market" => Ok(OrderType::Market),
             "limit" => Ok(OrderType::Limit),
+            "margin" => Ok(OrderType::Margin),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

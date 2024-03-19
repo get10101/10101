@@ -9,6 +9,7 @@ use crate::trade::order::InvalidSubchannelOffer;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -61,6 +62,7 @@ pub(crate) struct Order {
     pub order_expiry_timestamp: i64,
     pub reason: OrderReason,
     pub stable: bool,
+    pub margin_sats: Option<f32>,
 }
 
 impl Order {
@@ -153,6 +155,19 @@ impl Order {
         })
     }
 
+    /// updates the quantity field of an order
+    pub fn update_quantity(
+        order_id: String,
+        quantity: f32,
+        conn: &mut SqliteConnection,
+    ) -> Result<Order> {
+        diesel::update(orders::table)
+            .filter(schema::orders::id.eq(order_id.clone()))
+            .set(schema::orders::quantity.eq(quantity))
+            .execute(conn)?;
+        Order::get(order_id, conn)?.context("Order not found")
+    }
+
     pub fn get(order_id: String, conn: &mut SqliteConnection) -> QueryResult<Option<Order>> {
         orders::table
             .filter(schema::orders::id.eq(order_id))
@@ -223,6 +238,7 @@ impl From<crate::trade::order::Order> for Order {
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
             reason: value.reason.into(),
             stable: value.stable,
+            margin_sats: Some(value.margin_sats),
         }
     }
 }
@@ -253,6 +269,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             id: Uuid::parse_str(value.id.as_str()).map_err(Error::InvalidId)?,
             leverage: value.leverage,
             quantity: value.quantity,
+            margin_sats: value.margin_sats.unwrap_or_default(),
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
@@ -520,6 +537,7 @@ impl From<Direction> for trade::Direction {
 pub enum OrderType {
     Market,
     Limit,
+    Margin,
 }
 
 impl From<crate::trade::order::OrderType> for (OrderType, Option<f32>) {
@@ -527,6 +545,7 @@ impl From<crate::trade::order::OrderType> for (OrderType, Option<f32>) {
         match value {
             crate::trade::order::OrderType::Market => (OrderType::Market, None),
             crate::trade::order::OrderType::Limit { price } => (OrderType::Limit, Some(price)),
+            crate::trade::order::OrderType::Margin => (OrderType::Margin, None),
         }
     }
 }
@@ -541,6 +560,7 @@ impl TryFrom<(OrderType, Option<f32>)> for crate::trade::order::OrderType {
                 None => return Err(Error::MissingPriceForLimitOrder),
                 Some(price) => crate::trade::order::OrderType::Limit { price },
             },
+            OrderType::Margin => crate::trade::order::OrderType::Margin,
         };
 
         Ok(order_type)
@@ -1223,6 +1243,7 @@ pub mod test {
             order_expiry_timestamp: expiry_timestamp.unix_timestamp(),
             reason: OrderReason::Manual,
             stable: false,
+            margin_sats: Some(1.0),
         };
 
         Order::insert(
@@ -1230,6 +1251,7 @@ pub mod test {
                 id: uuid,
                 leverage,
                 quantity,
+                margin_sats: 1.0,
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
@@ -1251,6 +1273,7 @@ pub mod test {
                 id: uuid::Uuid::new_v4(),
                 leverage,
                 quantity,
+                margin_sats: 1.0,
                 contract_symbol,
                 direction: trade::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
@@ -1321,6 +1344,7 @@ pub mod test {
                 id: uuid,
                 leverage,
                 quantity,
+                margin_sats: 0.0,
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,
@@ -1345,6 +1369,7 @@ pub mod test {
                 id: uuid1,
                 leverage,
                 quantity,
+                margin_sats: 0.0,
                 contract_symbol,
                 direction,
                 order_type: crate::trade::order::OrderType::Market,

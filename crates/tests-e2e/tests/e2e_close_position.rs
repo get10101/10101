@@ -67,6 +67,7 @@ async fn can_open_close_open_close_position() {
         quantity: 500.0,
         order_type: Box::new(OrderType::Market),
         stable: false,
+        margin_sats: 0.0,
     };
 
     submit_order(order.clone());
