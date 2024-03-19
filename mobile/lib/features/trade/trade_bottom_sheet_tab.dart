@@ -49,6 +49,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   bool showCapacityInfo = false;
 
+  bool marginInputFieldEnabled = false;
+  bool quantityInputFieldEnabled = true;
+
+  // Amount quantity = Amount(sats);
+
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();

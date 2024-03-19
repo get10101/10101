@@ -66,7 +66,7 @@ Widget createSubmitWidget(
       bottomText = "Sorry, we couldn't match your order. Please try again later.";
       break;
     case PendingOrderState.orderFilled:
-      var amount = pendingOrder.tradeValues?.quantity?.sats ?? "0";
+      var amount = pendingOrder.tradeValues?.quantity?.toInt ?? "0";
       bottomText = "Congratulations! You received $amount USDP.";
       break;
   }
@@ -80,9 +80,7 @@ Widget createSubmitWidget(
           runSpacing: 10,
           children: [
             ValueDataRow(
-                type: ValueType.fiat,
-                value: pendingOrderValues?.quantity?.sats.toDouble(),
-                label: "USDP"),
+                type: ValueType.fiat, value: pendingOrderValues?.quantity?.toInt, label: "USDP"),
             ValueDataRow(
                 type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
             ValueDataRow(

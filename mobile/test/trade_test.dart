@@ -102,7 +102,7 @@ void main() {
         .thenReturn(10000);
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
-        .thenReturn(Amount(1));
+        .thenReturn(Usd(1));
     when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))
@@ -214,7 +214,7 @@ void main() {
         .thenReturn(10000);
     when(tradeValueService.calculateQuantity(
             price: anyNamed('price'), leverage: anyNamed('leverage'), margin: anyNamed('margin')))
-        .thenReturn(Amount(1));
+        .thenReturn(Usd(1));
     when(tradeValueService.getExpiryTimestamp()).thenReturn(DateTime.now());
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))

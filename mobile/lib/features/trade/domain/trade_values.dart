@@ -9,7 +9,7 @@ class TradeValues {
   Direction direction;
 
   // These values  can be null if coordinator is down
-  Amount? quantity;
+  Usd? quantity;
   double? price;
   double? liquidationPrice;
   Amount? fee; // This fee is an estimate of the order-matching fee.
@@ -33,7 +33,7 @@ class TradeValues {
       required this.tradeValuesService});
 
   factory TradeValues.fromQuantity(
-      {required Amount quantity,
+      {required Usd quantity,
       required Leverage leverage,
       required double? price,
       required double fundingRate,
@@ -70,7 +70,7 @@ class TradeValues {
       required double fundingRate,
       required Direction direction,
       required TradeValuesService tradeValuesService}) {
-    Amount? quantity =
+    Usd? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     double? liquidationPrice = price != null
         ? tradeValuesService.calculateLiquidationPrice(
@@ -94,7 +94,7 @@ class TradeValues {
         tradeValuesService: tradeValuesService);
   }
 
-  updateQuantity(Amount quantity) {
+  updateQuantity(Usd quantity) {
     this.quantity = quantity;
     _recalculateMargin();
     _recalculateFee();
@@ -139,7 +139,7 @@ class TradeValues {
   }
 
   _recalculateQuantity() {
-    Amount? quantity =
+    Usd? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     this.quantity = quantity;
   }
