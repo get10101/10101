@@ -12,7 +12,7 @@ class AmountInputField extends StatelessWidget {
       this.label = '',
       this.hint = '',
       this.onChanged,
-      required this.value,
+      required this.initialValue,
       this.isLoading = false,
       this.suffixIcon,
       this.controller,
@@ -23,7 +23,7 @@ class AmountInputField extends StatelessWidget {
 
   final TextEditingController? controller;
   final TextStyle? style;
-  final Amount value;
+  final Amount initialValue;
   final bool enabled;
   final String label;
   final String hint;
@@ -41,7 +41,7 @@ class AmountInputField extends StatelessWidget {
       style: style ?? const TextStyle(color: Colors.black87, fontSize: 16),
       enabled: enabled,
       controller: controller,
-      initialValue: controller != null ? null : value.formatted(),
+      initialValue: controller != null ? null : initialValue.formatted(),
       keyboardType: TextInputType.number,
       decoration: decoration ??
           InputDecoration(
