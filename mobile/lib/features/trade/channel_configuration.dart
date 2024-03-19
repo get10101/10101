@@ -113,7 +113,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
     counterpartyMargin = widget.tradeValues.calculateMargin(Leverage(counterpartyLeverage));
 
-    minMargin = Amount(tradeConstraints.minMargin);
+    minMargin = Amount(max(tradeConstraints.minMargin, widget.tradeValues.margin?.sats ?? 0));
 
     ownTotalCollateral = tradeConstraints.minMargin > widget.tradeValues.margin!.sats
         ? Amount(tradeConstraints.minMargin)
