@@ -1,3 +1,4 @@
+use crate::db::dlc_channels::DlcChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::dlc_protocols::DlcProtocolState;
 use crate::db::dlc_protocols::DlcProtocolType;
@@ -6,6 +7,7 @@ use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::DirectionType;
+use crate::schema::sql_types::DlcChannelStateType;
 use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PollTypeType;
 use crate::schema::sql_types::PositionStateType;
@@ -200,6 +202,34 @@ impl FromSql<ProtocolTypeType, Pg> for DlcProtocolType {
             b"close" => Ok(DlcProtocolType::Close),
             b"force-close" => Ok(DlcProtocolType::ForceClose),
             _ => Err("Unrecognized enum variant for ProtocolTypeType".into()),
+        }
+    }
+}
+
+impl ToSql<DlcChannelStateType, Pg> for DlcChannelState {
+    fn to_sql(&self, out: &mut Output<Pg>) -> serialize::Result {
+        match *self {
+            DlcChannelState::Pending => out.write_all(b"Pending")?,
+            DlcChannelState::Open => out.write_all(b"Open")?,
+            DlcChannelState::Closing => out.write_all(b"Closing")?,
+            DlcChannelState::Closed => out.write_all(b"Closed")?,
+            DlcChannelState::Failed => out.write_all(b"Failed")?,
+            DlcChannelState::Cancelled => out.write_all(b"Cancelled")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<DlcChannelStateType, Pg> for DlcChannelState {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Pending" => Ok(DlcChannelState::Pending),
+            b"Open" => Ok(DlcChannelState::Open),
+            b"Closing" => Ok(DlcChannelState::Closing),
+            b"Closed" => Ok(DlcChannelState::Closed),
+            b"Failed" => Ok(DlcChannelState::Failed),
+            b"Cancelled" => Ok(DlcChannelState::Cancelled),
+            _ => Err("Unrecognized enum variant".into()),
         }
     }
 }

@@ -14,6 +14,10 @@ pub mod sql_types {
     pub struct DirectionType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "Dlc_Channel_State_Type"))]
+    pub struct DlcChannelStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "Htlc_Status_Type"))]
     pub struct HtlcStatusType;
 
@@ -115,6 +119,29 @@ diesel::table! {
         coordinator_amount_sats -> Int8,
         trader_amount_sats -> Int8,
         timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::DlcChannelStateType;
+
+    dlc_channels (id) {
+        id -> Int4,
+        open_protocol_id -> Uuid,
+        channel_id -> Text,
+        trader_pubkey -> Text,
+        channel_state -> DlcChannelStateType,
+        trader_reserve_sats -> Int8,
+        coordinator_reserve_sats -> Int8,
+        funding_txid -> Nullable<Text>,
+        close_txid -> Nullable<Text>,
+        settle_txid -> Nullable<Text>,
+        buffer_txid -> Nullable<Text>,
+        claim_txid -> Nullable<Text>,
+        punish_txid -> Nullable<Text>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
     }
 }
 
@@ -410,6 +437,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     channels,
     choices,
     collaborative_reverts,
+    dlc_channels,
     dlc_messages,
     dlc_protocols,
     last_outbound_dlc_messages,

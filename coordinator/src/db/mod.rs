@@ -1,6 +1,7 @@
 pub mod channel_opening_params;
 pub mod collaborative_reverts;
 pub mod custom_types;
+pub mod dlc_channels;
 pub mod dlc_messages;
 pub mod dlc_protocols;
 pub mod last_outbound_dlc_message;

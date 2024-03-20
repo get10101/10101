@@ -34,6 +34,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 
+pub mod channel;
 pub mod expired_positions;
 pub mod rollover;
 pub mod storage;

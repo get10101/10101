@@ -442,12 +442,7 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         }
 
         let dlc_channel_event = DlcChannelEvent::from(channel);
-        if let Err(e) = self.event_sender.send(dlc_channel_event) {
-            tracing::error!(
-                ?dlc_channel_event,
-                "Failed to send dlc channel event. Error: {e:#}"
-            );
-        }
+        let _ = self.event_sender.send(dlc_channel_event);
 
         Ok(())
     }
@@ -462,12 +457,7 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
         let dlc_channel_event =
             DlcChannelEvent::Deleted(channel.and_then(|channel| channel.get_reference_id()));
 
-        if let Err(e) = self.event_sender.send(dlc_channel_event) {
-            tracing::error!(
-                ?dlc_channel_event,
-                "Failed to send dlc channel event. Error: {e:#}"
-            );
-        }
+        let _ = self.event_sender.send(dlc_channel_event);
 
         Ok(())
     }

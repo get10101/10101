@@ -62,7 +62,7 @@ pub fn connect_node_event_handler_to_dlc_channel_events(
                 }
             }
             Err(e) => {
-                tracing::warn!("The dlc event channel has been closed. Error: {e:#}");
+                tracing::error!("The dlc event channel has been closed. Error: {e:#}");
                 break;
             }
         }

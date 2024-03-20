@@ -285,6 +285,8 @@ async fn main() -> Result<()> {
         network,
     );
 
+    node.spawn_shadow_dlc_channels_task();
+
     tokio::spawn({
         let node = node.clone();
         let trading_sender = trading_sender.clone();
