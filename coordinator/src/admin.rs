@@ -1,5 +1,6 @@
 use crate::collaborative_revert;
 use crate::db;
+use crate::dlc_protocol::ProtocolId;
 use crate::parse_dlc_channel_id;
 use crate::routes::empty_string_as_none;
 use crate::routes::AppState;
@@ -15,11 +16,14 @@ use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
 use commons::CollaborativeRevertCoordinatorRequest;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Storage;
 use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget;
+use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
+use ln_dlc_node::bitcoin_conversion::to_txid_30;
 use ln_dlc_node::node::NodeInfo;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -539,6 +543,91 @@ pub async fn rollover(
                 hex::encode(dlc_channel_id)
             ))
         })?;
+
+    Ok(())
+}
+
+// Migrate existing dlc channels. TODO(holzeis): Delete this function after the migration has been
+// run in prod.
+pub async fn migrate_dlc_channels(State(state): State<Arc<AppState>>) -> Result<(), AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+    for channel in state
+        .node
+        .inner
+        .list_signed_dlc_channels()
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?
+    {
+        let coordinator_reserve = state
+            .node
+            .inner
+            .get_dlc_channel_usable_balance(&channel.channel_id)
+            .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+        let trader_reserve = state
+            .node
+            .inner
+            .get_dlc_channel_usable_balance_counterparty(&channel.channel_id)
+            .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+        let protocol_id = match channel.reference_id {
+            Some(reference_id) => ProtocolId::try_from(reference_id)
+                .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?,
+            None => ProtocolId::new(),
+        };
+
+        db::dlc_channels::insert_pending_dlc_channel(
+            &mut conn,
+            &protocol_id,
+            &channel.channel_id,
+            &to_secp_pk_30(channel.counter_party),
+        )
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+        db::dlc_channels::set_dlc_channel_open(
+            &mut conn,
+            &protocol_id,
+            &channel.channel_id,
+            to_txid_30(channel.fund_tx.txid()),
+            coordinator_reserve,
+            trader_reserve,
+        )
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+        match channel.state {
+            SignedChannelState::Closing {
+                buffer_transaction, ..
+            } => {
+                db::dlc_channels::set_channel_force_closing(
+                    &mut conn,
+                    &channel.channel_id,
+                    to_txid_30(buffer_transaction.txid()),
+                )
+                .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+            }
+            SignedChannelState::SettledClosing {
+                settle_transaction, ..
+            } => {
+                db::dlc_channels::set_channel_force_closing_settled(
+                    &mut conn,
+                    &channel.channel_id,
+                    to_txid_30(settle_transaction.txid()),
+                    None,
+                )
+                .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+            }
+            SignedChannelState::CollaborativeCloseOffered { close_tx, .. } => {
+                db::dlc_channels::set_channel_collab_closing(
+                    &mut conn,
+                    &channel.channel_id,
+                    to_txid_30(close_tx.txid()),
+                )
+                .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+            }
+            _ => {} // ignored
+        }
+    }
 
     Ok(())
 }
