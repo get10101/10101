@@ -134,7 +134,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             .context("DLC channel to close not found")?;
 
         if is_force_close {
-            self.force_close_dlc_channel(&channel_id)?;
+            self.force_close_dlc_channel(channel)?;
         } else {
             self.propose_dlc_channel_collaborative_close(channel)
                 .await?
@@ -143,7 +143,8 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         Ok(())
     }
 
-    fn force_close_dlc_channel(&self, channel_id: &DlcChannelId) -> Result<()> {
+    fn force_close_dlc_channel(&self, channel: SignedChannel) -> Result<()> {
+        let channel_id = channel.channel_id;
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(
@@ -151,7 +152,8 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             "Force closing DLC channel"
         );
 
-        self.dlc_manager.force_close_channel(channel_id, None)?;
+        self.dlc_manager
+            .force_close_channel(&channel_id, channel.reference_id)?;
         Ok(())
     }
 
@@ -170,8 +172,13 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                             channel_id = hex::encode(channel.channel_id),
                             "Proposing collaborative close"
                         );
+
                         let settle_offer = dlc_manager
-                            .offer_collaborative_close(&channel.channel_id, counter_payout, None)
+                            .offer_collaborative_close(
+                                &channel.channel_id,
+                                counter_payout,
+                                channel.reference_id,
+                            )
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
                             )?;
