@@ -302,9 +302,7 @@ run_maker_args := if os() == "linux" {
 }
 
 maker args="":
-    # we always delete the old container first as otherwise we might get an error if the container still exists
-    docker rm -f maker || true
-    docker run {{run_maker_args}}
+    cargo run --bin dev-maker
 
 flutter-test:
     cd mobile && fvm flutter pub run build_runner build --delete-conflicting-outputs && fvm flutter test
