@@ -1306,6 +1306,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "dev-maker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "commons",
+ "reqwest",
+ "rust_decimal",
+ "secp256k1 0.27.0",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "trade",
+ "uuid",
+]
+
+[[package]]
 name = "diesel"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"

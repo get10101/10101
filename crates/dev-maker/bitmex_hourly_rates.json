@@ -1,0 +1,5002 @@
+[
+  {
+    "timestamp": "2023-03-20T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28160
+  },
+  {
+    "timestamp": "2023-03-20T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28015.5
+  },
+  {
+    "timestamp": "2023-03-20T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27887.5
+  },
+  {
+    "timestamp": "2023-03-20T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27733.5
+  },
+  {
+    "timestamp": "2023-03-20T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27497.5
+  },
+  {
+    "timestamp": "2023-03-20T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27335.5
+  },
+  {
+    "timestamp": "2023-03-20T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27490
+  },
+  {
+    "timestamp": "2023-03-20T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27590
+  },
+  {
+    "timestamp": "2023-03-20T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27700
+  },
+  {
+    "timestamp": "2023-03-20T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28250
+  },
+  {
+    "timestamp": "2023-03-20T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28396
+  },
+  {
+    "timestamp": "2023-03-20T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28264
+  },
+  {
+    "timestamp": "2023-03-20T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28164
+  },
+  {
+    "timestamp": "2023-03-20T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28270.5
+  },
+  {
+    "timestamp": "2023-03-20T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28290
+  },
+  {
+    "timestamp": "2023-03-20T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27881.5
+  },
+  {
+    "timestamp": "2023-03-20T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28110
+  },
+  {
+    "timestamp": "2023-03-20T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27739.5
+  },
+  {
+    "timestamp": "2023-03-20T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27611.5
+  },
+  {
+    "timestamp": "2023-03-20T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27694
+  },
+  {
+    "timestamp": "2023-03-20T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28069.5
+  },
+  {
+    "timestamp": "2023-03-20T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27838.5
+  },
+  {
+    "timestamp": "2023-03-20T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28052.5
+  },
+  {
+    "timestamp": "2023-03-20T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28057
+  },
+  {
+    "timestamp": "2023-03-21T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28028
+  },
+  {
+    "timestamp": "2023-03-21T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27790.5
+  },
+  {
+    "timestamp": "2023-03-21T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27925
+  },
+  {
+    "timestamp": "2023-03-21T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27932.5
+  },
+  {
+    "timestamp": "2023-03-21T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27853.5
+  },
+  {
+    "timestamp": "2023-03-21T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27844.5
+  },
+  {
+    "timestamp": "2023-03-21T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27966.5
+  },
+  {
+    "timestamp": "2023-03-21T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27867
+  },
+  {
+    "timestamp": "2023-03-21T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27696
+  },
+  {
+    "timestamp": "2023-03-21T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27591.5
+  },
+  {
+    "timestamp": "2023-03-21T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27723.5
+  },
+  {
+    "timestamp": "2023-03-21T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28021.5
+  },
+  {
+    "timestamp": "2023-03-21T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28027
+  },
+  {
+    "timestamp": "2023-03-21T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28115
+  },
+  {
+    "timestamp": "2023-03-21T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28255.5
+  },
+  {
+    "timestamp": "2023-03-21T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28084
+  },
+  {
+    "timestamp": "2023-03-21T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27923.5
+  },
+  {
+    "timestamp": "2023-03-21T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28088.5
+  },
+  {
+    "timestamp": "2023-03-21T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28418
+  },
+  {
+    "timestamp": "2023-03-21T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28057.5
+  },
+  {
+    "timestamp": "2023-03-21T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28188.5
+  },
+  {
+    "timestamp": "2023-03-21T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28197.5
+  },
+  {
+    "timestamp": "2023-03-21T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28135
+  },
+  {
+    "timestamp": "2023-03-21T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28043
+  },
+  {
+    "timestamp": "2023-03-22T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28078
+  },
+  {
+    "timestamp": "2023-03-22T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28161.5
+  },
+  {
+    "timestamp": "2023-03-22T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28089
+  },
+  {
+    "timestamp": "2023-03-22T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28149.5
+  },
+  {
+    "timestamp": "2023-03-22T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28120
+  },
+  {
+    "timestamp": "2023-03-22T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28226.5
+  },
+  {
+    "timestamp": "2023-03-22T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28267
+  },
+  {
+    "timestamp": "2023-03-22T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28267.5
+  },
+  {
+    "timestamp": "2023-03-22T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28269
+  },
+  {
+    "timestamp": "2023-03-22T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28146
+  },
+  {
+    "timestamp": "2023-03-22T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28149
+  },
+  {
+    "timestamp": "2023-03-22T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28180
+  },
+  {
+    "timestamp": "2023-03-22T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28235
+  },
+  {
+    "timestamp": "2023-03-22T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28206.5
+  },
+  {
+    "timestamp": "2023-03-22T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28286.5
+  },
+  {
+    "timestamp": "2023-03-22T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28352.5
+  },
+  {
+    "timestamp": "2023-03-22T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28629
+  },
+  {
+    "timestamp": "2023-03-22T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28653.5
+  },
+  {
+    "timestamp": "2023-03-22T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28693
+  },
+  {
+    "timestamp": "2023-03-22T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28552.5
+  },
+  {
+    "timestamp": "2023-03-22T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28049
+  },
+  {
+    "timestamp": "2023-03-22T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26687
+  },
+  {
+    "timestamp": "2023-03-22T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27363.5
+  },
+  {
+    "timestamp": "2023-03-22T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27121.5
+  },
+  {
+    "timestamp": "2023-03-23T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27256.5
+  },
+  {
+    "timestamp": "2023-03-23T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27290.5
+  },
+  {
+    "timestamp": "2023-03-23T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27370.5
+  },
+  {
+    "timestamp": "2023-03-23T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27191
+  },
+  {
+    "timestamp": "2023-03-23T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27394
+  },
+  {
+    "timestamp": "2023-03-23T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27402.5
+  },
+  {
+    "timestamp": "2023-03-23T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27336.5
+  },
+  {
+    "timestamp": "2023-03-23T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27711.5
+  },
+  {
+    "timestamp": "2023-03-23T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27741
+  },
+  {
+    "timestamp": "2023-03-23T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27720
+  },
+  {
+    "timestamp": "2023-03-23T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27712
+  },
+  {
+    "timestamp": "2023-03-23T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27705.5
+  },
+  {
+    "timestamp": "2023-03-23T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27694
+  },
+  {
+    "timestamp": "2023-03-23T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27673
+  },
+  {
+    "timestamp": "2023-03-23T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27588.5
+  },
+  {
+    "timestamp": "2023-03-23T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27420.5
+  },
+  {
+    "timestamp": "2023-03-23T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28107.5
+  },
+  {
+    "timestamp": "2023-03-23T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28671
+  },
+  {
+    "timestamp": "2023-03-23T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28510.5
+  },
+  {
+    "timestamp": "2023-03-23T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28322
+  },
+  {
+    "timestamp": "2023-03-23T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27931
+  },
+  {
+    "timestamp": "2023-03-23T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28425.5
+  },
+  {
+    "timestamp": "2023-03-23T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28322
+  },
+  {
+    "timestamp": "2023-03-23T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28197
+  },
+  {
+    "timestamp": "2023-03-24T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28262
+  },
+  {
+    "timestamp": "2023-03-24T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28330
+  },
+  {
+    "timestamp": "2023-03-24T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28235
+  },
+  {
+    "timestamp": "2023-03-24T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28288.5
+  },
+  {
+    "timestamp": "2023-03-24T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28214.5
+  },
+  {
+    "timestamp": "2023-03-24T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28253
+  },
+  {
+    "timestamp": "2023-03-24T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28160.5
+  },
+  {
+    "timestamp": "2023-03-24T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28308
+  },
+  {
+    "timestamp": "2023-03-24T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28285
+  },
+  {
+    "timestamp": "2023-03-24T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28304.5
+  },
+  {
+    "timestamp": "2023-03-24T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28065
+  },
+  {
+    "timestamp": "2023-03-24T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28068.5
+  },
+  {
+    "timestamp": "2023-03-24T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28057.5
+  },
+  {
+    "timestamp": "2023-03-24T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27600
+  },
+  {
+    "timestamp": "2023-03-24T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27995.5
+  },
+  {
+    "timestamp": "2023-03-24T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28003.5
+  },
+  {
+    "timestamp": "2023-03-24T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28011
+  },
+  {
+    "timestamp": "2023-03-24T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28040
+  },
+  {
+    "timestamp": "2023-03-24T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27854.5
+  },
+  {
+    "timestamp": "2023-03-24T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27619
+  },
+  {
+    "timestamp": "2023-03-24T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27746
+  },
+  {
+    "timestamp": "2023-03-24T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27833
+  },
+  {
+    "timestamp": "2023-03-24T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27592.5
+  },
+  {
+    "timestamp": "2023-03-24T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27360
+  },
+  {
+    "timestamp": "2023-03-25T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27310.5
+  },
+  {
+    "timestamp": "2023-03-25T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27477.5
+  },
+  {
+    "timestamp": "2023-03-25T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27574
+  },
+  {
+    "timestamp": "2023-03-25T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27511.5
+  },
+  {
+    "timestamp": "2023-03-25T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27623.5
+  },
+  {
+    "timestamp": "2023-03-25T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27607
+  },
+  {
+    "timestamp": "2023-03-25T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27565.5
+  },
+  {
+    "timestamp": "2023-03-25T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27492
+  },
+  {
+    "timestamp": "2023-03-25T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27535
+  },
+  {
+    "timestamp": "2023-03-25T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27517
+  },
+  {
+    "timestamp": "2023-03-25T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27446.5
+  },
+  {
+    "timestamp": "2023-03-25T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27507.5
+  },
+  {
+    "timestamp": "2023-03-25T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27505
+  },
+  {
+    "timestamp": "2023-03-25T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27484.5
+  },
+  {
+    "timestamp": "2023-03-25T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27470
+  },
+  {
+    "timestamp": "2023-03-25T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27587
+  },
+  {
+    "timestamp": "2023-03-25T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27543.5
+  },
+  {
+    "timestamp": "2023-03-25T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27684
+  },
+  {
+    "timestamp": "2023-03-25T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27634.5
+  },
+  {
+    "timestamp": "2023-03-25T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27489.5
+  },
+  {
+    "timestamp": "2023-03-25T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27445.5
+  },
+  {
+    "timestamp": "2023-03-25T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27192.5
+  },
+  {
+    "timestamp": "2023-03-25T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27359.5
+  },
+  {
+    "timestamp": "2023-03-25T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27432
+  },
+  {
+    "timestamp": "2023-03-26T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27465
+  },
+  {
+    "timestamp": "2023-03-26T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27477
+  },
+  {
+    "timestamp": "2023-03-26T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27554
+  },
+  {
+    "timestamp": "2023-03-26T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27614
+  },
+  {
+    "timestamp": "2023-03-26T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27613.5
+  },
+  {
+    "timestamp": "2023-03-26T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27544.5
+  },
+  {
+    "timestamp": "2023-03-26T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27530
+  },
+  {
+    "timestamp": "2023-03-26T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27564.5
+  },
+  {
+    "timestamp": "2023-03-26T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27501
+  },
+  {
+    "timestamp": "2023-03-26T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27511
+  },
+  {
+    "timestamp": "2023-03-26T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27666.5
+  },
+  {
+    "timestamp": "2023-03-26T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27691.5
+  },
+  {
+    "timestamp": "2023-03-26T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27682
+  },
+  {
+    "timestamp": "2023-03-26T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27875.5
+  },
+  {
+    "timestamp": "2023-03-26T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27948
+  },
+  {
+    "timestamp": "2023-03-26T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28192.5
+  },
+  {
+    "timestamp": "2023-03-26T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27816.5
+  },
+  {
+    "timestamp": "2023-03-26T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27828
+  },
+  {
+    "timestamp": "2023-03-26T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27715
+  },
+  {
+    "timestamp": "2023-03-26T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27846
+  },
+  {
+    "timestamp": "2023-03-26T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27826.5
+  },
+  {
+    "timestamp": "2023-03-26T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27842.5
+  },
+  {
+    "timestamp": "2023-03-26T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27793.5
+  },
+  {
+    "timestamp": "2023-03-26T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27837
+  },
+  {
+    "timestamp": "2023-03-27T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28058
+  },
+  {
+    "timestamp": "2023-03-27T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27980
+  },
+  {
+    "timestamp": "2023-03-27T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27995
+  },
+  {
+    "timestamp": "2023-03-27T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27831.5
+  },
+  {
+    "timestamp": "2023-03-27T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27881
+  },
+  {
+    "timestamp": "2023-03-27T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27885.5
+  },
+  {
+    "timestamp": "2023-03-27T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27915.5
+  },
+  {
+    "timestamp": "2023-03-27T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27705.5
+  },
+  {
+    "timestamp": "2023-03-27T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27797.5
+  },
+  {
+    "timestamp": "2023-03-27T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27810
+  },
+  {
+    "timestamp": "2023-03-27T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27862.5
+  },
+  {
+    "timestamp": "2023-03-27T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27942.5
+  },
+  {
+    "timestamp": "2023-03-27T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27922
+  },
+  {
+    "timestamp": "2023-03-27T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27894.5
+  },
+  {
+    "timestamp": "2023-03-27T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27750.5
+  },
+  {
+    "timestamp": "2023-03-27T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27696.5
+  },
+  {
+    "timestamp": "2023-03-27T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26945
+  },
+  {
+    "timestamp": "2023-03-27T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26916
+  },
+  {
+    "timestamp": "2023-03-27T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27143
+  },
+  {
+    "timestamp": "2023-03-27T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26960.5
+  },
+  {
+    "timestamp": "2023-03-27T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27092.5
+  },
+  {
+    "timestamp": "2023-03-27T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26972.5
+  },
+  {
+    "timestamp": "2023-03-27T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27028
+  },
+  {
+    "timestamp": "2023-03-27T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27158
+  },
+  {
+    "timestamp": "2023-03-28T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27086
+  },
+  {
+    "timestamp": "2023-03-28T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27134.5
+  },
+  {
+    "timestamp": "2023-03-28T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26960
+  },
+  {
+    "timestamp": "2023-03-28T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27064
+  },
+  {
+    "timestamp": "2023-03-28T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27045.5
+  },
+  {
+    "timestamp": "2023-03-28T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26968
+  },
+  {
+    "timestamp": "2023-03-28T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26974.5
+  },
+  {
+    "timestamp": "2023-03-28T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26975
+  },
+  {
+    "timestamp": "2023-03-28T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27074.5
+  },
+  {
+    "timestamp": "2023-03-28T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26944.5
+  },
+  {
+    "timestamp": "2023-03-28T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27010
+  },
+  {
+    "timestamp": "2023-03-28T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26886
+  },
+  {
+    "timestamp": "2023-03-28T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26729
+  },
+  {
+    "timestamp": "2023-03-28T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27059
+  },
+  {
+    "timestamp": "2023-03-28T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26962.5
+  },
+  {
+    "timestamp": "2023-03-28T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26873.5
+  },
+  {
+    "timestamp": "2023-03-28T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26942
+  },
+  {
+    "timestamp": "2023-03-28T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26996.5
+  },
+  {
+    "timestamp": "2023-03-28T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26884
+  },
+  {
+    "timestamp": "2023-03-28T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 26864.5
+  },
+  {
+    "timestamp": "2023-03-28T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27350
+  },
+  {
+    "timestamp": "2023-03-28T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27428
+  },
+  {
+    "timestamp": "2023-03-28T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27310.5
+  },
+  {
+    "timestamp": "2023-03-28T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27184
+  },
+  {
+    "timestamp": "2023-03-29T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27217.5
+  },
+  {
+    "timestamp": "2023-03-29T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27252
+  },
+  {
+    "timestamp": "2023-03-29T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27261
+  },
+  {
+    "timestamp": "2023-03-29T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27321
+  },
+  {
+    "timestamp": "2023-03-29T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27394.5
+  },
+  {
+    "timestamp": "2023-03-29T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27362
+  },
+  {
+    "timestamp": "2023-03-29T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27563.5
+  },
+  {
+    "timestamp": "2023-03-29T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27534.5
+  },
+  {
+    "timestamp": "2023-03-29T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28052
+  },
+  {
+    "timestamp": "2023-03-29T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28087
+  },
+  {
+    "timestamp": "2023-03-29T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28530.5
+  },
+  {
+    "timestamp": "2023-03-29T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28325
+  },
+  {
+    "timestamp": "2023-03-29T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28389
+  },
+  {
+    "timestamp": "2023-03-29T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28357.5
+  },
+  {
+    "timestamp": "2023-03-29T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28446
+  },
+  {
+    "timestamp": "2023-03-29T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28425
+  },
+  {
+    "timestamp": "2023-03-29T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28294
+  },
+  {
+    "timestamp": "2023-03-29T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28461.5
+  },
+  {
+    "timestamp": "2023-03-29T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28155
+  },
+  {
+    "timestamp": "2023-03-29T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28242
+  },
+  {
+    "timestamp": "2023-03-29T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28320
+  },
+  {
+    "timestamp": "2023-03-29T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28414.5
+  },
+  {
+    "timestamp": "2023-03-29T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28394.5
+  },
+  {
+    "timestamp": "2023-03-29T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28295
+  },
+  {
+    "timestamp": "2023-03-30T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28389
+  },
+  {
+    "timestamp": "2023-03-30T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28351.5
+  },
+  {
+    "timestamp": "2023-03-30T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28333
+  },
+  {
+    "timestamp": "2023-03-30T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28340
+  },
+  {
+    "timestamp": "2023-03-30T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28969.5
+  },
+  {
+    "timestamp": "2023-03-30T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28490.5
+  },
+  {
+    "timestamp": "2023-03-30T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28595
+  },
+  {
+    "timestamp": "2023-03-30T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28599.5
+  },
+  {
+    "timestamp": "2023-03-30T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28615
+  },
+  {
+    "timestamp": "2023-03-30T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28723
+  },
+  {
+    "timestamp": "2023-03-30T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28580
+  },
+  {
+    "timestamp": "2023-03-30T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28579
+  },
+  {
+    "timestamp": "2023-03-30T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28599
+  },
+  {
+    "timestamp": "2023-03-30T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28642.5
+  },
+  {
+    "timestamp": "2023-03-30T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28641.5
+  },
+  {
+    "timestamp": "2023-03-30T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28503.5
+  },
+  {
+    "timestamp": "2023-03-30T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28417
+  },
+  {
+    "timestamp": "2023-03-30T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28290
+  },
+  {
+    "timestamp": "2023-03-30T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28231
+  },
+  {
+    "timestamp": "2023-03-30T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27828
+  },
+  {
+    "timestamp": "2023-03-30T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27895.5
+  },
+  {
+    "timestamp": "2023-03-30T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27972.5
+  },
+  {
+    "timestamp": "2023-03-30T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28132.5
+  },
+  {
+    "timestamp": "2023-03-30T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28065
+  },
+  {
+    "timestamp": "2023-03-31T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27888
+  },
+  {
+    "timestamp": "2023-03-31T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28017
+  },
+  {
+    "timestamp": "2023-03-31T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28248.5
+  },
+  {
+    "timestamp": "2023-03-31T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28146
+  },
+  {
+    "timestamp": "2023-03-31T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28148
+  },
+  {
+    "timestamp": "2023-03-31T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28166.5
+  },
+  {
+    "timestamp": "2023-03-31T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28175
+  },
+  {
+    "timestamp": "2023-03-31T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28027.5
+  },
+  {
+    "timestamp": "2023-03-31T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28078
+  },
+  {
+    "timestamp": "2023-03-31T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27733
+  },
+  {
+    "timestamp": "2023-03-31T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27796.5
+  },
+  {
+    "timestamp": "2023-03-31T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27827
+  },
+  {
+    "timestamp": "2023-03-31T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27894
+  },
+  {
+    "timestamp": "2023-03-31T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27926.5
+  },
+  {
+    "timestamp": "2023-03-31T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28106
+  },
+  {
+    "timestamp": "2023-03-31T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28372
+  },
+  {
+    "timestamp": "2023-03-31T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28520
+  },
+  {
+    "timestamp": "2023-03-31T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28486
+  },
+  {
+    "timestamp": "2023-03-31T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28419
+  },
+  {
+    "timestamp": "2023-03-31T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28334.5
+  },
+  {
+    "timestamp": "2023-03-31T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28297
+  },
+  {
+    "timestamp": "2023-03-31T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28460
+  },
+  {
+    "timestamp": "2023-03-31T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28385
+  },
+  {
+    "timestamp": "2023-03-31T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28477
+  },
+  {
+    "timestamp": "2023-04-01T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28564.5
+  },
+  {
+    "timestamp": "2023-04-01T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28462.5
+  },
+  {
+    "timestamp": "2023-04-01T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28436
+  },
+  {
+    "timestamp": "2023-04-01T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28608.5
+  },
+  {
+    "timestamp": "2023-04-01T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28584
+  },
+  {
+    "timestamp": "2023-04-01T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28526.5
+  },
+  {
+    "timestamp": "2023-04-01T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28571
+  },
+  {
+    "timestamp": "2023-04-01T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28578
+  },
+  {
+    "timestamp": "2023-04-01T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28482.5
+  },
+  {
+    "timestamp": "2023-04-01T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28441.5
+  },
+  {
+    "timestamp": "2023-04-01T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28447.5
+  },
+  {
+    "timestamp": "2023-04-01T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28417.5
+  },
+  {
+    "timestamp": "2023-04-01T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28472
+  },
+  {
+    "timestamp": "2023-04-01T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28377.5
+  },
+  {
+    "timestamp": "2023-04-01T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28434
+  },
+  {
+    "timestamp": "2023-04-01T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28431.5
+  },
+  {
+    "timestamp": "2023-04-01T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28330
+  },
+  {
+    "timestamp": "2023-04-01T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28410
+  },
+  {
+    "timestamp": "2023-04-01T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28335
+  },
+  {
+    "timestamp": "2023-04-01T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28382.5
+  },
+  {
+    "timestamp": "2023-04-01T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28374
+  },
+  {
+    "timestamp": "2023-04-01T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28389
+  },
+  {
+    "timestamp": "2023-04-01T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28448
+  },
+  {
+    "timestamp": "2023-04-01T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28475
+  },
+  {
+    "timestamp": "2023-04-02T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28515
+  },
+  {
+    "timestamp": "2023-04-02T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28450
+  },
+  {
+    "timestamp": "2023-04-02T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28357
+  },
+  {
+    "timestamp": "2023-04-02T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28394
+  },
+  {
+    "timestamp": "2023-04-02T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28403
+  },
+  {
+    "timestamp": "2023-04-02T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28483.5
+  },
+  {
+    "timestamp": "2023-04-02T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28386.5
+  },
+  {
+    "timestamp": "2023-04-02T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28474.5
+  },
+  {
+    "timestamp": "2023-04-02T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28459
+  },
+  {
+    "timestamp": "2023-04-02T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28417
+  },
+  {
+    "timestamp": "2023-04-02T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28385
+  },
+  {
+    "timestamp": "2023-04-02T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28407.5
+  },
+  {
+    "timestamp": "2023-04-02T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28369.5
+  },
+  {
+    "timestamp": "2023-04-02T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28345.5
+  },
+  {
+    "timestamp": "2023-04-02T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28266
+  },
+  {
+    "timestamp": "2023-04-02T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28280
+  },
+  {
+    "timestamp": "2023-04-02T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28279
+  },
+  {
+    "timestamp": "2023-04-02T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28134
+  },
+  {
+    "timestamp": "2023-04-02T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28120.5
+  },
+  {
+    "timestamp": "2023-04-02T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28193.5
+  },
+  {
+    "timestamp": "2023-04-02T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28157
+  },
+  {
+    "timestamp": "2023-04-02T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27950.5
+  },
+  {
+    "timestamp": "2023-04-02T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28061
+  },
+  {
+    "timestamp": "2023-04-02T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28050
+  },
+  {
+    "timestamp": "2023-04-03T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28099.5
+  },
+  {
+    "timestamp": "2023-04-03T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28160
+  },
+  {
+    "timestamp": "2023-04-03T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28100.5
+  },
+  {
+    "timestamp": "2023-04-03T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27683
+  },
+  {
+    "timestamp": "2023-04-03T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27692
+  },
+  {
+    "timestamp": "2023-04-03T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27727.5
+  },
+  {
+    "timestamp": "2023-04-03T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27691
+  },
+  {
+    "timestamp": "2023-04-03T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27666
+  },
+  {
+    "timestamp": "2023-04-03T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27779.5
+  },
+  {
+    "timestamp": "2023-04-03T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27957
+  },
+  {
+    "timestamp": "2023-04-03T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28339.5
+  },
+  {
+    "timestamp": "2023-04-03T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28332.5
+  },
+  {
+    "timestamp": "2023-04-03T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28310
+  },
+  {
+    "timestamp": "2023-04-03T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28250.5
+  },
+  {
+    "timestamp": "2023-04-03T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28158
+  },
+  {
+    "timestamp": "2023-04-03T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28267
+  },
+  {
+    "timestamp": "2023-04-03T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27987
+  },
+  {
+    "timestamp": "2023-04-03T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28050.5
+  },
+  {
+    "timestamp": "2023-04-03T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27927.5
+  },
+  {
+    "timestamp": "2023-04-03T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27981.5
+  },
+  {
+    "timestamp": "2023-04-03T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28152
+  },
+  {
+    "timestamp": "2023-04-03T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28077
+  },
+  {
+    "timestamp": "2023-04-03T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27568.5
+  },
+  {
+    "timestamp": "2023-04-03T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27688
+  },
+  {
+    "timestamp": "2023-04-04T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27792
+  },
+  {
+    "timestamp": "2023-04-04T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27795
+  },
+  {
+    "timestamp": "2023-04-04T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27757.5
+  },
+  {
+    "timestamp": "2023-04-04T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27797
+  },
+  {
+    "timestamp": "2023-04-04T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27843.5
+  },
+  {
+    "timestamp": "2023-04-04T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27848.5
+  },
+  {
+    "timestamp": "2023-04-04T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27817.5
+  },
+  {
+    "timestamp": "2023-04-04T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27882.5
+  },
+  {
+    "timestamp": "2023-04-04T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28072
+  },
+  {
+    "timestamp": "2023-04-04T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28018
+  },
+  {
+    "timestamp": "2023-04-04T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28090.5
+  },
+  {
+    "timestamp": "2023-04-04T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28206.5
+  },
+  {
+    "timestamp": "2023-04-04T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28230.5
+  },
+  {
+    "timestamp": "2023-04-04T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28291
+  },
+  {
+    "timestamp": "2023-04-04T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28264.5
+  },
+  {
+    "timestamp": "2023-04-04T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28095
+  },
+  {
+    "timestamp": "2023-04-04T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28133
+  },
+  {
+    "timestamp": "2023-04-04T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28023.5
+  },
+  {
+    "timestamp": "2023-04-04T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28105.5
+  },
+  {
+    "timestamp": "2023-04-04T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28221.5
+  },
+  {
+    "timestamp": "2023-04-04T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28111.5
+  },
+  {
+    "timestamp": "2023-04-04T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28186
+  },
+  {
+    "timestamp": "2023-04-04T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28254
+  },
+  {
+    "timestamp": "2023-04-04T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28226
+  },
+  {
+    "timestamp": "2023-04-05T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28180.5
+  },
+  {
+    "timestamp": "2023-04-05T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28155
+  },
+  {
+    "timestamp": "2023-04-05T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28664.5
+  },
+  {
+    "timestamp": "2023-04-05T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28576.5
+  },
+  {
+    "timestamp": "2023-04-05T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28564
+  },
+  {
+    "timestamp": "2023-04-05T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28537.5
+  },
+  {
+    "timestamp": "2023-04-05T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28506
+  },
+  {
+    "timestamp": "2023-04-05T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28583.5
+  },
+  {
+    "timestamp": "2023-04-05T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28535
+  },
+  {
+    "timestamp": "2023-04-05T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28521.5
+  },
+  {
+    "timestamp": "2023-04-05T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28547
+  },
+  {
+    "timestamp": "2023-04-05T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28509
+  },
+  {
+    "timestamp": "2023-04-05T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28499.5
+  },
+  {
+    "timestamp": "2023-04-05T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28553.5
+  },
+  {
+    "timestamp": "2023-04-05T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28570.5
+  },
+  {
+    "timestamp": "2023-04-05T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28403.5
+  },
+  {
+    "timestamp": "2023-04-05T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28105
+  },
+  {
+    "timestamp": "2023-04-05T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28014
+  },
+  {
+    "timestamp": "2023-04-05T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27949.5
+  },
+  {
+    "timestamp": "2023-04-05T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28012
+  },
+  {
+    "timestamp": "2023-04-05T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28026.5
+  },
+  {
+    "timestamp": "2023-04-05T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28237
+  },
+  {
+    "timestamp": "2023-04-05T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28156.5
+  },
+  {
+    "timestamp": "2023-04-05T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28180
+  },
+  {
+    "timestamp": "2023-04-06T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28158
+  },
+  {
+    "timestamp": "2023-04-06T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28162
+  },
+  {
+    "timestamp": "2023-04-06T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27995
+  },
+  {
+    "timestamp": "2023-04-06T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28055.5
+  },
+  {
+    "timestamp": "2023-04-06T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28039
+  },
+  {
+    "timestamp": "2023-04-06T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28139.5
+  },
+  {
+    "timestamp": "2023-04-06T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28068
+  },
+  {
+    "timestamp": "2023-04-06T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28037.5
+  },
+  {
+    "timestamp": "2023-04-06T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28050
+  },
+  {
+    "timestamp": "2023-04-06T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27896
+  },
+  {
+    "timestamp": "2023-04-06T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27954.5
+  },
+  {
+    "timestamp": "2023-04-06T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27897.5
+  },
+  {
+    "timestamp": "2023-04-06T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27820.5
+  },
+  {
+    "timestamp": "2023-04-06T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27931.5
+  },
+  {
+    "timestamp": "2023-04-06T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27888
+  },
+  {
+    "timestamp": "2023-04-06T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27882
+  },
+  {
+    "timestamp": "2023-04-06T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27951.5
+  },
+  {
+    "timestamp": "2023-04-06T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28088.5
+  },
+  {
+    "timestamp": "2023-04-06T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28060
+  },
+  {
+    "timestamp": "2023-04-06T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28038.5
+  },
+  {
+    "timestamp": "2023-04-06T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27953
+  },
+  {
+    "timestamp": "2023-04-06T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28015
+  },
+  {
+    "timestamp": "2023-04-06T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27964.5
+  },
+  {
+    "timestamp": "2023-04-06T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27975.5
+  },
+  {
+    "timestamp": "2023-04-07T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28020.5
+  },
+  {
+    "timestamp": "2023-04-07T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28022
+  },
+  {
+    "timestamp": "2023-04-07T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28100
+  },
+  {
+    "timestamp": "2023-04-07T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28056
+  },
+  {
+    "timestamp": "2023-04-07T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28026.5
+  },
+  {
+    "timestamp": "2023-04-07T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28039.5
+  },
+  {
+    "timestamp": "2023-04-07T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28030
+  },
+  {
+    "timestamp": "2023-04-07T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27981
+  },
+  {
+    "timestamp": "2023-04-07T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27953
+  },
+  {
+    "timestamp": "2023-04-07T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27850
+  },
+  {
+    "timestamp": "2023-04-07T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27816
+  },
+  {
+    "timestamp": "2023-04-07T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27883
+  },
+  {
+    "timestamp": "2023-04-07T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27935.5
+  },
+  {
+    "timestamp": "2023-04-07T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27848
+  },
+  {
+    "timestamp": "2023-04-07T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27907.5
+  },
+  {
+    "timestamp": "2023-04-07T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27901
+  },
+  {
+    "timestamp": "2023-04-07T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27919.5
+  },
+  {
+    "timestamp": "2023-04-07T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27954
+  },
+  {
+    "timestamp": "2023-04-07T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27878
+  },
+  {
+    "timestamp": "2023-04-07T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27921.5
+  },
+  {
+    "timestamp": "2023-04-07T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27898.5
+  },
+  {
+    "timestamp": "2023-04-07T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27888.5
+  },
+  {
+    "timestamp": "2023-04-07T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27869
+  },
+  {
+    "timestamp": "2023-04-07T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27890
+  },
+  {
+    "timestamp": "2023-04-08T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27956
+  },
+  {
+    "timestamp": "2023-04-08T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27899
+  },
+  {
+    "timestamp": "2023-04-08T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27890
+  },
+  {
+    "timestamp": "2023-04-08T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27900.5
+  },
+  {
+    "timestamp": "2023-04-08T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27955.5
+  },
+  {
+    "timestamp": "2023-04-08T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28036
+  },
+  {
+    "timestamp": "2023-04-08T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27990
+  },
+  {
+    "timestamp": "2023-04-08T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28154
+  },
+  {
+    "timestamp": "2023-04-08T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28112
+  },
+  {
+    "timestamp": "2023-04-08T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28094.5
+  },
+  {
+    "timestamp": "2023-04-08T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28041.5
+  },
+  {
+    "timestamp": "2023-04-08T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28038
+  },
+  {
+    "timestamp": "2023-04-08T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28031
+  },
+  {
+    "timestamp": "2023-04-08T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28023.5
+  },
+  {
+    "timestamp": "2023-04-08T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27980.5
+  },
+  {
+    "timestamp": "2023-04-08T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28026
+  },
+  {
+    "timestamp": "2023-04-08T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28031.5
+  },
+  {
+    "timestamp": "2023-04-08T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28024.5
+  },
+  {
+    "timestamp": "2023-04-08T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28000
+  },
+  {
+    "timestamp": "2023-04-08T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27939.5
+  },
+  {
+    "timestamp": "2023-04-08T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27896.5
+  },
+  {
+    "timestamp": "2023-04-08T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27913
+  },
+  {
+    "timestamp": "2023-04-08T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27910.5
+  },
+  {
+    "timestamp": "2023-04-08T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27920
+  },
+  {
+    "timestamp": "2023-04-09T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27946.5
+  },
+  {
+    "timestamp": "2023-04-09T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27937.5
+  },
+  {
+    "timestamp": "2023-04-09T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28042
+  },
+  {
+    "timestamp": "2023-04-09T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28082.5
+  },
+  {
+    "timestamp": "2023-04-09T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28037.5
+  },
+  {
+    "timestamp": "2023-04-09T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28029.5
+  },
+  {
+    "timestamp": "2023-04-09T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28056
+  },
+  {
+    "timestamp": "2023-04-09T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28003
+  },
+  {
+    "timestamp": "2023-04-09T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27884.5
+  },
+  {
+    "timestamp": "2023-04-09T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27903
+  },
+  {
+    "timestamp": "2023-04-09T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27873.5
+  },
+  {
+    "timestamp": "2023-04-09T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27890
+  },
+  {
+    "timestamp": "2023-04-09T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27895
+  },
+  {
+    "timestamp": "2023-04-09T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27928
+  },
+  {
+    "timestamp": "2023-04-09T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27940
+  },
+  {
+    "timestamp": "2023-04-09T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27919.5
+  },
+  {
+    "timestamp": "2023-04-09T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27865
+  },
+  {
+    "timestamp": "2023-04-09T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27889.5
+  },
+  {
+    "timestamp": "2023-04-09T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27897
+  },
+  {
+    "timestamp": "2023-04-09T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27906.5
+  },
+  {
+    "timestamp": "2023-04-09T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28036
+  },
+  {
+    "timestamp": "2023-04-09T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28154
+  },
+  {
+    "timestamp": "2023-04-09T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28124
+  },
+  {
+    "timestamp": "2023-04-09T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28445
+  },
+  {
+    "timestamp": "2023-04-10T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28375
+  },
+  {
+    "timestamp": "2023-04-10T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28325.5
+  },
+  {
+    "timestamp": "2023-04-10T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28387
+  },
+  {
+    "timestamp": "2023-04-10T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28310.5
+  },
+  {
+    "timestamp": "2023-04-10T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28292
+  },
+  {
+    "timestamp": "2023-04-10T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28272.5
+  },
+  {
+    "timestamp": "2023-04-10T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28239
+  },
+  {
+    "timestamp": "2023-04-10T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28284
+  },
+  {
+    "timestamp": "2023-04-10T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28281
+  },
+  {
+    "timestamp": "2023-04-10T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28294
+  },
+  {
+    "timestamp": "2023-04-10T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28297
+  },
+  {
+    "timestamp": "2023-04-10T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28312.5
+  },
+  {
+    "timestamp": "2023-04-10T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28339
+  },
+  {
+    "timestamp": "2023-04-10T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28309.5
+  },
+  {
+    "timestamp": "2023-04-10T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28275
+  },
+  {
+    "timestamp": "2023-04-10T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28209
+  },
+  {
+    "timestamp": "2023-04-10T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28313.5
+  },
+  {
+    "timestamp": "2023-04-10T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28446.5
+  },
+  {
+    "timestamp": "2023-04-10T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29064.5
+  },
+  {
+    "timestamp": "2023-04-10T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29172
+  },
+  {
+    "timestamp": "2023-04-10T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29298.5
+  },
+  {
+    "timestamp": "2023-04-10T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29183
+  },
+  {
+    "timestamp": "2023-04-10T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29138.5
+  },
+  {
+    "timestamp": "2023-04-10T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29227.5
+  },
+  {
+    "timestamp": "2023-04-11T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29603
+  },
+  {
+    "timestamp": "2023-04-11T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29659
+  },
+  {
+    "timestamp": "2023-04-11T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29964.5
+  },
+  {
+    "timestamp": "2023-04-11T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30235
+  },
+  {
+    "timestamp": "2023-04-11T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30113
+  },
+  {
+    "timestamp": "2023-04-11T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30130
+  },
+  {
+    "timestamp": "2023-04-11T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30136
+  },
+  {
+    "timestamp": "2023-04-11T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29920.5
+  },
+  {
+    "timestamp": "2023-04-11T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30068
+  },
+  {
+    "timestamp": "2023-04-11T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30129
+  },
+  {
+    "timestamp": "2023-04-11T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30118
+  },
+  {
+    "timestamp": "2023-04-11T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30073
+  },
+  {
+    "timestamp": "2023-04-11T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30145
+  },
+  {
+    "timestamp": "2023-04-11T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30075
+  },
+  {
+    "timestamp": "2023-04-11T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30112
+  },
+  {
+    "timestamp": "2023-04-11T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30259.5
+  },
+  {
+    "timestamp": "2023-04-11T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30066.5
+  },
+  {
+    "timestamp": "2023-04-11T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30215
+  },
+  {
+    "timestamp": "2023-04-11T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30154
+  },
+  {
+    "timestamp": "2023-04-11T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30228
+  },
+  {
+    "timestamp": "2023-04-11T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30245
+  },
+  {
+    "timestamp": "2023-04-11T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30143
+  },
+  {
+    "timestamp": "2023-04-11T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30186.5
+  },
+  {
+    "timestamp": "2023-04-11T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30209
+  },
+  {
+    "timestamp": "2023-04-12T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30288
+  },
+  {
+    "timestamp": "2023-04-12T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30223
+  },
+  {
+    "timestamp": "2023-04-12T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30256.5
+  },
+  {
+    "timestamp": "2023-04-12T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30203.5
+  },
+  {
+    "timestamp": "2023-04-12T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29950
+  },
+  {
+    "timestamp": "2023-04-12T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29937
+  },
+  {
+    "timestamp": "2023-04-12T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30001.5
+  },
+  {
+    "timestamp": "2023-04-12T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29945
+  },
+  {
+    "timestamp": "2023-04-12T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29952.5
+  },
+  {
+    "timestamp": "2023-04-12T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30003.5
+  },
+  {
+    "timestamp": "2023-04-12T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29922
+  },
+  {
+    "timestamp": "2023-04-12T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30017
+  },
+  {
+    "timestamp": "2023-04-12T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30010.5
+  },
+  {
+    "timestamp": "2023-04-12T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30023.5
+  },
+  {
+    "timestamp": "2023-04-12T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30168
+  },
+  {
+    "timestamp": "2023-04-12T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30066
+  },
+  {
+    "timestamp": "2023-04-12T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30032.5
+  },
+  {
+    "timestamp": "2023-04-12T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29978
+  },
+  {
+    "timestamp": "2023-04-12T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29950
+  },
+  {
+    "timestamp": "2023-04-12T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30024
+  },
+  {
+    "timestamp": "2023-04-12T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29927.5
+  },
+  {
+    "timestamp": "2023-04-12T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29805
+  },
+  {
+    "timestamp": "2023-04-12T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29951.5
+  },
+  {
+    "timestamp": "2023-04-12T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29957.5
+  },
+  {
+    "timestamp": "2023-04-13T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29855
+  },
+  {
+    "timestamp": "2023-04-13T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29902.5
+  },
+  {
+    "timestamp": "2023-04-13T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29986.5
+  },
+  {
+    "timestamp": "2023-04-13T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30076.5
+  },
+  {
+    "timestamp": "2023-04-13T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30116
+  },
+  {
+    "timestamp": "2023-04-13T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30085.5
+  },
+  {
+    "timestamp": "2023-04-13T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30065.5
+  },
+  {
+    "timestamp": "2023-04-13T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30118.5
+  },
+  {
+    "timestamp": "2023-04-13T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30037.5
+  },
+  {
+    "timestamp": "2023-04-13T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30082.5
+  },
+  {
+    "timestamp": "2023-04-13T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30211.5
+  },
+  {
+    "timestamp": "2023-04-13T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30233
+  },
+  {
+    "timestamp": "2023-04-13T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30229
+  },
+  {
+    "timestamp": "2023-04-13T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30184
+  },
+  {
+    "timestamp": "2023-04-13T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30293.5
+  },
+  {
+    "timestamp": "2023-04-13T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30201
+  },
+  {
+    "timestamp": "2023-04-13T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30475
+  },
+  {
+    "timestamp": "2023-04-13T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30460
+  },
+  {
+    "timestamp": "2023-04-13T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30335.5
+  },
+  {
+    "timestamp": "2023-04-13T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30442
+  },
+  {
+    "timestamp": "2023-04-13T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30460.5
+  },
+  {
+    "timestamp": "2023-04-13T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30352
+  },
+  {
+    "timestamp": "2023-04-13T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30272.5
+  },
+  {
+    "timestamp": "2023-04-13T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30301.5
+  },
+  {
+    "timestamp": "2023-04-14T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30318
+  },
+  {
+    "timestamp": "2023-04-14T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30387
+  },
+  {
+    "timestamp": "2023-04-14T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30762.5
+  },
+  {
+    "timestamp": "2023-04-14T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30802.5
+  },
+  {
+    "timestamp": "2023-04-14T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30619.5
+  },
+  {
+    "timestamp": "2023-04-14T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30716
+  },
+  {
+    "timestamp": "2023-04-14T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30719.5
+  },
+  {
+    "timestamp": "2023-04-14T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30819
+  },
+  {
+    "timestamp": "2023-04-14T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30967.5
+  },
+  {
+    "timestamp": "2023-04-14T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30748
+  },
+  {
+    "timestamp": "2023-04-14T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30742.5
+  },
+  {
+    "timestamp": "2023-04-14T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30813.5
+  },
+  {
+    "timestamp": "2023-04-14T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30783.5
+  },
+  {
+    "timestamp": "2023-04-14T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30822
+  },
+  {
+    "timestamp": "2023-04-14T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30623.5
+  },
+  {
+    "timestamp": "2023-04-14T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30731.5
+  },
+  {
+    "timestamp": "2023-04-14T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30604
+  },
+  {
+    "timestamp": "2023-04-14T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30253.5
+  },
+  {
+    "timestamp": "2023-04-14T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30159
+  },
+  {
+    "timestamp": "2023-04-14T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30276.5
+  },
+  {
+    "timestamp": "2023-04-14T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30274
+  },
+  {
+    "timestamp": "2023-04-14T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30330
+  },
+  {
+    "timestamp": "2023-04-14T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30444
+  },
+  {
+    "timestamp": "2023-04-14T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30466
+  },
+  {
+    "timestamp": "2023-04-15T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30444
+  },
+  {
+    "timestamp": "2023-04-15T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30465
+  },
+  {
+    "timestamp": "2023-04-15T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30395
+  },
+  {
+    "timestamp": "2023-04-15T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30387
+  },
+  {
+    "timestamp": "2023-04-15T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30400
+  },
+  {
+    "timestamp": "2023-04-15T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30398.5
+  },
+  {
+    "timestamp": "2023-04-15T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30387.5
+  },
+  {
+    "timestamp": "2023-04-15T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30439.5
+  },
+  {
+    "timestamp": "2023-04-15T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30412.5
+  },
+  {
+    "timestamp": "2023-04-15T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30445.5
+  },
+  {
+    "timestamp": "2023-04-15T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30409.5
+  },
+  {
+    "timestamp": "2023-04-15T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30470.5
+  },
+  {
+    "timestamp": "2023-04-15T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30445.5
+  },
+  {
+    "timestamp": "2023-04-15T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30403.5
+  },
+  {
+    "timestamp": "2023-04-15T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30443
+  },
+  {
+    "timestamp": "2023-04-15T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30360
+  },
+  {
+    "timestamp": "2023-04-15T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30391.5
+  },
+  {
+    "timestamp": "2023-04-15T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30343
+  },
+  {
+    "timestamp": "2023-04-15T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30353
+  },
+  {
+    "timestamp": "2023-04-15T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30284
+  },
+  {
+    "timestamp": "2023-04-15T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30335.5
+  },
+  {
+    "timestamp": "2023-04-15T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30380
+  },
+  {
+    "timestamp": "2023-04-15T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30306.5
+  },
+  {
+    "timestamp": "2023-04-15T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30296
+  },
+  {
+    "timestamp": "2023-04-16T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30382
+  },
+  {
+    "timestamp": "2023-04-16T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30299.5
+  },
+  {
+    "timestamp": "2023-04-16T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30284.5
+  },
+  {
+    "timestamp": "2023-04-16T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30248.5
+  },
+  {
+    "timestamp": "2023-04-16T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30282
+  },
+  {
+    "timestamp": "2023-04-16T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30264
+  },
+  {
+    "timestamp": "2023-04-16T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30322
+  },
+  {
+    "timestamp": "2023-04-16T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30340
+  },
+  {
+    "timestamp": "2023-04-16T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30334.5
+  },
+  {
+    "timestamp": "2023-04-16T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30361.5
+  },
+  {
+    "timestamp": "2023-04-16T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30347.5
+  },
+  {
+    "timestamp": "2023-04-16T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30298
+  },
+  {
+    "timestamp": "2023-04-16T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30316.5
+  },
+  {
+    "timestamp": "2023-04-16T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30240
+  },
+  {
+    "timestamp": "2023-04-16T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30280.5
+  },
+  {
+    "timestamp": "2023-04-16T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30269
+  },
+  {
+    "timestamp": "2023-04-16T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30329.5
+  },
+  {
+    "timestamp": "2023-04-16T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30343
+  },
+  {
+    "timestamp": "2023-04-16T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30356
+  },
+  {
+    "timestamp": "2023-04-16T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30314
+  },
+  {
+    "timestamp": "2023-04-16T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30496
+  },
+  {
+    "timestamp": "2023-04-16T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30338.5
+  },
+  {
+    "timestamp": "2023-04-16T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30357.5
+  },
+  {
+    "timestamp": "2023-04-16T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30400
+  },
+  {
+    "timestamp": "2023-04-17T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30338
+  },
+  {
+    "timestamp": "2023-04-17T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30324.5
+  },
+  {
+    "timestamp": "2023-04-17T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29841.5
+  },
+  {
+    "timestamp": "2023-04-17T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29935.5
+  },
+  {
+    "timestamp": "2023-04-17T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30007.5
+  },
+  {
+    "timestamp": "2023-04-17T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29975.5
+  },
+  {
+    "timestamp": "2023-04-17T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29988.5
+  },
+  {
+    "timestamp": "2023-04-17T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30005
+  },
+  {
+    "timestamp": "2023-04-17T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29916.5
+  },
+  {
+    "timestamp": "2023-04-17T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29847.5
+  },
+  {
+    "timestamp": "2023-04-17T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29914
+  },
+  {
+    "timestamp": "2023-04-17T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29889
+  },
+  {
+    "timestamp": "2023-04-17T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29902
+  },
+  {
+    "timestamp": "2023-04-17T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29563
+  },
+  {
+    "timestamp": "2023-04-17T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29525.5
+  },
+  {
+    "timestamp": "2023-04-17T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29409.5
+  },
+  {
+    "timestamp": "2023-04-17T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29448
+  },
+  {
+    "timestamp": "2023-04-17T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29362.5
+  },
+  {
+    "timestamp": "2023-04-17T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29475.5
+  },
+  {
+    "timestamp": "2023-04-17T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29473.5
+  },
+  {
+    "timestamp": "2023-04-17T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29534.5
+  },
+  {
+    "timestamp": "2023-04-17T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29474.5
+  },
+  {
+    "timestamp": "2023-04-17T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29434
+  },
+  {
+    "timestamp": "2023-04-17T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29457
+  },
+  {
+    "timestamp": "2023-04-18T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29510
+  },
+  {
+    "timestamp": "2023-04-18T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29424.5
+  },
+  {
+    "timestamp": "2023-04-18T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29356.5
+  },
+  {
+    "timestamp": "2023-04-18T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29365
+  },
+  {
+    "timestamp": "2023-04-18T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29458
+  },
+  {
+    "timestamp": "2023-04-18T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29449
+  },
+  {
+    "timestamp": "2023-04-18T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29493
+  },
+  {
+    "timestamp": "2023-04-18T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29542
+  },
+  {
+    "timestamp": "2023-04-18T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29717
+  },
+  {
+    "timestamp": "2023-04-18T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29775.5
+  },
+  {
+    "timestamp": "2023-04-18T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29708.5
+  },
+  {
+    "timestamp": "2023-04-18T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29884.5
+  },
+  {
+    "timestamp": "2023-04-18T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29892
+  },
+  {
+    "timestamp": "2023-04-18T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30376
+  },
+  {
+    "timestamp": "2023-04-18T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30305
+  },
+  {
+    "timestamp": "2023-04-18T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30379.5
+  },
+  {
+    "timestamp": "2023-04-18T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30250
+  },
+  {
+    "timestamp": "2023-04-18T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30183
+  },
+  {
+    "timestamp": "2023-04-18T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30228.5
+  },
+  {
+    "timestamp": "2023-04-18T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30033
+  },
+  {
+    "timestamp": "2023-04-18T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30146
+  },
+  {
+    "timestamp": "2023-04-18T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30226
+  },
+  {
+    "timestamp": "2023-04-18T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30411
+  },
+  {
+    "timestamp": "2023-04-18T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30374
+  },
+  {
+    "timestamp": "2023-04-19T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30360.5
+  },
+  {
+    "timestamp": "2023-04-19T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30375.5
+  },
+  {
+    "timestamp": "2023-04-19T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30314.5
+  },
+  {
+    "timestamp": "2023-04-19T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30233.5
+  },
+  {
+    "timestamp": "2023-04-19T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30204.5
+  },
+  {
+    "timestamp": "2023-04-19T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30209.5
+  },
+  {
+    "timestamp": "2023-04-19T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30208
+  },
+  {
+    "timestamp": "2023-04-19T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30270
+  },
+  {
+    "timestamp": "2023-04-19T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30002.5
+  },
+  {
+    "timestamp": "2023-04-19T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 30084.5
+  },
+  {
+    "timestamp": "2023-04-19T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29161
+  },
+  {
+    "timestamp": "2023-04-19T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29190.5
+  },
+  {
+    "timestamp": "2023-04-19T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29240
+  },
+  {
+    "timestamp": "2023-04-19T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29294.5
+  },
+  {
+    "timestamp": "2023-04-19T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29221.5
+  },
+  {
+    "timestamp": "2023-04-19T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29330.5
+  },
+  {
+    "timestamp": "2023-04-19T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29401.5
+  },
+  {
+    "timestamp": "2023-04-19T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29271.5
+  },
+  {
+    "timestamp": "2023-04-19T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29331
+  },
+  {
+    "timestamp": "2023-04-19T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29329
+  },
+  {
+    "timestamp": "2023-04-19T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29281.5
+  },
+  {
+    "timestamp": "2023-04-19T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29232.5
+  },
+  {
+    "timestamp": "2023-04-19T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29230
+  },
+  {
+    "timestamp": "2023-04-19T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29153
+  },
+  {
+    "timestamp": "2023-04-20T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29070.5
+  },
+  {
+    "timestamp": "2023-04-20T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28784
+  },
+  {
+    "timestamp": "2023-04-20T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28908
+  },
+  {
+    "timestamp": "2023-04-20T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28931.5
+  },
+  {
+    "timestamp": "2023-04-20T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28747
+  },
+  {
+    "timestamp": "2023-04-20T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28845
+  },
+  {
+    "timestamp": "2023-04-20T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28867.5
+  },
+  {
+    "timestamp": "2023-04-20T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28894
+  },
+  {
+    "timestamp": "2023-04-20T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28941
+  },
+  {
+    "timestamp": "2023-04-20T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28863.5
+  },
+  {
+    "timestamp": "2023-04-20T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28825
+  },
+  {
+    "timestamp": "2023-04-20T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28866
+  },
+  {
+    "timestamp": "2023-04-20T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28862.5
+  },
+  {
+    "timestamp": "2023-04-20T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28613.5
+  },
+  {
+    "timestamp": "2023-04-20T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28887
+  },
+  {
+    "timestamp": "2023-04-20T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28825
+  },
+  {
+    "timestamp": "2023-04-20T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28715.5
+  },
+  {
+    "timestamp": "2023-04-20T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28505.5
+  },
+  {
+    "timestamp": "2023-04-20T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28435.5
+  },
+  {
+    "timestamp": "2023-04-20T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28454
+  },
+  {
+    "timestamp": "2023-04-20T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28363.5
+  },
+  {
+    "timestamp": "2023-04-20T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28087
+  },
+  {
+    "timestamp": "2023-04-20T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28195
+  },
+  {
+    "timestamp": "2023-04-20T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28225
+  },
+  {
+    "timestamp": "2023-04-21T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28233.5
+  },
+  {
+    "timestamp": "2023-04-21T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28230
+  },
+  {
+    "timestamp": "2023-04-21T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28273
+  },
+  {
+    "timestamp": "2023-04-21T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28187.5
+  },
+  {
+    "timestamp": "2023-04-21T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28238
+  },
+  {
+    "timestamp": "2023-04-21T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28314
+  },
+  {
+    "timestamp": "2023-04-21T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28230
+  },
+  {
+    "timestamp": "2023-04-21T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28154.5
+  },
+  {
+    "timestamp": "2023-04-21T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27909
+  },
+  {
+    "timestamp": "2023-04-21T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28154.5
+  },
+  {
+    "timestamp": "2023-04-21T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28075
+  },
+  {
+    "timestamp": "2023-04-21T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28055
+  },
+  {
+    "timestamp": "2023-04-21T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27990.5
+  },
+  {
+    "timestamp": "2023-04-21T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28053.5
+  },
+  {
+    "timestamp": "2023-04-21T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28210.5
+  },
+  {
+    "timestamp": "2023-04-21T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28100
+  },
+  {
+    "timestamp": "2023-04-21T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28060
+  },
+  {
+    "timestamp": "2023-04-21T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28038.5
+  },
+  {
+    "timestamp": "2023-04-21T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28038
+  },
+  {
+    "timestamp": "2023-04-21T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27891.5
+  },
+  {
+    "timestamp": "2023-04-21T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27768.5
+  },
+  {
+    "timestamp": "2023-04-21T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27260.5
+  },
+  {
+    "timestamp": "2023-04-21T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27263.5
+  },
+  {
+    "timestamp": "2023-04-21T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27280
+  },
+  {
+    "timestamp": "2023-04-22T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27250
+  },
+  {
+    "timestamp": "2023-04-22T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27261
+  },
+  {
+    "timestamp": "2023-04-22T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27229
+  },
+  {
+    "timestamp": "2023-04-22T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27283.5
+  },
+  {
+    "timestamp": "2023-04-22T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27240
+  },
+  {
+    "timestamp": "2023-04-22T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27308.5
+  },
+  {
+    "timestamp": "2023-04-22T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27339.5
+  },
+  {
+    "timestamp": "2023-04-22T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27402.5
+  },
+  {
+    "timestamp": "2023-04-22T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27350.5
+  },
+  {
+    "timestamp": "2023-04-22T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27278
+  },
+  {
+    "timestamp": "2023-04-22T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27221.5
+  },
+  {
+    "timestamp": "2023-04-22T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27240.5
+  },
+  {
+    "timestamp": "2023-04-22T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27251.5
+  },
+  {
+    "timestamp": "2023-04-22T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27275.5
+  },
+  {
+    "timestamp": "2023-04-22T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27335
+  },
+  {
+    "timestamp": "2023-04-22T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27259
+  },
+  {
+    "timestamp": "2023-04-22T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27467
+  },
+  {
+    "timestamp": "2023-04-22T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27477.5
+  },
+  {
+    "timestamp": "2023-04-22T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27567
+  },
+  {
+    "timestamp": "2023-04-22T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27671.5
+  },
+  {
+    "timestamp": "2023-04-22T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27594
+  },
+  {
+    "timestamp": "2023-04-22T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27608.5
+  },
+  {
+    "timestamp": "2023-04-22T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27624.5
+  },
+  {
+    "timestamp": "2023-04-22T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27656.5
+  },
+  {
+    "timestamp": "2023-04-23T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27853.5
+  },
+  {
+    "timestamp": "2023-04-23T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27805
+  },
+  {
+    "timestamp": "2023-04-23T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27539
+  },
+  {
+    "timestamp": "2023-04-23T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27559.5
+  },
+  {
+    "timestamp": "2023-04-23T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27594
+  },
+  {
+    "timestamp": "2023-04-23T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27565
+  },
+  {
+    "timestamp": "2023-04-23T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27619
+  },
+  {
+    "timestamp": "2023-04-23T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27579.5
+  },
+  {
+    "timestamp": "2023-04-23T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27590.5
+  },
+  {
+    "timestamp": "2023-04-23T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27718
+  },
+  {
+    "timestamp": "2023-04-23T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27706.5
+  },
+  {
+    "timestamp": "2023-04-23T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27624
+  },
+  {
+    "timestamp": "2023-04-23T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27522.5
+  },
+  {
+    "timestamp": "2023-04-23T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27641
+  },
+  {
+    "timestamp": "2023-04-23T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27599
+  },
+  {
+    "timestamp": "2023-04-23T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27623.5
+  },
+  {
+    "timestamp": "2023-04-23T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27538.5
+  },
+  {
+    "timestamp": "2023-04-23T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27467.5
+  },
+  {
+    "timestamp": "2023-04-23T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27583.5
+  },
+  {
+    "timestamp": "2023-04-23T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27510
+  },
+  {
+    "timestamp": "2023-04-23T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27452.5
+  },
+  {
+    "timestamp": "2023-04-23T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27449.5
+  },
+  {
+    "timestamp": "2023-04-23T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27499.5
+  },
+  {
+    "timestamp": "2023-04-23T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27504.5
+  },
+  {
+    "timestamp": "2023-04-24T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27594.5
+  },
+  {
+    "timestamp": "2023-04-24T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27577
+  },
+  {
+    "timestamp": "2023-04-24T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27800
+  },
+  {
+    "timestamp": "2023-04-24T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27744.5
+  },
+  {
+    "timestamp": "2023-04-24T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27728.5
+  },
+  {
+    "timestamp": "2023-04-24T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27780
+  },
+  {
+    "timestamp": "2023-04-24T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27686.5
+  },
+  {
+    "timestamp": "2023-04-24T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27642.5
+  },
+  {
+    "timestamp": "2023-04-24T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27524
+  },
+  {
+    "timestamp": "2023-04-24T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27446
+  },
+  {
+    "timestamp": "2023-04-24T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27172.5
+  },
+  {
+    "timestamp": "2023-04-24T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27310
+  },
+  {
+    "timestamp": "2023-04-24T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27420
+  },
+  {
+    "timestamp": "2023-04-24T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27553
+  },
+  {
+    "timestamp": "2023-04-24T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27435.5
+  },
+  {
+    "timestamp": "2023-04-24T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27619
+  },
+  {
+    "timestamp": "2023-04-24T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27425
+  },
+  {
+    "timestamp": "2023-04-24T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27250
+  },
+  {
+    "timestamp": "2023-04-24T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27097
+  },
+  {
+    "timestamp": "2023-04-24T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27370.5
+  },
+  {
+    "timestamp": "2023-04-24T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27326
+  },
+  {
+    "timestamp": "2023-04-24T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27370.5
+  },
+  {
+    "timestamp": "2023-04-24T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27457
+  },
+  {
+    "timestamp": "2023-04-24T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27398.5
+  },
+  {
+    "timestamp": "2023-04-25T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27442
+  },
+  {
+    "timestamp": "2023-04-25T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27488.5
+  },
+  {
+    "timestamp": "2023-04-25T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27445
+  },
+  {
+    "timestamp": "2023-04-25T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27391
+  },
+  {
+    "timestamp": "2023-04-25T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27389
+  },
+  {
+    "timestamp": "2023-04-25T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27336.5
+  },
+  {
+    "timestamp": "2023-04-25T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27390
+  },
+  {
+    "timestamp": "2023-04-25T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27408
+  },
+  {
+    "timestamp": "2023-04-25T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27347.5
+  },
+  {
+    "timestamp": "2023-04-25T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27255.5
+  },
+  {
+    "timestamp": "2023-04-25T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27428.5
+  },
+  {
+    "timestamp": "2023-04-25T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27322
+  },
+  {
+    "timestamp": "2023-04-25T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27333
+  },
+  {
+    "timestamp": "2023-04-25T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27381.5
+  },
+  {
+    "timestamp": "2023-04-25T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27393.5
+  },
+  {
+    "timestamp": "2023-04-25T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27334
+  },
+  {
+    "timestamp": "2023-04-25T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27277.5
+  },
+  {
+    "timestamp": "2023-04-25T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27335
+  },
+  {
+    "timestamp": "2023-04-25T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27378
+  },
+  {
+    "timestamp": "2023-04-25T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27623.5
+  },
+  {
+    "timestamp": "2023-04-25T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27579
+  },
+  {
+    "timestamp": "2023-04-25T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27599.5
+  },
+  {
+    "timestamp": "2023-04-25T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27968.5
+  },
+  {
+    "timestamp": "2023-04-25T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28257.5
+  },
+  {
+    "timestamp": "2023-04-26T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28223
+  },
+  {
+    "timestamp": "2023-04-26T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28283.5
+  },
+  {
+    "timestamp": "2023-04-26T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28295.5
+  },
+  {
+    "timestamp": "2023-04-26T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28380
+  },
+  {
+    "timestamp": "2023-04-26T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28386.5
+  },
+  {
+    "timestamp": "2023-04-26T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28308
+  },
+  {
+    "timestamp": "2023-04-26T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28332
+  },
+  {
+    "timestamp": "2023-04-26T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28395.5
+  },
+  {
+    "timestamp": "2023-04-26T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28400
+  },
+  {
+    "timestamp": "2023-04-26T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28374.5
+  },
+  {
+    "timestamp": "2023-04-26T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28749
+  },
+  {
+    "timestamp": "2023-04-26T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28872
+  },
+  {
+    "timestamp": "2023-04-26T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29005.5
+  },
+  {
+    "timestamp": "2023-04-26T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28945
+  },
+  {
+    "timestamp": "2023-04-26T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29954.5
+  },
+  {
+    "timestamp": "2023-04-26T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29841.5
+  },
+  {
+    "timestamp": "2023-04-26T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29697
+  },
+  {
+    "timestamp": "2023-04-26T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29811
+  },
+  {
+    "timestamp": "2023-04-26T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29792.5
+  },
+  {
+    "timestamp": "2023-04-26T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29709
+  },
+  {
+    "timestamp": "2023-04-26T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29734
+  },
+  {
+    "timestamp": "2023-04-26T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 27865
+  },
+  {
+    "timestamp": "2023-04-26T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28393
+  },
+  {
+    "timestamp": "2023-04-26T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28675
+  },
+  {
+    "timestamp": "2023-04-27T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28287
+  },
+  {
+    "timestamp": "2023-04-27T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28407.5
+  },
+  {
+    "timestamp": "2023-04-27T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29215
+  },
+  {
+    "timestamp": "2023-04-27T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28740
+  },
+  {
+    "timestamp": "2023-04-27T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29021.5
+  },
+  {
+    "timestamp": "2023-04-27T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28865
+  },
+  {
+    "timestamp": "2023-04-27T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29088
+  },
+  {
+    "timestamp": "2023-04-27T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29070
+  },
+  {
+    "timestamp": "2023-04-27T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28790
+  },
+  {
+    "timestamp": "2023-04-27T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28897.5
+  },
+  {
+    "timestamp": "2023-04-27T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28953.5
+  },
+  {
+    "timestamp": "2023-04-27T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28929
+  },
+  {
+    "timestamp": "2023-04-27T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28994.5
+  },
+  {
+    "timestamp": "2023-04-27T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28943
+  },
+  {
+    "timestamp": "2023-04-27T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28864
+  },
+  {
+    "timestamp": "2023-04-27T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28937.5
+  },
+  {
+    "timestamp": "2023-04-27T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 28972
+  },
+  {
+    "timestamp": "2023-04-27T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29131.5
+  },
+  {
+    "timestamp": "2023-04-27T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29133.5
+  },
+  {
+    "timestamp": "2023-04-27T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29291.5
+  },
+  {
+    "timestamp": "2023-04-27T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29772
+  },
+  {
+    "timestamp": "2023-04-27T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29683.5
+  },
+  {
+    "timestamp": "2023-04-27T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29609
+  },
+  {
+    "timestamp": "2023-04-27T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29635.5
+  },
+  {
+    "timestamp": "2023-04-28T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29389.5
+  },
+  {
+    "timestamp": "2023-04-28T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29463.5
+  },
+  {
+    "timestamp": "2023-04-28T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29547
+  },
+  {
+    "timestamp": "2023-04-28T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29498.5
+  },
+  {
+    "timestamp": "2023-04-28T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29398
+  },
+  {
+    "timestamp": "2023-04-28T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29423
+  },
+  {
+    "timestamp": "2023-04-28T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29496
+  },
+  {
+    "timestamp": "2023-04-28T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29468
+  },
+  {
+    "timestamp": "2023-04-28T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29467
+  },
+  {
+    "timestamp": "2023-04-28T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29479
+  },
+  {
+    "timestamp": "2023-04-28T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29250
+  },
+  {
+    "timestamp": "2023-04-28T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29203.5
+  },
+  {
+    "timestamp": "2023-04-28T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29262.5
+  },
+  {
+    "timestamp": "2023-04-28T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29240
+  },
+  {
+    "timestamp": "2023-04-28T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29227.5
+  },
+  {
+    "timestamp": "2023-04-28T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29025
+  },
+  {
+    "timestamp": "2023-04-28T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29095.5
+  },
+  {
+    "timestamp": "2023-04-28T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29165
+  },
+  {
+    "timestamp": "2023-04-28T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29275
+  },
+  {
+    "timestamp": "2023-04-28T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29236.5
+  },
+  {
+    "timestamp": "2023-04-28T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29241.5
+  },
+  {
+    "timestamp": "2023-04-28T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29329.5
+  },
+  {
+    "timestamp": "2023-04-28T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29337.5
+  },
+  {
+    "timestamp": "2023-04-28T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29335
+  },
+  {
+    "timestamp": "2023-04-29T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29350
+  },
+  {
+    "timestamp": "2023-04-29T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29311.5
+  },
+  {
+    "timestamp": "2023-04-29T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29284.5
+  },
+  {
+    "timestamp": "2023-04-29T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29287
+  },
+  {
+    "timestamp": "2023-04-29T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29381.5
+  },
+  {
+    "timestamp": "2023-04-29T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29355
+  },
+  {
+    "timestamp": "2023-04-29T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29384.5
+  },
+  {
+    "timestamp": "2023-04-29T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29369
+  },
+  {
+    "timestamp": "2023-04-29T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29336
+  },
+  {
+    "timestamp": "2023-04-29T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29356.5
+  },
+  {
+    "timestamp": "2023-04-29T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29324.5
+  },
+  {
+    "timestamp": "2023-04-29T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29307.5
+  },
+  {
+    "timestamp": "2023-04-29T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29267.5
+  },
+  {
+    "timestamp": "2023-04-29T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29339.5
+  },
+  {
+    "timestamp": "2023-04-29T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29283
+  },
+  {
+    "timestamp": "2023-04-29T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29394
+  },
+  {
+    "timestamp": "2023-04-29T16:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29337.5
+  },
+  {
+    "timestamp": "2023-04-29T17:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29281.5
+  },
+  {
+    "timestamp": "2023-04-29T18:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29300
+  },
+  {
+    "timestamp": "2023-04-29T19:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29166.5
+  },
+  {
+    "timestamp": "2023-04-29T20:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29194
+  },
+  {
+    "timestamp": "2023-04-29T21:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29263
+  },
+  {
+    "timestamp": "2023-04-29T22:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29233.5
+  },
+  {
+    "timestamp": "2023-04-29T23:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29236.5
+  },
+  {
+    "timestamp": "2023-04-30T00:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29209.5
+  },
+  {
+    "timestamp": "2023-04-30T01:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29230.5
+  },
+  {
+    "timestamp": "2023-04-30T02:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29140
+  },
+  {
+    "timestamp": "2023-04-30T03:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29110
+  },
+  {
+    "timestamp": "2023-04-30T04:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29194
+  },
+  {
+    "timestamp": "2023-04-30T05:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29190
+  },
+  {
+    "timestamp": "2023-04-30T06:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29212
+  },
+  {
+    "timestamp": "2023-04-30T07:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29263
+  },
+  {
+    "timestamp": "2023-04-30T08:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29287.5
+  },
+  {
+    "timestamp": "2023-04-30T09:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29285.5
+  },
+  {
+    "timestamp": "2023-04-30T10:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29278
+  },
+  {
+    "timestamp": "2023-04-30T11:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29265
+  },
+  {
+    "timestamp": "2023-04-30T12:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29230
+  },
+  {
+    "timestamp": "2023-04-30T13:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29208
+  },
+  {
+    "timestamp": "2023-04-30T14:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29231.5
+  },
+  {
+    "timestamp": "2023-04-30T15:00:00.000Z",
+    "symbol": "XBTUSD",
+    "open": 29285.5
+  }
+]
