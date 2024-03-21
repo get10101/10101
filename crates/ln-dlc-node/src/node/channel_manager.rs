@@ -39,7 +39,11 @@ pub type ChannelManager<D, S, N> = lightning::ln::channelmanager::ChannelManager
 >;
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
+pub(crate) async fn build<
+    D: BdkStorage,
+    S: TenTenOneStorage,
+    N: Storage + Send + Sync + 'static,
+>(
     keys_manager: Arc<CustomKeysManager<D>>,
     blockchain: Arc<Blockchain<N>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
@@ -65,8 +69,8 @@ pub(crate) fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
             tracing::info!("Did not find channel manager data. {e:#}");
             tracing::info!("Initializing new channel manager");
 
-            let height = blockchain.get_blockchain_tip()?;
-            let block_hash = blockchain.get_block_hash(height)?;
+            let height = blockchain.get_blockchain_tip().await?;
+            let block_hash = blockchain.get_block_hash(height).await?;
 
             return Ok(ChannelManager::new(
                 fee_rate_estimator,

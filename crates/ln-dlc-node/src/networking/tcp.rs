@@ -196,7 +196,7 @@ impl Connection {
     {
         // Create a waker to wake up poll_event_process, above
         let (event_waker, event_receiver) = mpsc::channel(1);
-        tokio::spawn(Self::poll_event_process(
+        crate::spawn(Self::poll_event_process(
             peer_manager.clone(),
             event_receiver,
         ));
@@ -368,7 +368,7 @@ where
         .new_inbound_connection(descriptor, remote_addr)
         .is_ok()
     {
-        Some(tokio::spawn(Connection::schedule_read(
+        Some(crate::spawn(Connection::schedule_read(
             peer_manager,
             us,
             reader,
@@ -423,7 +423,7 @@ where
         descriptor,
         remote_addr,
     ) {
-        Some(tokio::spawn(async move {
+        Some(crate::spawn(async move {
             // We should essentially always have enough room in a TCP socket buffer to send the
             // initial 10s of bytes. However, tokio running in single-threaded mode will always
             // fail writes and wake us back up later to write. Thus, we handle a single

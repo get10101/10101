@@ -37,9 +37,10 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         self.wallet.get_unused_address()
     }
 
-    pub fn get_blockchain_height(&self) -> Result<u64> {
+    pub async fn get_blockchain_height(&self) -> Result<u64> {
         self.blockchain
             .get_blockchain_tip()
+            .await
             .context("Failed to get blockchain height")
     }
 
@@ -76,7 +77,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
 
     /// Sync the state of the on-chain wallet against the blockchain.
     pub async fn sync_on_chain_wallet(&self) -> Result<()> {
-        let client = &self.blockchain.esplora_client_async;
+        let client = &self.blockchain.esplora_client;
 
         let (local_chain, unused_revealed_script_pubkeys, unconfirmed_txids, utxos) =
             spawn_blocking({
@@ -124,7 +125,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
     }
 
     pub async fn full_sync(&self, stop_gap: usize) -> Result<()> {
-        let client = &self.blockchain.esplora_client_async;
+        let client = &self.blockchain.esplora_client;
 
         let (local_chain, all_script_pubkeys) = spawn_blocking({
             let wallet = self.wallet.clone();

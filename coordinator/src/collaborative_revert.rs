@@ -22,6 +22,7 @@ use dlc_manager::channel::ClosedChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Signer;
 use dlc_manager::Storage;
+use futures::executor::block_on;
 use ln_dlc_node::bitcoin_conversion::to_ecdsa_signature_29;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::bitcoin_conversion::to_tx_29;
@@ -227,8 +228,7 @@ pub fn confirm_collaborative_revert(
         "Broadcasting collaborative revert transaction"
     );
 
-    node.blockchain
-        .broadcast_transaction_blocking(&revert_transaction)
+    block_on(node.blockchain.broadcast_transaction(&revert_transaction))
         .context("Could not broadcast transaction")?;
 
     // TODO: We should probably not modify the state until the transaction has been confirmed.

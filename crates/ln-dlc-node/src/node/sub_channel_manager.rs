@@ -31,7 +31,7 @@ pub type SubChannelManager<D, S, N> = sub_channel_manager::SubChannelManager<
     Arc<CustomKeysManager<D>>,
 >;
 
-pub(crate) fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
+pub(crate) fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static>(
     channel_manager: Arc<ChannelManager<D, S, N>>,
     dlc_manager: Arc<DlcManager<D, S, N>>,
     monitor: Arc<ChainMonitor<S, N>>,

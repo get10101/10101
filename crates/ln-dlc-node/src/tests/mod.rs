@@ -53,7 +53,6 @@ use std::sync::Once;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::watch;
-use tokio::task::block_in_place;
 use uuid::Uuid;
 
 mod bitcoind;
@@ -87,10 +86,9 @@ fn init_tracing() {
 }
 
 impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore> {
-    fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
-        let app_event_handler = |node, event_sender| {
-            Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
+    async fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
+        let app_event_handler =
+            |node, event_sender| Arc::new(AppEventHandler::new(node, event_sender));
 
         Self::start_test(
             app_event_handler,
@@ -105,26 +103,27 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             ln_dlc_node_settings_app(),
             None,
         )
+        .await
     }
 
-    fn start_test_coordinator(name: &str) -> Result<(Arc<Self>, RunningNode)> {
+    async fn start_test_coordinator(name: &str) -> Result<(Arc<Self>, RunningNode)> {
         Self::start_test_coordinator_internal(
             name,
             Arc::new(InMemoryStore::default()),
             ln_dlc_node_settings_coordinator(),
             None,
         )
+        .await
     }
 
-    fn start_test_coordinator_internal(
+    async fn start_test_coordinator_internal(
         name: &str,
         storage: Arc<InMemoryStore>,
         settings: LnDlcNodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
-        let coordinator_event_handler = |node, event_sender| {
-            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
+        let coordinator_event_handler =
+            |node, event_sender| Arc::new(CoordinatorEventHandler::new(node, event_sender));
 
         Self::start_test(
             coordinator_event_handler,
@@ -139,11 +138,12 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             settings,
             ldk_event_sender,
         )
+        .await
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn start_test<EH>(
-        event_handler_factory: EH,
+    async fn start_test<EH, EHF>(
+        event_handler_factory: EHF,
         name: &str,
         ldk_config: UserConfig,
         electrs_origin: String,
@@ -153,10 +153,11 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)>
     where
-        EH: Fn(
+        EH: EventHandlerTrait + 'static,
+        EHF: Fn(
             Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
             Option<EventSender>,
-        ) -> Arc<dyn EventHandlerTrait>,
+        ) -> Arc<EH>,
     {
         let data_dir = random_tmp_dir().join(name);
 
@@ -191,10 +192,11 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             vec![oracle.into()],
             XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             event_handler.clone(),
-        )?;
+        )
+        .await?;
         let node = Arc::new(node);
 
-        tokio::spawn({
+        crate::spawn({
             let mut receiver = event_handler.subscribe();
             let node = node.clone();
             async move {
@@ -237,12 +239,8 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
     /// "multi_thread"`.
     async fn sync_wallets(&self) -> Result<()> {
         self.sync_on_chain_wallet().await?;
-
-        block_in_place(|| {
-            self.sync_lightning_wallet()?;
-
-            Ok(())
-        })
+        self.sync_lightning_wallet().await?;
+        Ok(())
     }
 
     async fn fund(&self, amount: Amount, n_utxos: u64) -> Result<()> {

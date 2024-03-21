@@ -22,6 +22,7 @@ use lightning::sign::StaticPaymentOutputDescriptor;
 use secp256k1_zkp::Secp256k1;
 use std::borrow::Borrow;
 use std::sync::Arc;
+use tokio::task::spawn_blocking;
 
 /// Number of confirmations required to consider an LDK spendable output _spent_.
 ///
@@ -29,19 +30,23 @@ use std::sync::Arc;
 const REQUIRED_CONFIRMATIONS: u32 = 6;
 
 /// Determine what to do with a [`SpendableOutputDescriptor`] and do it.
-pub fn manage_spendable_outputs<D: BdkStorage, N: Storage>(
+pub async fn manage_spendable_outputs<D: BdkStorage, N: Storage>(
     node_storage: Arc<N>,
-    esplora_client: impl Borrow<esplora_client::BlockingClient>,
+    esplora_client: impl Borrow<esplora_client::AsyncClient>,
     wallet: impl Borrow<OnChainWallet<D>>,
     blockchain: impl Borrow<Blockchain<N>>,
     fee_rate_estimator: impl Borrow<FeeRateEstimator>,
     keys_manager: impl Borrow<CustomKeysManager<D>>,
-) -> Result<()> {
+) -> Result<()>
+where
+    N: Send + Sync + 'static,
+{
     let mut outputs_to_spend = Vec::new();
 
-    let spendable_outputs = &node_storage.all_spendable_outputs()?;
+    let storage = node_storage.clone();
+    let spendable_outputs = &(spawn_blocking(move || storage.all_spendable_outputs()).await??);
     for output in spendable_outputs.iter() {
-        let action = match choose_spendable_output_action(esplora_client.borrow(), output) {
+        let action = match choose_spendable_output_action(esplora_client.borrow(), output).await {
             Ok(action) => action,
             Err(e) => {
                 tracing::error!(
@@ -85,7 +90,8 @@ pub fn manage_spendable_outputs<D: BdkStorage, N: Storage>(
 
     blockchain
         .borrow()
-        .broadcast_transaction_blocking(&to_tx_30(spending_tx))?;
+        .broadcast_transaction(&to_tx_30(spending_tx))
+        .await?;
 
     Ok(())
 }
@@ -98,8 +104,8 @@ enum Action {
 
 /// Decide on which [`Action`] should be performed based on the characteristics and status of a
 /// [`SpendableOutputDescriptor`].
-fn choose_spendable_output_action(
-    esplora_client: &esplora_client::BlockingClient,
+async fn choose_spendable_output_action(
+    esplora_client: &esplora_client::AsyncClient,
     output: &SpendableOutputDescriptor,
 ) -> Result<Action> {
     use SpendableOutputDescriptor::*;
@@ -112,6 +118,7 @@ fn choose_spendable_output_action(
 
     let output_status = esplora_client
         .get_output_status(&to_txid_30(outpoint.txid), outpoint.index.into())
+        .await
         .context("Could not get spendable output status")?;
 
     match output_status {
@@ -128,7 +135,7 @@ fn choose_spendable_output_action(
                 }),
             ..
         }) => {
-            let current_height = esplora_client.get_height()?;
+            let current_height = esplora_client.get_height().await?;
 
             let confirmations = current_height
                 .checked_sub(confirmation_height)

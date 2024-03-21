@@ -785,7 +785,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 /// Use this instead of [`MessageHandler`]'s `send_message` which only enqueues the message.
 ///
 /// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
-pub fn send_dlc_message<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage>(
+pub fn send_dlc_message<
+    D: BdkStorage,
+    S: TenTenOneStorage + 'static,
+    N: LnDlcStorage + Send + Sync + 'static,
+>(
     dlc_message_handler: &DlcMessageHandler,
     peer_manager: &PeerManager<D, S, N>,
     node_id: PublicKey,

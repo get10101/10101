@@ -49,7 +49,7 @@ Note: 10101 app requires all the other services (e.g. Docker setup, coordinator,
 ### Run the coordinator
 
 In order to successfully run the coordinator you will have to provide the coordinator with a PostgreSQL database.
-The easiest way to do so is by starting the [local regtest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
+The easiest way to do so is by starting the [local regtest dev environemnt](#development-environment) through `docker compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
 
 `bash just coordinator`
 
@@ -65,7 +65,7 @@ just c
 
 To run the coordinator you will need a PostgeSQL database.
 
-The easiest way to do so is by starting the [local regtest dev environemnt](#development-environment) through `docker-compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
+The easiest way to do so is by starting the [local regtest dev environemnt](#development-environment) through `docker compose up --build`. The `--build` ensures that all tables exist for `maker` and `coordinator`.
 
 ```bash
 just maker
@@ -79,7 +79,7 @@ For more information on what containers are available please have a look at the 
 To start the development environment you can just run:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
 You can add `-d` to run the environment in the background.

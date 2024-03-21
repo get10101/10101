@@ -48,6 +48,7 @@ pub use ln::EventSender;
 pub use on_chain_wallet::ConfirmationStatus;
 pub use on_chain_wallet::EstimateFeeError;
 pub use on_chain_wallet::TransactionDetails;
+pub use tokio_with_wasm::tokio::spawn;
 
 #[cfg(test)]
 mod tests;
