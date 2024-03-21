@@ -244,16 +244,12 @@ impl Node {
                 if let Some(resp) = resp.clone() {
                     // store dlc message immediately so we do not lose the response if something
                     // goes wrong afterwards.
-                    if let Err(e) = self
-                        .inner
+                    self.inner
                         .event_handler
                         .publish(NodeEvent::StoreDlcMessage {
                             peer: node_id,
                             msg: resp,
-                        })
-                    {
-                        tracing::error!(%node_id, "Failed to send store last dlc message event. Error: {e:#}");
-                    }
+                        });
                 }
 
                 {
@@ -402,7 +398,7 @@ impl Node {
 
             self.inner
                 .event_handler
-                .publish(NodeEvent::SendLastDlcMessage { peer: node_id })?;
+                .publish(NodeEvent::SendLastDlcMessage { peer: node_id });
         }
 
         Ok(())
@@ -584,7 +580,7 @@ impl Node {
         self.inner.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: node_id,
             msg: msg.clone(),
-        })?;
+        });
 
         Ok(())
     }

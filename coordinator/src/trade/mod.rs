@@ -96,16 +96,12 @@ impl TradeExecutor {
                         %order_id,"Failed to update order and match state. Error: {e:#}");
                 }
 
-                // Everything has been processed successfully, we can safely send the last dlc message,
-                // that has been stored before.
-                if let Err(e) = self
-                    .node
+                // Everything has been processed successfully, we can safely send the last dlc
+                // message, that has been stored before.
+                self.node
                     .inner
                     .event_handler
-                    .publish(NodeEvent::SendLastDlcMessage { peer: trader_id })
-                {
-                    tracing::error!(%trader_id, "Failed to send last dlc message event. Error: {e:#}");
-                }
+                    .publish(NodeEvent::SendLastDlcMessage { peer: trader_id });
             }
             Err(e) => {
                 tracing::error!(%trader_id, %order_id,"Failed to execute trade. Error: {e:#}");

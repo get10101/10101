@@ -169,12 +169,10 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         reference_id: signed_channel.reference_id,
     }));
 
-    node.inner
-        .event_handler
-        .publish(NodeEvent::SendDlcMessage {
-            peer: coordinator_pubkey,
-            msg: msg.clone(),
-        })?;
+    node.inner.event_handler.publish(NodeEvent::SendDlcMessage {
+        peer: coordinator_pubkey,
+        msg: msg.clone(),
+    });
 
     Ok(())
 }

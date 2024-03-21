@@ -284,7 +284,7 @@ impl Node {
             .event_handler
             .publish(NodeEvent::SendLastDlcMessage {
                 peer: rollover.counterparty_pubkey,
-            })?;
+            });
 
         Ok(())
     }
