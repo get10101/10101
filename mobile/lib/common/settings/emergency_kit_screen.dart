@@ -67,159 +67,183 @@ class _EmergencyKitScreenState extends State<EmergencyKitScreen> {
                             )
                           ],
                         )),
-                    const SizedBox(height: 30),
-                    EmergencyKitButton(
-                        icon: const Icon(FontAwesomeIcons.broom),
-                        title: "Cleanup filling orders",
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final orderChangeNotifier = context.read<OrderChangeNotifier>();
-                          final goRouter = GoRouter.of(context);
-
-                          try {
-                            await rust.api.setFillingOrdersToFailed();
-                            await orderChangeNotifier.initialize();
-                            showSnackBar(messenger, "Successfully set filling orders to failed");
-                          } catch (e) {
-                            showSnackBar(
-                                messenger, "Failed to set filling orders to failed. Error: $e");
-                          }
-
-                          goRouter.pop();
-                        }),
-                    const SizedBox(height: 30),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: TextField(
-                          onChanged: (value) => _dlcChannelId = value,
-                          decoration: InputDecoration(
-                            border: const OutlineInputBorder(),
-                            hintText: "Copy from Settings > Channel",
-                            labelText: "Dlc Channel Id",
-                            labelStyle: const TextStyle(color: Colors.black87),
-                            filled: true,
-                            fillColor: Colors.white,
-                            errorStyle: TextStyle(
-                              color: Colors.red[900],
-                            ),
-                          ),
-                        )),
-                        IconButton(
-                            onPressed: () {
-                              showDialog(
-                                  context: context,
-                                  builder: (context) {
-                                    return AlertDialog(
-                                        title: const Text("Are you sure?"),
-                                        content: const Text(
-                                            "Performing that action may break your app state and should only get executed after consulting with the 10101 Team."),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => GoRouter.of(context).pop(),
-                                            child: const Text('No'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              final messenger = ScaffoldMessenger.of(context);
-                                              final goRouter = GoRouter.of(context);
-
-                                              try {
-                                                await dlcChannelChangeNotifier
-                                                    .deleteDlcChannel(_dlcChannelId ?? "");
-                                                showSnackBar(messenger,
-                                                    "Successfully deleted dlc channel with id $_dlcChannelId");
-                                              } catch (error) {
-                                                showSnackBar(messenger, "$error");
-                                              }
-                                              goRouter.pop();
-                                            },
-                                            child: const Text('Yes'),
-                                          ),
-                                        ]);
-                                  });
-                            },
-                            icon: const Icon(
-                              Icons.delete,
-                              size: 32,
-                            ))
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-                    EmergencyKitButton(
-                        icon: const Icon(FontAwesomeIcons.broom),
-                        title: "Delete position",
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final goRouter = GoRouter.of(context);
-
-                          try {
-                            await rust.api.deletePosition();
-                            showSnackBar(messenger, "Successfully deleted position");
-                          } catch (e) {
-                            showSnackBar(messenger, "Failed to delete position. Error: $e");
-                          }
-
-                          goRouter.pop();
-                        }),
-                    const SizedBox(height: 30),
-                    EmergencyKitButton(
-                        icon: const Icon(FontAwesomeIcons.broom),
-                        title: "Resend SettleFinalize Message",
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final goRouter = GoRouter.of(context);
-
-                          try {
-                            await rust.api.resendSettleFinalizeMessage();
-                            showSnackBar(messenger, "Successfully resend SettleFinalize message");
-                          } catch (e) {
-                            showSnackBar(
-                                messenger, "Failed to resend SettleFinalize message. Error: $e");
-                          }
-
-                          goRouter.pop();
-                        }),
-                    const SizedBox(height: 30),
-                    EmergencyKitButton(
-                        icon: const Icon(FontAwesomeIcons.backwardStep),
-                        title: "Rollback channel state",
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final orderChangeNotifier = context.read<OrderChangeNotifier>();
-                          final goRouter = GoRouter.of(context);
-
-                          try {
-                            await rust.api.rollBackChannelState();
-                            await orderChangeNotifier.initialize();
-                            showSnackBar(messenger, "Successfully rolled back channel state");
-                          } catch (e) {
-                            showSnackBar(messenger, "Failed to rollback channel state. Error: $e");
-                          }
-
-                          goRouter.pop();
-                        }),
-                    const SizedBox(height: 30),
-                    Visibility(
-                        visible: config.network == "regtest",
-                        child: EmergencyKitButton(
-                            icon: const Icon(FontAwesomeIcons.broom),
-                            title: "Reset answered poll cache",
-                            onPressed: () {
-                              final messenger = ScaffoldMessenger.of(context);
-                              final goRouter = GoRouter.of(context);
-
-                              try {
-                                rust.api.resetAllAnsweredPolls();
-                                showSnackBar(messenger,
-                                    "Successfully reset answered polls - You can now answer them again");
-                              } catch (e) {
-                                showSnackBar(messenger, "Failed to reset answered polls: $e");
-                              }
-
-                              goRouter.pop();
-                            })),
                   ])),
+              const SizedBox(height: 10),
+              Expanded(
+                  child: SingleChildScrollView(
+                      child: Container(
+                margin: const EdgeInsets.only(left: 10, right: 10, bottom: 30),
+                child: Column(children: [
+                  EmergencyKitButton(
+                      icon: const Icon(FontAwesomeIcons.broom),
+                      title: "Cleanup filling orders",
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final orderChangeNotifier = context.read<OrderChangeNotifier>();
+                        final goRouter = GoRouter.of(context);
+
+                        try {
+                          await rust.api.setFillingOrdersToFailed();
+                          await orderChangeNotifier.initialize();
+                          showSnackBar(messenger, "Successfully set filling orders to failed");
+                        } catch (e) {
+                          showSnackBar(
+                              messenger, "Failed to set filling orders to failed. Error: $e");
+                        }
+
+                        goRouter.pop();
+                      }),
+                  const SizedBox(height: 30),
+                  Row(
+                    children: [
+                      Expanded(
+                          child: TextField(
+                        onChanged: (value) => _dlcChannelId = value,
+                        decoration: InputDecoration(
+                          border: const OutlineInputBorder(),
+                          hintText: "Copy from Settings > Channel",
+                          labelText: "Dlc Channel Id",
+                          labelStyle: const TextStyle(color: Colors.black87),
+                          filled: true,
+                          fillColor: Colors.white,
+                          errorStyle: TextStyle(
+                            color: Colors.red[900],
+                          ),
+                        ),
+                      )),
+                      IconButton(
+                          onPressed: () {
+                            showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                      title: const Text("Are you sure?"),
+                                      content: const Text(
+                                          "Performing that action may break your app state and should only get executed after consulting with the 10101 Team."),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => GoRouter.of(context).pop(),
+                                          child: const Text('No'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () async {
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            final goRouter = GoRouter.of(context);
+
+                                            try {
+                                              await dlcChannelChangeNotifier
+                                                  .deleteDlcChannel(_dlcChannelId ?? "");
+                                              showSnackBar(messenger,
+                                                  "Successfully deleted dlc channel with id $_dlcChannelId");
+                                            } catch (error) {
+                                              showSnackBar(messenger, "$error");
+                                            }
+                                            goRouter.pop();
+                                          },
+                                          child: const Text('Yes'),
+                                        ),
+                                      ]);
+                                });
+                          },
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 32,
+                          ))
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  EmergencyKitButton(
+                      icon: const Icon(FontAwesomeIcons.broom),
+                      title: "Delete position",
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final goRouter = GoRouter.of(context);
+
+                        try {
+                          await rust.api.deletePosition();
+                          showSnackBar(messenger, "Successfully deleted position");
+                        } catch (e) {
+                          showSnackBar(messenger, "Failed to delete position. Error: $e");
+                        }
+
+                        goRouter.pop();
+                      }),
+                  const SizedBox(height: 30),
+                  EmergencyKitButton(
+                      icon: const Icon(FontAwesomeIcons.broom),
+                      title: "Recreate position",
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final goRouter = GoRouter.of(context);
+
+                        try {
+                          await rust.api.recreatePosition();
+                          showSnackBar(messenger, "Successfully recreated position");
+                        } catch (e) {
+                          showSnackBar(messenger, "Failed to recreate position. Error: $e");
+                        }
+
+                        goRouter.pop();
+                      }),
+                  const SizedBox(height: 30),
+                  EmergencyKitButton(
+                      icon: const Icon(FontAwesomeIcons.broom),
+                      title: "Resend SettleFinalize Message",
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final goRouter = GoRouter.of(context);
+
+                        try {
+                          await rust.api.resendSettleFinalizeMessage();
+                          showSnackBar(messenger, "Successfully resend SettleFinalize message");
+                        } catch (e) {
+                          showSnackBar(
+                              messenger, "Failed to resend SettleFinalize message. Error: $e");
+                        }
+
+                        goRouter.pop();
+                      }),
+                  const SizedBox(height: 30),
+                  EmergencyKitButton(
+                      icon: const Icon(FontAwesomeIcons.backwardStep),
+                      title: "Rollback channel state",
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final orderChangeNotifier = context.read<OrderChangeNotifier>();
+                        final goRouter = GoRouter.of(context);
+
+                        try {
+                          await rust.api.rollBackChannelState();
+                          await orderChangeNotifier.initialize();
+                          showSnackBar(messenger, "Successfully rolled back channel state");
+                        } catch (e) {
+                          showSnackBar(messenger, "Failed to rollback channel state. Error: $e");
+                        }
+
+                        goRouter.pop();
+                      }),
+                  const SizedBox(height: 30),
+                  Visibility(
+                      visible: config.network == "regtest",
+                      child: EmergencyKitButton(
+                          icon: const Icon(FontAwesomeIcons.broom),
+                          title: "Reset answered poll cache",
+                          onPressed: () {
+                            final messenger = ScaffoldMessenger.of(context);
+                            final goRouter = GoRouter.of(context);
+
+                            try {
+                              rust.api.resetAllAnsweredPolls();
+                              showSnackBar(messenger,
+                                  "Successfully reset answered polls - You can now answer them again");
+                            } catch (e) {
+                              showSnackBar(messenger, "Failed to reset answered polls: $e");
+                            }
+
+                            goRouter.pop();
+                          })),
+                ]),
+              )))
             ],
           ),
         ),
