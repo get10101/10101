@@ -1,5 +1,4 @@
 use bitcoin::secp256k1::PublicKey;
-use rust_decimal::prelude::ToPrimitive;
 use serde::Deserialize;
 use serde::Serialize;
 

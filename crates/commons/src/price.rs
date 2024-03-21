@@ -1,6 +1,5 @@
 use crate::order::Order;
 use crate::order::OrderState;
-use crate::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
@@ -33,38 +32,50 @@ pub fn best_current_price(current_orders: &[Order]) -> Prices {
     prices
 }
 
-/// Best price (highest) of all long (buy) orders in the orderbook
-fn best_bid_price(current_orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
-    best_price_for(current_orders, Direction::Long, symbol)
-}
-
-/// Best price (lowest) of all short (sell) orders in the orderbook
-fn best_ask_price(current_orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
-    best_price_for(current_orders, Direction::Short, symbol)
-}
-
-fn best_price_for(
-    current_orders: &[Order],
-    direction: Direction,
-    symbol: ContractSymbol,
-) -> Option<Decimal> {
-    assert_eq!(
-        symbol,
-        ContractSymbol::BtcUsd,
-        "only btcusd supported for now"
-    );
-    let use_max = direction == Direction::Long;
-    current_orders
+/// If you place a market order to go short/sell, the best/highest `Bid` price
+///
+/// Differently said, remember `buy high`, `sell low`!
+/// Ask = high
+/// Bid = low
+///
+/// The best `Ask` is the lowest of all `Asks`
+/// The best `Bid` is the highest of all `Bids`
+///
+/// If you SELL, you ask and you get the best price someone is willing to buy at i.e. the highest
+/// bid price.
+fn best_bid_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
+    orders
         .iter()
-        .filter(|order| order.order_state == OrderState::Open && order.direction == direction)
-        .map(|order| order.price.to_f64().expect("to represent decimal as f64"))
-        // get the best price
-        .fold(None, |acc, x| match acc {
-            Some(y) => Some(if use_max { x.max(y) } else { x.min(y) }),
-            None => Some(x),
-        })?
-        .try_into()
-        .ok()
+        .filter(|o| {
+            o.order_state == OrderState::Open
+                && o.direction == Direction::Long
+                && o.contract_symbol == symbol
+        })
+        .map(|o| o.price)
+        .max()
+}
+
+/// If you place a market order to go long/buy, you get the best/lowest `Ask` price
+///
+/// Differently said, remember `buy high`, `sell low`!
+/// Ask = high
+/// Bid = low
+///
+/// The best `Ask` is the lowest of all `Asks`
+/// The best `Bid` is the highest of all `Bids`
+///
+/// If you BUY, you bid and you get the best price someone is willing to sell at i.e. the lowest ask
+/// price.
+fn best_ask_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
+    orders
+        .iter()
+        .filter(|o| {
+            o.order_state == OrderState::Open
+                && o.direction == Direction::Short
+                && o.contract_symbol == symbol
+        })
+        .map(|o| o.price)
+        .min()
 }
 
 #[cfg(test)]
