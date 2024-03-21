@@ -22,6 +22,8 @@ mod historic_rates;
 mod logger;
 mod orderbook_client;
 
+const ORDER_EXPIRY: u64 = 30;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG)?;
@@ -47,6 +49,7 @@ async fn main() -> Result<()> {
                         public_key,
                         Direction::Short,
                         historic_rate.open + Decimal::from(1),
+                        ORDER_EXPIRY,
                     )
                     .await,
                 );
@@ -57,6 +60,7 @@ async fn main() -> Result<()> {
                         public_key,
                         Direction::Long,
                         historic_rate.open - Decimal::from(1),
+                        ORDER_EXPIRY,
                     )
                     .await,
                 );
@@ -74,7 +78,8 @@ async fn main() -> Result<()> {
 
             past_ids.extend(tmp_ids);
 
-            sleep(Duration::from_secs(60)).await;
+            // we sleep a bit shorter than the last order expires to ensure always having an order
+            sleep(Duration::from_secs(ORDER_EXPIRY - 1)).await;
         }
     }
 }
@@ -89,6 +94,7 @@ async fn post_order(
     public_key: PublicKey,
     direction: Direction,
     price: Decimal,
+    order_expiry_seconds: u64,
 ) -> Uuid {
     let uuid = Uuid::new_v4();
     if let Err(err) = client
@@ -102,7 +108,8 @@ async fn post_order(
                 direction,
                 leverage: Decimal::from(2),
                 order_type: OrderType::Limit,
-                expiry: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+                expiry: OffsetDateTime::now_utc()
+                    + time::Duration::seconds(order_expiry_seconds as i64),
                 stable: false,
             },
             None,
