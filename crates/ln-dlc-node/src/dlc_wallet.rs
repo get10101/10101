@@ -274,7 +274,11 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
 
         coin_selector
             .run_bnb(metric, COIN_SELECTION_MAX_ROUNDS)
-            .map_err(|e| dlc_manager::error::Error::WalletError((format!("{e:#}")).into()))?;
+            .map_err(|e| {
+                dlc_manager::error::Error::WalletError(
+                    (format!("Wallet does not hold enough UTXOs to cover amount {amount} with fee rate {fee_rate}. {e:#}")).into(),
+                )
+            })?;
 
         debug_assert!(coin_selector.is_target_met(target));
 
