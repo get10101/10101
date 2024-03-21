@@ -1,5 +1,6 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::node::dlc_channel::estimated_dlc_channel_fee_reserve;
+use crate::node::event::NodeEvent;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::RunningNode;
@@ -42,6 +43,12 @@ async fn can_open_and_settle_offchain() {
         )
         .await
         .unwrap();
+
+    coordinator
+        .event_handler
+        .publish(NodeEvent::SendLastDlcMessage {
+            peer: app.info.pubkey,
+        });
 
     wait_until(Duration::from_secs(10), || async {
         app.process_incoming_messages()?;
@@ -452,6 +459,12 @@ async fn open_channel_and_position_and_settle_position(
         .await
         .unwrap();
 
+    coordinator
+        .event_handler
+        .publish(NodeEvent::SendLastDlcMessage {
+            peer: app.info.pubkey,
+        });
+
     let offered_channel = wait_until(Duration::from_secs(30), || async {
         app.process_incoming_messages()?;
 
@@ -572,6 +585,12 @@ async fn open_channel_and_position_and_settle_position(
         .await
         .unwrap();
 
+    coordinator
+        .event_handler
+        .publish(NodeEvent::SendLastDlcMessage {
+            peer: app.info.pubkey,
+        });
+
     tracing::debug!("Waiting for settle offer...");
     let app_signed_channel = wait_until(Duration::from_secs(30), || async {
         app.process_incoming_messages()?;
@@ -592,6 +611,10 @@ async fn open_channel_and_position_and_settle_position(
     tracing::debug!("Accepting settle offer and waiting for being settled...");
     app.accept_dlc_channel_collaborative_settlement(&app_signed_channel.channel_id)
         .unwrap();
+
+    app.event_handler.publish(NodeEvent::SendLastDlcMessage {
+        peer: coordinator.info.pubkey,
+    });
 
     wait_until(Duration::from_secs(10), || async {
         app.process_incoming_messages()?;

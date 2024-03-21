@@ -13,6 +13,8 @@ use tokio::task::spawn_blocking;
 pub enum NodeEvent {
     Connected { peer: PublicKey },
     SendDlcMessage { peer: PublicKey, msg: Message },
+    StoreDlcMessage { peer: PublicKey, msg: Message },
+    SendLastDlcMessage { peer: PublicKey },
     DlcChannelEvent { dlc_channel_event: DlcChannelEvent },
 }
 

@@ -41,8 +41,10 @@ impl Node {
                                 tracing::error!("Failed to get connection. Error: {e:#}");
                             }
                         }
-                        Ok(NodeEvent::Connected { .. }) => {} // ignored
-                        Ok(NodeEvent::SendDlcMessage { .. }) => {} // ignored
+                        Ok(NodeEvent::Connected { .. })
+                        | Ok(NodeEvent::SendDlcMessage { .. })
+                        | Ok(NodeEvent::StoreDlcMessage { .. })
+                        | Ok(NodeEvent::SendLastDlcMessage { .. }) => {} // ignored
                         Err(RecvError::Lagged(skipped)) => {
                             tracing::warn!("Skipped {skipped} messages");
                         }

@@ -52,7 +52,17 @@ pub async fn handle_outbound_dlc_messages(
             }
             Ok(NodeEvent::SendDlcMessage { peer, msg }) => {
                 if let Err(e) = dlc_handler.send_dlc_message(peer, msg) {
-                    tracing::error!(peer=%peer, "Failed to process send dlc message event. {e:#}");
+                    tracing::error!(peer=%peer, "Failed to send dlc message. {e:#}")
+                }
+            }
+            Ok(NodeEvent::StoreDlcMessage { peer, msg }) => {
+                if let Err(e) = dlc_handler.store_dlc_message(peer, msg) {
+                    tracing::error!(peer=%peer, "Failed to store dlc message. {e:#}");
+                }
+            }
+            Ok(NodeEvent::SendLastDlcMessage { peer }) => {
+                if let Err(e) = dlc_handler.send_last_dlc_message(peer) {
+                    tracing::error!(peer=%peer, "Failed to send last dlc message. {e:#}")
                 }
             }
             Ok(NodeEvent::DlcChannelEvent { .. }) => {} // ignored
@@ -69,6 +79,19 @@ pub async fn handle_outbound_dlc_messages(
 
 impl DlcHandler {
     pub fn send_dlc_message(&self, peer: PublicKey, msg: Message) -> Result<()> {
+        self.store_dlc_message(peer, msg.clone())?;
+
+        send_dlc_message(
+            &self.node.inner.dlc_message_handler,
+            &self.node.inner.peer_manager,
+            peer,
+            msg,
+        );
+
+        Ok(())
+    }
+
+    pub fn store_dlc_message(&self, peer: PublicKey, msg: Message) -> Result<()> {
         let mut conn = db::connection()?;
 
         let serialized_outbound_message = SerializedDlcMessage::try_from(&msg)?;
@@ -79,14 +102,25 @@ impl DlcHandler {
             &mut conn,
             &peer,
             serialized_outbound_message,
-        )?;
+        )
+    }
 
-        send_dlc_message(
-            &self.node.inner.dlc_message_handler,
-            &self.node.inner.peer_manager,
-            peer,
-            msg,
-        );
+    pub fn send_last_dlc_message(&self, peer: PublicKey) -> Result<()> {
+        let mut conn = db::connection()?;
+        let last_serialized_message =
+            db::last_outbound_dlc_messages::LastOutboundDlcMessage::get(&mut conn, &peer)?;
+
+        if let Some(last_serialized_message) = last_serialized_message {
+            let message = Message::try_from(&last_serialized_message)?;
+            send_dlc_message(
+                &self.node.inner.dlc_message_handler,
+                &self.node.inner.peer_manager,
+                peer,
+                message,
+            );
+        } else {
+            tracing::debug!(%peer, "No last dlc message found. Nothing todo.");
+        }
 
         Ok(())
     }
@@ -219,23 +253,7 @@ impl DlcHandler {
             };
         }
 
-        let mut conn = db::connection()?;
-        let last_outbound_serialized_dlc_message =
-            db::last_outbound_dlc_messages::LastOutboundDlcMessage::get(&mut conn, &peer)?;
-
-        if let Some(last_outbound_serialized_dlc_message) = last_outbound_serialized_dlc_message {
-            tracing::debug!(%peer, ?last_outbound_serialized_dlc_message.message_type, "Sending last dlc message");
-
-            let message = Message::try_from(&last_outbound_serialized_dlc_message)?;
-            send_dlc_message(
-                &self.node.inner.dlc_message_handler,
-                &self.node.inner.peer_manager,
-                peer,
-                message,
-            );
-        } else {
-            tracing::debug!(%peer, "No last dlc message found. Nothing todo.");
-        }
+        self.send_last_dlc_message(peer)?;
 
         Ok(())
     }

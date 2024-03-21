@@ -278,7 +278,15 @@ impl Node {
             &mut connection,
             rollover.counterparty_pubkey.to_string(),
             &rollover.maturity_time(),
-        )
+        )?;
+
+        self.inner
+            .event_handler
+            .publish(NodeEvent::SendLastDlcMessage {
+                peer: rollover.counterparty_pubkey,
+            })?;
+
+        Ok(())
     }
 
     pub fn is_in_rollover(&self, trader_id: PublicKey) -> Result<bool> {

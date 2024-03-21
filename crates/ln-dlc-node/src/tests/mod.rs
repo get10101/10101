@@ -44,6 +44,7 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
+use std::collections::HashMap;
 use std::env::temp_dir;
 use std::net::TcpListener;
 use std::path::PathBuf;
@@ -202,8 +203,25 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             let mut receiver = event_handler.subscribe();
             let node = node.clone();
             async move {
+                let mut queue = HashMap::new();
                 loop {
                     match receiver.recv().await {
+                        Ok(NodeEvent::StoreDlcMessage { peer, msg }) => {
+                            queue.insert(peer, msg);
+                        }
+                        Ok(NodeEvent::SendLastDlcMessage { peer }) => match queue.get(&peer) {
+                            Some(msg) => {
+                                send_dlc_message(
+                                    &node.dlc_message_handler,
+                                    &node.peer_manager,
+                                    peer,
+                                    msg.clone(),
+                                );
+                            }
+                            None => {
+                                tracing::warn!(%peer, "No last dlc message found in queue.");
+                            }
+                        },
                         Ok(NodeEvent::SendDlcMessage { peer, msg }) => {
                             send_dlc_message(
                                 &node.dlc_message_handler,

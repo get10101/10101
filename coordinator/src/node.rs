@@ -207,6 +207,21 @@ impl Node {
                         )
                     })?;
 
+                if let Some(resp) = resp.clone() {
+                    // store dlc message immediately so we do not lose the response if something
+                    // goes wrong afterwards.
+                    if let Err(e) = self
+                        .inner
+                        .event_handler
+                        .publish(NodeEvent::StoreDlcMessage {
+                            peer: node_id,
+                            msg: resp,
+                        })
+                    {
+                        tracing::error!(%node_id, "Failed to send store last dlc message event. Error: {e:#}");
+                    }
+                }
+
                 {
                     let mut conn = self.pool.get()?;
                     db::dlc_messages::insert(&mut conn, inbound_msg)?;
@@ -445,6 +460,8 @@ impl Node {
         };
 
         if let Some(msg) = resp {
+            // Everything has been processed successfully, we can safely send the last dlc message,
+            // that has been stored before.
             tracing::info!(
                 to = %node_id,
                 kind = %dlc_message_name(&msg),
@@ -453,7 +470,7 @@ impl Node {
 
             self.inner
                 .event_handler
-                .publish(NodeEvent::SendDlcMessage { peer: node_id, msg })?;
+                .publish(NodeEvent::SendLastDlcMessage { peer: node_id })?;
         }
 
         Ok(())
