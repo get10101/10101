@@ -292,17 +292,11 @@ coordinator args="":
 
     cargo run --bin coordinator -- {{args}}
 
-run_maker_args := if os() == "linux" {
-  "--network=\"host\" --pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://localhost:8000"
-} else if os() == "macos" {
-  "--pull always --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000"
-} else {
-  "echo 'Only linux and macos are supported';
-   exit"
-}
-
 maker args="":
-    cargo run --bin dev-maker
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    cargo run --bin dev-maker -- {{args}}
 
 flutter-test:
     cd mobile && fvm flutter pub run build_runner build --delete-conflicting-outputs && fvm flutter test
@@ -350,20 +344,15 @@ run-coordinator-detached:
     just wait-for-coordinator-to-be-ready
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
 
-run_maker_detached_args := if os() == "linux" {
-  "--network=\"host\" --pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://localhost:8000"
-} else if os() == "macos" {
-  "--pull always -d --name maker ghcr.io/get10101/aristides/aristides:main regtest --orderbook http://host.docker.internal:8000"
-} else {
-  "echo 'Only linux and macos are supported';
-   exit"
-}
-
 # Starts maker process in the background, piping logs to a file (used in other recipes)
 run-maker-detached:
-    # we always delete the old container first as otherwise we might get an error if the container still exists
-    docker rm -f maker || true
-    docker run {{run_maker_detached_args}}
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    echo "Starting (and building) maker"
+    just maker &> {{maker_log_file}} &
+    just wait-for-maker-to-be-ready
+    echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
 
 # Attach to the current coordinator logs
 coordinator-logs:
@@ -447,6 +436,30 @@ wait-for-coordinator-to-be-ready:
       done
 
     echo "Max attempts reached. Coordinator is still not ready."
+    exit 1
+
+[private]
+wait-for-maker-to-be-ready:
+    #!/usr/bin/env bash
+    set +e
+
+    MAX_RETRIES=30
+    RETRY_DELAY=1
+
+    for ((i=1; i<=$MAX_RETRIES; i++)); do
+        response=$(curl -s http://localhost:8000/api/orderbook/orders)
+        item_count=$(echo "$response" | jq '. | length')
+
+        if [[ $item_count -ge 2 ]]; then
+            echo "Request successful, found $item_count items."
+            exit 0
+        else
+            echo "Retry $i: Found $item_count items. Retrying in $RETRY_DELAY seconds..."
+            sleep $RETRY_DELAY
+        fi
+    done
+
+    echo "Maximum retries exceeded. Starting maker failed."
     exit 1
 
 build-ipa args="":
