@@ -100,7 +100,10 @@ pub enum OrderState {
     /// execution, and the trade execution failed; i.e. it did not result in setting up a DLC.
     /// For the MVP there won't be a retry mechanism, so this is treated as a final state.
     /// This is a final state.
-    Failed { reason: FailureReason },
+    Failed {
+        execution_price: Option<f32>,
+        reason: FailureReason,
+    },
 
     /// Successfully set up trade
     ///
@@ -163,9 +166,12 @@ impl Order {
     /// yet.
     pub fn execution_price(&self) -> Option<f32> {
         match self.state {
-            OrderState::Filling { execution_price } | OrderState::Filled { execution_price } => {
-                Some(execution_price)
-            }
+            OrderState::Filling { execution_price }
+            | OrderState::Filled { execution_price }
+            | OrderState::Failed {
+                execution_price: Some(execution_price),
+                ..
+            } => Some(execution_price),
             _ => {
                 // TODO: The caller should decide how to handle this. Always logging an error is
                 // weird.
