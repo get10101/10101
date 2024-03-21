@@ -26,7 +26,7 @@ mod orderbook_client;
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG)?;
 
-    let client = OrderbookClient::new(Url::from_str("http://localhost:8000/api/orderbook/orders")?);
+    let client = OrderbookClient::new(Url::from_str("http://localhost:8000")?);
     let secret_key = SecretKey::new(&mut rand::thread_rng());
     let public_key = secret_key.public_key(SECP256K1);
 
@@ -35,26 +35,44 @@ async fn main() -> Result<()> {
     let mut historic_rates = historic_rates::read();
     historic_rates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
+    let mut past_ids = vec![];
     loop {
         for historic_rate in &historic_rates {
+            let mut tmp_ids = vec![];
             for _ in 0..5 {
-                post_order(
-                    client.clone(),
-                    secret_key,
-                    public_key,
-                    Direction::Short,
-                    historic_rate.open + Decimal::from(1),
-                )
-                .await;
-                post_order(
-                    client.clone(),
-                    secret_key,
-                    public_key,
-                    Direction::Long,
-                    historic_rate.open - Decimal::from(1),
-                )
-                .await;
+                tmp_ids.push(
+                    post_order(
+                        client.clone(),
+                        secret_key,
+                        public_key,
+                        Direction::Short,
+                        historic_rate.open + Decimal::from(1),
+                    )
+                    .await,
+                );
+                tmp_ids.push(
+                    post_order(
+                        client.clone(),
+                        secret_key,
+                        public_key,
+                        Direction::Long,
+                        historic_rate.open - Decimal::from(1),
+                    )
+                    .await,
+                );
             }
+
+            for old_id in &past_ids {
+                if let Err(err) = client.delete_order(old_id).await {
+                    tracing::error!(
+                        "Could not delete old order with id {old_id} because of {err:?}"
+                    );
+                }
+            }
+
+            past_ids.clear();
+
+            past_ids.extend(tmp_ids);
 
             sleep(Duration::from_secs(60)).await;
         }
@@ -71,11 +89,12 @@ async fn post_order(
     public_key: PublicKey,
     direction: Direction,
     price: Decimal,
-) {
+) -> Uuid {
+    let uuid = Uuid::new_v4();
     if let Err(err) = client
         .post_new_order(
             NewOrder {
-                id: Uuid::new_v4(),
+                id: uuid,
                 contract_symbol: ContractSymbol::BtcUsd,
                 price,
                 quantity: Decimal::from(5000),
@@ -93,4 +112,5 @@ async fn post_order(
     {
         tracing::error!("Failed posting new order {err:?}");
     }
+    uuid
 }
