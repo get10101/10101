@@ -153,8 +153,13 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("DLC Channel Configuration",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text("DLC Channel Configuration",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ],
+            ),
             const SizedBox(height: 20),
             Text("This is your first trade which will open a DLC Channel and opens your position.",
                 style: DefaultTextStyle.of(context).style),
