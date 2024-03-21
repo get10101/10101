@@ -37,22 +37,24 @@ async fn main() -> Result<()> {
 
     loop {
         for historic_rate in &historic_rates {
-            post_order(
-                client.clone(),
-                secret_key,
-                public_key,
-                Direction::Short,
-                historic_rate.open + Decimal::from(1),
-            )
-            .await;
-            post_order(
-                client.clone(),
-                secret_key,
-                public_key,
-                Direction::Long,
-                historic_rate.open + Decimal::from(1),
-            )
-            .await;
+            for _ in 0..5 {
+                post_order(
+                    client.clone(),
+                    secret_key,
+                    public_key,
+                    Direction::Short,
+                    historic_rate.open + Decimal::from(1),
+                )
+                .await;
+                post_order(
+                    client.clone(),
+                    secret_key,
+                    public_key,
+                    Direction::Long,
+                    historic_rate.open - Decimal::from(1),
+                )
+                .await;
+            }
 
             sleep(Duration::from_secs(60)).await;
         }
