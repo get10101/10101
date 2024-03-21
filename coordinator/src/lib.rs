@@ -42,6 +42,7 @@ pub mod schema;
 pub mod settings;
 pub mod storage;
 pub mod trade;
+mod emergency_kit;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 

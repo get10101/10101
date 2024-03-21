@@ -9,6 +9,7 @@ use crate::admin::is_connected;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
+use crate::admin::resend_renew_revoke_message;
 use crate::admin::roll_back_dlc_channel;
 use crate::admin::rollover;
 use crate::admin::sign_message;
@@ -199,6 +200,10 @@ pub fn router(
         )
         .route("/api/admin/sync", post(post_sync))
         .route("/api/admin/campaign/push", post(post_push_campaign))
+        .route(
+            "/api/admin/resend_renew_revoke_message/:trader_pubkey",
+            post(resend_renew_revoke_message),
+        )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
