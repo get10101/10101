@@ -4,6 +4,7 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -50,6 +51,7 @@ fn best_bid_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
             o.order_state == OrderState::Open
                 && o.direction == Direction::Long
                 && o.contract_symbol == symbol
+                && o.expiry > OffsetDateTime::now_utc()
         })
         .map(|o| o.price)
         .max()
@@ -73,6 +75,7 @@ fn best_ask_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
             o.order_state == OrderState::Open
                 && o.direction == Direction::Short
                 && o.contract_symbol == symbol
+                && o.expiry > OffsetDateTime::now_utc()
         })
         .map(|o| o.price)
         .min()
@@ -90,6 +93,7 @@ mod test {
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
+    use time::Duration;
     use time::OffsetDateTime;
     use trade::ContractSymbol;
     use trade::Direction;
@@ -112,7 +116,7 @@ mod test {
             quantity: 100.into(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
-            expiry: OffsetDateTime::now_utc(),
+            expiry: OffsetDateTime::now_utc() + Duration::minutes(1),
             order_state,
             order_reason: OrderReason::Manual,
             stable: false,
