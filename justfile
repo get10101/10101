@@ -349,7 +349,10 @@ run-maker-detached:
     #!/usr/bin/env bash
     set -euxo pipefail
 
+    echo "Building maker first"
+    cargo build --bin dev-maker
     echo "Starting (and building) maker"
+
     just maker &> {{maker_log_file}} &
     just wait-for-maker-to-be-ready
     echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
@@ -444,7 +447,7 @@ wait-for-maker-to-be-ready:
     set +e
 
     MAX_RETRIES=30
-    RETRY_DELAY=1
+    RETRY_DELAY=2
 
     for ((i=1; i<=$MAX_RETRIES; i++)); do
         response=$(curl -s http://localhost:8000/api/orderbook/orders)
