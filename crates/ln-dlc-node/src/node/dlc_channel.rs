@@ -98,6 +98,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         .await?
     }
 
+    #[cfg(test)]
     pub fn accept_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
