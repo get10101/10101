@@ -29,7 +29,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             ios-app:
-              - '.github/workflows/ios.yml'
+              - '.github/workflows/ios-fastlane.yml'
+              - 'crates/**'
+              - 'mobile/**'
+              - 'Cargo.*'
+            android-app:
+              - '.github/workflows/android-fastlane.yml'
               - 'crates/**'
               - 'mobile/**'
               - 'Cargo.*'
@@ -56,7 +61,7 @@ jobs:
 
   build_and_release_regtest_android_app_for_latest_main:
     needs: changes
-    if: needs.changes.outputs.ios-app == 'true'
+    if: needs.changes.outputs.android-app == 'true'
     permissions:
       packages: write
       contents: write

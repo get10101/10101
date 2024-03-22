@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          # fetch the complete history to correctly calculate build_number
+          # fetch the complete history to correctly calculate build_number.
           fetch-depth: 0
           ref: ${{ inputs.tag }}
 
