@@ -36,6 +36,11 @@ class Amount {
     return Amount(sats - amount.sats);
   }
 
+  // Overloading the - operator
+  Amount operator -(Amount other) {
+    return Amount(sats - other.sats);
+  }
+
   Amount.parseAmount(String? value) {
     if (value == null || value.isEmpty) {
       _sats = Decimal.zero;
