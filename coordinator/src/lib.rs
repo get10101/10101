@@ -27,6 +27,7 @@ pub mod cli;
 pub mod db;
 pub mod dlc_handler;
 pub mod dlc_protocol;
+mod emergency_kit;
 mod leaderboard;
 pub mod logger;
 pub mod message;

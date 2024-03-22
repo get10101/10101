@@ -543,6 +543,27 @@ pub async fn rollover(
     Ok(())
 }
 
+pub async fn resend_renew_revoke_message(
+    State(state): State<Arc<AppState>>,
+    Path(trader_pubkey): Path<String>,
+) -> Result<(), AppError> {
+    let trader = trader_pubkey.parse().map_err(|err| {
+        AppError::BadRequest(format!("Invalid public key {trader_pubkey}. Error: {err}"))
+    })?;
+
+    state
+        .node
+        .resend_renew_revoke_message_internal(trader)
+        .map_err(|e| {
+            AppError::InternalServerError(format!(
+                "Failed to resend renew revoke message for {}: {e:#}",
+                trader_pubkey
+            ))
+        })?;
+
+    Ok(())
+}
+
 impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {
     fn from(value: ln_dlc_node::TransactionDetails) -> Self {
         Self {
