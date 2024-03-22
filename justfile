@@ -52,11 +52,19 @@ deps-ios:
     cargo install cargo-lipo
     rustup target add aarch64-apple-ios x86_64-apple-ios
 
-gen:
+gen flutter_channel="":
     #!/usr/bin/env bash
     set -euxo pipefail
     cd mobile
-    fvm flutter pub get
+
+    if [ -n "{{flutter_channel}}" ]; then
+        echo "Flutter channel is set to: {{flutter_channel}}"
+        fvm spawn {{flutter_channel}} pub get
+    else
+        echo "Flutter channel is default"
+        fvm flutter pub get
+    fi
+
     RUST_LOG={{ rust_log_for_frb }} flutter_rust_bridge_codegen \
         --rust-input native/src/api.rs \
         --c-output ios/Runner/bridge_generated.h \
