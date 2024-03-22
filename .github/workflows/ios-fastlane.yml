@@ -104,11 +104,6 @@ jobs:
         run: sudo gem install cocoapods
       - name: Check cocoapods version
         run: /usr/local/bin/pod --version
-        id: cache-deps
-
-      - uses: actions/cache@v4
-        with:
-          key: ${{ runner.os }}-cargo-build-release-ios-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install just
         run: cargo install just --force

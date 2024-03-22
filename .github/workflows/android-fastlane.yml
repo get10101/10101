@@ -78,11 +78,6 @@ jobs:
           fvm_config: ./mobile/.fvmrc
           working_dir: ./mobile
 
-      - uses: actions/cache@v4
-        id: cache-deps
-        with:
-          key: ${{ runner.os }}-cargo-build-release-android-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Install just
         run: cargo install just --force
 
