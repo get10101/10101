@@ -168,52 +168,6 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                 "Specify your preferred channel size, impacting how much you will be able to win up to.",
                 style: DefaultTextStyle.of(context).style),
             const SizedBox(height: 20),
-            AmountInputField(
-              value: ownTotalCollateral,
-              controller: _collateralController,
-              label: 'Your collateral (sats)',
-              onChanged: (value) {
-                setState(() {
-                  ownTotalCollateral = Amount.parseAmount(value);
-                  _collateralController.text = ownTotalCollateral.formatted();
-
-                  updateCounterpartyCollateral();
-                });
-              },
-              suffixIcon: TextButton(
-                onPressed: () {
-                  setState(() {
-                    ownTotalCollateral =
-                        Amount(min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.sats));
-                    _collateralController.text = ownTotalCollateral.formatted();
-
-                    updateCounterpartyCollateral();
-                  });
-                },
-                child: const Text(
-                  "Max",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              validator: (value) {
-                if (ownTotalCollateral.sats < minMargin.sats) {
-                  return "Min collateral: $minMargin";
-                }
-
-                // TODO(holzeis): Add validation considering the on-chain fees
-
-                if (ownTotalCollateral.add(orderMatchingFees).sats > maxOnChainSpending.sats) {
-                  return "Max on-chain: $maxUsableOnChainBalance";
-                }
-
-                if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
-                  return "Over limit: $maxCounterpartyCollateral";
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: 10),
             CollateralSlider(
               onValueChanged: (newValue) {
                 setState(() {
@@ -227,12 +181,70 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
               labelText: 'Your collateral (sats)',
               value: ownTotalCollateral.sats,
             ),
-            const SizedBox(height: 10),
-            AmountTextField(
-              value: counterpartyCollateral,
-              label: 'Win up to (sats)',
-            ),
             const SizedBox(height: 15),
+            SizedBox(
+              height: 95,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: AmountInputField(
+                      value: ownTotalCollateral,
+                      controller: _collateralController,
+                      label: 'Your collateral (sats)',
+                      onChanged: (value) {
+                        setState(() {
+                          ownTotalCollateral = Amount.parseAmount(value);
+                          _collateralController.text = ownTotalCollateral.formatted();
+
+                          updateCounterpartyCollateral();
+                        });
+                      },
+                      suffixIcon: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            ownTotalCollateral = Amount(
+                                min(maxCounterpartyCollateralSats, maxUsableOnChainBalance.sats));
+                            _collateralController.text = ownTotalCollateral.formatted();
+
+                            updateCounterpartyCollateral();
+                          });
+                        },
+                        child: const Text(
+                          "Max",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (ownTotalCollateral.sats < minMargin.sats) {
+                          return "Min collateral: $minMargin";
+                        }
+
+                        // TODO(holzeis): Add validation considering the on-chain fees
+
+                        if (ownTotalCollateral.add(orderMatchingFees).sats >
+                            maxOnChainSpending.sats) {
+                          return "Max on-chain: $maxUsableOnChainBalance";
+                        }
+
+                        if (maxCounterpartyCollateral.sats < counterpartyCollateral.sats) {
+                          return "Over limit: $maxCounterpartyCollateral";
+                        }
+
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: AmountTextField(
+                      value: counterpartyCollateral,
+                      label: 'Win up to (sats)',
+                    ),
+                  ),
+                ],
+              ),
+            ),
             ValueDataRow(
                 type: ValueType.amount, value: ownTotalCollateral, label: 'Your collateral'),
             ValueDataRow(
