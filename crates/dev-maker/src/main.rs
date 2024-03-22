@@ -22,11 +22,13 @@ mod historic_rates;
 mod logger;
 mod orderbook_client;
 
+const ORDER_EXPIRY: u64 = 30;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG)?;
 
-    let client = OrderbookClient::new(Url::from_str("http://localhost:8000/api/orderbook/orders")?);
+    let client = OrderbookClient::new(Url::from_str("http://localhost:8000")?);
     let secret_key = SecretKey::new(&mut rand::thread_rng());
     let public_key = secret_key.public_key(SECP256K1);
 
@@ -35,26 +37,49 @@ async fn main() -> Result<()> {
     let mut historic_rates = historic_rates::read();
     historic_rates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
+    let mut past_ids = vec![];
     loop {
         for historic_rate in &historic_rates {
-            post_order(
-                client.clone(),
-                secret_key,
-                public_key,
-                Direction::Short,
-                historic_rate.open + Decimal::from(1),
-            )
-            .await;
-            post_order(
-                client.clone(),
-                secret_key,
-                public_key,
-                Direction::Long,
-                historic_rate.open + Decimal::from(1),
-            )
-            .await;
+            let mut tmp_ids = vec![];
+            for _ in 0..5 {
+                tmp_ids.push(
+                    post_order(
+                        client.clone(),
+                        secret_key,
+                        public_key,
+                        Direction::Short,
+                        historic_rate.open + Decimal::from(1),
+                        ORDER_EXPIRY,
+                    )
+                    .await,
+                );
+                tmp_ids.push(
+                    post_order(
+                        client.clone(),
+                        secret_key,
+                        public_key,
+                        Direction::Long,
+                        historic_rate.open - Decimal::from(1),
+                        ORDER_EXPIRY,
+                    )
+                    .await,
+                );
+            }
 
-            sleep(Duration::from_secs(60)).await;
+            for old_id in &past_ids {
+                if let Err(err) = client.delete_order(old_id).await {
+                    tracing::error!(
+                        "Could not delete old order with id {old_id} because of {err:?}"
+                    );
+                }
+            }
+
+            past_ids.clear();
+
+            past_ids.extend(tmp_ids);
+
+            // we sleep a bit shorter than the last order expires to ensure always having an order
+            sleep(Duration::from_secs(ORDER_EXPIRY - 1)).await;
         }
     }
 }
@@ -69,11 +94,13 @@ async fn post_order(
     public_key: PublicKey,
     direction: Direction,
     price: Decimal,
-) {
+    order_expiry_seconds: u64,
+) -> Uuid {
+    let uuid = Uuid::new_v4();
     if let Err(err) = client
         .post_new_order(
             NewOrder {
-                id: Uuid::new_v4(),
+                id: uuid,
                 contract_symbol: ContractSymbol::BtcUsd,
                 price,
                 quantity: Decimal::from(5000),
@@ -81,7 +108,8 @@ async fn post_order(
                 direction,
                 leverage: Decimal::from(2),
                 order_type: OrderType::Limit,
-                expiry: OffsetDateTime::now_utc() + time::Duration::minutes(1),
+                expiry: OffsetDateTime::now_utc()
+                    + time::Duration::seconds(order_expiry_seconds as i64),
                 stable: false,
             },
             None,
@@ -91,4 +119,5 @@ async fn post_order(
     {
         tracing::error!("Failed posting new order {err:?}");
     }
+    uuid
 }

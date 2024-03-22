@@ -272,7 +272,7 @@ jobs:
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
       - name: Print maker logs on e2e tests error
         if: failure()
-        run: docker logs maker
+        run: cat data/maker/regtest.log
       - name: Print coordinator logs on e2e tests error
         if: failure()
         run: cat data/coordinator/regtest.log

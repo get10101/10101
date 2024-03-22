@@ -5,6 +5,7 @@ use commons::NewOrderRequest;
 use reqwest::Client;
 use reqwest::Url;
 use secp256k1::SecretKey;
+use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct OrderbookClient {
@@ -27,6 +28,8 @@ impl OrderbookClient {
         channel_opening_params: Option<ChannelOpeningParams>,
         secret_key: SecretKey,
     ) -> Result<()> {
+        let url = self.url.join("/api/orderbook/orders")?;
+
         tracing::info!(
             id = order.id.to_string(),
             direction = order.direction.to_string(),
@@ -43,10 +46,29 @@ impl OrderbookClient {
 
         let response = self
             .client
-            .post(self.url.clone())
+            .post(url)
             .json(&new_order_request)
             .send()
             .await?;
+
+        response.error_for_status()?;
+
+        Ok(())
+    }
+
+    pub async fn delete_order(&self, order_id: &Uuid) -> Result<()> {
+        tracing::debug!(
+            order_id = order_id.to_string(),
+            "Deleting order from orderbook"
+        );
+
+        let url = self.url.join(
+            format!("/api/orderbook/orders/{}", order_id)
+                .to_string()
+                .as_str(),
+        )?;
+
+        let response = self.client.delete(url).send().await?;
 
         response.error_for_status()?;
 
