@@ -5,6 +5,7 @@ use crate::node::Node;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
@@ -107,6 +108,9 @@ impl Node {
                     .inner
                     .get_dlc_channel_usable_balance(&signed_channel.channel_id)?;
 
+                let coordinator_funding = Amount::from_sat(signed_channel.own_params.collateral);
+                let trader_funding = Amount::from_sat(signed_channel.counter_params.collateral);
+
                 let protocol_id = ProtocolId::try_from(protocol_id)?;
                 let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
 
@@ -119,6 +123,8 @@ impl Node {
                             to_txid_30(signed_channel.fund_tx.txid()),
                             coordinator_reserve,
                             trader_reserve,
+                            coordinator_funding,
+                            trader_funding,
                         )?;
                     }
                     DlcProtocolType::Renew { .. }

@@ -56,6 +56,7 @@ pub(crate) fn insert_pending_dlc_channel(
         .execute(conn)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn set_dlc_channel_open(
     conn: &mut PgConnection,
     open_protocol_id: &ProtocolId,
@@ -63,6 +64,8 @@ pub(crate) fn set_dlc_channel_open(
     funding_txid: Txid,
     coordinator_reserve: Amount,
     trader_reserve: Amount,
+    coordinator_funding: Amount,
+    trader_funding: Amount,
 ) -> QueryResult<usize> {
     diesel::update(dlc_channels::table)
         .set((
@@ -72,6 +75,8 @@ pub(crate) fn set_dlc_channel_open(
             dlc_channels::updated_at.eq(OffsetDateTime::now_utc()),
             dlc_channels::coordinator_reserve_sats.eq(coordinator_reserve.to_sat() as i64),
             dlc_channels::trader_reserve_sats.eq(trader_reserve.to_sat() as i64),
+            dlc_channels::coordinator_funding_sats.eq(coordinator_funding.to_sat() as i64),
+            dlc_channels::trader_funding_sats.eq(trader_funding.to_sat() as i64),
         ))
         .filter(dlc_channels::open_protocol_id.eq(open_protocol_id.to_uuid()))
         .execute(conn)

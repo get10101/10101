@@ -142,6 +142,8 @@ diesel::table! {
         punish_txid -> Nullable<Text>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        coordinator_funding_sats -> Int8,
+        trader_funding_sats -> Int8,
     }
 }
 

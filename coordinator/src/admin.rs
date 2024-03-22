@@ -570,6 +570,8 @@ pub async fn migrate_dlc_channels(State(state): State<Arc<AppState>>) -> Result<
             .inner
             .get_dlc_channel_usable_balance_counterparty(&channel.channel_id)
             .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+        let coordinator_funding = Amount::from_sat(channel.own_params.collateral);
+        let trader_funding = Amount::from_sat(channel.counter_params.collateral);
 
         let protocol_id = match channel.reference_id {
             Some(reference_id) => ProtocolId::try_from(reference_id)
@@ -592,6 +594,8 @@ pub async fn migrate_dlc_channels(State(state): State<Arc<AppState>>) -> Result<
             to_txid_30(channel.fund_tx.txid()),
             coordinator_reserve,
             trader_reserve,
+            coordinator_funding,
+            trader_funding,
         )
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
