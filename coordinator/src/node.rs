@@ -34,6 +34,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::RwLock;
 
+pub mod channel;
 pub mod expired_positions;
 pub mod rollover;
 pub mod storage;
@@ -304,7 +305,6 @@ impl Node {
                             "Received an offer to collaboratively close a channel"
                         );
 
-                        // TODO(bonomat): we should verify that the proposed amount is acceptable
                         self.inner
                             .accept_dlc_channel_collaborative_close(&close_offer.channel_id)?;
                     }

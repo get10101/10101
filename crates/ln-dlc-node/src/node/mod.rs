@@ -1,12 +1,12 @@
 use crate::bitcoin_conversion::to_network_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::blockchain::Blockchain;
-use crate::channel::UserChannelId;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
 use crate::ln::manage_spendable_outputs;
 use crate::ln::TracingLogger;
+use crate::node::event::connect_node_event_handler_to_dlc_channel_events;
 use crate::node::event::NodeEventHandler;
 use crate::node::sub_channel::sub_channel_manager_periodic_check;
 use crate::on_chain_wallet::BdkStorage;
@@ -48,6 +48,7 @@ use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
 use lightning_transaction_sync::EsploraSyncClient;
+use ln_dlc_storage::DlcChannelEvent;
 use ln_dlc_storage::DlcStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
@@ -59,6 +60,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -100,17 +102,6 @@ type NodeGossipSync =
     P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
-
-#[derive(Clone, Debug)]
-pub struct LiquidityRequest {
-    pub user_channel_id: UserChannelId,
-    pub liquidity_option_id: i32,
-    pub trader_id: PublicKey,
-    pub trade_up_to_sats: u64,
-    pub max_deposit_sats: u64,
-    pub coordinator_leverage: f32,
-    pub fee_sats: u64,
-}
 
 /// An LN-DLC node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
@@ -230,6 +221,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         oracle_clients: Vec<P2PDOracleClient>,
         oracle_pubkey: XOnlyPublicKey,
         node_event_handler: Arc<NodeEventHandler>,
+        dlc_event_sender: mpsc::Sender<DlcChannelEvent>,
     ) -> Result<Self> {
         let time_since_unix_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
 
@@ -257,7 +249,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             logger.clone(),
         ));
 
-        let dlc_storage = Arc::new(DlcStorageProvider::new(storage.clone()));
+        let dlc_storage = Arc::new(DlcStorageProvider::new(storage.clone(), dlc_event_sender));
         let ln_storage = Arc::new(storage);
 
         let chain_monitor: Arc<ChainMonitor<S, N>> = Arc::new(chainmonitor::ChainMonitor::new(
@@ -412,6 +404,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
     pub fn start(
         &self,
         event_handler: impl EventHandlerTrait + 'static,
+        dlc_event_receiver: mpsc::Receiver<DlcChannelEvent>,
         mobile_interruptable_platform: bool,
     ) -> Result<RunningNode> {
         #[cfg(feature = "ln_net_tcp")]
@@ -467,7 +460,12 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             self.keys_manager.clone(),
         ));
 
-        tracing::info!("Lightning node started with node ID {}", self.info);
+        connect_node_event_handler_to_dlc_channel_events(
+            self.event_handler.clone(),
+            dlc_event_receiver,
+        );
+
+        tracing::info!("Node started with node ID {}", self.info);
 
         Ok(RunningNode { _handles: handles })
     }

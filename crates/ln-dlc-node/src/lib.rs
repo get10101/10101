@@ -25,7 +25,6 @@ mod on_chain_wallet;
 mod shadow;
 
 pub mod bitcoin_conversion;
-pub mod channel;
 pub mod config;
 pub mod dlc_message;
 pub mod ln;

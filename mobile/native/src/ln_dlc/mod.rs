@@ -69,6 +69,7 @@ use ln_dlc_node::node::LnDlcNodeSettings;
 use ln_dlc_node::seed::Bip39Seed;
 use ln_dlc_node::AppEventHandler;
 use ln_dlc_node::ConfirmationStatus;
+use ln_dlc_storage::DlcChannelEvent;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::net::IpAddr;
@@ -77,6 +78,7 @@ use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::path::Path;
 use std::str::FromStr;
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -289,6 +291,7 @@ pub fn run(runtime: &Runtime) -> Result<()> {
             bdk_file_store::Store::open_or_create_new(WALLET_DB_PREFIX.as_bytes(), wallet_dir)?
         };
 
+        let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
         let node = ln_dlc_node::node::Node::new(
             app_config(),
             "10101",
@@ -306,11 +309,12 @@ pub fn run(runtime: &Runtime) -> Result<()> {
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
             node_event_handler.clone(),
+            dlc_event_sender,
         )?;
         let node = Arc::new(node);
 
         let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
-        let _running = node.start(event_handler, true)?;
+        let _running = node.start(event_handler, dlc_event_receiver, true)?;
 
         let node = Arc::new(Node::new(node, _running));
         state::set_node(node.clone());

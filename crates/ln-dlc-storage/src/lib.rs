@@ -5,6 +5,7 @@ use dlc_manager::chain_monitor::ChainMonitor;
 use dlc_manager::channel::accepted_channel::AcceptedChannel;
 use dlc_manager::channel::offered_channel::OfferedChannel;
 use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::signed_channel::SignedChannelStateType;
 use dlc_manager::channel::Channel;
 use dlc_manager::channel::ClosedChannel;
@@ -27,6 +28,7 @@ use dlc_manager::subchannel::SubChannel;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
+use dlc_manager::ReferenceId;
 use lightning::ln::ChannelId;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
@@ -36,6 +38,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
 use std::string::ToString;
+use std::sync::mpsc;
 
 pub mod sled;
 
@@ -69,9 +72,67 @@ pub trait DlcStoreProvider {
     fn delete(&self, kind: u8, key: Option<Vec<u8>>) -> Result<()>;
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DlcChannelEvent {
+    Offered(Option<ReferenceId>),
+    Accepted(Option<ReferenceId>),
+    Established(Option<ReferenceId>),
+    SettledOffered(Option<ReferenceId>),
+    SettledReceived(Option<ReferenceId>),
+    SettledAccepted(Option<ReferenceId>),
+    SettledConfirmed(Option<ReferenceId>),
+    Settled(Option<ReferenceId>),
+    SettledClosing(Option<ReferenceId>),
+    RenewOffered(Option<ReferenceId>),
+    RenewAccepted(Option<ReferenceId>),
+    RenewConfirmed(Option<ReferenceId>),
+    RenewFinalized(Option<ReferenceId>),
+    Closing(Option<ReferenceId>),
+    CollaborativeCloseOffered(Option<ReferenceId>),
+    Closed(Option<ReferenceId>),
+    CounterClosed(Option<ReferenceId>),
+    ClosedPunished(Option<ReferenceId>),
+    CollaborativelyClosed(Option<ReferenceId>),
+    FailedAccept(Option<ReferenceId>),
+    FailedSign(Option<ReferenceId>),
+    Cancelled(Option<ReferenceId>),
+    Deleted(Option<ReferenceId>),
+}
+
+impl DlcChannelEvent {
+    pub fn get_reference_id(&self) -> Option<ReferenceId> {
+        *match self {
+            DlcChannelEvent::Offered(reference_id) => reference_id,
+            DlcChannelEvent::Accepted(reference_id) => reference_id,
+            DlcChannelEvent::Established(reference_id) => reference_id,
+            DlcChannelEvent::SettledOffered(reference_id) => reference_id,
+            DlcChannelEvent::SettledReceived(reference_id) => reference_id,
+            DlcChannelEvent::SettledAccepted(reference_id) => reference_id,
+            DlcChannelEvent::SettledConfirmed(reference_id) => reference_id,
+            DlcChannelEvent::Settled(reference_id) => reference_id,
+            DlcChannelEvent::SettledClosing(reference_id) => reference_id,
+            DlcChannelEvent::RenewOffered(reference_id) => reference_id,
+            DlcChannelEvent::RenewAccepted(reference_id) => reference_id,
+            DlcChannelEvent::RenewConfirmed(reference_id) => reference_id,
+            DlcChannelEvent::RenewFinalized(reference_id) => reference_id,
+            DlcChannelEvent::Closing(reference_id) => reference_id,
+            DlcChannelEvent::CollaborativeCloseOffered(reference_id) => reference_id,
+            DlcChannelEvent::Closed(reference_id) => reference_id,
+            DlcChannelEvent::CounterClosed(reference_id) => reference_id,
+            DlcChannelEvent::ClosedPunished(reference_id) => reference_id,
+            DlcChannelEvent::CollaborativelyClosed(reference_id) => reference_id,
+            DlcChannelEvent::FailedAccept(reference_id) => reference_id,
+            DlcChannelEvent::FailedSign(reference_id) => reference_id,
+            DlcChannelEvent::Cancelled(reference_id) => reference_id,
+            DlcChannelEvent::Deleted(reference_id) => reference_id,
+        }
+    }
+}
+
 /// Implementation of the dlc storage interface.
 pub struct DlcStorageProvider<K> {
     store: K,
+    event_sender: mpsc::Sender<DlcChannelEvent>,
 }
 
 macro_rules! convertible_enum {
@@ -197,8 +258,11 @@ where
 
 impl<K: DlcStoreProvider> DlcStorageProvider<K> {
     /// Creates a new instance of a DlcStorageProvider
-    pub fn new(store: K) -> Self {
-        DlcStorageProvider { store }
+    pub fn new(store: K, event_sender: mpsc::Sender<DlcChannelEvent>) -> Self {
+        DlcStorageProvider {
+            store,
+            event_sender,
+        }
     }
 
     fn insert_contract(
@@ -376,13 +440,26 @@ impl<K: DlcStoreProvider> dlc_manager::Storage for DlcStorageProvider<K> {
                 contract,
             )?;
         }
+
+        let dlc_channel_event = DlcChannelEvent::from(channel);
+        let _ = self.event_sender.send(dlc_channel_event);
+
         Ok(())
     }
 
     fn delete_channel(&self, channel_id: &DlcChannelId) -> Result<(), Error> {
+        let channel = self.get_channel(channel_id)?;
+
         self.store
             .delete(CHANNEL, Some(channel_id.to_vec()))
-            .map_err(to_storage_error)
+            .map_err(to_storage_error)?;
+
+        let dlc_channel_event =
+            DlcChannelEvent::Deleted(channel.and_then(|channel| channel.get_reference_id()));
+
+        let _ = self.event_sender.send(dlc_channel_event);
+
+        Ok(())
     }
 
     fn get_channel(&self, channel_id: &DlcChannelId) -> Result<Option<Channel>, Error> {
@@ -761,6 +838,87 @@ fn deserialize_sub_channel(buff: &Vec<u8>) -> Result<SubChannel, Error> {
     SubChannel::deserialize(&mut cursor).map_err(to_storage_error)
 }
 
+impl From<Channel> for DlcChannelEvent {
+    fn from(value: Channel) -> Self {
+        match value {
+            Channel::Offered(OfferedChannel { reference_id, .. }) => {
+                DlcChannelEvent::Offered(reference_id)
+            }
+            Channel::Accepted(AcceptedChannel { reference_id, .. }) => {
+                DlcChannelEvent::Accepted(reference_id)
+            }
+            Channel::Signed(SignedChannel {
+                reference_id,
+                state,
+                ..
+            }) => match state {
+                SignedChannelState::Established { .. } => {
+                    DlcChannelEvent::Established(reference_id)
+                }
+                SignedChannelState::SettledOffered { .. } => {
+                    DlcChannelEvent::SettledOffered(reference_id)
+                }
+                SignedChannelState::SettledReceived { .. } => {
+                    DlcChannelEvent::SettledReceived(reference_id)
+                }
+                SignedChannelState::SettledAccepted { .. } => {
+                    DlcChannelEvent::SettledAccepted(reference_id)
+                }
+                SignedChannelState::SettledConfirmed { .. } => {
+                    DlcChannelEvent::SettledConfirmed(reference_id)
+                }
+                SignedChannelState::Settled { .. } => DlcChannelEvent::Settled(reference_id),
+                SignedChannelState::RenewOffered { .. } => {
+                    DlcChannelEvent::RenewOffered(reference_id)
+                }
+                SignedChannelState::RenewAccepted { .. } => {
+                    DlcChannelEvent::RenewAccepted(reference_id)
+                }
+                SignedChannelState::RenewConfirmed { .. } => {
+                    DlcChannelEvent::RenewConfirmed(reference_id)
+                }
+                SignedChannelState::RenewFinalized { .. } => {
+                    DlcChannelEvent::RenewFinalized(reference_id)
+                }
+                SignedChannelState::Closing { .. } => DlcChannelEvent::Closing(reference_id),
+                SignedChannelState::SettledClosing { .. } => {
+                    DlcChannelEvent::SettledClosing(reference_id)
+                }
+                SignedChannelState::CollaborativeCloseOffered { .. } => {
+                    DlcChannelEvent::CollaborativeCloseOffered(reference_id)
+                }
+            },
+            Channel::Closing(ClosingChannel { reference_id, .. }) => {
+                DlcChannelEvent::Closing(reference_id)
+            }
+            Channel::SettledClosing(SettledClosingChannel { reference_id, .. }) => {
+                DlcChannelEvent::SettledClosing(reference_id)
+            }
+            Channel::Closed(ClosedChannel { reference_id, .. }) => {
+                DlcChannelEvent::Closed(reference_id)
+            }
+            Channel::CounterClosed(ClosedChannel { reference_id, .. }) => {
+                DlcChannelEvent::CounterClosed(reference_id)
+            }
+            Channel::ClosedPunished(ClosedPunishedChannel { reference_id, .. }) => {
+                DlcChannelEvent::ClosedPunished(reference_id)
+            }
+            Channel::CollaborativelyClosed(ClosedChannel { reference_id, .. }) => {
+                DlcChannelEvent::CollaborativelyClosed(reference_id)
+            }
+            Channel::FailedAccept(FailedAccept { reference_id, .. }) => {
+                DlcChannelEvent::FailedAccept(reference_id)
+            }
+            Channel::FailedSign(FailedSign { reference_id, .. }) => {
+                DlcChannelEvent::FailedSign(reference_id)
+            }
+            Channel::Cancelled(OfferedChannel { reference_id, .. }) => {
+                DlcChannelEvent::Cancelled(reference_id)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -781,7 +939,8 @@ mod tests {
         let serialized = include_bytes!("../test_files/Offered");
         let contract = deserialize_object(serialized);
 
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         storage
             .create_contract(&contract)
             .expect("Error creating contract");
@@ -805,7 +964,8 @@ mod tests {
         let accepted_contract = deserialize_object(serialized);
         let accepted_contract = Contract::Accepted(accepted_contract);
 
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         storage
             .create_contract(&offered_contract)
             .expect("Error creating contract");
@@ -828,7 +988,8 @@ mod tests {
         let serialized = include_bytes!("../test_files/Offered");
         let contract = deserialize_object(serialized);
 
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         storage
             .create_contract(&contract)
             .expect("Error creating contract");
@@ -935,7 +1096,8 @@ mod tests {
 
     #[test]
     fn get_signed_contracts_only_signed() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_signed_and_confirmed(&mut storage);
 
         let signed_contracts = storage
@@ -947,7 +1109,8 @@ mod tests {
 
     #[test]
     fn get_confirmed_contracts_only_confirmed() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_signed_and_confirmed(&mut storage);
 
         let confirmed_contracts = storage
@@ -959,7 +1122,8 @@ mod tests {
 
     #[test]
     fn get_offered_contracts_only_offered() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_signed_and_confirmed(&mut storage);
 
         let offered_contracts = storage
@@ -971,7 +1135,8 @@ mod tests {
 
     #[test]
     fn get_preclosed_contracts_only_preclosed() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_signed_and_confirmed(&mut storage);
 
         let preclosed_contracts = storage
@@ -983,7 +1148,8 @@ mod tests {
 
     #[test]
     fn get_contracts_all_returned() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_signed_and_confirmed(&mut storage);
 
         let contracts = storage.get_contracts().expect("Error retrieving contracts");
@@ -993,8 +1159,13 @@ mod tests {
 
     #[test]
     fn get_offered_channels_only_offered() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, receiver) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_and_signed_channels(&mut storage);
+
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Offered(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
         let offered_channels = storage
             .get_offered_channels()
@@ -1004,8 +1175,13 @@ mod tests {
 
     #[test]
     fn get_signed_established_channel_only_established() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, receiver) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_and_signed_channels(&mut storage);
+
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Offered(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
         let signed_channels = storage
             .get_signed_channels(Some(SignedChannelStateType::Established))
@@ -1024,8 +1200,13 @@ mod tests {
 
     #[test]
     fn get_channel_by_id_returns_correct_channel() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, receiver) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_and_signed_channels(&mut storage);
+
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Offered(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
         let serialized = include_bytes!("../test_files/AcceptedChannel");
         let accepted_channel: AcceptedChannel = deserialize_object(serialized);
@@ -1033,6 +1214,9 @@ mod tests {
         storage
             .upsert_channel(Channel::Accepted(accepted_channel), None)
             .expect("Error creating contract");
+
+        let accepted_dlc_event = receiver.recv().unwrap();
+        assert_eq!(accepted_dlc_event, DlcChannelEvent::Accepted(None));
 
         storage
             .get_channel(&channel_id)
@@ -1042,8 +1226,13 @@ mod tests {
 
     #[test]
     fn delete_channel_is_not_returned() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, receiver) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_offered_and_signed_channels(&mut storage);
+
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Offered(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
+        assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
         let serialized = include_bytes!("../test_files/AcceptedChannel");
         let accepted_channel: AcceptedChannel = deserialize_object(serialized);
@@ -1051,6 +1240,9 @@ mod tests {
         storage
             .upsert_channel(Channel::Accepted(accepted_channel), None)
             .expect("Error creating contract");
+
+        let accepted_dlc_event = receiver.recv().unwrap();
+        assert_eq!(accepted_dlc_event, DlcChannelEvent::Accepted(None));
 
         storage
             .get_channel(&channel_id)
@@ -1060,6 +1252,9 @@ mod tests {
             .delete_channel(&channel_id)
             .expect("to be able to delete the channel");
 
+        let deleted_dlc_event = receiver.recv().unwrap();
+        assert_eq!(deleted_dlc_event, DlcChannelEvent::Deleted(None));
+
         assert!(storage
             .get_channel(&channel_id)
             .expect("error getting channel.")
@@ -1068,7 +1263,8 @@ mod tests {
 
     #[test]
     fn persist_chain_monitor_test() {
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         let chain_monitor = ChainMonitor::new(123);
 
         storage
@@ -1098,7 +1294,8 @@ mod tests {
 
     #[test]
     fn get_offered_sub_channels_only_offered() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_sub_channels(&mut storage);
 
         let offered_sub_channels = storage
@@ -1109,7 +1306,8 @@ mod tests {
 
     #[test]
     fn get_sub_channels_all_returned() {
-        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let mut storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         insert_sub_channels(&mut storage);
 
         let offered_sub_channels = storage
@@ -1120,7 +1318,8 @@ mod tests {
 
     #[test]
     fn save_actions_roundtip_test() {
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         let actions: Vec<_> =
             serde_json::from_str(include_str!("../test_files/sub_channel_actions.json")).unwrap();
         storage
@@ -1134,7 +1333,8 @@ mod tests {
 
     #[test]
     fn get_actions_unset_test() {
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         let actions = storage
             .get_sub_channel_actions()
             .expect("Error getting sub channel actions");
@@ -1143,7 +1343,8 @@ mod tests {
 
     #[test]
     fn get_empty_actions_test() {
-        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new());
+        let (sender, _) = mpsc::channel::<DlcChannelEvent>();
+        let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         storage.save_sub_channel_actions(&[]).unwrap();
         let actions = storage
             .get_sub_channel_actions()

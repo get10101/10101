@@ -52,9 +52,10 @@ pub async fn handle_outbound_dlc_messages(
             }
             Ok(NodeEvent::SendDlcMessage { peer, msg }) => {
                 if let Err(e) = dlc_handler.send_dlc_message(peer, msg) {
-                    tracing::error!(peer=%peer, "Failed to process end dlc message event. {e:#}");
+                    tracing::error!(peer=%peer, "Failed to process send dlc message event. {e:#}");
                 }
             }
+            Ok(NodeEvent::DlcChannelEvent { .. }) => {} // ignored
             Err(RecvError::Lagged(skipped)) => {
                 tracing::warn!("Skipped {skipped} messages");
             }

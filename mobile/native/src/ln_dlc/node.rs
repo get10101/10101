@@ -28,7 +28,6 @@ use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::channel::Channel;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node;
@@ -628,28 +627,6 @@ impl node::Storage for NodeStorage {
 
     fn all_spendable_outputs(&self) -> Result<Vec<SpendableOutputDescriptor>> {
         db::get_spendable_outputs()
-    }
-
-    // Channels
-
-    fn upsert_channel(&self, channel: Channel) -> Result<()> {
-        db::upsert_channel(channel)
-    }
-
-    fn get_channel(&self, user_channel_id: &str) -> Result<Option<Channel>> {
-        db::get_channel(user_channel_id)
-    }
-
-    fn all_non_pending_channels(&self) -> Result<Vec<Channel>> {
-        db::get_all_non_pending_channels()
-    }
-
-    fn get_announced_channel(&self, counterparty_pubkey: PublicKey) -> Result<Option<Channel>> {
-        db::get_announced_channel(counterparty_pubkey)
-    }
-
-    fn get_channel_by_payment_hash(&self, payment_hash: String) -> Result<Option<Channel>> {
-        db::get_channel_by_payment_hash(payment_hash)
     }
 
     // Transactions

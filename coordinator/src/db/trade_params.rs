@@ -59,12 +59,6 @@ pub(crate) fn get(
     Ok(dlc_protocol::TradeParams::from(trade_params))
 }
 
-pub(crate) fn delete(conn: &mut PgConnection, protocol_id: ProtocolId) -> QueryResult<usize> {
-    diesel::delete(trade_params::table)
-        .filter(trade_params::protocol_id.eq(protocol_id.to_uuid()))
-        .execute(conn)
-}
-
 impl From<TradeParams> for dlc_protocol::TradeParams {
     fn from(value: TradeParams) -> Self {
         Self {
