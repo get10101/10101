@@ -598,9 +598,10 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f32>, Option<
             crate::trade::order::OrderState::Initial => (OrderState::Initial, None, None),
             crate::trade::order::OrderState::Rejected => (OrderState::Rejected, None, None),
             crate::trade::order::OrderState::Open => (OrderState::Open, None, None),
-            crate::trade::order::OrderState::Failed { reason } => {
-                (OrderState::Failed, None, Some(reason.into()))
-            }
+            crate::trade::order::OrderState::Failed {
+                execution_price,
+                reason,
+            } => (OrderState::Failed, execution_price, Some(reason.into())),
             crate::trade::order::OrderState::Filled { execution_price } => {
                 (OrderState::Filled, Some(execution_price), None)
             }
@@ -623,9 +624,11 @@ impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade:
             OrderState::Open => crate::trade::order::OrderState::Open,
             OrderState::Failed => match value.2 {
                 None => crate::trade::order::OrderState::Failed {
+                    execution_price: value.1,
                     reason: crate::trade::order::FailureReason::Unknown,
                 },
                 Some(reason) => crate::trade::order::OrderState::Failed {
+                    execution_price: value.1,
                     reason: reason.into(),
                 },
             },
@@ -1386,6 +1389,7 @@ pub mod test {
         Order::update_state(
             uuid1.to_string(),
             crate::trade::order::OrderState::Failed {
+                execution_price: None,
                 reason: FailureReason::FailedToSetToFilling,
             }
             .into(),

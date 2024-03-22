@@ -231,6 +231,21 @@ pub fn maybe_get_open_orders() -> Result<Vec<trade::order::Order>> {
     Ok(orders)
 }
 
+pub fn get_last_failed_order() -> Result<Option<trade::order::Order>> {
+    let mut db = connection()?;
+
+    let mut orders = Order::get_by_state(OrderState::Failed, &mut db)?;
+
+    orders.sort_by(|a, b| b.creation_timestamp.cmp(&a.creation_timestamp));
+
+    let order = match orders.first() {
+        Some(order) => Some(order.clone().try_into()?),
+        None => None,
+    };
+
+    Ok(order)
+}
+
 /// Return an [`Order`] that is currently in [`OrderState::Filling`].
 pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;

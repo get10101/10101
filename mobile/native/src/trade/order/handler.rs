@@ -102,6 +102,7 @@ pub async fn submit_order(
         update_order_state_in_db_and_ui(
             order.id,
             OrderState::Failed {
+                execution_price: order.execution_price(),
                 reason: FailureReason::OrderRejected(err.to_string()),
             },
         )
@@ -235,7 +236,13 @@ pub(crate) fn order_failed(
     };
 
     if let Some(order_id) = order_id {
-        update_order_state_in_db_and_ui(order_id, OrderState::Failed { reason })?;
+        update_order_state_in_db_and_ui(
+            order_id,
+            OrderState::Failed {
+                execution_price: None,
+                reason,
+            },
+        )?;
     }
 
     // TODO: fixme. this so ugly, even a Sphynx cat is beautiful against this.

@@ -389,6 +389,10 @@ pub fn delete_position() -> Result<()> {
     emergency_kit::delete_position()
 }
 
+pub fn recreate_position() -> Result<()> {
+    emergency_kit::recreate_position()
+}
+
 pub fn resend_settle_finalize_message() -> Result<()> {
     emergency_kit::resend_settle_finalize_message()
 }
