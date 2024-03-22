@@ -31,12 +31,10 @@ impl Node {
             reference_id: signed_channel.reference_id,
         }));
 
-        self.inner
-            .event_handler
-            .publish(NodeEvent::SendDlcMessage {
-                peer: trader,
-                msg: msg.clone(),
-            })?;
+        self.inner.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: trader,
+            msg: msg.clone(),
+        });
 
         Ok(())
     }

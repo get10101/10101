@@ -87,12 +87,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let temporary_contract_id = offer_channel.temporary_contract_id;
                 let temporary_channel_id = offer_channel.temporary_channel_id;
 
-                // TODO(holzeis): We should send the dlc message last to make sure that we have
-                // finished updating the 10101 meta data before the app responds to the message.
-                event_handler.publish(NodeEvent::SendDlcMessage {
+                event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: counterparty,
                     msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
-                })?;
+                });
 
                 Ok((temporary_contract_id, temporary_channel_id))
             }
@@ -100,6 +98,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         .await?
     }
 
+    #[cfg(test)]
     pub fn accept_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -111,7 +110,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counter_party),
             msg: Message::Channel(ChannelMessage::Accept(msg)),
-        })?;
+        });
 
         Ok(())
     }
@@ -188,7 +187,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                             msg: Message::Channel(ChannelMessage::CollaborativeCloseOffer(
                                 settle_offer,
                             )),
-                        })?;
+                        });
 
                         anyhow::Ok(())
                     }
@@ -230,12 +229,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                     Some(protocol_id),
                 )?;
 
-                // TODO(holzeis): We should send the dlc message last to make sure that we have
-                // finished updating the 10101 meta data before the app responds to the message.
-                event_handler.publish(NodeEvent::SendDlcMessage {
+                event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: to_secp_pk_30(counterparty),
                     msg: Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
-                })?;
+                });
 
                 Ok(())
             }
@@ -268,7 +265,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counterparty_pk),
             msg: Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
-        })?;
+        });
 
         Ok(())
     }
@@ -297,12 +294,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                     Some(protocol_id),
                 )?;
 
-                // TODO(holzeis): We should send the dlc message last to make sure that we have
-                // finished updating the 10101 meta data before the app responds to the message.
-                event_handler.publish(NodeEvent::SendDlcMessage {
+                event_handler.publish(NodeEvent::StoreDlcMessage {
                     msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
                     peer: to_secp_pk_30(counterparty_pubkey),
-                })?;
+                });
 
                 let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
 

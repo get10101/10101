@@ -61,11 +61,9 @@ impl OnionMessageHandler for TenTenOneOnionMessageHandler {
     ) -> Result<(), ()> {
         tracing::info!(%their_node_id, inbound, "Peer connected!");
 
-        if let Err(e) = self.handler.publish(NodeEvent::Connected {
+        self.handler.publish(NodeEvent::Connected {
             peer: to_secp_pk_30(*their_node_id),
-        }) {
-            tracing::error!(%their_node_id, "Failed to broadcast connected peer. {e:#}");
-        }
+        });
 
         Ok(())
     }

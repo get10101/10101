@@ -38,6 +38,7 @@ use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
+use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::signed_channel_state_name;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -94,6 +95,13 @@ impl TradeExecutor {
                     tracing::error!(%trader_id,
                         %order_id,"Failed to update order and match state. Error: {e:#}");
                 }
+
+                // Everything has been processed successfully, we can safely send the last dlc
+                // message, that has been stored before.
+                self.node
+                    .inner
+                    .event_handler
+                    .publish(NodeEvent::SendLastDlcMessage { peer: trader_id });
             }
             Err(e) => {
                 tracing::error!(%trader_id, %order_id,"Failed to execute trade. Error: {e:#}");

@@ -241,6 +241,17 @@ impl Node {
                     }
                 };
 
+                if let Some(resp) = resp.clone() {
+                    // store dlc message immediately so we do not lose the response if something
+                    // goes wrong afterwards.
+                    self.inner
+                        .event_handler
+                        .publish(NodeEvent::StoreDlcMessage {
+                            peer: node_id,
+                            msg: resp,
+                        });
+                }
+
                 {
                     let mut conn = db::connection()?;
                     db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
@@ -377,7 +388,17 @@ impl Node {
         };
 
         if let Some(msg) = resp {
-            self.send_dlc_message(node_id, msg.clone())?;
+            // Everything has been processed successfully, we can safely send the last dlc message,
+            // that has been stored before.
+            tracing::info!(
+                to = %node_id,
+                kind = %dlc_message_name(&msg),
+                "Sending message"
+            );
+
+            self.inner
+                .event_handler
+                .publish(NodeEvent::SendLastDlcMessage { peer: node_id });
         }
 
         Ok(())
@@ -556,12 +577,10 @@ impl Node {
             "Sending message"
         );
 
-        self.inner
-            .event_handler
-            .publish(NodeEvent::SendDlcMessage {
-                peer: node_id,
-                msg: msg.clone(),
-            })?;
+        self.inner.event_handler.publish(NodeEvent::SendDlcMessage {
+            peer: node_id,
+            msg: msg.clone(),
+        });
 
         Ok(())
     }
