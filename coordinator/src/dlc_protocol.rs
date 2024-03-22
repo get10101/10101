@@ -403,8 +403,6 @@ impl DlcProtocolExecutor {
 
         db::trades::insert(conn, new_trade)?;
 
-        db::trade_params::delete(conn, protocol_id)?;
-
         Ok(())
     }
 
@@ -460,8 +458,6 @@ impl DlcProtocolExecutor {
         };
 
         db::trades::insert(conn, new_trade)?;
-
-        db::trade_params::delete(conn, protocol_id)?;
 
         Ok(())
     }
