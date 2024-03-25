@@ -141,8 +141,12 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
   @override
   Widget build(BuildContext context) {
+    // We add a buffer because the `fundingTxFee` is just an estimate. This
+    // estimate will undershoot if we end up using more inputs or change
+    // outputs.
+    final Amount fundingTxFeeWithBuffer = Amount(fundingTxFee.sats * 2);
     final maxUsableOnChainBalance =
-        maxOnChainSpending - orderMatchingFees - fundingTxFee - channelFeeReserve;
+        maxOnChainSpending - orderMatchingFees - fundingTxFeeWithBuffer - channelFeeReserve;
     final maxCounterpartyCollateralSats =
         (maxCounterpartyCollateral.sats * counterpartyLeverage).toInt();
 
