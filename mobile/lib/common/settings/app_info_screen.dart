@@ -209,7 +209,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                         onPressed: () async {
                           final messenger = ScaffoldMessenger.of(context);
                           final httpsUri =
-                              Uri(scheme: "https", host: "10101.finance", path: "blog/faq");
+                              Uri(scheme: "https", host: "10101.finance", path: "docs/faq");
                           if (await canLaunchUrl(httpsUri)) {
                             await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
                           } else {
