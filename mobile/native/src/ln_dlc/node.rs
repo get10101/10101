@@ -477,7 +477,12 @@ impl Node {
     pub fn process_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
 
-        match self.inner.dlc_manager.accept_channel(channel_id) {
+        match self
+            .inner
+            .dlc_manager
+            .accept_channel(channel_id)
+            .map_err(anyhow::Error::new)
+        {
             Ok((accept_channel, _, _, node_id)) => {
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
@@ -485,7 +490,7 @@ impl Node {
                 )?;
             }
             Err(e) => {
-                tracing::error!("Failed to accept dlc channel offer. {e:#}");
+                tracing::error!("Failed to accept DLC channel offer: {e:#}");
                 self.reject_dlc_channel_offer(channel_id)?;
             }
         }
