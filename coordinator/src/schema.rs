@@ -339,7 +339,7 @@ diesel::table! {
         update_timestamp -> Timestamptz,
         trader_pubkey -> Text,
         temporary_contract_id -> Nullable<Text>,
-        trader_realized_pnl_sat -> Nullable<Int8>,
+        coordinator_realized_pnl_sat -> Nullable<Int8>,
         trader_unrealized_pnl_sat -> Nullable<Int8>,
         closing_price -> Nullable<Float4>,
         coordinator_leverage -> Float4,

@@ -272,7 +272,7 @@ impl Position {
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
-                positions::trader_realized_pnl_sat.eq(Some(pnl)),
+                positions::coordinator_realized_pnl_sat.eq(Some(pnl)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .get_result(conn)?;

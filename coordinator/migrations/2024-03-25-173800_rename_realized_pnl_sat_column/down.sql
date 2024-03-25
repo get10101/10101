@@ -1,0 +1,1 @@
+ALTER TABLE positions RENAME COLUMN coordinator_realized_pnl_sat TO trader_realized_pnl_sat;
