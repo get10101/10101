@@ -125,10 +125,8 @@ impl<D> OnChainWallet<D> {
 
         let tip = self.get_tip();
         let n_confirmations = match tip.checked_sub(confirmation_height) {
-            Some(diff) => NonZeroU32::new(diff).unwrap_or({
-                // Being included in a block counts as a confirmation!
-                NonZeroU32::new(1).expect("non-zero value")
-            }),
+            // Being included in a block counts as a confirmation!
+            Some(diff) => NonZeroU32::new(diff + 1).expect("non-zero"),
             None => {
                 // The transaction shouldn't be ahead of the tip!
                 debug_assert!(false);
