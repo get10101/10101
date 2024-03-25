@@ -1,5 +1,6 @@
 use crate::commons::reqwest_client;
 use crate::ln_dlc::get_node_key;
+use anyhow::bail;
 use anyhow::Result;
 use commons::ChannelOpeningParams;
 use commons::NewOrder;
@@ -34,8 +35,11 @@ impl OrderbookClient {
 
         let response = client.post(url).json(&new_order_request).send().await?;
 
-        response.error_for_status()?;
-
-        Ok(())
+        if response.status().as_u16() == 200 {
+            Ok(())
+        } else {
+            let error = response.text().await?;
+            bail!("Could not create new order: {error}")
+        }
     }
 }
