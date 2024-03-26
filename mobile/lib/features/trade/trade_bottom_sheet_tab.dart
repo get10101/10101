@@ -48,8 +48,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   final _formKey = GlobalKey<FormState>();
 
-  bool showCapacityInfo = false;
-
   bool marginInputFieldEnabled = false;
   bool quantityInputFieldEnabled = true;
 
@@ -277,7 +275,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 }
 
                 if (quantity.toInt > maxQuantity) {
-                  setState(() => showCapacityInfo = true);
                   return "Max quantity is ${maxQuantity.toInt()}";
                 }
 
@@ -301,18 +298,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 int neededLocalMarginSats = margin.sats + fee.sats;
 
                 if (neededLocalMarginSats > maxLocalMarginSats) {
-                  setState(() => showCapacityInfo = true);
                   return "Insufficient balance";
                 }
 
                 if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
-                  setState(() => showCapacityInfo = true);
                   return "Counterparty has insufficient balance";
                 }
 
-                setState(() {
-                  showCapacityInfo = false;
-                });
                 return null;
               },
             )),
