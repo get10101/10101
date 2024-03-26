@@ -1,9 +1,11 @@
 use crate::check_version::check_version;
 use crate::orderbook;
+use crate::orderbook::db::orders;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::orderbook::websocket::websocket_connection;
 use crate::routes::AppState;
 use crate::AppError;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use axum::extract::ws::WebSocketUpgrade;
@@ -20,10 +22,10 @@ use commons::OrderType;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
-use serde::Deserialize;
-use serde::Serialize;
+use rust_decimal::Decimal;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -84,21 +86,44 @@ pub async fn post_order(
     }
 
     let settings = state.settings.read().await;
-    if new_order.order_type == OrderType::Limit
-        && settings.whitelist_enabled
-        && !settings.whitelisted_makers.contains(&new_order.trader_id)
-    {
-        tracing::warn!(
-            trader_id = %new_order.trader_id,
-            "Trader tried to post limit order but was not whitelisted"
-        );
-        return Err(AppError::Unauthorized);
+
+    if OrderType::Limit == new_order.order_type {
+        if settings.whitelist_enabled && !settings.whitelisted_makers.contains(&new_order.trader_id)
+        {
+            tracing::warn!(
+                trader_id = %new_order.trader_id,
+                "Trader tried to post limit order but was not whitelisted"
+            );
+            return Err(AppError::Unauthorized);
+        }
+
+        if new_order.price == Decimal::ZERO {
+            return Err(AppError::BadRequest(
+                "Limit orders with zero price are not allowed".to_string(),
+            ));
+        }
     }
+
+    let pool = state.pool.clone();
+    let order = spawn_blocking(move || {
+        let mut conn = pool.get()?;
+
+        let order = orders::insert(&mut conn, new_order.clone(), OrderReason::Manual)
+            .map_err(|e| anyhow!(e))
+            .context("Failed to insert new order into DB")?;
+
+        anyhow::Ok(order)
+    })
+    .await
+    .expect("task to complete")
+    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
+
     let message = NewOrderMessage {
-        new_order,
+        order,
         channel_opening_params: new_order_request.channel_opening_params,
         order_reason: OrderReason::Manual,
     };
+
     state.trading_sender.send(message).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;
@@ -115,26 +140,6 @@ fn update_pricefeed(pricefeed_msg: Message, sender: Sender<Message>) {
             tracing::warn!("Could not update pricefeed due to '{error}'")
         }
     }
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct UpdateOrder {
-    pub taken: bool,
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn put_order(
-    Path(order_id): Path<Uuid>,
-    State(state): State<Arc<AppState>>,
-    Json(updated_order): Json<UpdateOrder>,
-) -> Result<Json<Order>, AppError> {
-    let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::set_is_taken(&mut conn, order_id, updated_order.taken)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to update order: {e:#}")))?;
-    let sender = state.tx_price_feed.clone();
-    update_pricefeed(Message::Update(order.clone()), sender);
-
-    Ok(Json(order))
 }
 
 #[instrument(skip_all, err(Debug))]

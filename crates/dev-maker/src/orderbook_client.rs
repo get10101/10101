@@ -63,7 +63,7 @@ impl OrderbookClient {
         );
 
         let url = self.url.join(
-            format!("/api/orderbook/orders/{}", order_id)
+            format!("/api/admin/orderbook/orders/{}", order_id)
                 .to_string()
                 .as_str(),
         )?;
