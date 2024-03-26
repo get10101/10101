@@ -32,7 +32,6 @@ use crate::orderbook::routes::delete_order;
 use crate::orderbook::routes::get_order;
 use crate::orderbook::routes::get_orders;
 use crate::orderbook::routes::post_order;
-use crate::orderbook::routes::put_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
@@ -161,10 +160,7 @@ pub fn router(
         .route("/api/newaddress", get(get_unused_address))
         .route("/api/node", get(get_node_info))
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
-        .route(
-            "/api/orderbook/orders/:order_id",
-            get(get_order).put(put_order).delete(delete_order),
-        )
+        .route("/api/orderbook/orders/:order_id", get(get_order))
         .route("/api/orderbook/websocket", get(websocket_handler))
         // Deprecated: we just keep it for backwards compatbility as otherwise old apps won't
         // pass registration
@@ -172,6 +168,11 @@ pub fn router(
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
+        // TODO: we should move this back into public once we add signing to this function
+        .route(
+            "/api/admin/orderbook/orders/:order_id",
+            delete(delete_order),
+        )
         .route("/api/admin/rollover/:dlc_channel_id", post(rollover))
         .route("/api/admin/wallet/balance", get(get_balance))
         .route("/api/admin/wallet/utxos", get(get_utxos))

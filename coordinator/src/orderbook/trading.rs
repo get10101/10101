@@ -17,7 +17,6 @@ use commons::FilledWith;
 use commons::Match;
 use commons::Message;
 use commons::Message::TradeError;
-use commons::NewOrder;
 use commons::Order;
 use commons::OrderReason;
 use commons::OrderState;
@@ -43,7 +42,7 @@ use uuid::Uuid;
 const NEW_ORDERS_BUFFER_SIZE: usize = 100;
 
 pub struct NewOrderMessage {
-    pub new_order: NewOrder,
+    pub order: Order,
     pub order_reason: OrderReason,
     pub channel_opening_params: Option<ChannelOpeningParams>,
 }
@@ -80,10 +79,9 @@ pub fn start(
                 let notifier = notifier.clone();
                 let node = node.clone();
                 async move {
-                    let new_order = new_order_msg.new_order;
+                    let new_order = new_order_msg.order;
                     let trader_id = new_order.trader_id;
                     let order_id = new_order.id;
-                    let order_reason = new_order_msg.order_reason;
                     let channel_opening_params = new_order_msg.channel_opening_params;
 
                     tracing::trace!(
@@ -99,7 +97,6 @@ pub fn start(
                                 node,
                                 notifier.clone(),
                                 new_order,
-                                order_reason,
                                 network,
                                 oracle_pk,
                                 channel_opening_params
@@ -111,7 +108,6 @@ pub fn start(
                                 node,
                                 tx_price_feed,
                                 new_order,
-                                order_reason,
                             )
                             .await
                         }
@@ -145,26 +141,19 @@ pub fn start(
 pub async fn process_new_limit_order(
     node: Node,
     tx_price_feed: broadcast::Sender<Message>,
-    new_order: NewOrder,
-    order_reason: OrderReason,
-) -> Result<Order, TradingError> {
+    order: Order,
+) -> Result<(), TradingError> {
     let mut conn = spawn_blocking(move || node.pool.get())
         .await
         .expect("task to complete")
         .map_err(|e| anyhow!("{e:#}"))?;
-
-    if new_order.price == Decimal::ZERO {
-        tracing::warn!(trader_id=%new_order.trader_id, "Limit orders with zero price are not allowed");
-        return Err(TradingError::InvalidOrder(
-            "Limit orders with zero price are not allowed".to_string(),
-        ));
-    }
 
     // Before processing any match we set all expired limit orders to failed, to ensure they do not
     // get matched.
     //
     // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
     // deleted if not wanted anymore.
+    // TODO: I don't think this is necessary anymore. We are manually deleting orders now.
     let expired_limit_orders =
         orders::set_expired_limit_orders_to_expired(&mut conn).map_err(|e| anyhow!("{e:#}"))?;
     for expired_limit_order in expired_limit_orders {
@@ -173,16 +162,12 @@ pub async fn process_new_limit_order(
             .context("Could not update price feed")?;
     }
 
-    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
-        .map_err(|e| anyhow!(e))
-        .context("Failed to insert new order into DB")?;
-
     tx_price_feed
-        .send(Message::NewOrder(order.clone()))
+        .send(Message::NewOrder(order))
         .map_err(|e| anyhow!(e))
         .context("Could not update price feed")?;
 
-    Ok(order)
+    Ok(())
 }
 
 // TODO(holzeis): This functions runs multiple inserts in separate db transactions. This should only
@@ -190,12 +175,11 @@ pub async fn process_new_limit_order(
 pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
-    new_order: NewOrder,
-    order_reason: OrderReason,
+    order: Order,
     network: Network,
     oracle_pk: XOnlyPublicKey,
     channel_opening_params: Option<ChannelOpeningParams>,
-) -> Result<Order, TradingError> {
+) -> Result<(), TradingError> {
     let mut conn = spawn_blocking({
         let node = node.clone();
         move || node.pool.get()
@@ -204,19 +188,15 @@ pub async fn process_new_market_order(
     .expect("task to complete")
     .map_err(|e| anyhow!("{e:#}"))?;
 
-    let order = orders::insert(&mut conn, new_order.clone(), order_reason)
-        .map_err(|e| anyhow!(e))
-        .context("Failed to insert new order into DB")?;
-
     // Reject new order if there is already a matched order waiting for execution.
     if let Some(order) =
-        orders::get_by_trader_id_and_state(&mut conn, new_order.trader_id, OrderState::Matched)
+        orders::get_by_trader_id_and_state(&mut conn, order.trader_id, OrderState::Matched)
             .map_err(|e| anyhow!("{e:#}"))?
     {
         return Err(TradingError::InvalidOrder(format!(
             "trader_id={}, order_id={}. Order is currently in execution. \
                  Can't accept new orders until the order execution is finished",
-            new_order.trader_id, order.id
+            order.trader_id, order.id
         )));
     }
 
@@ -346,7 +326,7 @@ pub async fn process_new_market_order(
         }
     }
 
-    Ok(order)
+    Ok(())
 }
 
 /// Matches an [`Order`] of [`OrderType::Market`] with a list of [`Order`]s of [`OrderType::Limit`].

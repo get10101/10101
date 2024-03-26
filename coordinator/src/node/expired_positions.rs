@@ -1,9 +1,11 @@
 use crate::db;
 use crate::node::Node;
 use crate::orderbook;
+use crate::orderbook::db::orders;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use commons::average_execution_price;
@@ -96,8 +98,12 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             stable: position.stable,
         };
 
+        let order = orders::insert(&mut conn, new_order.clone(), OrderReason::Expired)
+            .map_err(|e| anyhow!(e))
+            .context("Failed to insert expired order into DB")?;
+
         let message = NewOrderMessage {
-            new_order: new_order.clone(),
+            order,
             channel_opening_params: None,
             order_reason: OrderReason::Expired,
         };
