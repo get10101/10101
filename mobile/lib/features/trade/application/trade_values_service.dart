@@ -23,7 +23,7 @@ class TradeValuesService {
     } else {
       final quantity = rust.api
           .calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
-      return Usd(quantity.ceil());
+      return Usd(quantity.floor());
     }
   }
 
