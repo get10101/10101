@@ -1010,6 +1010,7 @@ dependencies = [
  "rand",
  "rust_decimal",
  "rust_decimal_macros",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
