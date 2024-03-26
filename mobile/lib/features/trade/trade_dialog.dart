@@ -7,7 +7,6 @@ import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/features/brag/brag.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:provider/provider.dart';
@@ -106,36 +105,6 @@ Widget createSubmitWidget(
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         ),
       );
-    }
-
-    // Only display "share on twitter" when order is filled
-    if (pendingOrder.state == PendingOrderState.orderFilled) {
-      children.add(Padding(
-        padding: const EdgeInsets.only(top: 10, left: 10, right: 10),
-        child: ElevatedButton(
-            onPressed: () async {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  double realizedPnl = double.parse(pendingOrder.pnl?.sats.toString() ?? "0");
-                  double margin = double.parse(pendingOrderValues?.margin?.sats.toString() ?? "0");
-                  double pnlPercent = (realizedPnl / margin) * 100.0;
-                  return BragWidget(
-                    title: 'Share as image',
-                    onClose: () {
-                      Navigator.of(context).pop();
-                    },
-                    direction: pendingOrderValues!.direction,
-                    leverage: pendingOrderValues.leverage,
-                    pnl: pendingOrder.pnl ?? Amount.zero(),
-                    pnlPercent: double.parse(pnlPercent.toStringAsFixed(0)).toInt(),
-                    entryPrice: Usd.fromDouble(pendingOrderValues.price ?? 0.0),
-                  );
-                },
-              );
-            },
-            child: const Text("Share as image")),
-      ));
     }
   }
 
