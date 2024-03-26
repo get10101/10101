@@ -193,21 +193,17 @@ impl Order {
     }
 }
 
-impl From<Order> for commons::NewOrder {
+impl From<Order> for commons::NewMarketOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
         let trader_id = ln_dlc::get_node_pubkey();
-        commons::NewOrder {
+        commons::NewMarketOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,
-            // todo: this is left out intentionally as market orders do not set a price. this field
-            // should either be an option or differently modelled for a market order.
-            price: Decimal::ZERO,
             quantity,
             trader_id,
             direction: order.direction,
             leverage: Decimal::from_f32(order.leverage).expect("to fit into f32"),
-            order_type: order.order_type.into(),
             expiry: order.order_expiry_timestamp,
             stable: order.stable,
         }

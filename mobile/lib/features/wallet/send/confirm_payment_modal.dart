@@ -17,7 +17,7 @@ import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 void showConfirmPaymentModal(
-    BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Amount usdp,
+    BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Usd usdp,
     {Fee? fee}) {
   logger.i(fee);
   showModalBottomSheet<void>(
@@ -45,7 +45,7 @@ class ConfirmPayment extends StatelessWidget {
   final Destination destination;
   final bool payWithUsdp;
   final Amount sats;
-  final Amount usdp;
+  final Usd usdp;
   final Fee? fee;
 
   const ConfirmPayment(

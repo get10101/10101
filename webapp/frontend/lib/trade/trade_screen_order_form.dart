@@ -57,7 +57,7 @@ class _NewOrderForm extends State<NewOrderForm> {
         Align(
           alignment: AlignmentDirectional.centerEnd,
           child: AmountInputField(
-            value: _quantity,
+            initialValue: _quantity,
             enabled: true,
             label: "Quantity",
             textAlign: TextAlign.right,

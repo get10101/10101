@@ -6,8 +6,8 @@ import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class OrderService {
-  Future<String> submitMarketOrder(Leverage leverage, Amount quantity,
-      ContractSymbol contractSymbol, Direction direction, bool stable) async {
+  Future<String> submitMarketOrder(Leverage leverage, Usd quantity, ContractSymbol contractSymbol,
+      Direction direction, bool stable) async {
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
         quantity: quantity.asDouble(),
@@ -21,7 +21,7 @@ class OrderService {
 
   Future<String> submitChannelOpeningMarketOrder(
       Leverage leverage,
-      Amount quantity,
+      Usd quantity,
       ContractSymbol contractSymbol,
       Direction direction,
       bool stable,

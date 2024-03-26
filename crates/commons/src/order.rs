@@ -24,7 +24,7 @@ pub struct NewOrderRequest {
 impl NewOrderRequest {
     pub fn verify(&self, secp: &secp256k1::Secp256k1<VerifyOnly>) -> Result<()> {
         let message = self.value.message();
-        let public_key = self.value.trader_id;
+        let public_key = self.value.trader_id();
         secp.verify_ecdsa(&message, &self.signature, &public_key)?;
 
         Ok(())
@@ -32,7 +32,73 @@ impl NewOrderRequest {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct NewOrder {
+pub enum NewOrder {
+    Market(NewMarketOrder),
+    Limit(NewLimitOrder),
+}
+
+impl NewOrder {
+    pub fn message(&self) -> Message {
+        match self {
+            NewOrder::Market(o) => o.message(),
+            NewOrder::Limit(o) => o.message(),
+        }
+    }
+
+    pub fn trader_id(&self) -> PublicKey {
+        match self {
+            NewOrder::Market(o) => o.trader_id,
+            NewOrder::Limit(o) => o.trader_id,
+        }
+    }
+
+    pub fn id(&self) -> Uuid {
+        match self {
+            NewOrder::Market(o) => o.id,
+            NewOrder::Limit(o) => o.id,
+        }
+    }
+
+    pub fn direction(&self) -> Direction {
+        match self {
+            NewOrder::Market(o) => o.direction,
+            NewOrder::Limit(o) => o.direction,
+        }
+    }
+
+    pub fn price(&self) -> String {
+        match self {
+            NewOrder::Market(_) => "Market".to_string(),
+            NewOrder::Limit(o) => o.price.to_string(),
+        }
+    }
+
+    pub fn order_type(&self) -> String {
+        match self {
+            NewOrder::Market(_) => "Market",
+            NewOrder::Limit(_) => "Limit",
+        }
+        .to_string()
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewMarketOrder {
+    pub id: Uuid,
+    pub contract_symbol: ContractSymbol,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub quantity: Decimal,
+    pub trader_id: PublicKey,
+    pub direction: Direction,
+    #[serde(with = "rust_decimal::serde::float")]
+    pub leverage: Decimal,
+    #[serde(with = "time::serde::timestamp")]
+    pub expiry: OffsetDateTime,
+    pub stable: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct NewLimitOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
@@ -43,13 +109,12 @@ pub struct NewOrder {
     pub direction: Direction,
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
-    pub order_type: OrderType,
     #[serde(with = "time::serde::timestamp")]
     pub expiry: OffsetDateTime,
     pub stable: bool,
 }
 
-impl NewOrder {
+impl NewLimitOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
         let mut id = self.id.as_bytes().to_vec();
@@ -58,8 +123,6 @@ impl NewOrder {
 
         let symbol = self.contract_symbol.label();
         let symbol = symbol.as_bytes();
-        let order_type = self.order_type.label();
-        let order_type = order_type.as_bytes();
         let direction = self.direction.to_string();
         let direction = direction.as_bytes();
         let quantity = format!("{:.2}", self.quantity);
@@ -72,10 +135,36 @@ impl NewOrder {
         vec.append(&mut id);
         vec.append(&mut seconds);
         vec.append(&mut symbol.to_vec());
-        vec.append(&mut order_type.to_vec());
         vec.append(&mut direction.to_vec());
         vec.append(&mut quantity.to_vec());
         vec.append(&mut price.to_vec());
+        vec.append(&mut leverage.to_vec());
+
+        Message::from_hashed_data::<sha256::Hash>(vec.as_slice())
+    }
+}
+
+impl NewMarketOrder {
+    pub fn message(&self) -> Message {
+        let mut vec: Vec<u8> = vec![];
+        let mut id = self.id.as_bytes().to_vec();
+        let unix_timestamp = self.expiry.unix_timestamp();
+        let mut seconds = unix_timestamp.to_le_bytes().to_vec();
+
+        let symbol = self.contract_symbol.label();
+        let symbol = symbol.as_bytes();
+        let direction = self.direction.to_string();
+        let direction = direction.as_bytes();
+        let quantity = format!("{:.2}", self.quantity);
+        let quantity = quantity.as_bytes();
+        let leverage = format!("{:.2}", self.leverage);
+        let leverage = leverage.as_bytes();
+
+        vec.append(&mut id);
+        vec.append(&mut seconds);
+        vec.append(&mut symbol.to_vec());
+        vec.append(&mut direction.to_vec());
+        vec.append(&mut quantity.to_vec());
         vec.append(&mut leverage.to_vec());
 
         Message::from_hashed_data::<sha256::Hash>(vec.as_slice())
@@ -150,9 +239,9 @@ pub struct ChannelOpeningParams {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::NewLimitOrder;
     use crate::NewOrder;
     use crate::NewOrderRequest;
-    use crate::OrderType;
     use secp256k1::rand;
     use secp256k1::Secp256k1;
     use secp256k1::SecretKey;
@@ -169,7 +258,7 @@ pub mod tests {
         let secret_key = SecretKey::new(&mut rand::thread_rng());
         let public_key = secret_key.public_key(SECP256K1);
 
-        let order = NewOrder {
+        let order = NewLimitOrder {
             id: Default::default(),
             contract_symbol: ContractSymbol::BtcUsd,
             price: rust_decimal_macros::dec!(53_000),
@@ -177,7 +266,6 @@ pub mod tests {
             trader_id: public_key,
             direction: Direction::Long,
             leverage: rust_decimal_macros::dec!(2.0),
-            order_type: OrderType::Market,
             expiry: OffsetDateTime::now_utc(),
             stable: false,
         };
@@ -196,7 +284,7 @@ pub mod tests {
                 .unwrap();
         let public_key = secret_key.public_key(SECP256K1);
 
-        let original_order = NewOrder {
+        let original_order = NewLimitOrder {
             id: Uuid::from_str("67e5504410b1426f9247bb680e5fe0c8").unwrap(),
             contract_symbol: ContractSymbol::BtcUsd,
             price: rust_decimal_macros::dec!(53_000),
@@ -204,7 +292,6 @@ pub mod tests {
             trader_id: public_key,
             direction: Direction::Long,
             leverage: rust_decimal_macros::dec!(2.0),
-            order_type: OrderType::Market,
             // Note: the last 5 is too much as it does not get serialized
             expiry: OffsetDateTime::UNIX_EPOCH + 1.1010101015.seconds(),
             stable: false,
@@ -216,14 +303,14 @@ pub mod tests {
         signature.verify(&message, &public_key).unwrap();
 
         let original_request = NewOrderRequest {
-            value: original_order,
+            value: NewOrder::Limit(original_order),
             signature,
             channel_opening_params: None,
         };
 
         let original_serialized_request = serde_json::to_string(&original_request).unwrap();
 
-        let serialized_msg = "{\"value\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"order_type\":\"Market\",\"expiry\":1,\"stable\":false},\"signature\":\"SIGNATURE_PLACEHOLDER\",\"channel_opening_params\":null}";
+        let serialized_msg = "{\"value\":{\"Limit\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"expiry\":1,\"stable\":false}},\"signature\":\"304402205024fd6aea64c02155bdc063cf9168d9cd24fc6d54d3da0db645372828df210e022062323c30a88b60ef647d6740a01ac38fccc7f306f1c380bd92715d8b2e39adb9\",\"channel_opening_params\":null}";
 
         // replace the signature with the one from above to have the same string
         let serialized_msg =

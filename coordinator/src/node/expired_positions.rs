@@ -11,10 +11,9 @@ use anyhow::Result;
 use commons::average_execution_price;
 use commons::Match;
 use commons::MatchState;
-use commons::NewOrder;
+use commons::NewMarketOrder;
 use commons::OrderReason;
 use commons::OrderState;
-use commons::OrderType;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -80,17 +79,13 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
 
         tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
 
-        let new_order = NewOrder {
+        let new_order = NewMarketOrder {
             id: uuid::Uuid::new_v4(),
             contract_symbol: position.contract_symbol,
-            // TODO(holzeis): we should not have to set the price for a market order. we propably
-            // need separate models for a limit and a market order.
-            price: Decimal::ZERO,
             quantity: Decimal::try_from(position.quantity).expect("to fit into decimal"),
             trader_id: position.trader,
             direction: position.trader_direction.opposite(),
             leverage: Decimal::from_f32(position.trader_leverage).expect("to fit into decimal"),
-            order_type: OrderType::Market,
             // This order can basically not expire, but if the user does not come back online within
             // a certain time period we can assume the channel to be abandoned and we should force
             // close.
@@ -98,7 +93,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
             stable: position.stable,
         };
 
-        let order = orders::insert(&mut conn, new_order.clone(), OrderReason::Expired)
+        let order = orders::insert_market_order(&mut conn, new_order.clone(), OrderReason::Expired)
             .map_err(|e| anyhow!(e))
             .context("Failed to insert expired order into DB")?;
 

@@ -1,8 +1,8 @@
 use crate::logger::init_tracing;
 use crate::orderbook_client::OrderbookClient;
 use anyhow::Result;
+use commons::NewLimitOrder;
 use commons::NewOrder;
-use commons::OrderType;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use secp256k1::rand;
@@ -99,7 +99,7 @@ async fn post_order(
     let uuid = Uuid::new_v4();
     if let Err(err) = client
         .post_new_order(
-            NewOrder {
+            NewOrder::Limit(NewLimitOrder {
                 id: uuid,
                 contract_symbol: ContractSymbol::BtcUsd,
                 price,
@@ -107,11 +107,10 @@ async fn post_order(
                 trader_id: public_key,
                 direction,
                 leverage: Decimal::from(2),
-                order_type: OrderType::Limit,
                 expiry: OffsetDateTime::now_utc()
                     + time::Duration::seconds(order_expiry_seconds as i64),
                 stable: false,
-            },
+            }),
             None,
             secret_key,
         )

@@ -110,7 +110,7 @@ class _EnterAmountModalState extends State<EnterAmountModal> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AmountInputField(
-              value: widget.amount != null ? Amount(widget.amount!) : Amount.zero(),
+              initialValue: widget.amount != null ? Amount(widget.amount!) : Amount.zero(),
               hint: "e.g. $hint",
               label: "Amount",
               validator: widget.validator,

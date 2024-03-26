@@ -193,7 +193,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                 children: [
                   Flexible(
                     child: AmountInputField(
-                      value: ownTotalCollateral,
+                      initialValue: ownTotalCollateral,
                       controller: _collateralController,
                       label: 'Your collateral (sats)',
                       onChanged: (value) {

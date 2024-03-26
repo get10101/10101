@@ -24,7 +24,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    Amount defaultQuantity = Amount(500);
+    Usd defaultQuantity = Usd(500);
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
@@ -71,7 +71,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     return fromDirection(direction).fee;
   }
 
-  void updateQuantity(Direction direction, Amount quantity) {
+  void updateQuantity(Direction direction, Usd quantity) {
     fromDirection(direction).updateQuantity(quantity);
     notifyListeners();
   }

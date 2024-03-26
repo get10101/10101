@@ -5,10 +5,7 @@ import 'package:get_10101/ffi.dart' as rust;
 
 class TradeValuesService {
   Amount? calculateMargin(
-      {required double? price,
-      required Amount? quantity,
-      required Leverage leverage,
-      dynamic hint}) {
+      {required double? price, required Usd? quantity, required Leverage leverage, dynamic hint}) {
     if (price == null || quantity == null) {
       return null;
     } else {
@@ -17,14 +14,14 @@ class TradeValuesService {
     }
   }
 
-  Amount? calculateQuantity(
+  Usd? calculateQuantity(
       {required double? price, required Amount? margin, required Leverage leverage, dynamic hint}) {
     if (price == null || margin == null) {
       return null;
     } else {
       final quantity = rust.api
           .calculateQuantity(price: price, margin: margin.sats, leverage: leverage.leverage);
-      return Amount(quantity.ceil());
+      return Usd(quantity.ceil());
     }
   }
 
@@ -41,7 +38,7 @@ class TradeValuesService {
     }
   }
 
-  Amount? orderMatchingFee({required Amount? quantity, required double? price}) {
+  Amount? orderMatchingFee({required Usd? quantity, required double? price}) {
     return quantity != null && price != null
         ? Amount(rust.api.orderMatchingFee(quantity: quantity.asDouble(), price: price))
         : null;
