@@ -17,6 +17,7 @@ use crate::health;
 use crate::ln_dlc;
 use crate::ln_dlc::get_storage;
 use crate::logger;
+use crate::max_quantity::max_quantity;
 use crate::orderbook;
 use crate::polls;
 use crate::trade::order;
@@ -39,6 +40,7 @@ use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
 use std::fmt;
@@ -325,6 +327,17 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let order_matching_fee = order_matching_fee_taker(quantity, price).to_sat();
 
     SyncReturn(order_matching_fee)
+}
+
+/// Calculates the max quantity the user is able to trade considering the trader and the coordinator
+/// balances and constraints. Note, this is not an exact maximum, but a very close approximation.
+pub fn calculate_max_quantity(price: f32, trader_leverage: f32) -> SyncReturn<u64> {
+    let price = Decimal::from_f32(price).expect("price to fit in Decimal");
+
+    let max_quantity = max_quantity(price, trader_leverage).unwrap_or(Decimal::ZERO);
+    let max_quantity = max_quantity.floor().to_u64().expect("to fit into u64");
+
+    SyncReturn(max_quantity)
 }
 
 #[tokio::main(flavor = "current_thread")]

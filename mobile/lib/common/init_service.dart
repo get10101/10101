@@ -44,6 +44,7 @@ List<SingleChildWidget> createProviders() {
 
   const tradeValuesService = TradeValuesService();
   const channelInfoService = ChannelInfoService();
+  const dlcChannelService = DlcChannelService();
   const pollService = PollService();
   const githubService = GitHubService();
 
@@ -59,8 +60,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(
         create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
-    ChangeNotifierProvider(
-        create: (context) => DlcChannelChangeNotifier(const DlcChannelService())),
+    ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
     ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
