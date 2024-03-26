@@ -107,6 +107,9 @@ void main() {
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
+    when(tradeValueService.calculateMaxQuantity(
+            price: anyNamed('price'), leverage: anyNamed('leverage')))
+        .thenReturn(Usd(2500));
 
     when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
 
@@ -222,6 +225,9 @@ void main() {
     when(tradeValueService.orderMatchingFee(
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
+    when(tradeValueService.calculateMaxQuantity(
+            price: anyNamed('price'), leverage: anyNamed('leverage')))
+        .thenReturn(Usd(2500));
 
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(

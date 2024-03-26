@@ -4,6 +4,7 @@ import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/channel_configuration.dart';
@@ -183,7 +184,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
       BuildContext context, ChannelInfoService channelInfoService, GlobalKey<FormState> formKey) {
-    final tradeValues = context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+    final tradeValues = context.watch<TradeValuesChangeNotifier>().fromDirection(direction);
 
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
@@ -200,6 +201,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
         price *
         channelTradeConstraints.coordinatorLeverage;
+
+    quantityController.text = Amount(tradeValues.quantity?.toInt ?? 0).formatted();
 
     return Wrap(
       runSpacing: 12,
@@ -227,7 +230,29 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           children: [
             Flexible(
                 child: AmountInputField(
-              initialValue: Amount(tradeValues.quantity?.toInt ?? 0),
+              controller: quantityController,
+              suffixIcon: TextButton(
+                onPressed: () {
+                  final quantity = tradeValues.maxQuantity ?? Usd.zero();
+                  quantityController.text = quantity.formatted();
+                  setState(() {
+                    provider.maxQuantityLock = !provider.maxQuantityLock;
+                    context.read<TradeValuesChangeNotifier>().updateQuantity(direction, quantity);
+                  });
+                  _formKey.currentState?.validate();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(5.0),
+                  decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.all(Radius.circular(10)),
+                      color:
+                          provider.maxQuantityLock ? tenTenOnePurple.shade50 : Colors.transparent),
+                  child: const Text(
+                    "Max",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               hint: "e.g. 100 USD",
               label: "Quantity (USD)",
               onChanged: (value) {
@@ -241,6 +266,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 } on Exception {
                   context.read<TradeValuesChangeNotifier>().updateQuantity(direction, Usd.zero());
                 }
+                provider.maxQuantityLock = false;
                 _formKey.currentState?.validate();
               },
               validator: (value) {
@@ -315,8 +341,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
             isActive: !hasPosition,
             onLeverageChanged: (value) {
               context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
-              // When the slider changes, we validate the whole form.
-              formKey.currentState!.validate();
+              formKey.currentState?.validate();
             }),
         Row(
           children: [
