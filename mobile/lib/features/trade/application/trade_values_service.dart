@@ -4,6 +4,8 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
 class TradeValuesService {
+  const TradeValuesService();
+
   Amount? calculateMargin(
       {required double? price, required Usd? quantity, required Leverage leverage, dynamic hint}) {
     if (price == null || quantity == null) {
