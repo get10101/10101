@@ -9,9 +9,9 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use commons::average_execution_price;
-use commons::MarketOrder;
 use commons::Match;
 use commons::MatchState;
+use commons::NewMarketOrder;
 use commons::OrderReason;
 use commons::OrderState;
 use rust_decimal::prelude::FromPrimitive;
@@ -79,7 +79,7 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
 
         tracing::debug!(trader_pk=%position.trader, %position.expiry_timestamp, "Attempting to close expired position");
 
-        let new_order = MarketOrder {
+        let new_order = NewMarketOrder {
             id: uuid::Uuid::new_v4(),
             contract_symbol: position.contract_symbol,
             quantity: Decimal::try_from(position.quantity).expect("to fit into decimal"),

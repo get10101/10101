@@ -7,8 +7,8 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
-use commons::LimitOrder;
-use commons::MarketOrder;
+use commons::NewLimitOrder;
+use commons::NewMarketOrder;
 use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
 use commons::OrderState as OrderBookOrderState;
@@ -160,8 +160,8 @@ struct NewOrder {
     pub stable: bool,
 }
 
-impl From<LimitOrder> for NewOrder {
-    fn from(value: LimitOrder) -> Self {
+impl From<NewLimitOrder> for NewOrder {
+    fn from(value: NewLimitOrder) -> Self {
         NewOrder {
             trader_order_id: value.id,
             price: value
@@ -189,8 +189,8 @@ impl From<LimitOrder> for NewOrder {
     }
 }
 
-impl From<MarketOrder> for NewOrder {
-    fn from(value: MarketOrder) -> Self {
+impl From<NewMarketOrder> for NewOrder {
+    fn from(value: NewMarketOrder) -> Self {
         NewOrder {
             trader_order_id: value.id,
             // TODO: it would be cool to get rid of this as well
@@ -271,7 +271,7 @@ pub fn get_all_orders(
 /// Returns the number of affected rows: 1.
 pub fn insert_limit_order(
     conn: &mut PgConnection,
-    order: LimitOrder,
+    order: NewLimitOrder,
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {
@@ -288,7 +288,7 @@ pub fn insert_limit_order(
 /// Returns the number of affected rows: 1.
 pub fn insert_market_order(
     conn: &mut PgConnection,
-    order: MarketOrder,
+    order: NewMarketOrder,
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {

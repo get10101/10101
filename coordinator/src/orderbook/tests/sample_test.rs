@@ -3,8 +3,8 @@ use crate::orderbook::db::orders;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
-use commons::LimitOrder;
-use commons::MarketOrder;
+use commons::NewLimitOrder;
+use commons::NewMarketOrder;
 use commons::OrderReason;
 use commons::OrderState;
 use rust_decimal_macros::dec;
@@ -62,8 +62,8 @@ async fn test_all_limit_orders() {
     assert_eq!(orders.len(), 1);
 }
 
-fn dummy_market_order(expiry: OffsetDateTime) -> MarketOrder {
-    MarketOrder {
+fn dummy_market_order(expiry: OffsetDateTime) -> NewMarketOrder {
+    NewMarketOrder {
         id: Uuid::new_v4(),
         trader_id: PublicKey::from_str(
             "027f31ebc5462c1fdce1b737ecff52d37d75dea43ce11c74d25aa297165faa2007",
@@ -78,8 +78,8 @@ fn dummy_market_order(expiry: OffsetDateTime) -> MarketOrder {
     }
 }
 
-fn dummy_limit_order(expiry: OffsetDateTime) -> LimitOrder {
-    LimitOrder {
+fn dummy_limit_order(expiry: OffsetDateTime) -> NewLimitOrder {
+    NewLimitOrder {
         id: Uuid::new_v4(),
         price: dec!(20000.00),
         trader_id: PublicKey::from_str(

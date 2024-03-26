@@ -3,7 +3,7 @@ use crate::ln_dlc::get_node_key;
 use anyhow::bail;
 use anyhow::Result;
 use commons::ChannelOpeningParams;
-use commons::MarketOrder;
+use commons::NewMarketOrder;
 use commons::NewOrder;
 use commons::NewOrderRequest;
 use reqwest::Url;
@@ -19,7 +19,7 @@ impl OrderbookClient {
 
     pub(crate) async fn post_new_market_order(
         &self,
-        order: MarketOrder,
+        order: NewMarketOrder,
         channel_opening_params: Option<ChannelOpeningParams>,
     ) -> Result<()> {
         let secret_key = get_node_key();

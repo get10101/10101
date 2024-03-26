@@ -33,8 +33,8 @@ impl NewOrderRequest {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum NewOrder {
-    Market(MarketOrder),
-    Limit(LimitOrder),
+    Market(NewMarketOrder),
+    Limit(NewLimitOrder),
 }
 
 impl NewOrder {
@@ -83,7 +83,7 @@ impl NewOrder {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct MarketOrder {
+pub struct NewMarketOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
@@ -98,7 +98,7 @@ pub struct MarketOrder {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct LimitOrder {
+pub struct NewLimitOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
     #[serde(with = "rust_decimal::serde::float")]
@@ -114,7 +114,7 @@ pub struct LimitOrder {
     pub stable: bool,
 }
 
-impl LimitOrder {
+impl NewLimitOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
         let mut id = self.id.as_bytes().to_vec();
@@ -144,7 +144,7 @@ impl LimitOrder {
     }
 }
 
-impl MarketOrder {
+impl NewMarketOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
         let mut id = self.id.as_bytes().to_vec();
@@ -239,7 +239,7 @@ pub struct ChannelOpeningParams {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::LimitOrder;
+    use crate::NewLimitOrder;
     use crate::NewOrder;
     use crate::NewOrderRequest;
     use secp256k1::rand;
@@ -258,7 +258,7 @@ pub mod tests {
         let secret_key = SecretKey::new(&mut rand::thread_rng());
         let public_key = secret_key.public_key(SECP256K1);
 
-        let order = LimitOrder {
+        let order = NewLimitOrder {
             id: Default::default(),
             contract_symbol: ContractSymbol::BtcUsd,
             price: rust_decimal_macros::dec!(53_000),
@@ -284,7 +284,7 @@ pub mod tests {
                 .unwrap();
         let public_key = secret_key.public_key(SECP256K1);
 
-        let original_order = LimitOrder {
+        let original_order = NewLimitOrder {
             id: Uuid::from_str("67e5504410b1426f9247bb680e5fe0c8").unwrap(),
             contract_symbol: ContractSymbol::BtcUsd,
             price: rust_decimal_macros::dec!(53_000),

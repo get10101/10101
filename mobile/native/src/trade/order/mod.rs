@@ -193,11 +193,11 @@ impl Order {
     }
 }
 
-impl From<Order> for commons::MarketOrder {
+impl From<Order> for commons::NewMarketOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
         let trader_id = ln_dlc::get_node_pubkey();
-        commons::MarketOrder {
+        commons::NewMarketOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,
             quantity,
