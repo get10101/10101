@@ -42,8 +42,8 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 List<SingleChildWidget> createProviders() {
   bridge.Config config = Environment.parse();
 
-  const ChannelInfoService channelInfoService = ChannelInfoService();
-  var tradeValuesService = TradeValuesService();
+  const tradeValuesService = TradeValuesService();
+  const channelInfoService = ChannelInfoService();
   const pollService = PollService();
   const githubService = GitHubService();
 
