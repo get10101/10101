@@ -74,10 +74,7 @@ pub struct Answer {
 }
 
 pub fn active(conn: &mut PgConnection, trader_id: &PublicKey) -> QueryResult<Vec<commons::Poll>> {
-    let _polls: Vec<Poll> = polls::table.load(conn)?;
-    let _choices: Vec<Choice> = choices::table.load(conn)?;
-
-    let results = polls::table
+        let results = polls::table
         .left_join(choices::table)
         .select(<(Poll, Option<Choice>)>::as_select())
         .load::<(Poll, Option<Choice>)>(conn)?;
