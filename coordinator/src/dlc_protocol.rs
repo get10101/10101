@@ -355,8 +355,10 @@ impl DlcProtocolExecutor {
             "Finalize closing position",
         );
 
-        let pnl = {
-            let (initial_margin_long, initial_margin_short) = match trade_params.direction {
+        let trader_realized_pnl_sat = {
+            let trader_position_direction = position.trader_direction;
+
+            let (initial_margin_long, initial_margin_short) = match trader_position_direction {
                 Direction::Long => (position.trader_margin, position.coordinator_margin),
                 Direction::Short => (position.coordinator_margin, position.trader_margin),
             };
@@ -365,7 +367,7 @@ impl DlcProtocolExecutor {
                 Decimal::from_f32(position.average_entry_price).expect("to fit into decimal"),
                 Decimal::from_f32(trade_params.average_price).expect("to fit into decimal"),
                 trade_params.quantity,
-                trade_params.direction,
+                trader_position_direction,
                 initial_margin_long as u64,
                 initial_margin_short as u64,
             ) {
@@ -377,7 +379,11 @@ impl DlcProtocolExecutor {
             }
         };
 
-        db::positions::Position::set_position_to_closed_with_pnl(conn, position.id, pnl)?;
+        db::positions::Position::set_position_to_closed_with_pnl(
+            conn,
+            position.id,
+            trader_realized_pnl_sat,
+        )?;
 
         let coordinator_margin = calculate_margin(
             Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
