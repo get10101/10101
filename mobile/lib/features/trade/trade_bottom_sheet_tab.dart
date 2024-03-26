@@ -194,12 +194,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     int usableBalance = channelTradeConstraints.maxLocalMarginSats;
 
-    // We compute the max quantity based on the margin needed for the counterparty and how much he has available.
-    double price = tradeValues.price ?? 0.0;
-    double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
-        price *
-        channelTradeConstraints.coordinatorLeverage;
-
     quantityController.text = Amount(tradeValues.quantity?.toInt ?? 0).formatted();
 
     return Wrap(
@@ -274,35 +268,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   return "Min quantity is ${channelTradeConstraints.minQuantity}";
                 }
 
+                final maxQuantity = tradeValues.maxQuantity?.toInt ?? 0;
                 if (quantity.toInt > maxQuantity) {
                   return "Max quantity is ${maxQuantity.toInt()}";
-                }
-
-                double coordinatorLeverage = channelTradeConstraints.coordinatorLeverage;
-
-                int? optCounterPartyMargin =
-                    provider.counterpartyMargin(direction, coordinatorLeverage);
-                if (optCounterPartyMargin == null) {
-                  return "Counterparty margin not available";
-                }
-                int neededCounterpartyMarginSats = optCounterPartyMargin;
-
-                // This condition has to stay as the first thing to check, so we reset showing the info
-                int maxCounterpartyMarginSats = channelTradeConstraints.maxCounterpartyMarginSats;
-                int maxLocalMarginSats = channelTradeConstraints.maxLocalMarginSats;
-
-                // First we check if we have enough money, then we check if counterparty would have enough money
-                Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-
-                Amount margin = tradeValues.margin!;
-                int neededLocalMarginSats = margin.sats + fee.sats;
-
-                if (neededLocalMarginSats > maxLocalMarginSats) {
-                  return "Insufficient balance";
-                }
-
-                if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
-                  return "Counterparty has insufficient balance";
                 }
 
                 return null;
