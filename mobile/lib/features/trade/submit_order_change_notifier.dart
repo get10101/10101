@@ -132,7 +132,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             fee: fee,
             fundingRate: 0,
             expiry: position.expiry,
-            tradeValuesService: TradeValuesService()),
+            tradeValuesService: const TradeValuesService()),
         PositionAction.close,
         pnl: position.unrealizedPnl,
         stable: stable);
