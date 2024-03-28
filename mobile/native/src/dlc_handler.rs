@@ -242,6 +242,7 @@ impl DlcHandler {
                         signed_channel.state,
                         SignedChannelState::Established { .. }
                             | SignedChannelState::Settled { .. }
+                            | SignedChannelState::SettledClosing { .. }
                             | SignedChannelState::Closing { .. }
                             | SignedChannelState::CollaborativeCloseOffered { .. }
                     ) {
