@@ -398,7 +398,6 @@ diesel::table! {
         direction -> DirectionType,
         average_price -> Float4,
         timestamp -> Timestamptz,
-        dlc_expiry_timestamp -> Nullable<Timestamptz>,
         order_matching_fee_sat -> Int8,
     }
 }
