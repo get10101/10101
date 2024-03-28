@@ -4,6 +4,7 @@ use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
 use crate::event;
 use crate::event::EventInternal;
+use crate::ln_dlc;
 use crate::ln_dlc::is_dlc_channel_confirmed;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
@@ -19,6 +20,9 @@ use anyhow::Context;
 use anyhow::Result;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
+use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::signed_channel::SignedChannelState;
+use ln_dlc_node::node::signed_channel_state_name;
 use reqwest::Url;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
@@ -38,6 +42,13 @@ pub enum SubmitOrderError {
         current_confirmations: u64,
         required_confirmations: u64,
     },
+    #[error("DLC Channel in invalid state: expected: {expected_channel_state}, got: {actual_channel_state}")]
+    InvalidChannelState {
+        expected_channel_state: String,
+        actual_channel_state: String,
+    },
+    #[error("Missing dlc channel: {0}")]
+    MissingChannel(String),
     #[error(
         "Another order is already being filled: {contracts} contracts {direction} at {leverage}x leverage"
     )]
@@ -54,6 +65,8 @@ pub async fn submit_order(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
 ) -> Result<Uuid, SubmitOrderError> {
+    let channel = ln_dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
+
     // If we have an open position, we should not allow any further trading until the current DLC
     // channel is confirmed on-chain. Otherwise we can run into pesky DLC protocol failures.
     if position::handler::get_positions()
@@ -61,8 +74,23 @@ pub async fn submit_order(
         .first()
         .is_some()
     {
-        // TODO: We could also limit order submission if we find that the DLC channel is in an
-        // unfriendly state, in order to fail as early as possible.
+        match channel {
+            Some(SignedChannel {
+                state: SignedChannelState::Established { .. },
+                ..
+            }) => {} // all good we can continue with the order
+            Some(channel) => {
+                return Err(SubmitOrderError::InvalidChannelState {
+                    expected_channel_state: "Established".to_string(),
+                    actual_channel_state: signed_channel_state_name(&channel),
+                })
+            }
+            None => {
+                return Err(SubmitOrderError::MissingChannel(
+                    "Expected established dlc channel.".to_string(),
+                ))
+            }
+        }
 
         if !is_dlc_channel_confirmed().map_err(SubmitOrderError::Storage)? {
             // TODO: Do not hard-code confirmations.
@@ -70,6 +98,20 @@ pub async fn submit_order(
                 current_confirmations: 0,
                 required_confirmations: 1,
             });
+        }
+    } else {
+        match channel {
+            None
+            | Some(SignedChannel {
+                state: SignedChannelState::Settled { .. },
+                ..
+            }) => {} // all good we can continue with the order
+            Some(channel) => {
+                return Err(SubmitOrderError::InvalidChannelState {
+                    expected_channel_state: "Settled".to_string(),
+                    actual_channel_state: signed_channel_state_name(&channel),
+                });
+            }
         }
     }
 
