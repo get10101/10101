@@ -1,5 +1,5 @@
 use bitcoin::secp256k1::PublicKey;
-use lightning::ln::PaymentHash;
+use bitcoin::Amount;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
@@ -16,6 +16,7 @@ pub struct NewTrade {
     pub trader_direction: Direction,
     pub average_price: f32,
     pub dlc_expiry_timestamp: Option<OffsetDateTime>,
+    pub order_matching_fee: Amount,
 }
 
 #[derive(Debug)]
@@ -35,5 +36,5 @@ pub struct Trade {
     // it's not part of the trade model.
     pub dlc_expiry_timestamp: Option<OffsetDateTime>,
     pub timestamp: OffsetDateTime,
-    pub fee_payment_hash: PaymentHash,
+    pub order_matching_fee: Amount,
 }

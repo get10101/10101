@@ -3,9 +3,8 @@ use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trades;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use diesel::prelude::*;
-use hex::FromHex;
-use lightning::ln::PaymentHash;
 use std::str::FromStr;
 use time::OffsetDateTime;
 
@@ -22,8 +21,8 @@ struct Trade {
     direction: Direction,
     average_price: f32,
     timestamp: OffsetDateTime,
-    fee_payment_hash: String,
     dlc_expiry_timestamp: Option<OffsetDateTime>,
+    order_matching_fee_sat: i64,
 }
 
 #[derive(Insertable, Debug, Clone)]
@@ -38,6 +37,7 @@ struct NewTrade {
     direction: Direction,
     average_price: f32,
     dlc_expiry_timestamp: Option<OffsetDateTime>,
+    order_matching_fee_sat: i64,
 }
 
 pub fn insert(
@@ -76,6 +76,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             direction: value.trader_direction.into(),
             average_price: value.average_price,
             dlc_expiry_timestamp: value.dlc_expiry_timestamp,
+            order_matching_fee_sat: value.order_matching_fee.to_sat() as i64,
         }
     }
 }
@@ -94,10 +95,8 @@ impl From<Trade> for crate::trade::models::Trade {
             direction: value.direction.into(),
             average_price: value.average_price,
             timestamp: value.timestamp,
-            fee_payment_hash: PaymentHash(
-                <[u8; 32]>::from_hex(value.fee_payment_hash).expect("payment hash to decode"),
-            ),
             dlc_expiry_timestamp: value.dlc_expiry_timestamp,
+            order_matching_fee: Amount::from_sat(value.order_matching_fee_sat as u64),
         }
     }
 }
