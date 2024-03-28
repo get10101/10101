@@ -22,6 +22,7 @@ struct Trade {
     average_price: f32,
     timestamp: OffsetDateTime,
     order_matching_fee_sat: i64,
+    trader_realized_pnl_sat: Option<i64>,
 }
 
 #[derive(Insertable, Debug, Clone)]
@@ -36,6 +37,7 @@ struct NewTrade {
     direction: Direction,
     average_price: f32,
     order_matching_fee_sat: i64,
+    trader_realized_pnl_sat: Option<i64>,
 }
 
 pub fn insert(
@@ -74,6 +76,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             direction: value.trader_direction.into(),
             average_price: value.average_price,
             order_matching_fee_sat: value.order_matching_fee.to_sat() as i64,
+            trader_realized_pnl_sat: value.trader_realized_pnl_sat,
         }
     }
 }
@@ -93,6 +96,7 @@ impl From<Trade> for crate::trade::models::Trade {
             average_price: value.average_price,
             timestamp: value.timestamp,
             order_matching_fee: Amount::from_sat(value.order_matching_fee_sat as u64),
+            trader_realized_pnl_sat: value.trader_realized_pnl_sat,
         }
     }
 }
