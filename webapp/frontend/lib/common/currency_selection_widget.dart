@@ -1,7 +1,7 @@
 import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get_10101/common/currency_change_notifier.dart';
+import 'package:get_10101/change_notifier/currency_change_notifier.dart';
 import 'package:provider/provider.dart';
 
 class CurrencySelectionScreen extends StatelessWidget {

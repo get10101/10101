@@ -1,13 +1,13 @@
 import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/change_notifier/quote_change_notifier.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/trade/create_order_confirmation_dialog.dart';
 import 'package:get_10101/trade/leverage_slider.dart';
-import 'package:get_10101/trade/quote_change_notifier.dart';
 import 'package:get_10101/services/quote_service.dart';
 import 'package:provider/provider.dart';
 
