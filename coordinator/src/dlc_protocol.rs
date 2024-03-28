@@ -412,6 +412,7 @@ impl DlcProtocolExecutor {
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
             order_matching_fee,
+            trader_realized_pnl_sat: Some(trader_realized_pnl_sat),
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -474,6 +475,7 @@ impl DlcProtocolExecutor {
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
             order_matching_fee,
+            trader_realized_pnl_sat: None,
         };
 
         db::trades::insert(conn, new_trade)?;
