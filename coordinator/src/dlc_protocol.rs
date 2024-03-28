@@ -5,6 +5,7 @@ use crate::trade::websocket::InternalPositionUpdateMessage;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use commons::order_matching_fee_taker;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::result::Error::RollbackTransaction;
@@ -392,6 +393,12 @@ impl DlcProtocolExecutor {
                 .map_err(|_| RollbackTransaction)?,
         );
 
+        // TODO(holzeis): its a bit ugly to calculate the order matching fee like that. The user
+        // might get a discount at some point. So ideally the order matching fee is decided on the
+        // trade params at a single point and then only stored here.
+        let price = Decimal::try_from(trade_params.average_price).expect("to fit into f32");
+        let order_matching_fee = order_matching_fee_taker(trade_params.quantity, price);
+
         // TODO(holzeis): Add optional pnl to trade.
         // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
         // -> Short or Short -> Long.
@@ -405,6 +412,7 @@ impl DlcProtocolExecutor {
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
             dlc_expiry_timestamp: None,
+            order_matching_fee,
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -448,6 +456,12 @@ impl DlcProtocolExecutor {
                 .map_err(|_| RollbackTransaction)?,
         );
 
+        // TODO(holzeis): its a bit ugly to calculate the order matching fee like that. The user
+        // might get a discount at some point. So ideally the order matching fee is decided on the
+        // trade params at a single point and then only stored here.
+        let price = Decimal::try_from(trade_params.average_price).expect("to fit into f32");
+        let order_matching_fee = order_matching_fee_taker(trade_params.quantity, price);
+
         // TODO(holzeis): Add optional pnl to trade.
         // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
         // -> Short or Short -> Long.
@@ -461,6 +475,7 @@ impl DlcProtocolExecutor {
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
             dlc_expiry_timestamp: None,
+            order_matching_fee,
         };
 
         db::trades::insert(conn, new_trade)?;
