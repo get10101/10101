@@ -3,7 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/trade/order_change_notifier.dart';
-import 'package:get_10101/trade/order_service.dart';
+import 'package:get_10101/services/order_service.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 

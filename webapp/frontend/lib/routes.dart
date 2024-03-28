@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/auth/auth_service.dart';
+import 'package:get_10101/services/auth_service.dart';
 import 'package:get_10101/auth/login_screen.dart';
 import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/scaffold_with_nav.dart';

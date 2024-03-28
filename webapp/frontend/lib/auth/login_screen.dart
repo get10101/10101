@@ -2,10 +2,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:get_10101/auth/auth_service.dart';
+import 'package:get_10101/services/auth_service.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
-import 'package:get_10101/common/version_service.dart';
+import 'package:get_10101/services/version_service.dart';
 import 'package:get_10101/trade/trade_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';

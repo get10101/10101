@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/position_service.dart';
+import 'package:get_10101/services/position_service.dart';
 
 class PositionChangeNotifier extends ChangeNotifier {
   final PositionService service;

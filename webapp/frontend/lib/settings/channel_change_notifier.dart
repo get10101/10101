@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/settings/channel_service.dart';
+import 'package:get_10101/services/channel_service.dart';
 import 'package:get_10101/settings/dlc_channel.dart';
 
 class ChannelChangeNotifier extends ChangeNotifier {

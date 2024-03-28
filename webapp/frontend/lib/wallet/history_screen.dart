@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/wallet/onchain_payment_history_item.dart';
 import 'package:get_10101/wallet/wallet_change_notifier.dart';
-import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:get_10101/services/wallet_service.dart';
 import 'package:provider/provider.dart';
 
 class HistoryScreen extends StatefulWidget {

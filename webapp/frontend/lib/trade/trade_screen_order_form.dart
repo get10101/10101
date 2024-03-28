@@ -8,7 +8,7 @@ import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/trade/create_order_confirmation_dialog.dart';
 import 'package:get_10101/trade/leverage_slider.dart';
 import 'package:get_10101/trade/quote_change_notifier.dart';
-import 'package:get_10101/trade/quote_service.dart';
+import 'package:get_10101/services/quote_service.dart';
 import 'package:provider/provider.dart';
 
 class NewOrderForm extends StatefulWidget {

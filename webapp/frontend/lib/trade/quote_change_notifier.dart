@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/quote_service.dart';
+import 'package:get_10101/services/quote_service.dart';
 
 class QuoteChangeNotifier extends ChangeNotifier {
   final QuoteService service;
