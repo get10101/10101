@@ -145,11 +145,7 @@ impl Position {
         let state = PositionState::from(state);
         let position: Position = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
-            .filter(
-                positions::position_state
-                    .eq(PositionState::Proposed)
-                    .or(positions::position_state.eq(PositionState::ResizeProposed)),
-            )
+            .filter(positions::position_state.eq(PositionState::Proposed))
             .set((
                 positions::position_state.eq(state),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
@@ -199,70 +195,6 @@ impl Position {
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .execute(conn)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn set_open_position_to_resizing(
-        conn: &mut PgConnection,
-        trader_pubkey: String,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
-            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
-            .filter(positions::position_state.eq(PositionState::Open))
-            .set((
-                positions::position_state.eq(PositionState::Resizing),
-                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
-            ))
-            .execute(conn)?;
-
-        if affected_rows == 0 {
-            bail!("Could not update position to Resizing for {trader_pubkey}")
-        }
-
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn update_resized_position(
-        conn: &mut PgConnection,
-        trader_pubkey: String,
-        quantity: f32,
-        direction: Direction,
-        coordinator_leverage: f32,
-        trader_leverage: f32,
-        coordinator_margin: i64,
-        trader_margin: i64,
-        average_entry_price: f32,
-        trader_liquidation_price: f32,
-        coordinator_liquidation_price: f32,
-        expiry_timestamp: OffsetDateTime,
-        temporary_contract_id: ContractId,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
-            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
-            .filter(positions::position_state.eq(PositionState::Resizing))
-            .set((
-                positions::position_state.eq(PositionState::ResizeProposed),
-                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
-                positions::quantity.eq(quantity),
-                positions::trader_direction.eq(direction),
-                positions::trader_leverage.eq(trader_leverage),
-                positions::coordinator_leverage.eq(coordinator_leverage),
-                positions::coordinator_margin.eq(coordinator_margin),
-                positions::trader_margin.eq(trader_margin),
-                positions::average_entry_price.eq(average_entry_price),
-                positions::trader_liquidation_price.eq(trader_liquidation_price),
-                positions::coordinator_liquidation_price.eq(coordinator_liquidation_price),
-                positions::expiry_timestamp.eq(expiry_timestamp),
-                positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
-            ))
-            .execute(conn)?;
-
-        if affected_rows == 0 {
-            bail!("Could not update position to Resizing for {trader_pubkey}")
-        }
-
-        Ok(())
     }
 
     pub fn set_position_to_closed_with_pnl(
@@ -375,9 +307,6 @@ impl From<crate::position::models::PositionState> for PositionState {
             crate::position::models::PositionState::Closed { .. } => PositionState::Closed,
             crate::position::models::PositionState::Rollover => PositionState::Rollover,
             crate::position::models::PositionState::Resizing { .. } => PositionState::Resizing,
-            crate::position::models::PositionState::ResizeOpeningSubchannelProposed => {
-                PositionState::ResizeProposed
-            }
             crate::position::models::PositionState::Proposed => PositionState::Proposed,
             crate::position::models::PositionState::Failed => PositionState::Failed,
         }
@@ -478,7 +407,6 @@ pub enum PositionState {
     Closed,
     Failed,
     Resizing,
-    ResizeProposed,
 }
 
 impl QueryId for PositionStateType {
@@ -510,9 +438,6 @@ impl From<(PositionState, Option<i64>, Option<f32>)> for crate::position::models
             PositionState::Resizing => crate::position::models::PositionState::Resizing,
             PositionState::Proposed => crate::position::models::PositionState::Proposed,
             PositionState::Failed => crate::position::models::PositionState::Failed,
-            PositionState::ResizeProposed => {
-                crate::position::models::PositionState::ResizeOpeningSubchannelProposed
-            }
         }
     }
 }

@@ -60,9 +60,6 @@ pub enum PositionState {
     Failed,
     Rollover,
     Resizing,
-    /// We proposed a new protocol round for resizing, at the moment, we close the existing channel
-    /// and open a new one, in the future this will be the resize protocol by rust-dlc
-    ResizeOpeningSubchannelProposed,
 }
 
 /// The trading position for a user identified by `trader`.
