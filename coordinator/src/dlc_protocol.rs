@@ -411,7 +411,6 @@ impl DlcProtocolExecutor {
             coordinator_margin: coordinator_margin as i64,
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
-            dlc_expiry_timestamp: None,
             order_matching_fee,
         };
 
@@ -474,7 +473,6 @@ impl DlcProtocolExecutor {
             coordinator_margin: coordinator_margin as i64,
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
-            dlc_expiry_timestamp: None,
             order_matching_fee,
         };
 

@@ -21,7 +21,6 @@ struct Trade {
     direction: Direction,
     average_price: f32,
     timestamp: OffsetDateTime,
-    dlc_expiry_timestamp: Option<OffsetDateTime>,
     order_matching_fee_sat: i64,
 }
 
@@ -36,7 +35,6 @@ struct NewTrade {
     collateral: i64,
     direction: Direction,
     average_price: f32,
-    dlc_expiry_timestamp: Option<OffsetDateTime>,
     order_matching_fee_sat: i64,
 }
 
@@ -75,7 +73,6 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             collateral: value.coordinator_margin,
             direction: value.trader_direction.into(),
             average_price: value.average_price,
-            dlc_expiry_timestamp: value.dlc_expiry_timestamp,
             order_matching_fee_sat: value.order_matching_fee.to_sat() as i64,
         }
     }
@@ -95,7 +92,6 @@ impl From<Trade> for crate::trade::models::Trade {
             direction: value.direction.into(),
             average_price: value.average_price,
             timestamp: value.timestamp,
-            dlc_expiry_timestamp: value.dlc_expiry_timestamp,
             order_matching_fee: Amount::from_sat(value.order_matching_fee_sat as u64),
         }
     }
