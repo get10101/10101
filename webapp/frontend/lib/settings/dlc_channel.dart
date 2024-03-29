@@ -24,7 +24,9 @@ enum ChannelState {
   @JsonValue('FailedSign')
   failedSign,
   @JsonValue('Cancelled')
-  cancelled,
+  cancelled;
+
+  String get nameU => "${name[0].toUpperCase()}${name.substring(1)}";
 }
 
 enum SignedChannelState {
@@ -51,7 +53,9 @@ enum SignedChannelState {
   @JsonValue('Closing')
   closing,
   @JsonValue('CollaborativeCloseOffered')
-  collaborativeCloseOffered,
+  collaborativeCloseOffered;
+
+  String get nameU => "${name[0].toUpperCase()}${name.substring(1)}";
 }
 
 @JsonSerializable()
