@@ -15,7 +15,6 @@ pub struct NewTrade {
     pub coordinator_margin: i64,
     pub trader_direction: Direction,
     pub average_price: f32,
-    pub dlc_expiry_timestamp: Option<OffsetDateTime>,
     pub order_matching_fee: Amount,
 }
 
@@ -31,10 +30,6 @@ pub struct Trade {
     pub collateral: i64,
     pub direction: Direction,
     pub average_price: f32,
-    // We need this for position resizing so that we can set up the DLC channel using the expiry
-    // timestamp specified in the `TradeParams`. It should probably go in a different table since
-    // it's not part of the trade model.
-    pub dlc_expiry_timestamp: Option<OffsetDateTime>,
     pub timestamp: OffsetDateTime,
     pub order_matching_fee: Amount,
 }
