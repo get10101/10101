@@ -1,11 +1,13 @@
 import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -62,6 +64,23 @@ class TradeScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [const ContractSymbolIcon(), Text(ContractSymbol.btcusd.label)],
               ),
+              Selector<TradeValuesChangeNotifier, Price?>(selector: (_, provider) {
+                return provider.getPrice();
+              }, builder: (context, price, child) {
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    LatestPriceWidget(
+                      label: "Latest Bid: ",
+                      price: Usd.fromDouble(price?.bid ?? 0.0),
+                    ),
+                    LatestPriceWidget(
+                      label: "Latest Ask: ",
+                      price: Usd.fromDouble(price?.ask ?? 0.0),
+                    ),
+                  ],
+                );
+              }),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -254,5 +273,28 @@ class TradeScreen extends StatelessWidget {
             ],
           ),
         ));
+  }
+}
+
+class LatestPriceWidget extends StatelessWidget {
+  final Usd price;
+  final String label;
+
+  const LatestPriceWidget({super.key, required this.price, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        text: label,
+        style: DefaultTextStyle.of(context).style,
+        children: [
+          TextSpan(
+            text: "$price",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
   }
 }
