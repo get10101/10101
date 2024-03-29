@@ -21,5 +21,5 @@ class Balance {
       : offChain = Amount.zero(),
         onChain = Amount.zero();
 
-  Amount total() => offChain.add(onChain);
+  Amount total() => offChain + onChain;
 }

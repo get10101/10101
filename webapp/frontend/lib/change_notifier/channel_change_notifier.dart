@@ -41,6 +41,21 @@ class ChannelChangeNotifier extends ChangeNotifier {
 
   List<DlcChannel>? getChannels() => _channels;
 
+  DlcChannel? getOpenChannel() {
+    if (_channels == null) return null;
+    try {
+      return _channels!.firstWhere(
+        (channel) =>
+            (channel.signedChannelState == SignedChannelState.established ||
+                channel.signedChannelState == SignedChannelState.settled) &&
+            channel.channelState == ChannelState.signed,
+      );
+    } catch (e) {
+      // If no element satisfies the condition, we return null
+      return null;
+    }
+  }
+
   @override
   void dispose() {
     super.dispose();

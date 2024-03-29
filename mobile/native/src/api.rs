@@ -1,5 +1,6 @@
 use crate::calculations;
 use crate::channel_trade_constraints;
+use crate::channel_trade_constraints::TradeConstraints;
 use crate::commons::api::Price;
 use crate::config;
 use crate::config::api::Config;
@@ -530,30 +531,6 @@ pub async fn close_channel() -> Result<()> {
 #[tokio::main(flavor = "current_thread")]
 pub async fn force_close_channel() -> Result<()> {
     ln_dlc::close_channel(true).await
-}
-
-pub struct TradeConstraints {
-    /// Max margin the local party can use
-    ///
-    /// This depends on whether the user has a channel or not. If he has a channel, then his
-    /// channel balance is the max amount, otherwise his on-chain balance dictates the max amount
-    pub max_local_margin_sats: u64,
-    /// Max amount the counterparty is willing to put.
-    ///
-    /// This depends whether the user has a channel or not, i.e. if he has a channel then the max
-    /// amount is what the counterparty has in the channel, otherwise, it's a fixed amount what
-    /// the counterparty is willing to provide.
-    pub max_counterparty_margin_sats: u64,
-    /// The leverage the coordinator will take
-    pub coordinator_leverage: f32,
-    /// Smallest allowed amount of contracts
-    pub min_quantity: u64,
-    /// If true it means that the user has a channel and hence the max amount is limited by what he
-    /// has in the channel. In the future we can consider splice in and allow the user to use more
-    /// than just his channel balance.
-    pub is_channel_balance: bool,
-    /// Smallest allowed margin
-    pub min_margin: u64,
 }
 
 pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {

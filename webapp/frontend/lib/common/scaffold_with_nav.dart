@@ -288,8 +288,8 @@ class ScaffoldWithNavigationRail extends StatelessWidget {
                                       ? []
                                       : [
                                           formatAmountAsCurrency(
-                                              balance?.onChain
-                                                  .add(balance?.offChain ?? Amount.zero()),
+                                              (balance?.onChain ?? Amount.zero()) +
+                                                  (balance?.offChain ?? Amount.zero()),
                                               currency,
                                               midMarket),
                                         ]),

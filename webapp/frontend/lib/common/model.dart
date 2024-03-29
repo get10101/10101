@@ -33,12 +33,28 @@ class Amount implements Formattable {
 
   Amount.zero() : _sats = Decimal.zero;
 
-  Amount add(Amount amount) {
-    return Amount(sats + amount.sats);
+  // Overloading the + operator
+  Amount operator +(Amount other) {
+    return Amount(sats + other.sats);
   }
 
-  Amount sub(Amount amount) {
-    return Amount(sats - amount.sats);
+  // Overloading the - operator
+  Amount operator -(Amount other) {
+    return Amount(sats - other.sats);
+  }
+
+  static Amount max(Amount amountA, [Amount? amountB]) {
+    if (amountB == null) {
+      return amountA;
+    }
+    return amountA.sats > amountB.sats ? amountA : amountB;
+  }
+
+  static Amount min(Amount amountA, [Amount? amountB]) {
+    if (amountB == null) {
+      return amountA;
+    }
+    return amountA.sats < amountB.sats ? amountA : amountB;
   }
 
   Amount.parseAmount(String? value) {

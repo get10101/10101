@@ -23,7 +23,8 @@ class OrderId {
 class NewOrderService {
   const NewOrderService();
 
-  static Future<String> postNewOrder(Leverage leverage, Usd quantity, bool isLong) async {
+  static Future<String> postNewOrder(Leverage leverage, Usd quantity, bool isLong,
+      {ChannelOpeningParams? channelOpeningParams}) async {
     final response = await HttpClientManager.instance.post(Uri(path: '/api/orders'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
@@ -32,6 +33,8 @@ class NewOrderService {
           'leverage': leverage.asDouble,
           'quantity': quantity.asDouble,
           'direction': isLong ? "Long" : "Short",
+          'coordinator_reserve': channelOpeningParams?.coordinatorReserve.sats,
+          'trader_reserve': channelOpeningParams?.traderReserve.sats
         }));
 
     if (response.statusCode == 200) {
@@ -40,4 +43,11 @@ class NewOrderService {
       throw FlutterError("Failed to post new order. Response ${response.body}");
     }
   }
+}
+
+class ChannelOpeningParams {
+  final Amount coordinatorReserve;
+  final Amount traderReserve;
+
+  ChannelOpeningParams(this.coordinatorReserve, this.traderReserve);
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/change_notifier/quote_change_notifier.dart';
+import 'package:get_10101/change_notifier/trade_constraint_change_notifier.dart';
 import 'package:get_10101/services/auth_service.dart';
 import 'package:get_10101/change_notifier/currency_change_notifier.dart';
+import 'package:get_10101/services/trade_constraints_service.dart';
 import 'package:get_10101/services/version_service.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/routes.dart';
@@ -36,6 +38,7 @@ Future<void> main() async {
 
   const walletService = WalletService();
   const channelService = ChannelService();
+  const tradeConstraintsService = TradeConstraintsService();
 
   var providers = [
     Provider(create: (context) => const VersionService()),
@@ -45,6 +48,8 @@ Future<void> main() async {
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(const OrderService())),
     ChangeNotifierProvider(create: (context) => ChannelChangeNotifier(channelService)),
     ChangeNotifierProvider(create: (context) => CurrencyChangeNotifier(Currency.sats)),
+    ChangeNotifierProvider(
+        create: (context) => TradeConstraintsChangeNotifier(tradeConstraintsService)),
     Provider(create: (context) => const SettingsService()),
     Provider(create: (context) => channelService),
     Provider(create: (context) => AuthService()),

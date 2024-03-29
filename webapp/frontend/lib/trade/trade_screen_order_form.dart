@@ -1,11 +1,15 @@
 import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/change_notifier/channel_change_notifier.dart';
 import 'package:get_10101/change_notifier/quote_change_notifier.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
+import 'package:get_10101/common/calculations.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/theme.dart';
+import 'package:get_10101/settings/dlc_channel.dart';
+import 'package:get_10101/trade/create_channel_confirmation_dialog.dart';
 import 'package:get_10101/trade/create_order_confirmation_dialog.dart';
 import 'package:get_10101/trade/leverage_slider.dart';
 import 'package:get_10101/services/quote_service.dart';
@@ -28,6 +32,7 @@ class _NewOrderForm extends State<NewOrderForm> {
   Usd? _quantity = Usd(100);
   Leverage _leverage = Leverage(1);
   bool isBuy = true;
+  DlcChannel? _openChannel;
 
   final TextEditingController _marginController = TextEditingController();
   final TextEditingController _liquidationPriceController = TextEditingController();
@@ -47,6 +52,7 @@ class _NewOrderForm extends State<NewOrderForm> {
     final direction = isBuy ? Direction.long : Direction.short;
 
     _quote = context.watch<QuoteChangeNotifier>().getBestQuote();
+    _openChannel = context.watch<ChannelChangeNotifier>().getOpenChannel();
 
     updateOrderValues();
 
@@ -122,15 +128,31 @@ class _NewOrderForm extends State<NewOrderForm> {
                 showDialog(
                     context: context,
                     builder: (BuildContext context) {
-                      return CreateOrderConfirmationDialog(
-                        direction: direction,
-                        onConfirmation: () {},
-                        onCancel: () {},
-                        bestQuote: _quote,
-                        fee: fee,
-                        leverage: _leverage,
-                        quantity: _quantity ?? Usd.zero(),
-                      );
+                      if (_openChannel != null) {
+                        return CreateOrderConfirmationDialog(
+                          direction: direction,
+                          onConfirmation: () {},
+                          onCancel: () {},
+                          bestQuote: _quote,
+                          fee: fee,
+                          leverage: _leverage,
+                          quantity: _quantity ?? Usd.zero(),
+                        );
+                      } else {
+                        return CreateChannelConfirmationDialog(
+                            direction: direction,
+                            onConfirmation: () {},
+                            onCancel: () {},
+                            bestQuote: _quote == null
+                                ? BestQuote(ask: Price.zero(), bid: Price.zero(), fee: 0.0)
+                                : _quote!,
+                            fee: fee,
+                            leverage: _leverage,
+                            quantity: _quantity ?? Usd.zero(),
+                            margin: (_quantity != null && _quote != null)
+                                ? calculateMargin(_quantity!, _quote!, _leverage, isBuy)
+                                : Amount.zero());
+                      }
                     });
               },
               style: ElevatedButton.styleFrom(
@@ -155,43 +177,5 @@ class _NewOrderForm extends State<NewOrderForm> {
     } else if (!isBuy && _quote != null && _quote!.bid != null) {
       _latestPriceController.text = _quote!.bid!.formatted();
     }
-  }
-}
-
-Amount calculateFee(Usd? quantity, BestQuote? quote, bool isLong) {
-  if (quote?.fee == null || quote?.fee == 0 || quantity == null) {
-    return Amount.zero();
-  }
-
-  return Amount(
-      (calculateMargin(quantity, quote!, Leverage.one(), isLong).sats * quote.fee!).toInt());
-}
-
-Amount calculateMargin(Usd quantity, BestQuote quote, Leverage leverage, bool isLong) {
-  if (isLong && quote.ask != null) {
-    if (quote.ask!.asDouble == 0) {
-      return Amount.zero();
-    }
-    return Amount.fromBtc(quantity.asDouble / (quote.ask!.asDouble * leverage.asDouble));
-  } else if (!isLong && quote.bid != null) {
-    if (quote.bid!.asDouble == 0) {
-      return Amount.zero();
-    }
-    return Amount.fromBtc(quantity.asDouble / (quote.bid!.asDouble * leverage.asDouble));
-  } else {
-    return Amount.zero();
-  }
-}
-
-Amount calculateLiquidationPrice(
-    Usd quantity, BestQuote quote, Leverage leverage, double maintenanceMargin, bool isLong) {
-  if (isLong && quote.ask != null) {
-    return Amount((quote.bid!.asDouble * leverage.asDouble) ~/
-        (leverage.asDouble + 1.0 + (maintenanceMargin * leverage.asDouble)));
-  } else if (!isLong && quote.bid != null) {
-    return Amount((quote.ask!.asDouble * leverage.asDouble) ~/
-        (leverage.asDouble - 1.0 + (maintenanceMargin * leverage.asDouble)));
-  } else {
-    return Amount.zero();
   }
 }
