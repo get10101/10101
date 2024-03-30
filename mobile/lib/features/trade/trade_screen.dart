@@ -2,8 +2,6 @@ import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
-import 'package:get_10101/features/trade/contract_symbol_icon.dart';
-import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
@@ -60,10 +58,7 @@ class TradeScreen extends StatelessWidget {
           padding: const EdgeInsets.only(left: 15, right: 15),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [const ContractSymbolIcon(), Text(ContractSymbol.btcusd.label)],
-              ),
+              const SizedBox(height: 5),
               Selector<TradeValuesChangeNotifier, Price?>(selector: (_, provider) {
                 return provider.getPrice();
               }, builder: (context, price, child) {
@@ -81,6 +76,7 @@ class TradeScreen extends StatelessWidget {
                   ],
                 );
               }),
+              const SizedBox(height: 5),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
