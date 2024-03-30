@@ -335,6 +335,8 @@ pub fn run(runtime: &Runtime) -> Result<()> {
                 .await
         });
 
+        node.spawn_listen_dlc_channels_event_task();
+
         runtime.spawn({
             let node = node.clone();
             async move {

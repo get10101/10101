@@ -374,6 +374,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         }
     }
 
+    pub fn get_dlc_channel_by_reference_id(&self, reference_id: ReferenceId) -> Result<Channel> {
+        let channels = self.list_dlc_channels()?;
+        channels
+            .into_iter()
+            .find(|channel| channel.get_reference_id() == Some(reference_id))
+            .context("Couldn't find channel by reference id")
+    }
+
     /// Get the DLC [`Channel`] by its [`DlcChannelId`].
     pub fn get_dlc_channel_by_id(&self, dlc_channel_id: &DlcChannelId) -> Result<Channel> {
         self.dlc_manager

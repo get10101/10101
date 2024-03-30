@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
+import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
+import 'package:get_10101/logger/logger.dart';
 
 enum ChannelStatus {
   unknown,
@@ -12,67 +15,70 @@ enum ChannelStatus {
   settling,
 }
 
-class DlcChannelChangeNotifier extends ChangeNotifier {
+class DlcChannelChangeNotifier extends ChangeNotifier implements Subscriber {
   final DlcChannelService dlcChannelService;
 
-  List<DlcChannel> channels = [];
+  Map<String, DlcChannel> channels = {};
 
   DlcChannelChangeNotifier(this.dlcChannelService);
 
-  Future<void> refreshDlcChannels() async {
-    channels = await dlcChannelService.getDlcChannels();
-    super.notifyListeners();
+  Future<void> initialize() async {
+    List<DlcChannel> channels = await dlcChannelService.getDlcChannels();
+    for (DlcChannel channel in channels) {
+      this.channels[channel.id] = channel;
+    }
+
+    notifyListeners();
   }
 
   Future<void> deleteDlcChannel(String dlcChannelId) async {
     await dlcChannelService.deleteDlcChannel(dlcChannelId);
-    await refreshDlcChannels();
   }
 
   List<SignedDlcChannel> getAllSignedDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.signed)
         .map((channel) => channel as SignedDlcChannel)
         .toList();
   }
 
   List<OfferedDlcChannel> getAllOfferedDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.offered)
         .map((channel) => channel as OfferedDlcChannel)
         .toList();
   }
 
   List<AcceptedDlcChannel> getAllAcceptedDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.accepted)
         .map((channel) => channel as AcceptedDlcChannel)
         .toList();
   }
 
   List<CancelledDlcChannel> getAllCancelledDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.cancelled)
         .map((channel) => channel as CancelledDlcChannel)
         .toList();
   }
 
   List<ClosingDlcChannel> getAllClosingDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.closing)
         .map((channel) => channel as ClosingDlcChannel)
         .toList();
   }
 
   List<SettledClosingDlcChannel> getAllSettledClosingDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => channel.state == ChannelState.settledClosing)
         .map((channel) => channel as SettledClosingDlcChannel)
         .toList();
   }
 
   List<ClosedDlcChannel> getAllClosedDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => [
               ChannelState.closed,
               ChannelState.counterClosed,
@@ -83,7 +89,7 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
   }
 
   List<DlcChannel> getAllOtherDlcChannels() {
-    return channels
+    return channels.values
         .where((channel) => [
               ChannelState.closedPunished,
               ChannelState.failedAccept,
@@ -93,12 +99,12 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
   }
 
   ChannelStatus getChannelStatus() {
-    if (!channels.any((c) => c.state == ChannelState.signed)) {
+    if (!channels.values.any((c) => c.state == ChannelState.signed)) {
       return ChannelStatus.notOpen;
     }
 
-    final channel =
-        channels.firstWhere((channel) => channel.state == ChannelState.signed) as SignedDlcChannel;
+    final channel = channels.values.firstWhere((channel) => channel.state == ChannelState.signed)
+        as SignedDlcChannel;
     switch (channel.signedState) {
       case SignedChannelState.established:
         return ChannelStatus.withPosition;
@@ -130,7 +136,7 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
   }
 
   bool hasDlcChannel() {
-    return channels.any((channel) => channel.state == ChannelState.signed);
+    return channels.values.any((channel) => channel.state == ChannelState.signed);
   }
 
   bool hasDlcChannelWithoutPosition() {
@@ -149,7 +155,7 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
 
   /// Whether the current DLC channel is closing or not.
   bool isClosing() {
-    return channels.any((channel) =>
+    return channels.values.any((channel) =>
         channel.state == ChannelState.closing ||
         (channel is SignedDlcChannel && channel.signedState == SignedChannelState.closing));
   }
@@ -165,5 +171,17 @@ class DlcChannelChangeNotifier extends ChangeNotifier {
         SignedChannelState.settledOffered
       ].contains(channel.signedState);
     });
+  }
+
+  @override
+  void notify(bridge.Event event) {
+    if (event is bridge.Event_DlcChannelEvent) {
+      DlcChannel channel = DlcChannel.fromApi(event.field0);
+      channels[channel.id] = channel;
+
+      notifyListeners();
+    } else {
+      logger.w("Received unexpected event: ${event.toString()}");
+    }
   }
 }

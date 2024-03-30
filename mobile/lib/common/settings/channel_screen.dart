@@ -26,14 +26,6 @@ class _ChannelScreenState extends State<ChannelScreen> {
   bool isCloseChannelButtonDisabled = false;
 
   @override
-  void initState() {
-    super.initState();
-
-    DlcChannelChangeNotifier dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
-    dlcChannelChangeNotifier.refreshDlcChannels();
-  }
-
-  @override
   Widget build(BuildContext context) {
     DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 

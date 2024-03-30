@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
+import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/lsp_config.dart';
 import 'package:get_10101/common/full_sync_change_notifier.dart';
 import 'package:get_10101/features/brag/github_service.dart';
@@ -96,6 +97,7 @@ void subscribeToNotifiers(BuildContext context) {
   final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
   final lspConfigChangeNotifier = context.read<LspChangeNotifier>();
   final fullSyncChangeNotifier = context.read<FullSyncChangeNotifier>();
+  final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
@@ -141,6 +143,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       fullSyncChangeNotifier, bridge.Event.backgroundNotification(FullSync.apiDummy()));
+
+  eventService.subscribe(
+      dlcChannelChangeNotifier, bridge.Event.dlcChannelEvent(DlcChannel.apiDummy()));
 
   eventService.subscribe(
       AnonSubscriber((event) => logger.i(event.field0)), const bridge.Event.log(""));

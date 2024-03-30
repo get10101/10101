@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -55,6 +56,7 @@ Future<void> fullBackup() async {
 Future<void> runBackend(BuildContext context) async {
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
+  final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
   final seedDir = (await getApplicationSupportDirectory()).path;
 
@@ -72,6 +74,7 @@ Future<void> runBackend(BuildContext context) async {
   // these notifiers depend on the backend running
   await orderChangeNotifier.initialize();
   await positionChangeNotifier.initialize();
+  await dlcChannelChangeNotifier.initialize();
 }
 
 void _setupRustLogging() {

@@ -24,12 +24,6 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
   bool isCloseChannelButtonDisabled = false;
 
   @override
-  void initState() {
-    super.initState();
-    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
-  }
-
-  @override
   Widget build(BuildContext context) {
     DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 

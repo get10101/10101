@@ -1,112 +1,15 @@
-use dlc_manager::channel::signed_channel::SignedChannel;
-use dlc_manager::channel::Channel;
+use crate::dlc;
 use flutter_rust_bridge::frb;
 
 #[frb]
+#[derive(Clone)]
 pub struct DlcChannel {
     pub dlc_channel_id: String,
     pub channel_state: ChannelState,
 }
 
-impl From<&Channel> for DlcChannel {
-    fn from(value: &Channel) -> Self {
-        let channel_state = match value {
-            Channel::Offered(o) => ChannelState::Offered {
-                contract_id: hex::encode(o.offered_contract_id),
-            },
-            Channel::Accepted(a) => ChannelState::Accepted {
-                contract_id: hex::encode(a.accepted_contract_id),
-            },
-            s @ Channel::Signed(SignedChannel {
-                state: dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered {
-                    close_tx,
-                    ..
-                },
-                fund_tx,
-                fund_output_index,
-                ..
-            }) => ChannelState::Signed {
-                contract_id: s.get_contract_id().map(hex::encode),
-                funding_txid: fund_tx.txid().to_string(),
-                funding_tx_vout: *fund_output_index,
-                closing_txid: Some(close_tx.txid().to_string()),
-                state: SignedChannelState::CollaborativeCloseOffered,
-            },
-            s @ Channel::Signed(SignedChannel {
-                state: dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing {
-                    settle_transaction,
-                    ..
-                },
-                fund_tx,
-                fund_output_index,
-                ..
-            }) => ChannelState::Signed {
-                contract_id: s.get_contract_id().map(hex::encode),
-                funding_txid: fund_tx.txid().to_string(),
-                funding_tx_vout: *fund_output_index,
-                closing_txid: Some(settle_transaction.txid().to_string()),
-                state: SignedChannelState::SettledClosing,
-            },
-            Channel::Signed(s) => ChannelState::Signed {
-                contract_id: s.get_contract_id().map(hex::encode),
-                funding_txid: s.fund_tx.txid().to_string(),
-                funding_tx_vout: s.fund_output_index,
-                closing_txid: None,
-                state: SignedChannelState::from(&s.state),
-            },
-            Channel::Closing(c) => ChannelState::Closing {
-                buffer_txid: c.buffer_transaction.txid().to_string(),
-                contract_id: hex::encode(c.contract_id),
-            },
-            Channel::SettledClosing(c) => ChannelState::SettledClosing {
-                settle_txid: c.claim_transaction.txid().to_string(),
-            },
-            Channel::Closed(c) => ChannelState::Closed {
-                closing_txid: c.closing_txid.to_string()
-            },
-            Channel::CounterClosed(c) => ChannelState::CounterClosed{
-                closing_txid: c.closing_txid.to_string()
-            },
-            Channel::ClosedPunished(_) => ChannelState::ClosedPunished,
-            Channel::CollaborativelyClosed(c) => ChannelState::CollaborativelyClosed{
-                closing_txid: c.closing_txid.to_string()
-            },
-            Channel::FailedAccept(_) => ChannelState::FailedAccept,
-            Channel::FailedSign(_) => ChannelState::FailedSign,
-            Channel::Cancelled(o) => ChannelState::Cancelled {
-                contract_id: hex::encode(o.temporary_channel_id),
-            },
-        };
-
-        Self {
-            dlc_channel_id: hex::encode(value.get_id()),
-            channel_state,
-        }
-    }
-}
-
-impl From<&dlc_manager::channel::signed_channel::SignedChannelState> for SignedChannelState {
-    fn from(value: &dlc_manager::channel::signed_channel::SignedChannelState) -> Self {
-        match value {
-            dlc_manager::channel::signed_channel::SignedChannelState::Established { .. } => SignedChannelState::Established,
-            dlc_manager::channel::signed_channel::SignedChannelState::SettledOffered { .. } => SignedChannelState::SettledOffered,
-            dlc_manager::channel::signed_channel::SignedChannelState::SettledReceived { .. } => SignedChannelState::SettledReceived,
-            dlc_manager::channel::signed_channel::SignedChannelState::SettledAccepted { .. } => SignedChannelState::SettledAccepted,
-            dlc_manager::channel::signed_channel::SignedChannelState::SettledConfirmed { .. } => SignedChannelState::SettledConfirmed,
-            dlc_manager::channel::signed_channel::SignedChannelState::Settled { .. } => SignedChannelState::Settled,
-            dlc_manager::channel::signed_channel::SignedChannelState::RenewOffered { .. } => SignedChannelState::RenewOffered,
-            dlc_manager::channel::signed_channel::SignedChannelState::RenewAccepted { .. } => SignedChannelState::RenewAccepted,
-            dlc_manager::channel::signed_channel::SignedChannelState::RenewConfirmed { .. } => SignedChannelState::RenewConfirmed,
-            dlc_manager::channel::signed_channel::SignedChannelState::RenewFinalized { .. } => SignedChannelState::RenewFinalized,
-            dlc_manager::channel::signed_channel::SignedChannelState::Closing { .. } => SignedChannelState::Closing,
-            dlc_manager::channel::signed_channel::SignedChannelState::CollaborativeCloseOffered { .. } => SignedChannelState::CollaborativeCloseOffered,
-            dlc_manager::channel::signed_channel::SignedChannelState::SettledClosing { .. } => SignedChannelState::SettledClosing,
-        }
-    }
-}
-
 #[frb]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ChannelState {
     Offered {
         contract_id: String,
@@ -146,7 +49,7 @@ pub enum ChannelState {
 }
 
 #[frb]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
@@ -161,4 +64,80 @@ pub enum SignedChannelState {
     RenewFinalized,
     Closing,
     CollaborativeCloseOffered,
+}
+
+impl From<dlc::DlcChannel> for DlcChannel {
+    fn from(value: dlc::DlcChannel) -> Self {
+        DlcChannel {
+            dlc_channel_id: value.channel_id,
+            channel_state: value.channel_state.into(),
+        }
+    }
+}
+
+impl From<dlc::ChannelState> for ChannelState {
+    fn from(value: dlc::ChannelState) -> Self {
+        match value {
+            dlc::ChannelState::Offered { contract_id } => ChannelState::Offered { contract_id },
+            dlc::ChannelState::Accepted { contract_id } => ChannelState::Accepted { contract_id },
+            dlc::ChannelState::Signed {
+                contract_id,
+                funding_txid,
+                funding_tx_vout,
+                closing_txid,
+                state,
+            } => ChannelState::Signed {
+                contract_id,
+                funding_txid,
+                funding_tx_vout,
+                closing_txid,
+                state: SignedChannelState::from(state),
+            },
+            dlc::ChannelState::Closing {
+                contract_id,
+                buffer_txid,
+            } => ChannelState::Closing {
+                contract_id,
+                buffer_txid,
+            },
+            dlc::ChannelState::SettledClosing { settle_txid } => {
+                ChannelState::SettledClosing { settle_txid }
+            }
+            dlc::ChannelState::Closed { closing_txid } => ChannelState::Closed { closing_txid },
+            dlc::ChannelState::CounterClosed { closing_txid } => {
+                ChannelState::CounterClosed { closing_txid }
+            }
+            dlc::ChannelState::ClosedPunished => ChannelState::ClosedPunished,
+            dlc::ChannelState::CollaborativelyClosed { closing_txid } => {
+                ChannelState::CollaborativelyClosed { closing_txid }
+            }
+            dlc::ChannelState::FailedAccept => ChannelState::FailedAccept,
+            dlc::ChannelState::FailedSign => ChannelState::FailedSign,
+            dlc::ChannelState::Cancelled { contract_id } => ChannelState::Cancelled { contract_id },
+        }
+    }
+}
+
+impl From<dlc::SignedChannelState> for SignedChannelState {
+    fn from(value: dlc::SignedChannelState) -> Self {
+        match value {
+            dlc::SignedChannelState::Established { .. } => SignedChannelState::Established,
+            dlc::SignedChannelState::SettledOffered { .. } => SignedChannelState::SettledOffered,
+            dlc::SignedChannelState::SettledReceived { .. } => SignedChannelState::SettledReceived,
+            dlc::SignedChannelState::SettledAccepted { .. } => SignedChannelState::SettledAccepted,
+            dlc::SignedChannelState::SettledConfirmed { .. } => {
+                SignedChannelState::SettledConfirmed
+            }
+            dlc::SignedChannelState::Settled { .. } => SignedChannelState::Settled,
+            dlc::SignedChannelState::RenewOffered { .. } => SignedChannelState::RenewOffered,
+            dlc::SignedChannelState::RenewAccepted { .. } => SignedChannelState::RenewAccepted,
+            dlc::SignedChannelState::RenewConfirmed { .. } => SignedChannelState::RenewConfirmed,
+            dlc::SignedChannelState::RenewFinalized { .. } => SignedChannelState::RenewFinalized,
+            dlc::SignedChannelState::Closing { .. } => SignedChannelState::Closing,
+            dlc::SignedChannelState::CollaborativeCloseOffered { .. } => {
+                SignedChannelState::CollaborativeCloseOffered
+            }
+            dlc::SignedChannelState::SettledClosing { .. } => SignedChannelState::SettledClosing,
+        }
+    }
 }

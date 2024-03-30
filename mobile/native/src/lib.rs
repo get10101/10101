@@ -7,6 +7,7 @@ pub mod api;
 pub mod calculations;
 pub mod commons;
 pub mod config;
+pub mod dlc;
 pub mod event;
 pub mod health;
 pub mod logger;

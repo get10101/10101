@@ -1,4 +1,5 @@
 use crate::api::WalletInfo;
+use crate::dlc::DlcChannel;
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
@@ -39,6 +40,7 @@ pub enum EventInternal {
     Authenticated(LspConfig),
     BackgroundNotification(BackgroundTask),
     SpendableOutputs,
+    DlcChannelEvent(DlcChannel),
 }
 
 #[derive(Clone, Debug)]
@@ -72,6 +74,7 @@ impl fmt::Display for EventInternal {
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
             EventInternal::SpendableOutputs => "SpendableOutputs",
             EventInternal::Authenticated(_) => "Authenticated",
+            EventInternal::DlcChannelEvent(_) => "DlcChannelEvent",
         }
         .fmt(f)
     }
@@ -94,6 +97,7 @@ impl From<EventInternal> for EventType {
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
             EventInternal::SpendableOutputs => EventType::SpendableOutputs,
             EventInternal::Authenticated(_) => EventType::Authenticated,
+            EventInternal::DlcChannelEvent(_) => EventType::DlcChannelEvent,
         }
     }
 }
@@ -117,4 +121,5 @@ pub enum EventType {
     BackgroundNotification,
     SpendableOutputs,
     Authenticated,
+    DlcChannelEvent,
 }
