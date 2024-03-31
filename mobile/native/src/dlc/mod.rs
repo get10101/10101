@@ -1,6 +1,7 @@
-use dlc_manager::channel::Channel;
 use dlc_manager::channel::signed_channel::SignedChannel;
+use dlc_manager::channel::Channel;
 
+pub mod dlc_handler;
 mod subscriber;
 
 #[derive(Clone, Debug)]
@@ -64,7 +65,6 @@ pub enum SignedChannelState {
     Closing,
     CollaborativeCloseOffered,
 }
-
 
 impl From<&Channel> for DlcChannel {
     fn from(value: &Channel) -> Self {

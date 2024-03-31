@@ -19,7 +19,6 @@ mod channel_trade_constraints;
 mod cipher;
 mod destination;
 mod dlc_channel;
-mod dlc_handler;
 mod emergency_kit;
 mod max_quantity;
 mod names;
