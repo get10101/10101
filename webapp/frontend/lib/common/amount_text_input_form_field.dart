@@ -23,6 +23,8 @@ class AmountInputField extends StatelessWidget {
     this.onTap,
     this.textAlign = TextAlign.left,
     this.suffixIcon,
+    this.heightPadding,
+    this.widthPadding,
   });
 
   final TextEditingController? controller;
@@ -38,6 +40,8 @@ class AmountInputField extends StatelessWidget {
   final InputDecoration? decoration;
   final TextAlign textAlign;
   final Widget? suffixIcon;
+  final double? heightPadding;
+  final double? widthPadding;
 
   final String? Function(String?)? validator;
 
@@ -62,6 +66,13 @@ class AmountInputField extends StatelessWidget {
               color: Colors.red[900],
             ),
             suffixIcon: isLoading ? const CircularProgressIndicator() : suffixIcon,
+            contentPadding: (heightPadding != null || widthPadding != null)
+                ? EdgeInsets.only(
+                    top: heightPadding! / 2,
+                    bottom: heightPadding! / 2,
+                    left: widthPadding! / 2,
+                    right: widthPadding! / 2)
+                : null,
           ),
       inputFormatters: <TextInputFormatter>[
         FilteringTextInputFormatter.digitsOnly,

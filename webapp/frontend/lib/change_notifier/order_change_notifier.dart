@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/order_service.dart';
+import 'package:get_10101/services/order_service.dart';
 
 class OrderChangeNotifier extends ChangeNotifier {
   final OrderService service;

@@ -5,7 +5,7 @@ import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
-import 'package:get_10101/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/change_notifier/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 
 class SendScreen extends StatefulWidget {

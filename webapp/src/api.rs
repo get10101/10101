@@ -21,6 +21,7 @@ use native::api::Direction;
 use native::api::Fee;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
+use native::channel_trade_constraints;
 use native::ln_dlc;
 use native::ln_dlc::is_dlc_channel_confirmed;
 use native::trade::order::FailureReason;
@@ -52,6 +53,7 @@ pub fn router(subscribers: Arc<AppSubscribers>) -> Router {
         .route("/api/sync", post(post_sync))
         .route("/api/seed", get(get_seed_phrase))
         .route("/api/channels", get(get_channels).delete(close_channel))
+        .route("/api/tradeconstraints", get(get_trade_constraints))
         .with_state(subscribers)
 }
 
@@ -192,13 +194,17 @@ pub struct OrderId {
     id: Uuid,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct NewOrderParams {
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub direction: Direction,
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
+    pub coordinator_reserve: Option<Amount>,
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
+    pub trader_reserve: Option<Amount>,
 }
 
 impl TryFrom<NewOrderParams> for native::trade::order::Order {
@@ -231,6 +237,7 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
 
 pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId>, AppError> {
     let order: native::trade::order::Order = params
+        .clone()
         .0
         .try_into()
         .context("Could not parse order request")?;
@@ -241,9 +248,8 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
         None
     } else {
         Some(ChannelOpeningParams {
-            // TODO: Allow webapp to open a DLC channel with additional reserve.
-            coordinator_reserve: Amount::ZERO,
-            trader_reserve: Amount::ZERO,
+            coordinator_reserve: params.coordinator_reserve.unwrap_or_default(),
+            trader_reserve: params.trader_reserve.unwrap_or_default(),
         })
     };
 
@@ -737,4 +743,32 @@ where
         None | Some("") => Ok(None),
         Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
     }
+}
+
+#[derive(Serialize, Copy, Clone, Debug)]
+pub struct TradeConstraints {
+    pub max_local_margin_sats: u64,
+    pub max_counterparty_margin_sats: u64,
+    pub coordinator_leverage: f32,
+    pub min_quantity: u64,
+    pub is_channel_balance: bool,
+    pub min_margin_sats: u64,
+    pub estimated_funding_tx_fee_sats: u64,
+    pub channel_fee_reserve_sats: u64,
+}
+
+pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError> {
+    let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
+    let fee = ln_dlc::estimated_funding_tx_fee()?;
+    let channel_fee_reserve = ln_dlc::estimated_fee_reserve()?;
+    Ok(Json(TradeConstraints {
+        max_local_margin_sats: trade_constraints.max_local_margin_sats,
+        max_counterparty_margin_sats: trade_constraints.max_counterparty_margin_sats,
+        coordinator_leverage: trade_constraints.coordinator_leverage,
+        min_quantity: trade_constraints.min_quantity,
+        is_channel_balance: trade_constraints.is_channel_balance,
+        min_margin_sats: trade_constraints.min_margin,
+        estimated_funding_tx_fee_sats: fee.to_sat(),
+        channel_fee_reserve_sats: channel_fee_reserve.to_sat(),
+    }))
 }

@@ -15,7 +15,7 @@ pub mod schema;
 pub mod state;
 
 mod backup;
-mod channel_trade_constraints;
+pub mod channel_trade_constraints;
 mod cipher;
 mod destination;
 mod dlc_channel;

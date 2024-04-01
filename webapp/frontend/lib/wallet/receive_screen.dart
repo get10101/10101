@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/truncate_text.dart';
-import 'package:get_10101/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/change_notifier/wallet_change_notifier.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 

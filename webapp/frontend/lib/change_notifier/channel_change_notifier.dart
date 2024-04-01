@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/settings/channel_service.dart';
+import 'package:get_10101/services/channel_service.dart';
 import 'package:get_10101/settings/dlc_channel.dart';
 
 class ChannelChangeNotifier extends ChangeNotifier {
@@ -40,6 +40,21 @@ class ChannelChangeNotifier extends ChangeNotifier {
   }
 
   List<DlcChannel>? getChannels() => _channels;
+
+  DlcChannel? getOpenChannel() {
+    if (_channels == null) return null;
+    try {
+      return _channels!.firstWhere(
+        (channel) =>
+            (channel.signedChannelState == SignedChannelState.established ||
+                channel.signedChannelState == SignedChannelState.settled) &&
+            channel.channelState == ChannelState.signed,
+      );
+    } catch (e) {
+      // If no element satisfies the condition, we return null
+      return null;
+    }
+  }
 
   @override
   void dispose() {

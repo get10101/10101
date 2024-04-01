@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/common/balance.dart';
 import 'package:get_10101/common/payment.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/wallet/wallet_service.dart';
+import 'package:get_10101/services/wallet_service.dart';
 
 class WalletChangeNotifier extends ChangeNotifier {
   final WalletService service;

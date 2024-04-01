@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/settings/seed_words.dart';
-import 'package:get_10101/settings/settings_service.dart';
+import 'package:get_10101/services/settings_service.dart';
 import 'package:provider/provider.dart';
 
 class SeedScreen extends StatefulWidget {

@@ -5,8 +5,8 @@ import 'package:get_10101/common/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/common/value_data_row.dart';
-import 'package:get_10101/trade/new_order_service.dart';
-import 'package:get_10101/trade/quote_service.dart';
+import 'package:get_10101/services/new_order_service.dart';
+import 'package:get_10101/services/quote_service.dart';
 
 class CreateOrderConfirmationDialog extends StatelessWidget {
   final Direction direction;

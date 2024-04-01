@@ -2,15 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:get_10101/trade/quote_service.dart';
+import 'package:get_10101/services/position_service.dart';
 
-class QuoteChangeNotifier extends ChangeNotifier {
-  final QuoteService service;
+class PositionChangeNotifier extends ChangeNotifier {
+  final PositionService service;
   late Timer timer;
 
-  BestQuote? _bestQuote;
+  List<Position>? _positions;
 
-  QuoteChangeNotifier(this.service) {
+  PositionChangeNotifier(this.service) {
     _refresh();
     Timer.periodic(const Duration(seconds: 2), (timer) async {
       _refresh();
@@ -19,8 +19,8 @@ class QuoteChangeNotifier extends ChangeNotifier {
 
   void _refresh() async {
     try {
-      final quote = await service.fetchQuote();
-      _bestQuote = quote;
+      final positions = await service.fetchOpenPositions();
+      _positions = positions;
 
       super.notifyListeners();
     } catch (error) {
@@ -28,7 +28,7 @@ class QuoteChangeNotifier extends ChangeNotifier {
     }
   }
 
-  BestQuote? getBestQuote() => _bestQuote;
+  List<Position>? getPositions() => _positions;
 
   @override
   void dispose() {
