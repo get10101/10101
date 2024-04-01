@@ -57,7 +57,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     lspChangeNotifier = context.read<LspChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
 
-    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
     super.initState();
   }
 

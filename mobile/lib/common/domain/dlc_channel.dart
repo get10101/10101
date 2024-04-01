@@ -10,6 +10,11 @@ class DlcChannel {
     return null;
   }
 
+  static bridge.DlcChannel apiDummy() {
+    return const bridge.DlcChannel(
+        dlcChannelId: '', channelState: bridge.ChannelState.failedAccept());
+  }
+
   static DlcChannel fromApi(bridge.DlcChannel dlcChannel) {
     switch (dlcChannel.channelState) {
       case (bridge.ChannelState_Signed signed):

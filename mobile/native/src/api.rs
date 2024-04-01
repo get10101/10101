@@ -7,6 +7,7 @@ use crate::config::api::Directories;
 use crate::config::get_network;
 use crate::db;
 use crate::destination;
+use crate::dlc;
 pub use crate::dlc_channel::ChannelState;
 pub use crate::dlc_channel::DlcChannel;
 pub use crate::dlc_channel::SignedChannelState;
@@ -827,6 +828,7 @@ pub fn get_dlc_channel_id() -> Result<Option<String>> {
 pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
     let channels = ln_dlc::list_dlc_channels()?
         .iter()
+        .map(dlc::DlcChannel::from)
         .map(DlcChannel::from)
         .collect();
     Ok(channels)

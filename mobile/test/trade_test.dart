@@ -266,6 +266,7 @@ void main() {
     LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
 
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
+    dlcChannelChangeNotifier.initialize();
 
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
 
@@ -285,8 +286,6 @@ void main() {
       ChangeNotifierProvider(create: (context) => lspChangeNotifier),
       ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
-
-    dlcChannelChangeNotifier.refreshDlcChannels();
 
     // We have to pretend that we have a balance, because otherwise the trade bottom sheet validation will not allow us to go to the confirmation screen
     walletChangeNotifier.update(WalletInfo(

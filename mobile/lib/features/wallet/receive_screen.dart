@@ -50,7 +50,6 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
     super.initState();
     _createPaymentRequest(amount, description)
         .then((paymentRequest) => setState(() => _paymentRequest = paymentRequest));
-    context.read<DlcChannelChangeNotifier>().refreshDlcChannels();
   }
 
   String rawInvoice() {

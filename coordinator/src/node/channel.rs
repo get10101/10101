@@ -3,7 +3,6 @@ use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::node::Node;
 use anyhow::bail;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -77,11 +76,7 @@ impl Node {
             return Ok(());
         }
 
-        let channels = self.inner.list_dlc_channels()?;
-        let channel = channels
-            .iter()
-            .find(|channel| channel.get_reference_id() == Some(protocol_id))
-            .context("Couldn't find channel by reference id")?;
+        let channel = &self.inner.get_dlc_channel_by_reference_id(protocol_id)?;
 
         match dlc_channel_event {
             DlcChannelEvent::Offered(_) => {

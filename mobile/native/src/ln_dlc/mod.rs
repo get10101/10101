@@ -8,8 +8,8 @@ use crate::backup::DBBackupSubscriber;
 use crate::commons::reqwest_client;
 use crate::config;
 use crate::db;
-use crate::dlc_handler;
-use crate::dlc_handler::DlcHandler;
+use crate::dlc::dlc_handler;
+use crate::dlc::dlc_handler::DlcHandler;
 use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
@@ -334,6 +334,8 @@ pub fn run(runtime: &Runtime) -> Result<()> {
             dlc_handler::handle_outbound_dlc_messages(dlc_handler, node_event_handler.subscribe())
                 .await
         });
+
+        node.spawn_listen_dlc_channels_event_task();
 
         runtime.spawn({
             let node = node.clone();

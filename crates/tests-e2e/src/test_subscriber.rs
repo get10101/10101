@@ -189,6 +189,9 @@ impl Senders {
             native::event::EventInternal::Authenticated(_) => {
                 // ignored
             }
+            native::event::EventInternal::DlcChannelEvent(_) => {
+                // ignored
+            }
         }
         Ok(())
     }

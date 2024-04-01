@@ -1,5 +1,7 @@
+use crate::api::DlcChannel;
 use crate::api::LspConfig;
 use crate::api::WalletInfo;
+use crate::dlc_channel;
 use crate::event;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
@@ -27,6 +29,7 @@ pub enum Event {
     ServiceHealthUpdate(ServiceUpdate),
     BackgroundNotification(BackgroundTask),
     Authenticated(LspConfig),
+    DlcChannelEvent(DlcChannel),
 }
 
 #[frb]
@@ -82,6 +85,9 @@ impl From<EventInternal> for Event {
                 unreachable!("This internal event is not exposed to the UI")
             }
             EventInternal::Authenticated(lsp_config) => Event::Authenticated(lsp_config.into()),
+            EventInternal::DlcChannelEvent(channel) => {
+                Event::DlcChannelEvent(dlc_channel::DlcChannel::from(channel))
+            }
         }
     }
 }
@@ -122,6 +128,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::PaymentSent,
             EventType::PaymentFailed,
             EventType::Authenticated,
+            EventType::DlcChannelEvent,
         ]
     }
 }
