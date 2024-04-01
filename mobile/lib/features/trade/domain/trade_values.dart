@@ -13,6 +13,7 @@ class TradeValues {
   double? price;
   double? liquidationPrice;
   Amount? fee; // This fee is an estimate of the order-matching fee.
+  Usd? maxQuantity;
 
   double fundingRate;
   DateTime expiry;
@@ -20,25 +21,27 @@ class TradeValues {
   // no final so it can be mocked in tests
   TradeValuesService tradeValuesService;
 
-  TradeValues(
-      {required this.direction,
-      required this.margin,
-      required this.quantity,
-      required this.leverage,
-      required this.price,
-      required this.liquidationPrice,
-      required this.fee,
-      required this.fundingRate,
-      required this.expiry,
-      required this.tradeValuesService});
+  TradeValues({
+    required this.direction,
+    required this.margin,
+    required this.quantity,
+    required this.leverage,
+    required this.price,
+    required this.liquidationPrice,
+    required this.fee,
+    required this.fundingRate,
+    required this.expiry,
+    required this.tradeValuesService,
+  });
 
-  factory TradeValues.fromQuantity(
-      {required Usd quantity,
-      required Leverage leverage,
-      required double? price,
-      required double fundingRate,
-      required Direction direction,
-      required TradeValuesService tradeValuesService}) {
+  factory TradeValues.fromQuantity({
+    required Usd quantity,
+    required Leverage leverage,
+    required double? price,
+    required double fundingRate,
+    required Direction direction,
+    required TradeValuesService tradeValuesService,
+  }) {
     Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
     double? liquidationPrice = price != null
@@ -63,13 +66,14 @@ class TradeValues {
         tradeValuesService: tradeValuesService);
   }
 
-  factory TradeValues.fromMargin(
-      {required Amount? margin,
-      required Leverage leverage,
-      required double? price,
-      required double fundingRate,
-      required Direction direction,
-      required TradeValuesService tradeValuesService}) {
+  factory TradeValues.fromMargin({
+    required Amount? margin,
+    required Leverage leverage,
+    required double? price,
+    required double fundingRate,
+    required Direction direction,
+    required TradeValuesService tradeValuesService,
+  }) {
     Usd? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
     double? liquidationPrice = price != null
@@ -104,6 +108,7 @@ class TradeValues {
     this.margin = margin;
     _recalculateQuantity();
     _recalculateFee();
+    _recalculateMaxQuantity();
   }
 
   updatePriceAndQuantity(double? price) {
@@ -111,6 +116,7 @@ class TradeValues {
     _recalculateQuantity();
     _recalculateLiquidationPrice();
     _recalculateFee();
+    _recalculateMaxQuantity();
   }
 
   updatePriceAndMargin(double? price) {
@@ -118,12 +124,14 @@ class TradeValues {
     _recalculateMargin();
     _recalculateLiquidationPrice();
     _recalculateFee();
+    _recalculateMaxQuantity();
   }
 
   updateLeverage(Leverage leverage) {
     this.leverage = leverage;
     _recalculateMargin();
     _recalculateLiquidationPrice();
+    _recalculateMaxQuantity();
   }
 
   // Can be used to calculate the counterparty's margin, based on their
@@ -152,5 +160,9 @@ class TradeValues {
 
   _recalculateFee() {
     fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
+  }
+
+  _recalculateMaxQuantity() {
+    maxQuantity = tradeValuesService.calculateMaxQuantity(price: price, leverage: leverage);
   }
 }

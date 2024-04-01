@@ -18,6 +18,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Price? _price;
 
+  bool maxQuantityLock = false;
+
   TradeValuesChangeNotifier(this.tradeValuesService) {
     _buyTradeValues = _initOrder(Direction.long);
     _sellTradeValues = _initOrder(Direction.short);
@@ -78,6 +80,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   void updateLeverage(Direction direction, Leverage leverage) {
     fromDirection(direction).updateLeverage(leverage);
+    maxQuantityLock = false;
     notifyListeners();
   }
 
@@ -91,11 +94,20 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     bool update = false;
 
     if (price.ask != _buyTradeValues.price) {
-      _buyTradeValues.updatePriceAndMargin(price.ask);
+      if (maxQuantityLock) {
+        _buyTradeValues.updatePriceAndQuantity(price.ask);
+      } else {
+        _buyTradeValues.updatePriceAndMargin(price.ask);
+      }
+
       update = true;
     }
     if (price.bid != _sellTradeValues.price) {
-      _sellTradeValues.updatePriceAndMargin(price.bid);
+      if (maxQuantityLock) {
+        _sellTradeValues.updatePriceAndQuantity(price.bid);
+      } else {
+        _sellTradeValues.updatePriceAndMargin(price.bid);
+      }
       update = true;
     }
     _price = price;

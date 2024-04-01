@@ -4,6 +4,7 @@ import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/channel_configuration.dart';
@@ -46,8 +47,6 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   TextEditingController priceController = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
-
-  bool showCapacityInfo = false;
 
   bool marginInputFieldEnabled = false;
   bool quantityInputFieldEnabled = true;
@@ -183,7 +182,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
       BuildContext context, ChannelInfoService channelInfoService, GlobalKey<FormState> formKey) {
-    final tradeValues = context.read<TradeValuesChangeNotifier>().fromDirection(direction);
+    final tradeValues = context.watch<TradeValuesChangeNotifier>().fromDirection(direction);
 
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
@@ -195,11 +194,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
     int usableBalance = channelTradeConstraints.maxLocalMarginSats;
 
-    // We compute the max quantity based on the margin needed for the counterparty and how much he has available.
-    double price = tradeValues.price ?? 0.0;
-    double maxQuantity = (channelTradeConstraints.maxCounterpartyMarginSats / 100000000) *
-        price *
-        channelTradeConstraints.coordinatorLeverage;
+    quantityController.text = Amount(tradeValues.quantity?.toInt ?? 0).formatted();
 
     return Wrap(
       runSpacing: 12,
@@ -227,7 +222,29 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
           children: [
             Flexible(
                 child: AmountInputField(
-              initialValue: Amount(tradeValues.quantity?.toInt ?? 0),
+              controller: quantityController,
+              suffixIcon: TextButton(
+                onPressed: () {
+                  final quantity = tradeValues.maxQuantity ?? Usd.zero();
+                  quantityController.text = quantity.formatted();
+                  setState(() {
+                    provider.maxQuantityLock = !provider.maxQuantityLock;
+                    context.read<TradeValuesChangeNotifier>().updateQuantity(direction, quantity);
+                  });
+                  _formKey.currentState?.validate();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(5.0),
+                  decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.all(Radius.circular(10)),
+                      color:
+                          provider.maxQuantityLock ? tenTenOnePurple.shade50 : Colors.transparent),
+                  child: const Text(
+                    "Max",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               hint: "e.g. 100 USD",
               label: "Quantity (USD)",
               onChanged: (value) {
@@ -241,6 +258,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 } on Exception {
                   context.read<TradeValuesChangeNotifier>().updateQuantity(direction, Usd.zero());
                 }
+                provider.maxQuantityLock = false;
                 _formKey.currentState?.validate();
               },
               validator: (value) {
@@ -250,43 +268,11 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                   return "Min quantity is ${channelTradeConstraints.minQuantity}";
                 }
 
+                final maxQuantity = tradeValues.maxQuantity?.toInt ?? 0;
                 if (quantity.toInt > maxQuantity) {
-                  setState(() => showCapacityInfo = true);
                   return "Max quantity is ${maxQuantity.toInt()}";
                 }
 
-                double coordinatorLeverage = channelTradeConstraints.coordinatorLeverage;
-
-                int? optCounterPartyMargin =
-                    provider.counterpartyMargin(direction, coordinatorLeverage);
-                if (optCounterPartyMargin == null) {
-                  return "Counterparty margin not available";
-                }
-                int neededCounterpartyMarginSats = optCounterPartyMargin;
-
-                // This condition has to stay as the first thing to check, so we reset showing the info
-                int maxCounterpartyMarginSats = channelTradeConstraints.maxCounterpartyMarginSats;
-                int maxLocalMarginSats = channelTradeConstraints.maxLocalMarginSats;
-
-                // First we check if we have enough money, then we check if counterparty would have enough money
-                Amount fee = provider.orderMatchingFee(direction) ?? Amount.zero();
-
-                Amount margin = tradeValues.margin!;
-                int neededLocalMarginSats = margin.sats + fee.sats;
-
-                if (neededLocalMarginSats > maxLocalMarginSats) {
-                  setState(() => showCapacityInfo = true);
-                  return "Insufficient balance";
-                }
-
-                if (neededCounterpartyMarginSats > maxCounterpartyMarginSats) {
-                  setState(() => showCapacityInfo = true);
-                  return "Counterparty has insufficient balance";
-                }
-
-                setState(() {
-                  showCapacityInfo = false;
-                });
                 return null;
               },
             )),
@@ -315,8 +301,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
             isActive: !hasPosition,
             onLeverageChanged: (value) {
               context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
-              // When the slider changes, we validate the whole form.
-              formKey.currentState!.validate();
+              formKey.currentState?.validate();
             }),
         Row(
           children: [

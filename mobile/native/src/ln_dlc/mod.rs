@@ -647,17 +647,26 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
 }
 
 pub fn get_signed_dlc_channels() -> Result<Vec<SignedChannel>> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(vec![]),
+    };
     node.inner.list_signed_dlc_channels()
 }
 
 pub fn get_onchain_balance() -> Balance {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Balance::default(),
+    };
     node.inner.get_on_chain_balance()
 }
 
 pub fn get_usable_dlc_channel_balance() -> Result<Amount> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(Amount::ZERO),
+    };
     node.inner.get_dlc_channels_usable_balance()
 }
 
@@ -859,14 +868,20 @@ fn update_state_after_collab_revert(
 }
 
 pub fn get_signed_dlc_channel() -> Result<Option<SignedChannel>> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(None),
+    };
 
     let signed_channels = node.inner.list_signed_dlc_channels()?;
     Ok(signed_channels.first().cloned())
 }
 
 pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(vec![]),
+    };
 
     let dlc_channels = node.inner.list_dlc_channels()?;
 
@@ -884,7 +899,10 @@ pub fn delete_dlc_channel(dlc_channel_id: &DlcChannelId) -> Result<()> {
 }
 
 pub fn is_dlc_channel_confirmed() -> Result<bool> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(false),
+    };
 
     let dlc_channel = match get_signed_dlc_channel()? {
         Some(dlc_channel) => dlc_channel,
@@ -895,12 +913,18 @@ pub fn is_dlc_channel_confirmed() -> Result<bool> {
 }
 
 pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> FeeRate {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return FeeRate::default_min_relay_fee(),
+    };
     node.inner.fee_rate_estimator.get(target)
 }
 
 pub fn estimated_fee_reserve() -> Result<Amount> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(Amount::ZERO),
+    };
 
     // Here we assume that the coordinator will use the same confirmation target AND that their fee
     // rate source agrees with ours.
@@ -929,7 +953,10 @@ pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<Txid
 }
 
 pub fn estimated_funding_tx_fee() -> Result<Amount> {
-    let node = state::get_node();
+    let node = match state::try_get_node() {
+        Some(node) => node,
+        None => return Ok(Amount::ZERO),
+    };
 
     // Here we assume that the coordinator will use the same confirmation target AND that
     // their fee rate source agrees with ours.
