@@ -357,6 +357,11 @@ async fn main() -> Result<()> {
                 .expect("To add the close expired position reminder job");
 
             scheduler
+                .add_reminder_to_close_liquidated_position_job(pool.clone())
+                .await
+                .expect("To add the close liquidated position reminder job");
+
+            scheduler
                 .start()
                 .await
                 .expect("to be able to start scheduler");

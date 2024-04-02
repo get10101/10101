@@ -270,6 +270,18 @@ pub fn get_all_orders(
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }
 
+pub fn get_all_matched_market_orders_with_order_reason_liquidated(
+    conn: &mut PgConnection,
+) -> QueryResult<Vec<OrderbookOrder>> {
+    let orders: Vec<Order> = orders::table
+        .filter(orders::order_state.eq(OrderState::Matched))
+        .filter(orders::order_reason.eq(OrderReason::Liquidated))
+        .filter(orders::order_type.eq(OrderType::Market))
+        .load::<Order>(conn)?;
+
+    Ok(orders.into_iter().map(OrderbookOrder::from).collect())
+}
+
 /// Returns the number of affected rows: 1.
 pub fn insert_limit_order(
     conn: &mut PgConnection,
