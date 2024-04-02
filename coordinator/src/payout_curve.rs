@@ -279,9 +279,11 @@ mod tests {
 
         let range_payouts = match descriptor {
             ContractDescriptor::Enum(_) => unreachable!(),
-            ContractDescriptor::Numerical(numerical) => {
-                numerical.get_range_payouts(total_collateral).unwrap()
-            }
+            ContractDescriptor::Numerical(numerical) => numerical
+                .get_range_payouts(
+                    total_collateral + coordinator_collateral_reserve + trader_collateral_reserve,
+                )
+                .unwrap(),
         };
 
         let max_price = 2usize.pow(20);
