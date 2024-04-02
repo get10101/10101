@@ -30,6 +30,7 @@ pub enum OrderState {
 pub enum OrderReason {
     Manual,
     Expired,
+    Liquidated,
 }
 
 #[frb]
@@ -122,6 +123,7 @@ impl From<OrderReason> for order::OrderReason {
         match value {
             OrderReason::Manual => order::OrderReason::Manual,
             OrderReason::Expired => order::OrderReason::Expired,
+            OrderReason::Liquidated => order::OrderReason::Liquidated,
         }
     }
 }
@@ -131,6 +133,7 @@ impl From<order::OrderReason> for OrderReason {
         match value {
             order::OrderReason::Manual => OrderReason::Manual,
             order::OrderReason::Expired => OrderReason::Expired,
+            order::OrderReason::Liquidated => OrderReason::Liquidated,
         }
     }
 }

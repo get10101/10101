@@ -202,6 +202,7 @@ pub enum OrderState {
 pub enum OrderReason {
     Manual,
     Expired,
+    Liquidated,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

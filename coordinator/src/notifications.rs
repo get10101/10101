@@ -11,6 +11,7 @@ pub enum NotificationKind {
     RolloverWindowOpen,
     PositionSoonToExpire,
     PositionExpired,
+    PositionLiquidated,
     CollaborativeRevert,
     Campaign { title: String, message: String },
 }
@@ -20,6 +21,7 @@ impl Display for NotificationKind {
         match self {
             NotificationKind::PositionSoonToExpire => write!(f, "PositionSoonToExpire"),
             NotificationKind::PositionExpired => write!(f, "PositionExpired"),
+            NotificationKind::PositionLiquidated => write!(f, "PositionLiquidated"),
             NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
             NotificationKind::CollaborativeRevert => write!(f, "CollaborativeRevertPending"),
             NotificationKind::Campaign { .. } => write!(f, "Campaign"),
@@ -118,6 +120,10 @@ fn build_notification(kind: &NotificationKind) -> fcm::Notification<'_> {
         }
         NotificationKind::PositionExpired => {
             notification_builder.title("Your position has expired");
+            notification_builder.body("Close your position.");
+        }
+        NotificationKind::PositionLiquidated => {
+            notification_builder.title("Your position has been liquidated");
             notification_builder.body("Close your position.");
         }
         NotificationKind::RolloverWindowOpen => {

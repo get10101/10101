@@ -248,7 +248,7 @@ pub async fn process_new_market_order(
 
         let message = match &order.order_reason {
             OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
-            OrderReason::Expired => Message::AsyncMatch {
+            OrderReason::Expired | OrderReason::Liquidated => Message::AsyncMatch {
                 order: order.clone(),
                 filled_with: match_param.filled_with.clone(),
             },
@@ -256,6 +256,7 @@ pub async fn process_new_market_order(
 
         let notification = match &order.order_reason {
             OrderReason::Expired => Some(NotificationKind::PositionExpired),
+            OrderReason::Liquidated => Some(NotificationKind::PositionLiquidated),
             OrderReason::Manual => None,
         };
 
@@ -320,7 +321,7 @@ pub async fn process_new_market_order(
             OrderReason::Manual => {
                 tracing::warn!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
             }
-            OrderReason::Expired => {
+            OrderReason::Expired | OrderReason::Liquidated => {
                 tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
             }
         }

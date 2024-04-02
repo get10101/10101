@@ -6,7 +6,8 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 
 enum OrderReason {
   manual,
-  expired;
+  expired,
+  liquidated;
 
   static OrderReason fromApi(bridge.OrderReason orderReason) {
     switch (orderReason) {
@@ -14,6 +15,8 @@ enum OrderReason {
         return OrderReason.manual;
       case bridge.OrderReason.Expired:
         return OrderReason.expired;
+      case bridge.OrderReason.Liquidated:
+        return OrderReason.liquidated;
     }
   }
 

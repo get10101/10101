@@ -131,6 +131,7 @@ impl From<OrderReason> for OrderBookOrderReason {
         match value {
             OrderReason::Manual => OrderBookOrderReason::Manual,
             OrderReason::Expired => OrderBookOrderReason::Expired,
+            OrderReason::Liquidated => OrderBookOrderReason::Liquidated,
         }
     }
 }
@@ -140,6 +141,7 @@ impl From<OrderBookOrderReason> for OrderReason {
         match value {
             OrderBookOrderReason::Manual => OrderReason::Manual,
             OrderBookOrderReason::Expired => OrderReason::Expired,
+            OrderBookOrderReason::Liquidated => OrderReason::Liquidated,
         }
     }
 }

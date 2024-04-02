@@ -150,6 +150,8 @@ pub(crate) enum OrderReason {
     Manual,
     /// The order has been create automatically as the position expired.
     Expired,
+    /// The order has been created automatically as the position got liquidated.
+    Liquidated,
 }
 
 impl QueryId for OrderReasonType {
@@ -166,6 +168,7 @@ impl ToSql<OrderReasonType, Pg> for OrderReason {
         match *self {
             OrderReason::Manual => out.write_all(b"Manual")?,
             OrderReason::Expired => out.write_all(b"Expired")?,
+            OrderReason::Liquidated => out.write_all(b"Liquidated")?,
         }
         Ok(IsNull::No)
     }
@@ -176,6 +179,7 @@ impl FromSql<OrderReasonType, Pg> for OrderReason {
         match bytes.as_bytes() {
             b"Manual" => Ok(OrderReason::Manual),
             b"Expired" => Ok(OrderReason::Expired),
+            b"Liquidated" => Ok(OrderReason::Liquidated),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
