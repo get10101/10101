@@ -1,4 +1,5 @@
 use bitcoin::secp256k1::PublicKey;
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -38,6 +39,8 @@ pub struct RegisterParams {
     pub contact: Option<String>,
     pub nickname: Option<String>,
     pub version: Option<String>,
+    /// Entered referral code, i.e. this user was revered by using this referral code
+    pub referral_code: Option<String>,
 }
 
 /// Registration details for enrolling into the beta program
@@ -52,4 +55,68 @@ pub struct User {
     pub pubkey: PublicKey,
     pub contact: Option<String>,
     pub nickname: Option<String>,
+    pub referral_code: String,
+}
+
+impl User {
+    pub fn new(
+        pubkey: PublicKey,
+        contact: Option<String>,
+        nickname: Option<String>,
+        referral_code: String,
+    ) -> Self {
+        Self {
+            pubkey,
+            contact,
+            nickname,
+            referral_code,
+        }
+    }
+}
+
+pub fn referral_from_pubkey(public_key: PublicKey) -> String {
+    let referral_code = public_key
+        .to_string()
+        .chars()
+        .rev()
+        .take(6)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>()
+        .to_uppercase();
+    referral_code
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ReferralStatus {
+    /// your personal referral code
+    pub referral_code: String,
+    /// These are the referrals which have reached the tier's min trading volume
+    pub number_of_activated_referrals: usize,
+    /// Total number of referred users
+    pub number_of_total_referrals: usize,
+    /// The more the user refers, the higher the tier. Tier 0 means no referral
+    pub referral_tier: usize,
+    /// Activated bonus, a percentage to be subtracted from the matching fee.
+    #[serde(with = "rust_decimal::serde::float")]
+    pub referral_fee_bonus: Decimal,
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::referral_from_pubkey;
+    use secp256k1::PublicKey;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn test_referral_generation() {
+        let pk = PublicKey::from_str(
+            "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
+        )
+        .unwrap();
+
+        let referral = referral_from_pubkey(pk);
+        assert_eq!(referral, "DDD166".to_string());
+    }
 }

@@ -350,6 +350,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    referral_tiers (id) {
+        id -> Int4,
+        tier_level -> Int4,
+        min_users_to_refer -> Int4,
+        min_volume_per_referral -> Int4,
+        fee_rebate -> Float4,
+        number_of_trades -> Int4,
+        active -> Bool,
+    }
+}
+
+diesel::table! {
     routing_fees (id) {
         id -> Int4,
         amount_msats -> Int8,
@@ -424,6 +436,8 @@ diesel::table! {
         last_login -> Timestamptz,
         nickname -> Nullable<Text>,
         version -> Nullable<Text>,
+        referral_code -> Text,
+        used_referral_code -> Nullable<Text>,
     }
 }
 
@@ -453,6 +467,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     polls,
     polls_whitelist,
     positions,
+    referral_tiers,
     routing_fees,
     spendable_outputs,
     trade_params,

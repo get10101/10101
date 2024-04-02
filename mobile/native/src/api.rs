@@ -21,6 +21,7 @@ use crate::ln_dlc::get_storage;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
+use crate::referrals;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
@@ -722,9 +723,10 @@ pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
 
 /// Enroll or update a user in the beta program
 #[tokio::main(flavor = "current_thread")]
-pub async fn register_beta(contact: String) -> Result<()> {
+pub async fn register_beta(contact: String, referral_code: Option<String>) -> Result<()> {
     let version = env!("CARGO_PKG_VERSION").to_string();
-    users::register_beta(contact, version).await
+
+    users::register_beta(contact, version, referral_code).await
 }
 
 #[derive(Debug)]
@@ -826,4 +828,31 @@ pub fn roll_back_channel_state() -> Result<()> {
         "Executing emergency kit! Attempting to rollback channel state to last stable state"
     );
     ln_dlc::roll_back_channel_state()
+}
+
+pub struct ReferralStatus {
+    pub referral_code: String,
+    pub number_of_activated_referrals: usize,
+    pub number_of_total_referrals: usize,
+    pub referral_tier: usize,
+    pub referral_fee_bonus: f32,
+}
+
+impl From<commons::ReferralStatus> for ReferralStatus {
+    fn from(value: commons::ReferralStatus) -> Self {
+        ReferralStatus {
+            referral_code: value.referral_code,
+            referral_tier: value.referral_tier,
+            number_of_activated_referrals: value.number_of_activated_referrals,
+            number_of_total_referrals: value.number_of_total_referrals,
+            referral_fee_bonus: value.referral_fee_bonus.to_f32().expect("to fit into f32"),
+        }
+    }
+}
+
+// TODO: we should cache this request
+#[tokio::main(flavor = "current_thread")]
+pub async fn referral_status() -> Result<ReferralStatus> {
+    let referral = referrals::get_referral_status().await?;
+    Ok(referral.into())
 }

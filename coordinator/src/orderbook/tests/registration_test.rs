@@ -30,6 +30,7 @@ async fn registered_user_is_stored_in_db() {
         Some(dummy_email.clone()),
         nickname.clone(),
         version.clone(),
+        Some("code1".to_string()),
     )
     .unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");

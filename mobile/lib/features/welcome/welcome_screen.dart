@@ -23,6 +23,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   String _contact = "";
+  String _referralCode = "";
   bool _betaDisclaimer = false;
   bool _loseDisclaimer = false;
 
@@ -121,36 +122,77 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                           const SizedBox(height: 10),
                           Form(
                             key: _formKey,
-                            child: TextFormField(
-                              keyboardType: TextInputType.emailAddress,
-                              initialValue: _contact,
-                              decoration: InputDecoration(
-                                  border:
-                                      OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
-                                  enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                      borderSide: BorderSide(
-                                          color: tenTenOnePurple.shade300.withOpacity(0.2))),
-                                  filled: true,
-                                  fillColor: tenTenOnePurple.shade300.withOpacity(0.2),
-                                  labelText: 'Nostr Pubkey, Telegram or Email (optional)',
-                                  labelStyle: const TextStyle(
-                                      color: Colors.black87, fontSize: 14, letterSpacing: 0.1),
-                                  hintText: 'Let us know how to reach you'),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return null;
-                                }
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  keyboardType: TextInputType.text,
+                                  initialValue: _referralCode,
+                                  decoration: InputDecoration(
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10.0)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10.0),
+                                          borderSide: BorderSide(
+                                              color: tenTenOnePurple.shade300.withOpacity(0.2))),
+                                      filled: true,
+                                      fillColor: tenTenOnePurple.shade300.withOpacity(0.2),
+                                      labelText: 'Referral code (optional)',
+                                      labelStyle: const TextStyle(
+                                          color: Colors.black87, fontSize: 14, letterSpacing: 0.1),
+                                      hintText: 'Enter referral code'),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return null;
+                                    }
 
-                                if (value.length > 64) {
-                                  return 'Contact details are too long.';
-                                }
+                                    // it's actually 6 characters but this gives us space to change this without rolling out a new app
+                                    if (value.length > 10) {
+                                      return 'Referral code is too long.';
+                                    }
 
-                                return null;
-                              },
-                              onSaved: (value) {
-                                _contact = value ?? "";
-                              },
+                                    return null;
+                                  },
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _referralCode = value;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                TextFormField(
+                                  keyboardType: TextInputType.emailAddress,
+                                  initialValue: _contact,
+                                  decoration: InputDecoration(
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10.0)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(10.0),
+                                          borderSide: BorderSide(
+                                              color: tenTenOnePurple.shade300.withOpacity(0.2))),
+                                      filled: true,
+                                      fillColor: tenTenOnePurple.shade300.withOpacity(0.2),
+                                      labelText: 'Nostr Pubkey, Telegram or Email (optional)',
+                                      labelStyle: const TextStyle(
+                                          color: Colors.black87, fontSize: 14, letterSpacing: 0.1),
+                                      hintText: 'Let us know how to reach you'),
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return null;
+                                    }
+
+                                    if (value.length > 64) {
+                                      return 'Contact details are too long.';
+                                    }
+
+                                    return null;
+                                  },
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _contact = value;
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 25),
@@ -211,7 +253,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     await Preferences.instance.setContactDetails(_contact);
     logger.i("Successfully stored the contact: $_contact .");
     await api.initNewMnemonic(targetSeedFilePath: seedPath);
-    await api.registerBeta(contact: _contact);
+    logger.d("Registering user with $_contact & $_referralCode");
+    await api.registerBeta(contact: _contact, referralCode: _referralCode);
   }
 
   @override

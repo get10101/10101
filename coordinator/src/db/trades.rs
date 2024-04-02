@@ -64,6 +64,22 @@ pub fn get_latest_for_position(
     Ok(trade.map(crate::trade::models::Trade::from))
 }
 
+pub fn get_trades(
+    connection: &mut PgConnection,
+    trader_pubkey: PublicKey,
+) -> Result<Vec<crate::trade::models::Trade>> {
+    let trades: Vec<Trade> = trades::table
+        .filter(trades::trader_pubkey.eq(trader_pubkey.to_string()))
+        .load::<Trade>(connection)?;
+
+    let trades = trades
+        .into_iter()
+        .map(crate::trade::models::Trade::from)
+        .collect();
+
+    Ok(trades)
+}
+
 impl From<crate::trade::models::NewTrade> for NewTrade {
     fn from(value: crate::trade::models::NewTrade) -> Self {
         NewTrade {
