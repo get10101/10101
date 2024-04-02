@@ -78,40 +78,6 @@ class _UserSettingsState extends State<UserSettings> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Contact details \n",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          RichText(
-                            text: const TextSpan(
-                              text:
-                                  '10101 will use these details to reach out to you in case of problems in the app. \n\n',
-                              style: TextStyle(fontSize: 16, color: Colors.black),
-                              children: <TextSpan>[
-                                TextSpan(
-                                  text: 'This can be a ',
-                                ),
-                                TextSpan(
-                                    text: 'Nostr Pubkey',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                  text: ', a ',
-                                ),
-                                TextSpan(
-                                    text: 'Telegram handle ',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                  text: 'or an ',
-                                ),
-                                TextSpan(
-                                    text: 'email address.',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                    text:
-                                        "\n\nIf you want to delete your contact details. Simply remove the details below.")
-                              ],
-                            ),
-                          ),
                           CustomInputField(
                             onConfirm: (value) async {
                               final messenger = ScaffoldMessenger.of(context);
@@ -124,21 +90,10 @@ class _UserSettingsState extends State<UserSettings> {
                             },
                             labelText: "Contact details",
                             initialValue: contact,
+                            hintText: "Nostr, Email, X-handle",
                           ),
                           const SizedBox(
                             height: 20,
-                          ),
-                          const Text(
-                            "Nickname\n",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          RichText(
-                            text: const TextSpan(
-                              text:
-                                  'We extract a regular hall-of-fame leaderboard. If you want to be recognized, feel free to enter your prefered nickname or generate a random one.',
-                              style: TextStyle(fontSize: 16, color: Colors.black),
-                              children: [],
-                            ),
                           ),
                           NicknameWidget(
                             initialValue: nickname,
@@ -265,6 +220,7 @@ class _NicknameWidgetState extends State<NicknameWidget> {
 
 class CustomInputField extends StatefulWidget {
   final String labelText;
+  final String? hintText;
   final String? initialValue;
   final Function onConfirm;
 
@@ -272,6 +228,7 @@ class CustomInputField extends StatefulWidget {
     super.key,
     required this.onConfirm,
     required this.labelText,
+    this.hintText,
     this.initialValue,
   });
 
@@ -306,6 +263,7 @@ class _CustomInputFieldState extends State<CustomInputField> {
           decoration: InputDecoration(
             border: const UnderlineInputBorder(),
             labelText: labelText,
+            hintText: widget.hintText,
           ),
         ),
         Visibility(
