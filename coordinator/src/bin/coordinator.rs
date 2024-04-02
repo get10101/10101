@@ -247,7 +247,7 @@ async fn main() -> Result<()> {
 
     let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
 
-    let (tx_price_feed, _rx) = broadcast::channel(100);
+    let (tx_orderbook_feed, _rx) = broadcast::channel(100);
 
     let notification_service = NotificationService::new(opts.fcm_api_key.clone());
 
@@ -259,7 +259,7 @@ async fn main() -> Result<()> {
 
     let (_handle, trading_sender) = trading::start(
         node.clone(),
-        tx_price_feed.clone(),
+        tx_orderbook_feed.clone(),
         auth_users_notifier.clone(),
         network,
         node.inner.oracle_pubkey,
@@ -312,7 +312,7 @@ async fn main() -> Result<()> {
         opts.p2p_announcement_addresses(),
         NODE_ALIAS,
         trading_sender,
-        tx_price_feed,
+        tx_orderbook_feed,
         tx_position_feed,
         tx_user_feed,
         auth_users_notifier.clone(),

@@ -28,7 +28,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
     // We subscribe *before* sending the "joined" message, so that we will also
     // display it to our client.
-    let mut price_feed = state.tx_price_feed.subscribe();
+    let mut price_feed = state.tx_orderbook_feed.subscribe();
 
     let (local_sender, mut local_receiver) = mpsc::channel::<Message>(100);
 

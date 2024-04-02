@@ -65,7 +65,7 @@ pub struct TraderMatchParams {
 /// [`mpsc::Sender<NewOrderMessage>`] returned.
 pub fn start(
     node: Node,
-    tx_price_feed: broadcast::Sender<Message>,
+    tx_orderbook_feed: broadcast::Sender<Message>,
     notifier: mpsc::Sender<OrderbookMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
@@ -75,7 +75,7 @@ pub fn start(
     let (fut, remote_handle) = async move {
         while let Some(new_order_msg) = receiver.recv().await {
             tokio::spawn({
-                let tx_price_feed = tx_price_feed.clone();
+                let tx_orderbook_feed = tx_orderbook_feed.clone();
                 let notifier = notifier.clone();
                 let node = node.clone();
                 async move {
@@ -106,7 +106,7 @@ pub fn start(
                         OrderType::Limit => {
                             process_new_limit_order(
                                 node,
-                                tx_price_feed,
+                                tx_orderbook_feed,
                                 new_order,
                             )
                             .await
@@ -140,7 +140,7 @@ pub fn start(
 
 pub async fn process_new_limit_order(
     node: Node,
-    tx_price_feed: broadcast::Sender<Message>,
+    tx_orderbook_feed: broadcast::Sender<Message>,
     order: Order,
 ) -> Result<(), TradingError> {
     let mut conn = spawn_blocking(move || node.pool.get())
@@ -157,12 +157,12 @@ pub async fn process_new_limit_order(
     let expired_limit_orders =
         orders::set_expired_limit_orders_to_expired(&mut conn).map_err(|e| anyhow!("{e:#}"))?;
     for expired_limit_order in expired_limit_orders {
-        tx_price_feed
+        tx_orderbook_feed
             .send(Message::DeleteOrder(expired_limit_order.id))
             .context("Could not update price feed")?;
     }
 
-    tx_price_feed
+    tx_orderbook_feed
         .send(Message::NewOrder(order))
         .map_err(|e| anyhow!(e))
         .context("Could not update price feed")?;
