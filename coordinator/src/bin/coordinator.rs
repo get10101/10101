@@ -11,6 +11,7 @@ use coordinator::message::NewUserMessage;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node::expired_positions;
+use coordinator::node::liquidated_positions;
 use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
@@ -48,6 +49,7 @@ use tracing::metadata::LevelFilter;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
+const LIQUIDATED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
@@ -298,6 +300,17 @@ async fn main() -> Result<()> {
                 {
                     tracing::error!("Failed to close expired positions! Error: {e:#}");
                 }
+            }
+        }
+    });
+
+    tokio::spawn({
+        let node = node.clone();
+        let trading_sender = trading_sender.clone();
+        async move {
+            loop {
+                tokio::time::sleep(LIQUIDATED_POSITION_SYNC_INTERVAL).await;
+                liquidated_positions::monitor(node.clone(), trading_sender.clone()).await
             }
         }
     });
