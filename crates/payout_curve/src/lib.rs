@@ -1,5 +1,4 @@
 use anyhow::ensure;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
@@ -159,38 +158,137 @@ pub fn build_inverse_payout_function(
         long_liquidation_interval_end,
     ));
 
+    let (short_liquidation_interval_start, short_liquidation_interval_end) =
+        calculate_short_liquidation_interval_payouts(
+            offer_party_direction,
+            total_collateral,
+            price_params.short_liquidation_price,
+            collateral_reserve_short,
+        )?;
+
     let mid_range = calculate_mid_range_payouts(
         offer_party,
         accept_party,
         price_params.initial_price,
         &long_liquidation_interval_end,
-        price_params
-            .short_liquidation_price
-            .to_u64()
-            .expect("to fit dec into u64"),
+        &short_liquidation_interval_start,
         offer_party_direction,
         quantity,
     )?;
-
-    let (_, mid_range_interval_end_payout_point) = mid_range
-        .last()
-        .context("didn't have at least a single element in the mid range")?;
 
     for (lower, upper) in mid_range.iter() {
         pieces.push((*lower, *upper));
     }
 
-    // If the last payout point of the mid range interval is already at [`BTCUSD_MAX_PRICE`], the
-    // short liquidation interval is already covered.
-    if mid_range_interval_end_payout_point.event_outcome < BTCUSD_MAX_PRICE {
-        let short_liquidation_payout_points = calculate_short_liquidation_interval_payouts(
-            offer_party_direction,
-            total_collateral,
-            *mid_range_interval_end_payout_point,
-            collateral_reserve_short,
-        )?;
+    let mid_range_highest_price_payout_point_end = mid_range.last().expect("at least one").1;
+    if mid_range_highest_price_payout_point_end.event_outcome < BTCUSD_MAX_PRICE {
+        // To ensure that payouts and prices are continuous.
+        if mid_range_highest_price_payout_point_end.event_outcome
+            == short_liquidation_interval_start.event_outcome
+        {
+            // E.g.
+            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
+            //   - short_liquidation_interval_start         = (  100_000 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
+            //
+            // Transformed into:
+            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
+            //   - new_interval_start                       = (  100_000 USD/BTC, 10_000 sats)
+            //   - new_interval_end                         = (  674_287 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_start         = (  674_287 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
+            //
+            // By introducing an interval that goes from the highest mid-range price to half-way to
+            // the maximum price.
+            let new_interval_start = mid_range_highest_price_payout_point_end;
 
-        pieces.push(short_liquidation_payout_points);
+            let new_interval_end_price = mid_range_highest_price_payout_point_end.event_outcome
+                + (mid_range_highest_price_payout_point_end.event_outcome + BTCUSD_MAX_PRICE) / 2;
+
+            let short_liquidation_interval_start = PayoutPoint {
+                event_outcome: new_interval_end_price,
+                outcome_payout: short_liquidation_interval_start.outcome_payout,
+                extra_precision: 0,
+            };
+
+            pieces.push((new_interval_start, short_liquidation_interval_start));
+
+            pieces.push((
+                short_liquidation_interval_start,
+                short_liquidation_interval_end,
+            ));
+        } else {
+            // E.g.
+            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
+            //   - short_liquidation_interval_start         = (  101_000 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
+            //
+            // Transformed into:
+            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
+            //   - new_interval_start                       = (  100_000 USD/BTC, 10_000 sats)
+            //   - new_interval_end                         = (  101_000 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_start         = (  101_000 USD/BTC,      0 sats)
+            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
+            //
+            // By introducing an interval that connects the highest mid-range price to the start of
+            // the liquidation interval.
+            let new_interval_start = mid_range_highest_price_payout_point_end;
+
+            let new_interval_end_price = short_liquidation_interval_start.event_outcome;
+
+            let short_liquidation_interval_start = PayoutPoint {
+                event_outcome: new_interval_end_price,
+                outcome_payout: short_liquidation_interval_start.outcome_payout,
+                extra_precision: 0,
+            };
+
+            pieces.push((new_interval_start, short_liquidation_interval_start));
+
+            pieces.push((
+                short_liquidation_interval_start,
+                short_liquidation_interval_end,
+            ));
+        }
+    } else {
+        // We are here if the short liquidation price is exactly `BTCUSD_MAX_PRICE`. This
+        // corresponds to the party going short using a leverage of 1.
+
+        // E.g.
+        //   - mid_range_highest_price_payout_point_start = (1_048_560 USD/BTC,     95 sats)
+        //   - mid_range_highest_price_payout_point_end   = (1_048_575 USD/BTC,      0 sats)
+        //   - short_liquidation_interval_start           = (1_048_575 USD/BTC,      0 sats)
+        //   - short_liquidation_interval_end             = (1_048_575 USD/BTC,      0 sats)
+        //
+        // Transformed into:
+        //   - mid_range_highest_price_payout_point_start = (1_048_560 USD/BTC,     95 sats)
+        //   - mid_range_highest_price_payout_point_end   = (1_048_567 USD/BTC,      0 sats)
+        //   - short_liquidation_interval_start           = (1_048_567 USD/BTC,      0 sats)
+        //   - short_liquidation_interval_end             = (1_048_575 USD/BTC,      0 sats)
+        //
+        // By making sure that the short liquidation interval is not constant price, because
+        // `rust-dlc` will probably reject that.
+
+        let mid_range_highest_price_payout_point_start = mid_range.last().expect("at least one").0;
+
+        let short_liquidation_interval_start_price = mid_range_highest_price_payout_point_start
+            .event_outcome
+            + ((mid_range_highest_price_payout_point_end.event_outcome
+                - mid_range_highest_price_payout_point_start.event_outcome)
+                / 2);
+
+        pieces.last_mut().expect("at least one").1.event_outcome =
+            short_liquidation_interval_start_price;
+
+        let short_liquidation_interval_start = PayoutPoint {
+            event_outcome: short_liquidation_interval_start_price,
+            outcome_payout: short_liquidation_interval_start.outcome_payout,
+            extra_precision: 0,
+        };
+
+        pieces.push((
+            short_liquidation_interval_start,
+            short_liquidation_interval_end,
+        ));
     }
 
     Ok(pieces)
@@ -263,11 +361,14 @@ fn calculate_mid_range_payouts(
     // The end of the price interval within which the party going long gets liquidated. This is the
     // highest of the two points in terms of price.
     long_liquidation_interval_end_payout: &PayoutPoint,
-    short_liquidation_price: u64,
+    // The start of the price interval within which the party going short gets liquidated. This is
+    // the lowest of the two points in terms of price.
+    short_liquidation_interval_start_payout: &PayoutPoint,
     offer_direction: Direction,
     quantity: f32,
 ) -> Result<Vec<(PayoutPoint, PayoutPoint)>> {
     let long_liquidation_price = long_liquidation_interval_end_payout.event_outcome;
+    let short_liquidation_price = short_liquidation_interval_start_payout.event_outcome;
 
     let min_payout_offer_party = offer_party.collateral_reserve;
 
@@ -318,10 +419,12 @@ fn calculate_mid_range_payouts(
 
             // Interval end payout point.
 
-            let interval_end_price =
-                (interval_start_price + PAYOUT_CURVE_DISCRETIZATION_STEPS).min(BTCUSD_MAX_PRICE);
+            let interval_end_price = (interval_start_price + PAYOUT_CURVE_DISCRETIZATION_STEPS)
+                .min(short_liquidation_price);
 
-            let interval_end_payout = {
+            let interval_end_payout = if interval_end_price == short_liquidation_price {
+                short_liquidation_interval_start_payout.outcome_payout as i64
+            } else {
                 let pnl = calculate_pnl(
                     initial_price,
                     Decimal::from(interval_end_price),
@@ -360,11 +463,10 @@ fn calculate_mid_range_payouts(
 fn calculate_short_liquidation_interval_payouts(
     offer_direction: Direction,
     total_collateral: u64,
-    mid_range_interval_end_payout_point: PayoutPoint,
+    liquidation_price_short: Decimal,
     collateral_reserve_short: u64,
 ) -> Result<(PayoutPoint, PayoutPoint)> {
-    // The last interval starts where the mid range interval ended.
-    let interval_start = mid_range_interval_end_payout_point;
+    let liquidation_price_short = liquidation_price_short.to_u64().expect("to fit");
 
     let (lower, upper) = match offer_direction {
         // If the offer party is long and the short party gets liquidated, the offer party gets all
@@ -372,7 +474,11 @@ fn calculate_short_liquidation_interval_payouts(
         Direction::Long => {
             let outcome_payout = total_collateral - collateral_reserve_short;
 
-            debug_assert!(outcome_payout >= interval_start.outcome_payout);
+            let interval_start = PayoutPoint {
+                event_outcome: liquidation_price_short,
+                outcome_payout,
+                extra_precision: 0,
+            };
 
             let interval_end = PayoutPoint {
                 event_outcome: BTCUSD_MAX_PRICE,
@@ -386,7 +492,11 @@ fn calculate_short_liquidation_interval_payouts(
         Direction::Short => {
             let outcome_payout = collateral_reserve_short;
 
-            debug_assert!(outcome_payout >= interval_start.outcome_payout);
+            let interval_start = PayoutPoint {
+                event_outcome: liquidation_price_short,
+                outcome_payout,
+                extra_precision: 0,
+            };
 
             let interval_end = PayoutPoint {
                 event_outcome: BTCUSD_MAX_PRICE,
@@ -570,7 +680,12 @@ mod tests {
                     outcome_payout: party_params_offer.collateral_reserve,
                     extra_precision: 0,
                 },
-                short_liquidation_price.to_u64().unwrap(),
+                &PayoutPoint {
+                    event_outcome: short_liquidation_price.to_u64().unwrap(),
+                    outcome_payout: party_params_offer.total_collateral()
+                        + party_params_accept.margin,
+                    extra_precision: 0,
+                },
                 offer_direction,
                 quantity,
             )
@@ -591,7 +706,11 @@ mod tests {
                         + party_params_accept.margin,
                     extra_precision: 0,
                 },
-                short_liquidation_price.to_u64().unwrap(),
+                &PayoutPoint {
+                    event_outcome: short_liquidation_price.to_u64().unwrap(),
+                    outcome_payout: party_params_offer.collateral_reserve,
+                    extra_precision: 0,
+                },
                 offer_direction,
                 quantity,
             )
@@ -705,7 +824,12 @@ mod tests {
                 outcome_payout: party_params_offer.collateral_reserve,
                 extra_precision: 0,
             },
-            short_liquidation_price.to_u64().unwrap(),
+            &PayoutPoint {
+                event_outcome: short_liquidation_price.to_u64().unwrap(),
+                outcome_payout: party_params_offer.total_collateral()
+                    + party_params_accept.margin(),
+                extra_precision: 0,
+            },
             offer_direction,
             quantity,
         )
@@ -732,13 +856,8 @@ mod tests {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
+        let liquidation_price_short = dec!(60_000);
         let collateral_reserve_offer = 300_000;
-
-        let last_mid_range_payout = PayoutPoint {
-            event_outcome: 60_000,
-            outcome_payout: collateral_reserve_offer,
-            extra_precision: 0,
-        };
 
         // act
         let offer_direction = Direction::Short;
@@ -746,13 +865,13 @@ mod tests {
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout,
+            liquidation_price_short,
             collateral_reserve_offer,
         )
         .unwrap();
 
         // assert
-        assert_eq!(lower.event_outcome, last_mid_range_payout.event_outcome);
+        assert_eq!(lower.event_outcome, 60_000);
         assert_eq!(lower.outcome_payout, collateral_reserve_offer);
         assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
         assert_eq!(upper.outcome_payout, collateral_reserve_offer);
@@ -771,13 +890,8 @@ mod tests {
         // setup
         // we take 2 BTC so that all tests have nice numbers
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
+        let liquidation_price_short = dec!(60_000);
         let collateral_reserve_accept = 50_000;
-
-        let last_mid_range_payout = PayoutPoint {
-            event_outcome: 60_000,
-            outcome_payout: total_collateral - collateral_reserve_accept,
-            extra_precision: 0,
-        };
 
         // act
         let offer_direction = Direction::Long;
@@ -785,13 +899,13 @@ mod tests {
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout,
+            liquidation_price_short,
             collateral_reserve_accept,
         )
         .unwrap();
 
         // assert
-        assert_eq!(lower.event_outcome, last_mid_range_payout.event_outcome);
+        assert_eq!(lower.event_outcome, 60_000);
         assert_eq!(
             lower.outcome_payout,
             total_collateral - collateral_reserve_accept
@@ -817,25 +931,19 @@ mod tests {
         let total_collateral = Amount::ONE_BTC.to_sat() * 2;
         let collateral_reserve_accept = 300_000;
 
-        let last_mid_range_payout = PayoutPoint {
-            event_outcome: BTCUSD_MAX_PRICE,
-            outcome_payout: total_collateral - collateral_reserve_accept,
-            extra_precision: 0,
-        };
-
         // act
         let offer_direction = Direction::Long;
 
         let (lower, upper) = calculate_short_liquidation_interval_payouts(
             offer_direction,
             total_collateral,
-            last_mid_range_payout,
+            Decimal::from(BTCUSD_MAX_PRICE),
             collateral_reserve_accept,
         )
         .unwrap();
 
         // assert
-        assert_eq!(lower.event_outcome, last_mid_range_payout.event_outcome);
+        assert_eq!(lower.event_outcome, BTCUSD_MAX_PRICE);
         assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
     }
 
@@ -914,21 +1022,15 @@ mod tests {
         fn calculating_upper_bound_doesnt_crash_offer_short(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
             let collateral_reserve_short = total_collateral / 5;
 
-            let last_payout = PayoutPoint {
-                event_outcome: bound,
-                outcome_payout: collateral_reserve_short,
-                extra_precision: 0,
-            };
-
             // act
             let offer_direction = Direction::Short;
 
             let (lower, upper) =
-                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout, collateral_reserve_short).unwrap();
+                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, Decimal::from(bound), collateral_reserve_short).unwrap();
 
             // assert
-            prop_assert_eq!(lower.event_outcome, last_payout.event_outcome);
-            prop_assert_eq!(lower.outcome_payout, last_payout.outcome_payout);
+            prop_assert_eq!(lower.event_outcome, bound);
+            prop_assert_eq!(lower.outcome_payout, collateral_reserve_short);
             prop_assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
             prop_assert_eq!(upper.outcome_payout, collateral_reserve_short);
         }
@@ -940,20 +1042,14 @@ mod tests {
         fn calculating_upper_bound_doesnt_crash_offer_long(total_collateral in 1u64..100_000_000_000, bound in 1u64..100_000) {
             let collateral_reserve_short = total_collateral / 5;
 
-            let last_payout = PayoutPoint {
-                event_outcome: bound,
-                outcome_payout: total_collateral - collateral_reserve_short,
-                extra_precision: 0,
-            };
-
             // act
             let offer_direction = Direction::Long;
 
             let (lower, upper) =
-                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, last_payout, collateral_reserve_short).unwrap();
+                calculate_short_liquidation_interval_payouts(offer_direction, total_collateral, Decimal::from(bound), collateral_reserve_short).unwrap();
 
             // assert
-            assert_eq!(lower.event_outcome, last_payout.event_outcome);
+            assert_eq!(lower.event_outcome, bound);
             assert_eq!(lower.outcome_payout, total_collateral - collateral_reserve_short);
             assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
             assert_eq!(upper.outcome_payout, total_collateral - collateral_reserve_short);
@@ -1010,7 +1106,11 @@ mod tests {
                     outcome_payout: party_params_offer.collateral_reserve,
                     extra_precision: 0,
                 },
-                short_liquidation_price.to_u64().unwrap(),
+                &PayoutPoint {
+                    event_outcome: short_liquidation_price.to_u64().unwrap(),
+                    outcome_payout: party_params_offer.total_collateral() + party_params_accept.margin(),
+                    extra_precision: 0,
+                },
                 offer_direction,
                 quantity,
             )
@@ -1022,5 +1122,150 @@ mod tests {
                 .all(|(lower, upper)| lower.outcome_payout > 0 && upper.outcome_payout > 0);
         }
 
+    }
+}
+
+#[cfg(test)]
+mod bounds_tests {
+    use super::*;
+    use proptest::prelude::*;
+    use rust_decimal::prelude::ToPrimitive;
+    use rust_decimal_macros::dec;
+    use trade::cfd::calculate_long_liquidation_price;
+    use trade::cfd::calculate_margin;
+    use trade::cfd::calculate_short_liquidation_price;
+
+    #[test]
+    fn correct_bounds_between_middle_and_liquidation_intervals() {
+        use Direction::*;
+
+        check(1.0, dec!(20_000), dec!(1), dec!(1), 0, 0, Short);
+        check(500.0, dec!(28_251), dec!(2), dec!(2), 20_386, 15_076, Short);
+    }
+
+    proptest! {
+        #[test]
+        fn liquidation_intervals_always_sane_wrt_middle(
+            quantity in 1.0f32..10_000.0,
+            initial_price in 20_000u32..80_000,
+            leverage_long in 1u32..5,
+            leverage_short in 1u32..5,
+            is_long in proptest::bool::ANY,
+            collateral_reserve_short in 0u64..1_000_000,
+            collateral_reserve_long in 0u64..1_000_000,
+        ) {
+            let initial_price = Decimal::from(initial_price);
+
+            let offer_party_direction = if is_long {
+                Direction::Long
+            } else {
+                Direction::Short
+            };
+
+            let (collateral_reserve_offer, collateral_reserve_accept) = match offer_party_direction {
+                Direction::Long => (collateral_reserve_long, collateral_reserve_short),
+                Direction::Short => (collateral_reserve_short, collateral_reserve_long),
+            };
+
+            check(
+                quantity,
+                initial_price,
+                Decimal::from(leverage_long),
+                Decimal::from(leverage_short),
+                collateral_reserve_offer,
+                collateral_reserve_accept,
+                offer_party_direction
+            );
+        }
+
+    }
+
+    #[track_caller]
+    fn check(
+        quantity: f32,
+        initial_price: Decimal,
+        leverage_long: Decimal,
+        leverage_short: Decimal,
+        collateral_reserve_offer: u64,
+        collateral_reserve_accept: u64,
+        offer_party_direction: Direction,
+    ) {
+        let (leverage_offer, leverage_accept) = match offer_party_direction {
+            Direction::Long => (leverage_long, leverage_short),
+            Direction::Short => (leverage_short, leverage_long),
+        };
+
+        let margin_offer =
+            calculate_margin(initial_price, quantity, leverage_offer.to_f32().unwrap());
+        let margin_accept =
+            calculate_margin(initial_price, quantity, leverage_accept.to_f32().unwrap());
+
+        let offer_party = PartyParams {
+            margin: margin_offer,
+            collateral_reserve: collateral_reserve_offer,
+        };
+
+        let accept_party = PartyParams {
+            margin: margin_accept,
+            collateral_reserve: collateral_reserve_accept,
+        };
+
+        let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
+        let short_liquidation_price =
+            calculate_short_liquidation_price(leverage_short, initial_price);
+        let price_params = PriceParams {
+            initial_price,
+            long_liquidation_price,
+            short_liquidation_price,
+        };
+
+        let payout_function = build_inverse_payout_function(
+            quantity,
+            offer_party,
+            accept_party,
+            price_params,
+            offer_party_direction,
+        )
+        .unwrap();
+
+        let long_liquidation_payout_offer = match offer_party_direction {
+            Direction::Long => offer_party.collateral_reserve,
+            Direction::Short => offer_party.total_collateral() + accept_party.margin(),
+        };
+
+        let short_liquidation_payout_offer = match offer_party_direction {
+            Direction::Long => offer_party.total_collateral() + accept_party.margin(),
+            Direction::Short => offer_party.collateral_reserve,
+        };
+
+        assert_eq!(
+            payout_function.first().unwrap().0.outcome_payout,
+            long_liquidation_payout_offer
+        );
+
+        assert_eq!(
+            payout_function.first().unwrap().1.outcome_payout,
+            long_liquidation_payout_offer
+        );
+
+        assert_eq!(
+            payout_function[1].0.outcome_payout,
+            long_liquidation_payout_offer
+        );
+
+        assert_eq!(
+            payout_function.last().unwrap().0.outcome_payout,
+            short_liquidation_payout_offer
+        );
+
+        assert_eq!(
+            payout_function.last().unwrap().1.outcome_payout,
+            short_liquidation_payout_offer
+        );
+
+        assert_eq!(
+            payout_function[payout_function.len() - 1].1.outcome_payout,
+            short_liquidation_payout_offer
+        );
     }
 }
