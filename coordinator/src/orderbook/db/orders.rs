@@ -270,12 +270,13 @@ pub fn get_all_orders(
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }
 
-pub fn get_all_matched_market_orders_with_order_reason_liquidated(
+pub fn get_all_matched_market_orders_by_order_reason(
     conn: &mut PgConnection,
+    order_reason: commons::OrderReason,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let orders: Vec<Order> = orders::table
         .filter(orders::order_state.eq(OrderState::Matched))
-        .filter(orders::order_reason.eq(OrderReason::Liquidated))
+        .filter(orders::order_reason.eq(OrderReason::from(order_reason)))
         .filter(orders::order_type.eq(OrderType::Market))
         .load::<Order>(conn)?;
 

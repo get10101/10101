@@ -1,18 +1,20 @@
 use crate::db::user;
 use crate::notifications::FcmToken;
 use crate::orderbook;
+use commons::OrderReason;
 use diesel::Connection;
 use diesel::PgConnection;
 use diesel::QueryResult;
 
-pub fn get_all_matched_market_orders_with_order_reason_liquidated(
+pub fn get_all_matched_market_orders_by_order_reason(
     conn: &mut PgConnection,
+    order_reason: OrderReason,
 ) -> QueryResult<Vec<(commons::Order, FcmToken)>> {
     let result = conn.transaction(|conn| {
-        let orders =
-            orderbook::db::orders::get_all_matched_market_orders_with_order_reason_liquidated(
-                conn,
-            )?;
+        let orders = orderbook::db::orders::get_all_matched_market_orders_by_order_reason(
+            conn,
+            order_reason,
+        )?;
         join_with_fcm_token(conn, orders)
     })?;
 

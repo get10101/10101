@@ -1,6 +1,5 @@
 use crate::db;
-use crate::db::orders_helper::get_all_matched_market_orders_with_order_reason_liquidated;
-use crate::db::positions_helper::get_all_open_positions_with_expiry_before;
+use crate::db::orders_helper::get_all_matched_market_orders_by_order_reason;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
@@ -8,6 +7,7 @@ use crate::notifications::NotificationKind;
 use crate::settings::Settings;
 use anyhow::Result;
 use bitcoin::Network;
+use commons::OrderReason;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -219,11 +219,11 @@ fn build_remind_to_close_expired_position_notification_job(
         // Note, positions that are expired longer than
         // [`crate::node::expired_positions::EXPIRED_POSITION_TIMEOUT`] are set to closing, hence
         // those positions will not get notified anymore afterwards.
-        match get_all_open_positions_with_expiry_before(&mut conn, OffsetDateTime::now_utc()) {
+        match get_all_matched_market_orders_by_order_reason(&mut conn, OrderReason::Expired) {
             Ok(positions_with_token) => Box::pin({
                 async move {
-                    for (position, fcm_token) in positions_with_token {
-                        tracing::debug!(trader_id=%position.trader, "Sending reminder to close expired position.");
+                    for (order, fcm_token) in positions_with_token {
+                        tracing::debug!(trader_id=%order.trader_id, "Sending reminder to close expired position.");
                         if let Err(e) = notification_sender
                             .send(Notification::new(
                                 fcm_token.clone(),
@@ -258,7 +258,7 @@ fn build_remind_to_close_liquidated_position_notification_job(
         // Note, positions that are liquidated longer than
         // [`crate::node::liquidated_positions::LIQUIDATED_POSITION_TIMEOUT`] are set to closing,
         // hence those positions will not get notified anymore afterwards.
-        match get_all_matched_market_orders_with_order_reason_liquidated(&mut conn) {
+        match get_all_matched_market_orders_by_order_reason(&mut conn, OrderReason::Liquidated) {
             Ok(orders_with_token) => Box::pin({
                 async move {
                     for (order, fcm_token) in orders_with_token {
