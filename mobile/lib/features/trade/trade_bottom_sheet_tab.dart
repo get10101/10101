@@ -308,8 +308,20 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 selector: (_, provider) =>
                     provider.fromDirection(direction).liquidationPrice ?? 0.0,
                 builder: (context, liquidationPrice, child) {
-                  return ValueDataRow(
-                      type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
+                  switch (direction) {
+                    case Direction.long:
+                      return ValueDataRow(
+                          type: ValueType.fiat,
+                          value: liquidationPrice +
+                              liquidationPrice * channelTradeConstraints.marginCallPercentage,
+                          label: "Liquidation:");
+                    case Direction.short:
+                      return ValueDataRow(
+                          type: ValueType.fiat,
+                          value: liquidationPrice -
+                              liquidationPrice * channelTradeConstraints.marginCallPercentage,
+                          label: "Liquidation:");
+                  }
                 }),
             const SizedBox(width: 55),
             Selector<TradeValuesChangeNotifier, Amount>(
