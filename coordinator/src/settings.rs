@@ -65,6 +65,10 @@ pub struct Settings {
 
     /// A list of makers who are allowed to post limit orders. This is to prevent spam.
     pub whitelisted_makers: Vec<PublicKey>,
+
+    pub min_quantity: u64,
+
+    pub margin_call_percentage: f32,
 }
 
 impl Settings {
@@ -98,6 +102,7 @@ impl Settings {
     pub fn to_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
+            margin_call_percentage: self.margin_call_percentage,
         }
     }
 
@@ -117,6 +122,8 @@ impl Settings {
             path,
             whitelist_enabled: file.whitelist_enabled,
             whitelisted_makers: file.whitelisted_makers,
+            min_quantity: file.min_quantity,
+            margin_call_percentage: file.margin_call_percentage,
         }
     }
 }
@@ -137,6 +144,9 @@ pub struct SettingsFile {
 
     whitelist_enabled: bool,
     whitelisted_makers: Vec<PublicKey>,
+
+    min_quantity: u64,
+    margin_call_percentage: f32,
 }
 
 impl From<Settings> for SettingsFile {
@@ -151,6 +161,8 @@ impl From<Settings> for SettingsFile {
             close_liquidated_position_scheduler: value.close_liquidated_position_scheduler,
             whitelist_enabled: false,
             whitelisted_makers: value.whitelisted_makers,
+            min_quantity: value.min_quantity,
+            margin_call_percentage: value.margin_call_percentage,
         }
     }
 }
@@ -181,6 +193,8 @@ mod tests {
                 "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
             )
             .unwrap()],
+            min_quantity: 1,
+            margin_call_percentage: 0.1,
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();

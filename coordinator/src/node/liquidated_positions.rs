@@ -25,10 +25,6 @@ use trade::Direction;
 /// should not be larger than our refund transaction time lock.
 pub const LIQUIDATION_POSITION_TIMEOUT: Duration = Duration::days(7);
 
-/// The percentage of the liquidation price used as threshold at which the position will get
-/// liquidated.
-pub const MARGIN_CALL_PERCENTAGE: (i64, u32) = (10, 2);
-
 pub async fn monitor(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) {
     if let Err(e) =
         check_if_positions_need_to_get_liquidated(trading_sender.clone(), node.clone()).await

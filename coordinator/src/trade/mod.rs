@@ -5,7 +5,6 @@ use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
-use crate::node::liquidated_positions::MARGIN_CALL_PERCENTAGE;
 use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -354,6 +353,7 @@ impl TradeExecutor {
             leverage_coordinator,
             stable,
         )
+        .await
     }
 
     async fn open_position(
@@ -517,10 +517,11 @@ impl TradeExecutor {
             leverage_coordinator,
             stable,
         )
+        .await
     }
 
     // Creates a position and a trade from the trade params
-    fn persist_position(
+    async fn persist_position(
         &self,
         connection: &mut PgConnection,
         trade_params: &TradeParams,
@@ -541,9 +542,9 @@ impl TradeExecutor {
         let trader_liquidation_price =
             Decimal::try_from(trader_liquidation_price).expect("to fit into decimal");
 
-        // TODO(holzeis): Fetch margin call percentage from settings
+        let margin_call_percentage = { self.node.settings.read().await.margin_call_percentage };
         let margin_call_percentage =
-            Decimal::new(MARGIN_CALL_PERCENTAGE.0, MARGIN_CALL_PERCENTAGE.1);
+            Decimal::try_from(margin_call_percentage).expect("to fit into decimal");
 
         let (coordinator_liquidation_price, trader_liquidation_price) = match trade_params.direction
         {

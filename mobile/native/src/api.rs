@@ -59,20 +59,22 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct LspConfig {
-    pub contract_tx_fee_rate: u64,
+pub struct TenTenOneConfig {
     pub liquidity_options: Vec<LiquidityOption>,
+    pub min_quantity: u64,
+    pub margin_call_percentage: f32,
 }
 
-impl From<commons::LspConfig> for LspConfig {
-    fn from(value: commons::LspConfig) -> Self {
+impl From<commons::TenTenOneConfig> for TenTenOneConfig {
+    fn from(value: commons::TenTenOneConfig) -> Self {
         Self {
-            contract_tx_fee_rate: value.contract_tx_fee_rate,
             liquidity_options: value
                 .liquidity_options
                 .into_iter()
                 .map(|lo| lo.into())
                 .collect(),
+            min_quantity: value.min_quantity,
+            margin_call_percentage: value.margin_call_percentage,
         }
     }
 }

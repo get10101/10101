@@ -1,5 +1,5 @@
 use crate::api::DlcChannel;
-use crate::api::LspConfig;
+use crate::api::TenTenOneConfig;
 use crate::api::WalletInfo;
 use crate::dlc_channel;
 use crate::event;
@@ -28,7 +28,7 @@ pub enum Event {
     PriceUpdateNotification(BestPrice),
     ServiceHealthUpdate(ServiceUpdate),
     BackgroundNotification(BackgroundTask),
-    Authenticated(LspConfig),
+    Authenticated(TenTenOneConfig),
     DlcChannelEvent(DlcChannel),
 }
 

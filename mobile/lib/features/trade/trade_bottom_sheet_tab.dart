@@ -3,7 +3,7 @@ import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
-import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -39,7 +39,7 @@ class TradeBottomSheetTab extends StatefulWidget {
 
 class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   late final TradeValuesChangeNotifier provider;
-  late final LspChangeNotifier lspChangeNotifier;
+  late final TenTenOneConfigChangeNotifier tentenoneConfigChangeNotifier;
   late final PositionChangeNotifier positionChangeNotifier;
 
   TextEditingController marginController = TextEditingController();
@@ -54,7 +54,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
-    lspChangeNotifier = context.read<LspChangeNotifier>();
+    tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
 
     super.initState();
@@ -78,7 +78,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     String label = direction == Direction.long ? "Buy" : "Sell";
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
 
-    final channelInfoService = lspChangeNotifier.channelInfoService;
+    final channelInfoService = tentenoneConfigChangeNotifier.channelInfoService;
     final channelTradeConstraints = channelInfoService.getTradeConstraints();
 
     final hasChannel = dlcChannelChangeNotifier.hasDlcChannel();

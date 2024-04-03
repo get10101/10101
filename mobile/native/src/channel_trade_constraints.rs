@@ -30,23 +30,19 @@ pub struct TradeConstraints {
 }
 
 pub fn channel_trade_constraints() -> Result<TradeConstraints> {
-    let lsp_config =
-        crate::state::try_get_lsp_config().context("We can't trade without LSP config")?;
+    let config =
+        crate::state::try_get_tentenone_config().context("We can't trade without LSP config")?;
 
     let signed_channel = ln_dlc::get_signed_dlc_channel()?;
 
-    // TODO(bonomat): retrieve these values from the coordinator. This can come from the liquidity
-    // options.
-    let min_quantity = 1;
     let min_margin = signed_channel.map(|_| 1).unwrap_or(250_000);
 
-    // TODO(holzeis): retrieve this value from the coordinator so configuration changes can be
-    // displayed in the UI.
-    let margin_call_percentage = 0.1;
+    let min_quantity = config.min_quantity;
+    let margin_call_percentage = config.margin_call_percentage;
 
     // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
     // on-boarding logic. For now we take the highest liquidity option
-    let option = lsp_config
+    let option = config
         .liquidity_options
         .iter()
         .filter(|option| option.active)

@@ -5,7 +5,7 @@ import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<ChannelInfoService>()])
 import 'package:get_10101/common/application/channel_info_service.dart';
-import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<DlcChannelService>()])
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
@@ -142,7 +142,8 @@ void main() {
 
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
 
-    LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
+    TenTenOneConfigChangeNotifier lspChangeNotifier =
+        TenTenOneConfigChangeNotifier(channelConstraintsService);
 
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
 
@@ -265,7 +266,8 @@ void main() {
 
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
 
-    LspChangeNotifier lspChangeNotifier = LspChangeNotifier(channelConstraintsService);
+    TenTenOneConfigChangeNotifier lspChangeNotifier =
+        TenTenOneConfigChangeNotifier(channelConstraintsService);
 
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
     dlcChannelChangeNotifier.initialize();

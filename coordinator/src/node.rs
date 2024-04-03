@@ -46,6 +46,7 @@ pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
     // scheduled upgrade)
     pub allow_opening_positions: bool,
+    pub margin_call_percentage: f32,
 }
 
 #[derive(Clone)]
