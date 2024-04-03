@@ -247,7 +247,7 @@ async fn handle_orderbook_message(
                 .to_f32()
                 .expect("to fit into f32");
 
-            let matching_fee = filled.matching_fee;
+            let matching_fee = filled.order_matching_fee();
 
             order::handler::order_filling(order_id, execution_price, matching_fee).with_context(
                 || format!("Failed to process match update from orderbook. order_id = {order_id}"),

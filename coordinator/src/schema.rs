@@ -245,6 +245,7 @@ diesel::table! {
         quantity -> Float4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        matching_fee_sats -> Int8,
     }
 }
 

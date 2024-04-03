@@ -9,7 +9,6 @@ use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
-use bitcoin::Amount;
 use bitcoin::Network;
 use commons::FilledWith;
 use commons::Match;
@@ -101,11 +100,11 @@ async fn process_pending_match(
     {
         tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
 
-        // TODO(bonomat:ordermatching): load this from somehwere
-        let fee = Amount::ZERO;
-
         let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
-        let filled_with = get_filled_with_from_matches(matches, network, oracle_pk, fee)?;
+
+        // TODO: get the matching fee as a sum from all matches.
+
+        let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {
             OrderReason::Manual => Message::Match(filled_with.clone()),
@@ -141,7 +140,6 @@ async fn process_pending_match(
                     quantity: order.quantity.to_f32().expect("to fit into f32"),
                     direction: order.direction,
                     filled_with,
-                    matching_fee: fee,
                 },
                 trader_reserve: channel_opening_params.map(|c| c.trader_reserve),
                 coordinator_reserve: channel_opening_params.map(|c| c.coordinator_reserve),
@@ -156,7 +154,6 @@ fn get_filled_with_from_matches(
     matches: Vec<Matches>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
-    matching_fee: Amount,
 ) -> Result<FilledWith> {
     ensure!(
         !matches.is_empty(),
@@ -182,8 +179,8 @@ fn get_filled_with_from_matches(
                 quantity: m.quantity,
                 pubkey: m.match_trader_id,
                 execution_price: m.execution_price,
+                matching_fee: m.matching_fee,
             })
             .collect(),
-        matching_fee,
     })
 }

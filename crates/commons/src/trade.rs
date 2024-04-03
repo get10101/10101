@@ -54,14 +54,15 @@ pub struct TradeParams {
     /// This is used by the coordinator to be able to make sure both trading parties are acting.
     /// The `quantity` has to match the cummed up quantities of the matches in `filled_with`.
     pub filled_with: FilledWith,
-
-    #[serde(with = "bitcoin::amount::serde::as_sat")]
-    pub matching_fee: Amount,
 }
 
 impl TradeParams {
     pub fn average_execution_price(&self) -> Decimal {
         self.filled_with.average_execution_price()
+    }
+
+    pub fn order_matching_fee(&self) -> Amount {
+        self.filled_with.order_matching_fee()
     }
 }
 
@@ -93,6 +94,9 @@ pub struct Match {
     /// The trade is to be executed at this price.
     #[serde(with = "rust_decimal::serde::float")]
     pub execution_price: Decimal,
+
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub matching_fee: Amount,
 }
 
 impl From<Matches> for Match {
@@ -103,6 +107,7 @@ impl From<Matches> for Match {
             quantity: value.quantity,
             pubkey: value.trader_id,
             execution_price: value.execution_price,
+            matching_fee: value.matching_fee,
         }
     }
 }
@@ -145,14 +150,14 @@ pub struct FilledWith {
 
     /// The matches for the order
     pub matches: Vec<Match>,
-
-    #[serde(with = "bitcoin::amount::serde::as_sat")]
-    pub matching_fee: Amount,
 }
 
 impl FilledWith {
     pub fn average_execution_price(&self) -> Decimal {
         average_execution_price(self.matches.clone())
+    }
+    pub fn order_matching_fee(&self) -> Amount {
+        self.matches.iter().map(|m| m.matching_fee).sum()
     }
 }
 
@@ -193,6 +198,7 @@ pub struct Matches {
     pub quantity: Decimal,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub matching_fee: Amount,
 }
 
 #[cfg(test)]
@@ -232,6 +238,7 @@ mod test {
                     quantity: match_0_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_0_price,
+                    matching_fee: Amount::from_sat(1000),
                 },
                 Match {
                     id: Uuid::new_v4(),
@@ -239,9 +246,9 @@ mod test {
                     quantity: match_1_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_1_price,
+                    matching_fee: Amount::from_sat(1000),
                 },
             ],
-            matching_fee: Amount::from_sat(1000),
         };
 
         let average_execution_price = filled.average_execution_price();

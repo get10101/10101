@@ -191,7 +191,7 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
         .to_f32()
         .expect("to fit into f32");
 
-    let matching_fee = filled_with.matching_fee;
+    let matching_fee = filled_with.order_matching_fee();
 
     let order = match db::get_order(order.id)? {
         None => {

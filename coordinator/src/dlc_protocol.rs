@@ -134,7 +134,7 @@ impl From<(ProtocolId, &commons::TradeParams)> for TradeParams {
                 .to_f32()
                 .expect("to fit into f32"),
             direction: trade_params.direction,
-            matching_fee: trade_params.matching_fee,
+            matching_fee: trade_params.order_matching_fee(),
         }
     }
 }

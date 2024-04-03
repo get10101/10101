@@ -4,6 +4,7 @@ use crate::node::Node;
 use crate::notifications::NotificationKind;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
+use crate::referrals;
 use crate::trade::TradeExecutor;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -13,7 +14,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
-use commons::order_matching_fee;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use commons::Match;
@@ -211,6 +211,15 @@ pub async fn process_new_market_order(
     )
     .map_err(|e| anyhow!("{e:#}"))?;
 
+    // TODO(bonomat:ordermatching): load ordermatching fee from settings
+    let fee_percent = dec!(0.003);
+
+    let status = referrals::referral_status(order.trader_id, &mut conn)?;
+    let fee_discount = status.referral_fee_bonus;
+    let fee_percent = fee_percent - (fee_percent * fee_discount);
+
+    tracing::debug!(%fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
+
     let matched_orders =
         match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
             Ok(Some(matched_orders)) => matched_orders,
@@ -302,13 +311,10 @@ pub async fn process_new_market_order(
             .map_err(|e| anyhow!("{e:#}"))?;
     }
 
-    // TODO(bonomat:ordermatching): load this from db from tier and load the order matching fee from
-    // settings
-    let fee_percent = dec!(0.003);
-
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), notifier);
+
         trade_executor
             .execute(&TradeAndChannelParams {
                 trade_params: TradeParams {
@@ -318,11 +324,6 @@ pub async fn process_new_market_order(
                     quantity: order.quantity.to_f32().expect("to fit into f32"),
                     direction: order.direction,
                     filled_with: matched_orders.taker_match.filled_with,
-                    matching_fee: order_matching_fee(
-                        order.quantity.to_f32().expect("to fit"),
-                        order.price,
-                        fee_percent,
-                    ),
                 },
                 trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
                 coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
@@ -409,8 +410,8 @@ fn match_order(
                             quantity: market_order.quantity,
                             pubkey: market_order.trader_id,
                             execution_price: maker_order.price,
+                            matching_fee,
                         }],
-                        matching_fee,
                     },
                 },
                 Match {
@@ -419,6 +420,7 @@ fn match_order(
                     quantity: market_order.quantity,
                     pubkey: maker_order.trader_id,
                     execution_price: maker_order.price,
+                    matching_fee,
                 },
             )
         })
@@ -440,7 +442,6 @@ fn match_order(
                 expiry_timestamp,
                 oracle_pk,
                 matches: taker_matches,
-                matching_fee,
             },
         },
         makers_matches: maker_matches,
@@ -733,7 +734,7 @@ mod tests {
             &order,
             all_orders,
             Network::Bitcoin,
-            get_oracle_public_key()
+            get_oracle_public_key(),
         )
         .is_err());
     }
