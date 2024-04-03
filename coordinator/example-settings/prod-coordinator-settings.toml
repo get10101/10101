@@ -8,6 +8,7 @@ whitelist_enabled = false
 whitelisted_makers = []
 min_quantity = 1
 margin_call_percentage = 0.1
+order_matching_fee_rate = 0.003
 
 [ln_dlc]
 off_chain_sync_interval = 5

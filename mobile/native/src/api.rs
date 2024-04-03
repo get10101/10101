@@ -21,7 +21,6 @@ use crate::ln_dlc::get_storage;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
-use crate::referrals;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
@@ -43,7 +42,6 @@ use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
@@ -332,10 +330,8 @@ pub fn calculate_pnl(
 pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
-    // TODO(bonomat:ordermatching): fix me. Here it is only representative, meaning we need to get
-    // our current order matching fee percentage form somehwere. Idea: get it from the
-    // coordinator when connecitng via websocket
-    let order_matching_fee = commons::order_matching_fee(quantity, price, dec!(0.003)).to_sat();
+    let fee_rate = ln_dlc::get_order_matching_fee_rate();
+    let order_matching_fee = commons::order_matching_fee(quantity, price, fee_rate).to_sat();
 
     SyncReturn(order_matching_fee)
 }
@@ -853,9 +849,11 @@ impl From<commons::ReferralStatus> for ReferralStatus {
     }
 }
 
-// TODO: we should cache this request
 #[tokio::main(flavor = "current_thread")]
 pub async fn referral_status() -> Result<ReferralStatus> {
-    let referral = referrals::get_referral_status().await?;
+    let referral = match crate::state::try_get_tentenone_config() {
+        Some(config) => config.referral_status,
+        None => commons::ReferralStatus::new(ln_dlc::get_node_pubkey()),
+    };
     Ok(referral.into())
 }

@@ -29,7 +29,6 @@ use native::trade::order::OrderType;
 use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -290,6 +289,9 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                     Direction::Short => price.ask,
                 };
 
+                // FIXME: A from implementation should not contain this kind of logic.
+                let fee_rate = ln_dlc::get_order_matching_fee_rate();
+
                 (
                     calculate_pnl(
                         position.average_entry_price,
@@ -300,11 +302,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                     )
                     .ok(),
                     price
-                        // TODO(bonomat:ordermatching): fixme: this is only representative and will
-                        // be fixed by Lucas :)
-                        .map(|price| {
-                            Some(order_matching_fee(position.quantity, price, dec!(0.003)))
-                        })
+                        .map(|price| Some(order_matching_fee(position.quantity, price, fee_rate)))
                         .and_then(|price| price),
                 )
             }
@@ -499,9 +497,7 @@ pub async fn get_best_quote(
 
     Ok(Json(quotes.map(|quote| BestQuote {
         price: quote,
-        // TODO(bonomat:ordermatching): fix me: get the order matching fee from somewhere
-        // we should get the order matching fee from the orderbook websocket
-        fee: dec!(0.003),
+        fee: ln_dlc::get_order_matching_fee_rate(),
     })))
 }
 

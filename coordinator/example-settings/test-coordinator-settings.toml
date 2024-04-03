@@ -9,6 +9,7 @@ whitelist_enabled = false
 whitelisted_makers = ["035eccdd1f05c65b433cf38e3b2597e33715e0392cb14d183e812f1319eb7b6794"]
 min_quantity = 1
 maintenance_margin_rate = 0.1
+order_matching_fee_rate = 0.003
 
 [ln_dlc]
 off_chain_sync_interval = 5

@@ -47,6 +47,7 @@ pub struct NodeSettings {
     // scheduled upgrade)
     pub allow_opening_positions: bool,
     pub maintenance_margin_rate: f32,
+    pub order_matching_fee_rate: f32,
 }
 
 #[derive(Clone)]

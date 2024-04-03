@@ -167,10 +167,6 @@ pub fn router(
         // pass registration
         .route("/api/register", post(post_register))
         .route("/api/users", post(post_register))
-        .route(
-            "/api/users/:trader_pubkey/referrals",
-            get(get_user_referral_status),
-        )
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
         // TODO: we should move this back into public once we add signing to this function
@@ -214,6 +210,10 @@ pub fn router(
         .route(
             "/api/admin/migrate_dlc_channels",
             post(migrate_dlc_channels),
+        )
+        .route(
+            "/api/admin/users/:trader_pubkey/referrals",
+            get(get_user_referral_status),
         )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))

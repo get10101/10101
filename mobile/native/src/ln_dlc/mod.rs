@@ -185,6 +185,18 @@ pub fn get_maintenance_margin_rate() -> Decimal {
     }
 }
 
+pub fn get_order_matching_fee_rate() -> Decimal {
+    match state::try_get_tentenone_config() {
+        Some(config) => {
+            let fee_percent =
+                Decimal::try_from(config.order_matching_fee_rate).expect("to fit into decimal");
+            let fee_discount = config.referral_status.referral_fee_bonus;
+            fee_percent - (fee_percent * fee_discount)
+        }
+        None => dec!(0.003),
+    }
+}
+
 /// Gets the seed from the storage or from disk. However it will panic if the seed can not be found.
 /// No new seed will be created.
 fn get_seed() -> Bip39Seed {

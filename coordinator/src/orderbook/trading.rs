@@ -30,7 +30,6 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 use std::cmp::Ordering;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -211,8 +210,8 @@ pub async fn process_new_market_order(
     )
     .map_err(|e| anyhow!("{e:#}"))?;
 
-    // TODO(bonomat:ordermatching): load ordermatching fee from settings
-    let fee_percent = dec!(0.003);
+    let fee_percent = { node.settings.read().await.order_matching_fee_rate };
+    let fee_percent = Decimal::try_from(fee_percent).expect("to fit into decimal");
 
     let status = referrals::referral_status(order.trader_id, &mut conn)?;
     let fee_discount = status.referral_fee_bonus;

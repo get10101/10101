@@ -87,7 +87,7 @@ pub fn referral_from_pubkey(public_key: PublicKey) -> String {
     referral_code
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ReferralStatus {
     /// your personal referral code
     pub referral_code: String,
@@ -100,6 +100,18 @@ pub struct ReferralStatus {
     /// Activated bonus, a percentage to be subtracted from the matching fee.
     #[serde(with = "rust_decimal::serde::float")]
     pub referral_fee_bonus: Decimal,
+}
+
+impl ReferralStatus {
+    pub fn new(trader_id: PublicKey) -> Self {
+        Self {
+            referral_code: referral_from_pubkey(trader_id),
+            number_of_activated_referrals: 0,
+            number_of_total_referrals: 0,
+            referral_tier: 0,
+            referral_fee_bonus: Default::default(),
+        }
+    }
 }
 
 #[cfg(test)]
