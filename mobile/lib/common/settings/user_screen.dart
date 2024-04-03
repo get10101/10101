@@ -77,21 +77,20 @@ class _UserSettingsState extends State<UserSettings> {
                   final referralFeeBonus = snapshot.data!.referralFeeBonus.toStringAsFixed(2);
 
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         "Referral status",
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(
-                        height: 5,
-                      ),
+                      const SizedBox(height: 10),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Referral Code"),
+                          const Text("Referral code", style: TextStyle(fontSize: 18)),
                           Row(
                             children: [
-                              SelectableText(referralCode),
+                              SelectableText(referralCode, style: const TextStyle(fontSize: 18)),
                               const SizedBox(
                                 width: 10,
                               ),
@@ -103,7 +102,7 @@ class _UserSettingsState extends State<UserSettings> {
                                 },
                                 child: Icon(
                                   Icons.copy,
-                                  size: 17,
+                                  size: 18,
                                   color: tenTenOnePurple.shade800,
                                 ),
                               ),
@@ -111,7 +110,7 @@ class _UserSettingsState extends State<UserSettings> {
                                 width: 10,
                               ),
                               GestureDetector(
-                                child: const Icon(Icons.share, size: 16),
+                                child: const Icon(Icons.share, size: 18),
                                 onTap: () => Share.share(
                                     "Join me and trade without counter-party risk. Use this referral to get a fee discount: $referralCode"),
                               )
@@ -119,48 +118,52 @@ class _UserSettingsState extends State<UserSettings> {
                           )
                         ],
                       ),
+                      const SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Active referrals"),
-                          Text(numberOfActivatedReferrals.toString()),
+                          const Text("Active referrals", style: TextStyle(fontSize: 18)),
+                          Text(numberOfActivatedReferrals.toString(),
+                              style: const TextStyle(fontSize: 18)),
                         ],
                       ),
+                      const SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Total referrals"),
-                          Row(
-                            children: [
-                              Text("$numberOfTotalReferrals"),
-                              const Text('*',
-                                  style: TextStyle(
-                                    fontFeatures: <FontFeature>[
-                                      FontFeature.superscripts(),
-                                    ],
-                                  )),
-                            ],
-                          ),
+                          RichText(
+                              text: const TextSpan(
+                                  text: "Total referrals",
+                                  style: TextStyle(fontSize: 18, color: Colors.black),
+                                  children: [
+                                TextSpan(
+                                    text: '*',
+                                    style: TextStyle(
+                                      fontFeatures: <FontFeature>[
+                                        FontFeature.superscripts(),
+                                      ],
+                                    ))
+                              ])),
+                          Text("$numberOfTotalReferrals", style: const TextStyle(fontSize: 18)),
                         ],
                       ),
                       const Divider(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Referral Tier"),
-                          Text(referralTier.toString()),
+                          const Text("Referral Tier", style: TextStyle(fontSize: 18)),
+                          Text(referralTier.toString(), style: const TextStyle(fontSize: 18)),
                         ],
                       ),
+                      const SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Active referral bonus"),
-                          Text("$referralFeeBonus%"),
+                          const Text("Active referral bonus", style: TextStyle(fontSize: 18)),
+                          Text("$referralFeeBonus%", style: const TextStyle(fontSize: 18)),
                         ],
                       ),
-                      const SizedBox(
-                        height: 10,
-                      ),
+                      const SizedBox(height: 10),
                       const Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -170,15 +173,13 @@ class _UserSettingsState extends State<UserSettings> {
                                   FontFeature.superscripts(),
                                 ],
                               )),
-                          Text("these users have not yet traded enough.")
+                          Text("Referents that did not trade enough yet.")
                         ],
                       )
                     ],
                   );
                 }),
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 25),
             FutureBuilder(
                 future: rust.api.getUserDetails(),
                 builder: (BuildContext context, AsyncSnapshot<rust.User> snapshot) {
