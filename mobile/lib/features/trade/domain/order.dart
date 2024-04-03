@@ -114,12 +114,12 @@ enum OrderType {
 class Order {
   late String id;
   final Leverage leverage;
-  final Amount quantity;
+  final Usd quantity;
   final ContractSymbol contractSymbol;
   final Direction direction;
   final OrderState state;
   final OrderType type;
-  final double? executionPrice;
+  final Usd? executionPrice;
   final DateTime creationTimestamp;
   final OrderReason reason;
   final FailureReason? failureReason;
@@ -141,12 +141,12 @@ class Order {
     return Order(
         id: order.id,
         leverage: Leverage(order.leverage),
-        quantity: Amount(order.quantity.ceil()),
+        quantity: Usd(order.quantity.ceil()),
         contractSymbol: ContractSymbol.fromApi(order.contractSymbol),
         direction: Direction.fromApi(order.direction),
         state: OrderState.fromApi(order.state),
         type: OrderType.fromApi(order.orderType),
-        executionPrice: order.executionPrice,
+        executionPrice: order.executionPrice != null ? Usd.fromDouble(order.executionPrice!) : null,
         creationTimestamp: DateTime.fromMillisecondsSinceEpoch(order.creationTimestamp * 1000),
         reason: OrderReason.fromApi(order.reason),
         failureReason: FailureReason.fromApi(order.failureReason));
