@@ -69,7 +69,10 @@ class OrderListItem extends StatelessWidget {
             trailing: RichText(
               text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
                 WidgetSpan(alignment: PlaceholderAlignment.middle, child: statusIcon),
-                TextSpan(text: " ${order.state.name}")
+                TextSpan(
+                    text: order.state == OrderState.filled && order.reason != OrderReason.manual
+                        ? " ${order.reason.name}"
+                        : " ${order.state.name}")
               ]),
             ),
             subtitle: RichText(
