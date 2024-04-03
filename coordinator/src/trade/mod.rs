@@ -527,7 +527,15 @@ impl TradeExecutor {
         coordinator_leverage: f32,
         stable: bool,
     ) -> Result<()> {
-        let liquidation_price = liquidation_price(trade_params);
+        let trader_liquidation_price = trader_liquidation_price(trade_params);
+
+        let price = trade_params.average_execution_price();
+
+        let coordinator_liquidation_price = coordinator_liquidation_price(
+            price,
+            Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
+            trade_params.direction.opposite(),
+        );
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
         let margin_trader = margin_trader(trade_params);
 
@@ -543,7 +551,8 @@ impl TradeExecutor {
             trader_direction: trade_params.direction,
             trader: trade_params.pubkey,
             average_entry_price,
-            trader_liquidation_price: liquidation_price,
+            trader_liquidation_price,
+            coordinator_liquidation_price,
             coordinator_margin: margin_coordinator as i64,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
@@ -778,13 +787,26 @@ fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> 
     )
 }
 
-fn liquidation_price(trade_params: &TradeParams) -> f32 {
+fn trader_liquidation_price(trade_params: &TradeParams) -> f32 {
     let price = trade_params.average_execution_price();
     let leverage = Decimal::try_from(trade_params.leverage).expect("to fit into decimal");
 
     match trade_params.direction {
         Direction::Long => calculate_long_liquidation_price(leverage, price),
         Direction::Short => calculate_short_liquidation_price(leverage, price),
+    }
+    .to_f32()
+    .expect("to fit into f32")
+}
+
+fn coordinator_liquidation_price(
+    price: Decimal,
+    coordinator_leverage: Decimal,
+    direction: Direction,
+) -> f32 {
+    match direction {
+        Direction::Long => calculate_long_liquidation_price(coordinator_leverage, price),
+        Direction::Short => calculate_short_liquidation_price(coordinator_leverage, price),
     }
     .to_f32()
     .expect("to fit into f32")

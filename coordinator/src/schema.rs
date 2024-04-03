@@ -345,6 +345,7 @@ diesel::table! {
         coordinator_leverage -> Float4,
         trader_margin -> Int8,
         stable -> Bool,
+        coordinator_liquidation_price -> Float4,
     }
 }
 
