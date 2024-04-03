@@ -97,7 +97,9 @@ impl From<order::OrderType> for OrderType {
 impl From<order::Order> for Order {
     fn from(value: order::Order) -> Self {
         let execution_price = match value.state {
-            order::OrderState::Filled { execution_price } => Some(execution_price),
+            order::OrderState::Filled {
+                execution_price, ..
+            } => Some(execution_price),
             _ => None,
         };
 

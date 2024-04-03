@@ -11,7 +11,9 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
+use bitcoin::Amount;
 use bitcoin::Network;
+use commons::order_matching_fee;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use commons::Match;
@@ -28,6 +30,7 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::cmp::Ordering;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -299,6 +302,10 @@ pub async fn process_new_market_order(
             .map_err(|e| anyhow!("{e:#}"))?;
     }
 
+    // TODO(bonomat:ordermatching): load this from db from tier and load the order matching fee from
+    // settings
+    let fee_percent = dec!(0.003);
+
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), notifier);
@@ -311,6 +318,11 @@ pub async fn process_new_market_order(
                     quantity: order.quantity.to_f32().expect("to fit into f32"),
                     direction: order.direction,
                     filled_with: matched_orders.taker_match.filled_with,
+                    matching_fee: order_matching_fee(
+                        order.quantity.to_f32().expect("to fit"),
+                        order.price,
+                        fee_percent,
+                    ),
                 },
                 trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
                 coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
@@ -377,6 +389,10 @@ fn match_order(
 
     let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
+    // TODO(bonomat:ordermatching): get this from somewhere. Get the tier for the trader and the fee
+    // from settings
+    let matching_fee = Amount::ZERO;
+
     let matches = matched_orders
         .iter()
         .map(|maker_order| {
@@ -394,6 +410,7 @@ fn match_order(
                             pubkey: market_order.trader_id,
                             execution_price: maker_order.price,
                         }],
+                        matching_fee,
                     },
                 },
                 Match {
@@ -423,6 +440,7 @@ fn match_order(
                 expiry_timestamp,
                 oracle_pk,
                 matches: taker_matches,
+                matching_fee,
             },
         },
         makers_matches: maker_matches,

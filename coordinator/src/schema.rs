@@ -392,6 +392,7 @@ diesel::table! {
         leverage -> Float4,
         average_price -> Float4,
         direction -> DirectionType,
+        matching_fee -> Int8,
     }
 }
 

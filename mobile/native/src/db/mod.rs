@@ -147,14 +147,37 @@ pub fn insert_order(order: trade::order::Order) -> Result<trade::order::Order> {
     Ok(order.try_into()?)
 }
 
+impl From<trade::order::OrderState> for OrderState {
+    fn from(value: trade::order::OrderState) -> Self {
+        match value {
+            trade::order::OrderState::Initial => OrderState::Initial,
+            trade::order::OrderState::Rejected => OrderState::Rejected,
+            trade::order::OrderState::Open => OrderState::Open,
+            trade::order::OrderState::Filling { .. } => OrderState::Filling,
+            trade::order::OrderState::Failed { .. } => OrderState::Failed,
+            trade::order::OrderState::Filled { .. } => OrderState::Filled,
+        }
+    }
+}
+
 pub fn update_order_state(
     order_id: Uuid,
     order_state: trade::order::OrderState,
 ) -> Result<trade::order::Order> {
     let mut db = connection()?;
 
-    let order = Order::update_state(order_id.to_string(), order_state.into(), &mut db)
-        .context("Failed to update order state")?;
+    let execution_price = order_state.execution_price();
+    let matching_fee = order_state.matching_fee();
+    let failure_reason = order_state.failure_reason().map(|reason| reason.into());
+    let order = Order::update_state(
+        order_id.to_string(),
+        order_state.into(),
+        execution_price,
+        matching_fee,
+        failure_reason,
+        &mut db,
+    )
+    .context("Failed to update order state")?;
 
     Ok(order.try_into()?)
 }
@@ -272,11 +295,10 @@ pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
 
                 if let Err(e) = Order::update_state(
                     order.id.clone(),
-                    (
-                        OrderState::Failed,
-                        Some(order.execution_price.expect("in Filling state")),
-                        Some(FailureReason::TimedOut),
-                    ),
+                    OrderState::Failed,
+                    order.execution_price,
+                    None,
+                    Some(FailureReason::TimedOut),
                     &mut db,
                 ) {
                     tracing::error!("Failed to set old Filling order to Failed: {e:#}");

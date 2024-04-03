@@ -2,9 +2,9 @@ use crate::calculations;
 use crate::channel_trade_constraints::channel_trade_constraints;
 use crate::ln_dlc;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 /// Calculates the max quantity a user can trade using the following input parameters
 /// - if no channel exists the on-chain fees (channel fee reserve and funding tx fee) is substracted
@@ -104,6 +104,12 @@ fn calculate_max_quantity(
     );
 
     Decimal::try_from(max_quantity.floor()).expect("to fit into decimal")
+}
+
+// TODO(bonomat:ordermatching): this should not be needed anymore
+fn order_matching_fee_taker(quantity: f32, price: Decimal) -> Amount {
+    // TODO: fix me: get the correct order matching fee from somehwere
+    commons::order_matching_fee(quantity, price, dec!(0.003))
 }
 
 #[cfg(test)]

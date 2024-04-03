@@ -33,7 +33,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
 use commons::ChannelOpeningParams;
 use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
@@ -44,6 +43,7 @@ use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
@@ -332,7 +332,10 @@ pub fn calculate_pnl(
 pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
-    let order_matching_fee = order_matching_fee_taker(quantity, price).to_sat();
+    // TODO(bonomat:ordermatching): fix me. Here it is only representative, meaning we need to get
+    // our current order matching fee percentage form somehwere. Idea: get it from the
+    // coordinator when connecitng via websocket
+    let order_matching_fee = commons::order_matching_fee(quantity, price, dec!(0.003)).to_sat();
 
     SyncReturn(order_matching_fee)
 }

@@ -58,6 +58,7 @@ pub(crate) struct Order {
     pub order_expiry_timestamp: i64,
     pub reason: OrderReason,
     pub stable: bool,
+    pub matching_fee_sats: Option<i64>,
 }
 
 impl Order {
@@ -92,7 +93,10 @@ impl Order {
     /// updates the status of the given order in the db
     pub fn update_state(
         order_id: String,
-        status: (OrderState, Option<f32>, Option<FailureReason>),
+        order_state: OrderState,
+        execution_price: Option<f32>,
+        matching_fee: Option<Amount>,
+        failure_reason: Option<FailureReason>,
         conn: &mut SqliteConnection,
     ) -> Result<Order> {
         conn.exclusive_transaction::<Order, _, _>(|conn| {
@@ -101,8 +105,7 @@ impl Order {
                 .first(conn)?;
 
             let current_state = order.state;
-            let candidate = status.0;
-            match current_state.next_state(candidate) {
+            match current_state.next_state(order_state) {
                 Some(next_state) => {
                     let affected_rows = diesel::update(orders::table)
                         .filter(schema::orders::id.eq(order_id.clone()))
@@ -116,11 +119,11 @@ impl Order {
                     tracing::info!(new_state = ?next_state, %order_id, "Updated order state");
                 }
                 None => {
-                    tracing::debug!(?current_state, ?candidate, "Ignoring latest state update");
+                    tracing::debug!(?current_state, ?order_state, "Ignoring latest state update");
                 }
             }
 
-            if let Some(execution_price) = status.1 {
+            if let Some(execution_price) = execution_price {
                 let affected_rows = diesel::update(orders::table)
                     .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::execution_price.eq(execution_price))
@@ -131,7 +134,18 @@ impl Order {
                 }
             }
 
-            if let Some(failure_reason) = status.2 {
+            if let Some(matching_fee) = matching_fee {
+                let affected_rows = diesel::update(orders::table)
+                    .filter(schema::orders::id.eq(order_id.clone()))
+                    .set(schema::orders::matching_fee_sats.eq(matching_fee.to_sat() as i64))
+                    .execute(conn)?;
+
+                if affected_rows == 0 {
+                    bail!("Could not update order matching fee")
+                }
+            }
+
+            if let Some(failure_reason) = failure_reason {
                 let affected_rows = diesel::update(orders::table)
                     .filter(schema::orders::id.eq(order_id.clone()))
                     .set(schema::orders::failure_reason.eq(failure_reason))
@@ -203,7 +217,10 @@ impl Order {
 impl From<crate::trade::order::Order> for Order {
     fn from(value: crate::trade::order::Order) -> Self {
         let (order_type, limit_price) = value.order_type.into();
-        let (status, execution_price, failure_reason) = value.state.into();
+        let execution_price = value.execution_price();
+        let matching_fee = value.matching_fee();
+
+        let (status, _, failure_reason) = value.state.into();
 
         Order {
             id: value.id.to_string(),
@@ -220,6 +237,7 @@ impl From<crate::trade::order::Order> for Order {
             order_expiry_timestamp: value.order_expiry_timestamp.unix_timestamp(),
             reason: value.reason.into(),
             stable: value.stable,
+            matching_fee_sats: matching_fee.map(|fee| fee.to_sat() as i64),
         }
     }
 }
@@ -248,6 +266,13 @@ impl TryFrom<Order> for crate::trade::order::Order {
     type Error = Error;
 
     fn try_from(value: Order) -> std::result::Result<Self, Self::Error> {
+        let mut exec_price_and_matching_fee = None;
+        if let (Some(exec_price), Some(matching_fee)) =
+            (value.execution_price, value.matching_fee_sats)
+        {
+            exec_price_and_matching_fee = Some((exec_price, matching_fee));
+        }
+
         let order = crate::trade::order::Order {
             id: Uuid::parse_str(value.id.as_str()).map_err(Error::InvalidId)?,
             leverage: value.leverage,
@@ -257,7 +282,7 @@ impl TryFrom<Order> for crate::trade::order::Order {
             order_type: (value.order_type, value.limit_price).try_into()?,
             state: (
                 value.state,
-                value.execution_price,
+                exec_price_and_matching_fee,
                 value.failure_reason.clone(),
             )
                 .try_into()?,
@@ -602,21 +627,23 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f32>, Option<
                 execution_price,
                 reason,
             } => (OrderState::Failed, execution_price, Some(reason.into())),
-            crate::trade::order::OrderState::Filled { execution_price } => {
-                (OrderState::Filled, Some(execution_price), None)
-            }
-            crate::trade::order::OrderState::Filling { execution_price } => {
-                (OrderState::Filling, Some(execution_price), None)
-            }
+            crate::trade::order::OrderState::Filled {
+                execution_price, ..
+            } => (OrderState::Filled, Some(execution_price), None),
+            crate::trade::order::OrderState::Filling {
+                execution_price, ..
+            } => (OrderState::Filling, Some(execution_price), None),
         }
     }
 }
 
-impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade::order::OrderState {
+impl TryFrom<(OrderState, Option<(f32, i64)>, Option<FailureReason>)>
+    for crate::trade::order::OrderState
+{
     type Error = Error;
 
     fn try_from(
-        value: (OrderState, Option<f32>, Option<FailureReason>),
+        value: (OrderState, Option<(f32, i64)>, Option<FailureReason>),
     ) -> std::result::Result<Self, Self::Error> {
         let order_state = match value.0 {
             OrderState::Initial => crate::trade::order::OrderState::Initial,
@@ -624,25 +651,27 @@ impl TryFrom<(OrderState, Option<f32>, Option<FailureReason>)> for crate::trade:
             OrderState::Open => crate::trade::order::OrderState::Open,
             OrderState::Failed => match value.2 {
                 None => crate::trade::order::OrderState::Failed {
-                    execution_price: value.1,
+                    execution_price: value.1.map(|(execution_price, _)| execution_price),
                     reason: crate::trade::order::FailureReason::Unknown,
                 },
                 Some(reason) => crate::trade::order::OrderState::Failed {
-                    execution_price: value.1,
+                    execution_price: value.1.map(|(execution_price, _)| execution_price),
                     reason: reason.into(),
                 },
             },
             OrderState::Filled => match value.1 {
                 None => return Err(Error::MissingExecutionPrice),
-                Some(execution_price) => {
-                    crate::trade::order::OrderState::Filled { execution_price }
-                }
+                Some((execution_price, matching_fee)) => crate::trade::order::OrderState::Filled {
+                    execution_price,
+                    matching_fee: Amount::from_sat(matching_fee as u64),
+                },
             },
             OrderState::Filling => match value.1 {
                 None => return Err(Error::MissingExecutionPrice),
-                Some(execution_price) => {
-                    crate::trade::order::OrderState::Filling { execution_price }
-                }
+                Some((execution_price, matching_fee)) => crate::trade::order::OrderState::Filling {
+                    execution_price,
+                    matching_fee: Amount::from_sat(matching_fee as u64),
+                },
             },
         };
 
@@ -1141,6 +1170,7 @@ pub mod test {
             order_expiry_timestamp: expiry_timestamp.unix_timestamp(),
             reason: OrderReason::Manual,
             stable: false,
+            matching_fee_sats: None,
         };
 
         Order::insert(
@@ -1190,10 +1220,10 @@ pub mod test {
 
         Order::update_state(
             uuid.to_string(),
-            (crate::trade::order::OrderState::Filled {
-                execution_price: 100000.0,
-            })
-            .into(),
+            OrderState::Filled,
+            Some(100000.0),
+            None,
+            None,
             &mut connection,
         )
         .unwrap();
@@ -1283,7 +1313,10 @@ pub mod test {
 
         Order::update_state(
             uuid.to_string(),
-            crate::trade::order::OrderState::Open.into(),
+            OrderState::Open,
+            None,
+            None,
+            None,
             &mut connection,
         )
         .unwrap();
@@ -1293,7 +1326,10 @@ pub mod test {
 
         Order::update_state(
             uuid1.to_string(),
-            crate::trade::order::OrderState::Open.into(),
+            OrderState::Open,
+            None,
+            None,
+            None,
             &mut connection,
         )
         .unwrap();
@@ -1303,11 +1339,10 @@ pub mod test {
 
         Order::update_state(
             uuid1.to_string(),
-            crate::trade::order::OrderState::Failed {
-                execution_price: None,
-                reason: FailureReason::FailedToSetToFilling,
-            }
-            .into(),
+            OrderState::Failed,
+            None,
+            None,
+            Some(FailureReason::FailedToSetToFilling.into()),
             &mut connection,
         )
         .unwrap();

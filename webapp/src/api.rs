@@ -12,8 +12,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
-use commons::taker_fee;
+use commons::order_matching_fee;
 use commons::ChannelOpeningParams;
 use commons::Price;
 use native::api::ContractSymbol;
@@ -30,6 +29,7 @@ use native::trade::order::OrderType;
 use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -300,7 +300,11 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                     )
                     .ok(),
                     price
-                        .map(|price| Some(order_matching_fee_taker(position.quantity, price)))
+                        // TODO(bonomat:ordermatching): fixme: this is only representative and will
+                        // be fixed by Lucas :)
+                        .map(|price| {
+                            Some(order_matching_fee(position.quantity, price, dec!(0.003)))
+                        })
                         .and_then(|price| price),
                 )
             }
@@ -437,7 +441,10 @@ impl From<&native::trade::order::Order> for Order {
 
         // Note: we might overwrite a limit price here but this is not an issue because if a limit
         // order has been filled the limit price will be filled price and vice versa
-        if let native::trade::order::OrderState::Filled { execution_price } = value.state {
+        if let native::trade::order::OrderState::Filled {
+            execution_price, ..
+        } = value.state
+        {
             price.replace(execution_price);
         }
 
@@ -492,7 +499,9 @@ pub async fn get_best_quote(
 
     Ok(Json(quotes.map(|quote| BestQuote {
         price: quote,
-        fee: taker_fee(),
+        // TODO(bonomat:ordermatching): fix me: get the order matching fee from somewhere
+        // we should get the order matching fee from the orderbook websocket
+        fee: dec!(0.003),
     })))
 }
 

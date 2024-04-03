@@ -18,6 +18,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -190,6 +191,8 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
         .to_f32()
         .expect("to fit into f32");
 
+    let matching_fee = filled_with.matching_fee;
+
     let order = match db::get_order(order.id)? {
         None => {
             let order = Order {
@@ -199,7 +202,10 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
                 contract_symbol: order.contract_symbol,
                 direction: order.direction,
                 order_type,
-                state: OrderState::Filling { execution_price },
+                state: OrderState::Filling {
+                    execution_price,
+                    matching_fee,
+                },
                 creation_timestamp: order.timestamp,
                 order_expiry_timestamp: order.expiry,
                 reason: order.order_reason.into(),
@@ -213,8 +219,17 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
             // the order has already been inserted to the database. Most likely because the async
             // match has already been received. We still want to retry this order as the previous
             // attempt seems to have failed.
-            db::update_order_state(order.id, OrderState::Filling { execution_price })?;
-            order.state = OrderState::Filling { execution_price };
+            db::update_order_state(
+                order.id,
+                OrderState::Filling {
+                    execution_price,
+                    matching_fee,
+                },
+            )?;
+            order.state = OrderState::Filling {
+                execution_price,
+                matching_fee,
+            };
             order
         }
     };
@@ -225,8 +240,15 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
 }
 
 /// Update order to state [`OrderState::Filling`].
-pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> {
-    let state = OrderState::Filling { execution_price };
+pub(crate) fn order_filling(
+    order_id: Uuid,
+    execution_price: f32,
+    matching_fee: Amount,
+) -> Result<()> {
+    let state = OrderState::Filling {
+        execution_price,
+        matching_fee,
+    };
 
     if let Err(e) = update_order_state_in_db_and_ui(order_id, state) {
         let e_string = format!("{e:#}");
@@ -254,13 +276,17 @@ pub(crate) fn order_filling(order_id: Uuid, execution_price: f32) -> Result<()> 
 /// Sets filling order to filled. Returns an error if no order in `Filling`
 pub(crate) fn order_filled() -> Result<Order> {
     let maybe_order_filling = get_order_in_filling()?;
-    let (order_being_filled, execution_price) = match &maybe_order_filling {
+    let (order_being_filled, execution_price, matching_fee) = match &maybe_order_filling {
         Some(
             order @ Order {
-                state: OrderState::Filling { execution_price },
+                state:
+                    OrderState::Filling {
+                        execution_price,
+                        matching_fee,
+                    },
                 ..
             },
-        ) => (order, execution_price),
+        ) => (order, execution_price, matching_fee),
         Some(order) => bail!("Unexpected state: {:?}", order.state),
         None => bail!("No order to mark as Filled"),
     };
@@ -269,6 +295,7 @@ pub(crate) fn order_filled() -> Result<Order> {
         order_being_filled.id,
         OrderState::Filled {
             execution_price: *execution_price,
+            matching_fee: *matching_fee,
         },
     )?;
 

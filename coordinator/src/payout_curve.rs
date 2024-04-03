@@ -176,7 +176,6 @@ fn get_liquidation_prices(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use commons::order_matching_fee_taker;
     use proptest::prelude::*;
     use rust_decimal_macros::dec;
     use trade::cfd::calculate_margin;
@@ -193,9 +192,8 @@ mod tests {
 
         let coordinator_direction = Direction::Long;
 
-        let coordinator_collateral_reserve =
-            order_matching_fee_taker(quantity, initial_price).to_sat();
-        let trader_collateral_reserve = order_matching_fee_taker(quantity, initial_price).to_sat();
+        let coordinator_collateral_reserve = Amount::from_sat(1000).to_sat();
+        let trader_collateral_reserve = Amount::from_sat(1000).to_sat();
 
         let total_collateral = coordinator_margin + trader_margin;
 

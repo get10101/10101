@@ -54,6 +54,9 @@ pub struct TradeParams {
     /// This is used by the coordinator to be able to make sure both trading parties are acting.
     /// The `quantity` has to match the cummed up quantities of the matches in `filled_with`.
     pub filled_with: FilledWith,
+
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub matching_fee: Amount,
 }
 
 impl TradeParams {
@@ -142,6 +145,9 @@ pub struct FilledWith {
 
     /// The matches for the order
     pub matches: Vec<Match>,
+
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub matching_fee: Amount,
 }
 
 impl FilledWith {
@@ -200,6 +206,7 @@ mod test {
     use crate::trade::Match;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::secp256k1::XOnlyPublicKey;
+    use bitcoin::Amount;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
     use time::OffsetDateTime;
@@ -234,6 +241,7 @@ mod test {
                     execution_price: match_1_price,
                 },
             ],
+            matching_fee: Amount::from_sat(1000),
         };
 
         let average_execution_price = filled.average_execution_price();

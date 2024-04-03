@@ -19,7 +19,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
 use commons::MatchState;
 use commons::Message;
 use commons::OrderState;
@@ -228,11 +227,7 @@ impl TradeExecutor {
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
 
-        let order_matching_fee = order_matching_fee_taker(
-            trade_params.quantity,
-            trade_params.average_execution_price(),
-        )
-        .to_sat();
+        let order_matching_fee = trade_params.matching_fee.to_sat();
 
         // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
         let collateral_reserve_with_fee_coordinator =
@@ -383,11 +378,7 @@ impl TradeExecutor {
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
         let margin_trader = margin_trader(trade_params);
 
-        let order_matching_fee = order_matching_fee_taker(
-            trade_params.quantity,
-            trade_params.average_execution_price(),
-        )
-        .to_sat();
+        let order_matching_fee = trade_params.matching_fee.to_sat();
 
         let coordinator_direction = trade_params.direction.opposite();
 
@@ -593,8 +584,8 @@ impl TradeExecutor {
         }
 
         let closing_price = trade_params.average_execution_price();
-        let position_settlement_amount_coordinator =
-            position.calculate_coordinator_settlement_amount(closing_price)?;
+        let position_settlement_amount_coordinator = position
+            .calculate_coordinator_settlement_amount(closing_price, trade_params.matching_fee)?;
 
         let collateral_reserve_coordinator = self
             .node
