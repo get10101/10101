@@ -120,6 +120,25 @@ async fn check_if_positions_need_to_get_liquidated(
 
             tracing::info!(trader_id=%position.trader, ?best_current_price, %direction, position_id=%position.id, "Attempting to close liquidated position");
 
+            // Ensure that the users channel is confirmed on-chain before continuing with the
+            // liquidation.
+            match node
+                .inner
+                .is_signed_dlc_channel_confirmed_by_trader_id(position.trader)
+            {
+                Ok(true) => {
+                    tracing::debug!(trader_id=%position.trader, "Traders dlc channel is confirmed. Continuing with the liquidation");
+                }
+                Ok(false) => {
+                    tracing::warn!(trader_id=%position.trader, "Can't liquidated users position as the underlying channel is not yet confirmed");
+                    continue;
+                }
+                Err(e) => {
+                    tracing::error!(trader_id=%position.trader, "Failed to determine signed channel status. Skipping liquidation. Error: {e:#}");
+                    continue;
+                }
+            }
+
             let new_order = NewMarketOrder {
                 id: uuid::Uuid::new_v4(),
                 contract_symbol: position.contract_symbol,

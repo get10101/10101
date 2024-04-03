@@ -461,6 +461,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         Ok(dlc_channels)
     }
 
+    pub fn is_signed_dlc_channel_confirmed_by_trader_id(
+        &self,
+        trader_id: PublicKey,
+    ) -> Result<bool> {
+        let signed_channel = self.get_signed_channel_by_trader_id(trader_id)?;
+        self.is_dlc_channel_confirmed(&signed_channel.channel_id)
+    }
+
     // TODO: This API could return the number of required confirmations + the number of current
     // confirmations.
     pub fn is_dlc_channel_confirmed(&self, dlc_channel_id: &DlcChannelId) -> Result<bool> {
