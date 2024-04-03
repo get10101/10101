@@ -13,14 +13,11 @@ use commons::OrderState;
 use commons::OrderType;
 use commons::Price;
 use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::ops::Add;
 use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use trade::cfd::calculate_long_liquidation_price;
-use trade::cfd::calculate_short_liquidation_price;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -63,19 +60,16 @@ async fn check_if_positions_need_to_get_liquidated(
         .expect("btc usd prices");
 
     for position in open_positions {
-        let average_entry_price =
-            Decimal::try_from(position.average_entry_price).expect("to fit into decimal");
-        let coordinator_leverage =
-            Decimal::try_from(position.coordinator_leverage).expect("to fit into decimal");
-        let trader_leverage =
-            Decimal::try_from(position.trader_leverage).expect("to fit into decimal");
+        let coordinator_liquidation_price =
+            Decimal::try_from(position.coordinator_liquidation_price).expect("to fit into decimal");
+        let trader_liquidation_price =
+            Decimal::try_from(position.trader_liquidation_price).expect("to fit into decimal");
 
         if let Some(direction) = check_if_position_needs_to_get_liquidated(
             position.trader_direction,
-            average_entry_price,
             best_current_price,
-            trader_leverage,
-            coordinator_leverage,
+            trader_liquidation_price,
+            coordinator_liquidation_price,
         ) {
             if let Some(order) = orderbook::db::orders::get_by_trader_id_and_state(
                 &mut conn,
@@ -103,13 +97,11 @@ async fn check_if_positions_need_to_get_liquidated(
                         orderbook::db::matches::get_matches_by_order_id(&mut conn, order.id)?;
                     let matches: Vec<Match> = matches.into_iter().map(Match::from).collect();
 
-                    let closing_price = average_execution_price(matches)
-                        .to_f32()
-                        .expect("to fit into f32");
+                    let closing_price = average_execution_price(matches);
                     db::positions::Position::set_open_position_to_closing(
                         &mut conn,
-                        position.trader.to_string(),
-                        closing_price,
+                        &position.trader,
+                        Some(closing_price),
                     )?;
                     continue;
                 } else {
@@ -185,24 +177,17 @@ async fn check_if_positions_need_to_get_liquidated(
 /// of view.
 fn check_if_position_needs_to_get_liquidated(
     trader_direction: Direction,
-    average_entry_price: Decimal,
     best_current_price: &Price,
-    trader_leverage: Decimal,
-    coordinator_leverage: Decimal,
+    trader_liquidation_price: Decimal,
+    coordinator_liquidation_price: Decimal,
 ) -> Option<Direction> {
-    let margin_call_percentage = Decimal::new(MARGIN_CALL_PERCENTAGE.0, MARGIN_CALL_PERCENTAGE.1);
-
     match trader_direction {
         Direction::Short => {
             // if the trader is short that means the coordinator is long, so we have to check the
             // coordinators liquidation price on the bid price.
             if let Some(bid) = best_current_price.bid {
                 // check if coordinator needs to get liquidated
-                let coordinator_liquidation_price =
-                    calculate_long_liquidation_price(coordinator_leverage, average_entry_price);
-                let margin_call = coordinator_liquidation_price
-                    + coordinator_liquidation_price * margin_call_percentage;
-                if bid <= margin_call {
+                if bid <= coordinator_liquidation_price {
                     return Some(Direction::Long);
                 }
             }
@@ -211,12 +196,7 @@ fn check_if_position_needs_to_get_liquidated(
             // traders liquidation price on the ask price.
             if let Some(ask) = best_current_price.ask {
                 // check if trader needs to get liquidated
-                let trader_liquidation_price =
-                    calculate_short_liquidation_price(trader_leverage, average_entry_price);
-                let margin_call =
-                    trader_liquidation_price - trader_liquidation_price * margin_call_percentage;
-
-                if ask >= margin_call {
+                if ask >= trader_liquidation_price {
                     return Some(Direction::Short);
                 }
             }
@@ -226,26 +206,16 @@ fn check_if_position_needs_to_get_liquidated(
             // traders liquidation price on the bid price.
             if let Some(bid) = best_current_price.bid {
                 // check if trader needs to get liquidated
-                let trader_liquidation_price =
-                    calculate_long_liquidation_price(trader_leverage, average_entry_price);
-                let margin_call =
-                    trader_liquidation_price + trader_liquidation_price * margin_call_percentage;
-
-                if bid <= margin_call {
+                if bid <= trader_liquidation_price {
                     return Some(Direction::Long);
                 }
             }
 
             // if the trader is long that means the coordinator is short, so we have to check the
-            // coordiantors liquidation price on the ask price.
+            // coordinators liquidation price on the ask price.
             if let Some(ask) = best_current_price.ask {
                 // check if coordinator needs to get liquidated
-                let coordinator_liquidation_price =
-                    calculate_short_liquidation_price(coordinator_leverage, average_entry_price);
-                let margin_call = coordinator_liquidation_price
-                    - coordinator_liquidation_price * margin_call_percentage;
-
-                if ask >= margin_call {
+                if ask >= coordinator_liquidation_price {
                     return Some(Direction::Short);
                 }
             }
@@ -265,22 +235,20 @@ mod tests {
     #[test]
     fn test_no_liquidatation_of_users_short_position_before_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: Some(Decimal::from(33749)),
             bid: None,
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 4 = 37,500
-        // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
         );
 
         assert_eq!(None, liquidation);
@@ -289,22 +257,20 @@ mod tests {
     #[test]
     fn test_liquidate_users_short_position_at_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: Some(Decimal::from(33750)),
             bid: None,
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 4 = 37,500
-        // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
         );
 
         assert_eq!(Some(Direction::Short), liquidation);
@@ -313,22 +279,20 @@ mod tests {
     #[test]
     fn test_liquidate_users_short_position_after_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: Some(Decimal::from(33751)),
             bid: None,
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 4 = 37,500
-        // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
         );
 
         assert_eq!(Some(Direction::Short), liquidation);
@@ -337,22 +301,20 @@ mod tests {
     #[test]
     fn test_no_liquidation_of_users_long_position_before_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(27501)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 6 = 25,000
-        // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
         );
 
         assert_eq!(None, liquidation);
@@ -361,22 +323,20 @@ mod tests {
     #[test]
     fn test_liquidate_users_long_position_at_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(27500)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 6 = 25,000
-        // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
         );
 
         assert_eq!(Some(Direction::Long), liquidation);
@@ -385,22 +345,20 @@ mod tests {
     #[test]
     fn test_liquidate_users_long_position_after_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(27499)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 5 / 6 = 25,000
-        // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 5 / 6 = 25,000
+            // margin call is at 10% of the liquidation price = 25,000 + 2,500 = 27,500
+            Decimal::from(27500),
+            // the liquidation price of the coordinator is at 30,000 * 5 / 4 = 37,500
+            // margin call is at 10% of the liquidation price = 37,500 - 3,750 = 33,750
+            Decimal::from(33750),
         );
 
         assert_eq!(Some(Direction::Long), liquidation);
@@ -409,22 +367,20 @@ mod tests {
     #[test]
     fn test_liquidate_coordinators_short_position_at_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: Some(Decimal::from(54000)),
             bid: None,
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 2 / 1 = 60,000
-        // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
         );
 
         assert_eq!(Some(Direction::Short), liquidation);
@@ -433,22 +389,20 @@ mod tests {
     #[test]
     fn test_liquidate_coordinators_short_position_after_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: Some(Decimal::from(54001)),
             bid: None,
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
 
-        // the liquidation price of the user is at 30,000 * 2 / 1 = 60,000
-        // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
         );
 
         assert_eq!(Some(Direction::Short), liquidation);
@@ -457,22 +411,19 @@ mod tests {
     #[test]
     fn test_no_liquidation_of_coordinators_short_position_before_margin_call() {
         let trader_direction = Direction::Long;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(53999)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
-
-        // the liquidation price of the user is at 30,000 * 2 / 1 = 60,000
-        // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
         );
 
         assert_eq!(None, liquidation);
@@ -481,22 +432,19 @@ mod tests {
     #[test]
     fn test_liquidate_coordinators_long_position_at_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(22000)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
-
-        // the liquidation price of the user is at 30,000 * 2 / 3 = 20,000
-        // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
         );
 
         assert_eq!(Some(Direction::Long), liquidation);
@@ -505,22 +453,19 @@ mod tests {
     #[test]
     fn test_liquidate_coordinators_long_position_after_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(21999)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
-
-        // the liquidation price of the user is at 30,000 * 2 / 3 = 20,000
-        // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
         );
 
         assert_eq!(Some(Direction::Long), liquidation);
@@ -529,22 +474,19 @@ mod tests {
     #[test]
     fn test_no_liquidation_of_coordinators_long_position_before_margin_call() {
         let trader_direction = Direction::Short;
-        let average_entry_price = Decimal::from(30000);
         let price = Price {
             ask: None,
             bid: Some(Decimal::from(22001)),
         };
-        let trader_leverage = Decimal::from(5);
-        let coordinator_leverage = Decimal::from(2);
-
-        // the liquidation price of the user is at 30,000 * 2 / 3 = 20,000
-        // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
         let liquidation = check_if_position_needs_to_get_liquidated(
             trader_direction,
-            average_entry_price,
             &price,
-            trader_leverage,
-            coordinator_leverage,
+            // the liquidation price of the trader is at 30,000 * 2 / 1 = 60,000
+            // margin call is at 10% of the liquidation price = 60,000 - 6,000 = 54,000
+            Decimal::from(54000),
+            // the liquidation price of the coordinator is at 30,000 * 2 / 3 = 20,000
+            // margin call is at 10% of the liquidation price = 20,000 + 2,000 = 22,000
+            Decimal::from(22000),
         );
 
         assert_eq!(None, liquidation);

@@ -443,8 +443,14 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             quantity: value.quantity,
             trader_direction: Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
-            trader_liquidation_price: value.trader_liquidation_price,
-            coordinator_liquidation_price: value.coordinator_liquidation_price,
+            trader_liquidation_price: value
+                .trader_liquidation_price
+                .to_f32()
+                .expect("to fit into f32"),
+            coordinator_liquidation_price: value
+                .coordinator_liquidation_price
+                .to_f32()
+                .expect("to fit into f32"),
             position_state: PositionState::Proposed,
             coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,

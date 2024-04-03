@@ -5,6 +5,7 @@ use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
+use crate::node::liquidated_positions::MARGIN_CALL_PERCENTAGE;
 use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -530,12 +531,34 @@ impl TradeExecutor {
         let trader_liquidation_price = trader_liquidation_price(trade_params);
 
         let price = trade_params.average_execution_price();
-
         let coordinator_liquidation_price = coordinator_liquidation_price(
             price,
             Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
             trade_params.direction.opposite(),
         );
+        let coordinator_liquidation_price =
+            Decimal::try_from(coordinator_liquidation_price).expect("to fit into decimal");
+        let trader_liquidation_price =
+            Decimal::try_from(trader_liquidation_price).expect("to fit into decimal");
+
+        // TODO(holzeis): Fetch margin call percentage from settings
+        let margin_call_percentage =
+            Decimal::new(MARGIN_CALL_PERCENTAGE.0, MARGIN_CALL_PERCENTAGE.1);
+
+        let (coordinator_liquidation_price, trader_liquidation_price) = match trade_params.direction
+        {
+            Direction::Short => (
+                coordinator_liquidation_price
+                    + coordinator_liquidation_price * margin_call_percentage,
+                trader_liquidation_price - trader_liquidation_price * margin_call_percentage,
+            ),
+            Direction::Long => (
+                coordinator_liquidation_price
+                    - coordinator_liquidation_price * margin_call_percentage,
+                trader_liquidation_price + trader_liquidation_price * margin_call_percentage,
+            ),
+        };
+
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
         let margin_trader = margin_trader(trade_params);
 
