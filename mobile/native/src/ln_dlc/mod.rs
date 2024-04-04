@@ -15,6 +15,7 @@ use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistory;
+use crate::position::ForceCloseDlcChannelSubscriber;
 use crate::state;
 use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
@@ -87,7 +88,6 @@ use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
-use trade::ContractSymbol;
 use uuid::Uuid;
 
 pub mod node;
@@ -281,6 +281,7 @@ pub fn run(runtime: &Runtime) -> Result<()> {
         let storage = get_storage();
 
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
+        event::subscribe(ForceCloseDlcChannelSubscriber);
 
         let node_event_handler = Arc::new(NodeEventHandler::new());
 

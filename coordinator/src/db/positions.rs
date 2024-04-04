@@ -13,9 +13,9 @@ use diesel::AsExpression;
 use diesel::FromSqlRow;
 use dlc_manager::ContractId;
 use hex::FromHex;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::any::TypeId;
-use rust_decimal::prelude::ToPrimitive;
 use time::OffsetDateTime;
 
 #[derive(Queryable, Debug, Clone)]
