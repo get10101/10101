@@ -38,7 +38,10 @@ impl Node {
                     match receiver.recv().await {
                         Ok(NodeEvent::DlcChannelEvent { dlc_channel_event }) => {
                             if let Err(e) = node.process_dlc_channel_event(dlc_channel_event) {
-                                tracing::error!("Failed to get connection. Error: {e:#}");
+                                tracing::error!(
+                                    ?dlc_channel_event,
+                                    "Failed to process dlc channel event. Error: {e:#}"
+                                );
                             }
                         }
                         Ok(NodeEvent::Connected { .. })
