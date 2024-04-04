@@ -286,6 +286,7 @@ async fn main() -> Result<()> {
     );
 
     node.spawn_shadow_dlc_channels_task();
+    node.spawn_watch_closing_channels();
 
     tokio::spawn({
         let node = node.clone();

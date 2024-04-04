@@ -380,14 +380,18 @@ impl DlcProtocolExecutor {
             }
         };
 
+        let closing_price =
+            Decimal::try_from(trade_params.average_price).expect("to fit into decimal");
+
         db::positions::Position::set_position_to_closed_with_pnl(
             conn,
             position.id,
             trader_realized_pnl_sat,
+            closing_price,
         )?;
 
         let coordinator_margin = calculate_margin(
-            Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
+            closing_price,
             trade_params.quantity,
             crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
                 .map_err(|_| RollbackTransaction)?,

@@ -264,17 +264,17 @@ impl Position {
         conn: &mut PgConnection,
         id: i32,
         trader_realized_pnl_sat: i64,
-    ) -> QueryResult<crate::position::models::Position> {
-        let position: Position = diesel::update(positions::table)
+        closing_price: Decimal,
+    ) -> QueryResult<usize> {
+        diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
                 positions::trader_realized_pnl_sat.eq(Some(trader_realized_pnl_sat)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+                positions::closing_price.eq(closing_price.to_f32().expect("to fit into f32")),
             ))
-            .get_result(conn)?;
-
-        Ok(crate::position::models::Position::from(position))
+            .execute(conn)
     }
 
     pub fn set_position_to_closed(conn: &mut PgConnection, id: i32) -> Result<()> {

@@ -4,7 +4,9 @@ use crate::dlc_protocol::ProtocolId;
 use crate::node::Node;
 use anyhow::bail;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
+use bitcoin::Txid;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
@@ -12,10 +14,12 @@ use dlc_manager::channel::ClosedChannel;
 use dlc_manager::channel::ClosedPunishedChannel;
 use dlc_manager::channel::ClosingChannel;
 use dlc_manager::channel::SettledClosingChannel;
+use dlc_manager::DlcChannelId;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::bitcoin_conversion::to_txid_30;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_storage::DlcChannelEvent;
+use time::OffsetDateTime;
 use tokio::sync::broadcast::error::RecvError;
 
 pub enum DlcChannelState {
@@ -25,6 +29,24 @@ pub enum DlcChannelState {
     Closed,
     Failed,
     Cancelled,
+}
+
+pub struct DlcChannel {
+    pub channel_id: DlcChannelId,
+    pub trader: PublicKey,
+    pub channel_state: DlcChannelState,
+    pub trader_reserve_sats: Amount,
+    pub coordinator_reserve_sats: Amount,
+    pub coordinator_funding_sats: Amount,
+    pub trader_funding_sats: Amount,
+    pub funding_txid: Option<Txid>,
+    pub close_txid: Option<Txid>,
+    pub settle_txid: Option<Txid>,
+    pub buffer_txid: Option<Txid>,
+    pub claim_txid: Option<Txid>,
+    pub punish_txid: Option<Txid>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
 }
 
 impl Node {
@@ -40,7 +62,7 @@ impl Node {
                             if let Err(e) = node.process_dlc_channel_event(dlc_channel_event) {
                                 tracing::error!(
                                     ?dlc_channel_event,
-                                    "Failed to process dlc channel event. Error: {e:#}"
+                                    "Failed to process DLC channel event. Error: {e:#}"
                                 );
                             }
                         }
