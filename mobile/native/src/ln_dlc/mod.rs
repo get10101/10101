@@ -838,17 +838,6 @@ fn update_state_after_collab_revert(
 
     position::handler::update_position_after_dlc_closure(Some(filled_order))?;
 
-    match db::delete_positions() {
-        Ok(_) => {
-            event::publish(&EventInternal::PositionCloseNotification(
-                ContractSymbol::BtcUsd,
-            ));
-        }
-        Err(error) => {
-            tracing::error!("Could not delete position : {error:#}");
-        }
-    }
-
     let node = node.inner.clone();
 
     node.dlc_manager
