@@ -300,6 +300,62 @@ mod tests {
         }
     }
 
+    // TODO: We can still end up with a payout function that does not respect the liquidation
+    // payouts we want to define via the `coordinator_collateral_reserve` and the
+    // `trader_collateral_reserve`.
+    #[test]
+    #[should_panic]
+    fn payout_function_does_not_always_respect_collateral_reserve() {
+        let initial_price = dec!(28_251);
+        let quantity = 500.0;
+        let leverage_coordinator = 2.0;
+        let coordinator_margin = calculate_margin(initial_price, quantity, leverage_coordinator);
+
+        let leverage_trader = 2.0;
+        let trader_margin = calculate_margin(initial_price, quantity, leverage_trader);
+
+        let coordinator_direction = Direction::Short;
+
+        let coordinator_collateral_reserve = 2_120_386;
+        let trader_collateral_reserve = 5_115_076;
+
+        let total_collateral = coordinator_margin + trader_margin;
+
+        let symbol = ContractSymbol::BtcUsd;
+
+        let descriptor = build_contract_descriptor(
+            initial_price,
+            coordinator_margin,
+            trader_margin,
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
+            quantity,
+            symbol,
+        )
+        .unwrap();
+
+        let range_payouts = match descriptor {
+            ContractDescriptor::Enum(_) => unreachable!(),
+            ContractDescriptor::Numerical(numerical) => numerical
+                .get_range_payouts(
+                    total_collateral + coordinator_collateral_reserve + trader_collateral_reserve,
+                )
+                .unwrap(),
+        };
+
+        let liquidation_payout_offer = range_payouts
+            .iter()
+            .min_by(|a, b| a.payout.offer.cmp(&b.payout.offer))
+            .unwrap()
+            .payout
+            .offer;
+
+        assert_eq!(liquidation_payout_offer, coordinator_collateral_reserve);
+    }
+
     #[test]
     fn calculate_liquidation_price_coordinator_long() {
         let initial_price = dec!(30_000);
