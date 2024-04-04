@@ -13,6 +13,9 @@ use commons::Order as OrderbookOrder;
 use commons::OrderReason as OrderBookOrderReason;
 use commons::OrderState as OrderBookOrderState;
 use commons::OrderType as OrderBookOrderType;
+use commons::Price;
+use diesel::dsl::max;
+use diesel::dsl::min;
 use diesel::prelude::*;
 use diesel::result::QueryResult;
 use diesel::PgConnection;
@@ -248,6 +251,50 @@ pub fn all_by_direction_and_type(
     };
 
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
+}
+
+pub fn get_best_price(
+    conn: &mut PgConnection,
+    contract_symbol: trade::ContractSymbol,
+) -> QueryResult<Price> {
+    let best_price = Price {
+        bid: get_best_bid_price(conn, contract_symbol)?,
+        ask: get_best_ask_price(conn, contract_symbol)?,
+    };
+
+    Ok(best_price)
+}
+
+pub fn get_best_bid_price(
+    conn: &mut PgConnection,
+    contract_symbol: trade::ContractSymbol,
+) -> QueryResult<Option<Decimal>> {
+    let price: Option<f32> = orders::table
+        .select(max(orders::price))
+        .filter(orders::order_state.eq(OrderState::Open))
+        .filter(orders::order_type.eq(OrderType::Limit))
+        .filter(orders::direction.eq(Direction::Long))
+        .filter(orders::contract_symbol.eq(ContractSymbol::from(contract_symbol)))
+        .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+        .first::<Option<f32>>(conn)?;
+
+    Ok(price.map(|bid| Decimal::try_from(bid).expect("to fit into decimal")))
+}
+
+pub fn get_best_ask_price(
+    conn: &mut PgConnection,
+    contract_symbol: trade::ContractSymbol,
+) -> QueryResult<Option<Decimal>> {
+    let price: Option<f32> = orders::table
+        .select(min(orders::price))
+        .filter(orders::order_state.eq(OrderState::Open))
+        .filter(orders::order_type.eq(OrderType::Limit))
+        .filter(orders::direction.eq(Direction::Short))
+        .filter(orders::contract_symbol.eq(ContractSymbol::from(contract_symbol)))
+        .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
+        .first::<Option<f32>>(conn)?;
+
+    Ok(price.map(|ask| Decimal::try_from(ask).expect("to fit into decimal")))
 }
 
 pub fn get_all_orders(

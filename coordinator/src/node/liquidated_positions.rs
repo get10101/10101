@@ -10,7 +10,6 @@ use commons::MatchState;
 use commons::NewMarketOrder;
 use commons::OrderReason;
 use commons::OrderState;
-use commons::OrderType;
 use commons::Price;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
@@ -42,18 +41,8 @@ async fn check_if_positions_need_to_get_liquidated(
 ) -> Result<()> {
     let mut conn = node.pool.get()?;
     let open_positions = db::positions::Position::get_all_open_positions(&mut conn)?;
-    let open_orders =
-        orderbook::db::orders::get_all_orders(&mut conn, OrderType::Limit, OrderState::Open, true)?;
-
-    if open_orders.is_empty() {
-        tracing::warn!("No open orders found.");
-        return Ok(());
-    }
-
-    let best_current_price = commons::best_current_price(&open_orders);
-    let best_current_price = best_current_price
-        .get(&ContractSymbol::BtcUsd)
-        .expect("btc usd prices");
+    let best_current_price =
+        orderbook::db::orders::get_best_price(&mut conn, ContractSymbol::BtcUsd)?;
 
     for position in open_positions {
         let coordinator_liquidation_price =
@@ -63,12 +52,12 @@ async fn check_if_positions_need_to_get_liquidated(
 
         let trader_liquidation = check_if_position_needs_to_get_liquidated(
             position.trader_direction,
-            best_current_price,
+            &best_current_price,
             trader_liquidation_price,
         );
         let coordinator_liquidation = check_if_position_needs_to_get_liquidated(
             position.trader_direction.opposite(),
-            best_current_price,
+            &best_current_price,
             coordinator_liquidation_price,
         );
 
