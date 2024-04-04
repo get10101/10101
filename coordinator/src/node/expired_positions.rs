@@ -15,7 +15,6 @@ use commons::NewMarketOrder;
 use commons::OrderReason;
 use commons::OrderState;
 use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::ops::Add;
 use time::Duration;
@@ -62,13 +61,10 @@ pub async fn close(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) ->
                 let matches = orderbook::db::matches::get_matches_by_order_id(&mut conn, order.id)?;
                 let matches: Vec<Match> = matches.into_iter().map(Match::from).collect();
 
-                let closing_price = average_execution_price(matches)
-                    .to_f32()
-                    .expect("to fit into f32");
                 db::positions::Position::set_open_position_to_closing(
                     &mut conn,
-                    position.trader.to_string(),
-                    closing_price,
+                    &position.trader,
+                    Some(average_execution_price(matches)),
                 )?;
                 continue;
             } else {

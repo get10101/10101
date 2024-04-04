@@ -633,11 +633,11 @@ impl TradeExecutor {
 
         db::positions::Position::set_open_position_to_closing(
             conn,
-            position.trader.to_string(),
-            closing_price
-                .to_f32()
-                .expect("Closing price to fit into f32"),
-        )
+            &position.trader,
+            Some(closing_price),
+        )?;
+
+        Ok(())
     }
 
     fn update_order_and_match(

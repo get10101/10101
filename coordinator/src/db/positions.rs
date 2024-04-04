@@ -13,7 +13,9 @@ use diesel::AsExpression;
 use diesel::FromSqlRow;
 use dlc_manager::ContractId;
 use hex::FromHex;
+use rust_decimal::Decimal;
 use std::any::TypeId;
+use rust_decimal::prelude::ToPrimitive;
 use time::OffsetDateTime;
 
 #[derive(Queryable, Debug, Clone)]
@@ -181,24 +183,19 @@ impl Position {
     /// exactly 1)
     pub fn set_open_position_to_closing(
         conn: &mut PgConnection,
-        trader_pubkey: String,
-        closing_price: f32,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
-            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+        trader: &PublicKey,
+        closing_price: Option<Decimal>,
+    ) -> QueryResult<usize> {
+        let closing_price = closing_price.map(|price| price.to_f32().expect("to fit into f32"));
+        diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader.to_string()))
             .filter(positions::position_state.eq(PositionState::Open))
             .set((
                 positions::position_state.eq(PositionState::Closing),
-                positions::closing_price.eq(Some(closing_price)),
+                positions::closing_price.eq(closing_price),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
-            .execute(conn)?;
-
-        if affected_rows == 0 {
-            bail!("Could not update position to Closing for {trader_pubkey}")
-        }
-
-        Ok(())
+            .execute(conn)
     }
 
     #[allow(clippy::too_many_arguments)]
