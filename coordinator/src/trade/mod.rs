@@ -529,36 +529,24 @@ impl TradeExecutor {
         coordinator_leverage: f32,
         stable: bool,
     ) -> Result<()> {
-        let trader_liquidation_price = trader_liquidation_price(trade_params);
-
         let price = trade_params.average_execution_price();
-        let coordinator_liquidation_price = coordinator_liquidation_price(
+        let maintenance_margin = { self.node.settings.read().await.maintenance_margin };
+        let maintenance_margin =
+            Decimal::try_from(maintenance_margin).expect("to fit into decimal");
+
+        let trader_liquidation_price = liquidation_price(
+            price,
+            Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
+            trade_params.direction,
+            maintenance_margin,
+        );
+
+        let coordinator_liquidation_price = liquidation_price(
             price,
             Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
             trade_params.direction.opposite(),
+            maintenance_margin,
         );
-        let coordinator_liquidation_price =
-            Decimal::try_from(coordinator_liquidation_price).expect("to fit into decimal");
-        let trader_liquidation_price =
-            Decimal::try_from(trader_liquidation_price).expect("to fit into decimal");
-
-        let margin_call_percentage = { self.node.settings.read().await.margin_call_percentage };
-        let margin_call_percentage =
-            Decimal::try_from(margin_call_percentage).expect("to fit into decimal");
-
-        let (coordinator_liquidation_price, trader_liquidation_price) = match trade_params.direction
-        {
-            Direction::Short => (
-                coordinator_liquidation_price
-                    + coordinator_liquidation_price * margin_call_percentage,
-                trader_liquidation_price - trader_liquidation_price * margin_call_percentage,
-            ),
-            Direction::Long => (
-                coordinator_liquidation_price
-                    - coordinator_liquidation_price * margin_call_percentage,
-                trader_liquidation_price + trader_liquidation_price * margin_call_percentage,
-            ),
-        };
 
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);
         let margin_trader = margin_trader(trade_params);
@@ -811,29 +799,20 @@ fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> 
     )
 }
 
-fn trader_liquidation_price(trade_params: &TradeParams) -> f32 {
-    let price = trade_params.average_execution_price();
-    let leverage = Decimal::try_from(trade_params.leverage).expect("to fit into decimal");
-
-    match trade_params.direction {
-        Direction::Long => calculate_long_liquidation_price(leverage, price),
-        Direction::Short => calculate_short_liquidation_price(leverage, price),
-    }
-    .to_f32()
-    .expect("to fit into f32")
-}
-
-fn coordinator_liquidation_price(
+fn liquidation_price(
     price: Decimal,
     coordinator_leverage: Decimal,
     direction: Direction,
-) -> f32 {
+    maintenance_margin: Decimal,
+) -> Decimal {
     match direction {
-        Direction::Long => calculate_long_liquidation_price(coordinator_leverage, price),
-        Direction::Short => calculate_short_liquidation_price(coordinator_leverage, price),
+        Direction::Long => {
+            calculate_long_liquidation_price(coordinator_leverage, price, maintenance_margin)
+        }
+        Direction::Short => {
+            calculate_short_liquidation_price(coordinator_leverage, price, maintenance_margin)
+        }
     }
-    .to_f32()
-    .expect("to fit into f32")
 }
 
 pub fn coordinator_leverage_for_trade(_counterparty_peer_id: &PublicKey) -> Result<f32> {

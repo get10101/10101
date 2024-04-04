@@ -24,9 +24,9 @@ pub struct TradeConstraints {
     pub is_channel_balance: bool,
     /// Smallest allowed margin
     pub min_margin: u64,
-    /// Margin call percentage. The percentage at which the position gets liquidated before
-    /// actually reaching the liquidation price.
-    pub margin_call_percentage: f32,
+    /// The maintenance margin in percent defines the margin requirement left in the dlc channel.
+    /// If the margin drops below that value the position gets liquidated.
+    pub maintenance_margin: f32,
 }
 
 pub fn channel_trade_constraints() -> Result<TradeConstraints> {
@@ -38,7 +38,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
     let min_margin = signed_channel.map(|_| 1).unwrap_or(250_000);
 
     let min_quantity = config.min_quantity;
-    let margin_call_percentage = config.margin_call_percentage;
+    let maintenance_margin = config.maintenance_margin;
 
     // TODO(bonomat): this logic should be removed once we have our liquidity options again and the
     // on-boarding logic. For now we take the highest liquidity option
@@ -69,7 +69,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
                 min_quantity,
                 is_channel_balance: false,
                 min_margin,
-                margin_call_percentage,
+                maintenance_margin,
             }
         }
         Some(_) => {
@@ -83,7 +83,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
                 min_quantity,
                 is_channel_balance: true,
                 min_margin,
-                margin_call_percentage,
+                maintenance_margin,
             }
         }
     };

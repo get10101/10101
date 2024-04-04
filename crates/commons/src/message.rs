@@ -69,7 +69,7 @@ pub struct TenTenOneConfig {
     // The liquidity options for onboarding
     pub liquidity_options: Vec<LiquidityOption>,
     pub min_quantity: u64,
-    pub margin_call_percentage: f32,
+    pub maintenance_margin: f32,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]

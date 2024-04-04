@@ -13,8 +13,8 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tracing::instrument;
-use trade::cfd::calculate_long_liquidation_price;
-use trade::cfd::calculate_short_liquidation_price;
+use trade::cfd::calculate_long_bankruptcy_price;
+use trade::cfd::calculate_short_bankruptcy_price;
 use trade::ContractSymbol;
 use trade::Direction;
 
@@ -152,7 +152,8 @@ fn build_inverse_payout_function(
     Ok((payout_function, rounding_intervals))
 }
 
-/// Returns the liquidation price for `(coordinator, maker)`
+/// Returns the liquidation price for `(coordinator, maker)` with a maintenance margin of 0%. also
+/// known as the bankruptcy price.
 fn get_liquidation_prices(
     initial_price: Decimal,
     coordinator_direction: Direction,
@@ -161,12 +162,12 @@ fn get_liquidation_prices(
 ) -> (Decimal, Decimal) {
     let (coordinator_liquidation_price, trader_liquidation_price) = match coordinator_direction {
         Direction::Long => (
-            calculate_long_liquidation_price(leverage_coordinator, initial_price),
-            calculate_short_liquidation_price(leverage_trader, initial_price),
+            calculate_long_bankruptcy_price(leverage_coordinator, initial_price),
+            calculate_short_bankruptcy_price(leverage_trader, initial_price),
         ),
         Direction::Short => (
-            calculate_short_liquidation_price(leverage_coordinator, initial_price),
-            calculate_long_liquidation_price(leverage_trader, initial_price),
+            calculate_short_bankruptcy_price(leverage_coordinator, initial_price),
+            calculate_long_bankruptcy_price(leverage_trader, initial_price),
         ),
     };
     (coordinator_liquidation_price, trader_liquidation_price)

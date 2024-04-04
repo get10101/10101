@@ -66,9 +66,12 @@ pub struct Settings {
     /// A list of makers who are allowed to post limit orders. This is to prevent spam.
     pub whitelisted_makers: Vec<PublicKey>,
 
+    /// The min quantity that we accept to be traded with.
     pub min_quantity: u64,
 
-    pub margin_call_percentage: f32,
+    /// The maintenance margin in percent, defining the required margin in the position. If the
+    /// margin drops below that the position gets liquidated.
+    pub maintenance_margin: f32,
 }
 
 impl Settings {
@@ -102,7 +105,7 @@ impl Settings {
     pub fn to_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
-            margin_call_percentage: self.margin_call_percentage,
+            maintenance_margin: self.maintenance_margin,
         }
     }
 
@@ -123,7 +126,7 @@ impl Settings {
             whitelist_enabled: file.whitelist_enabled,
             whitelisted_makers: file.whitelisted_makers,
             min_quantity: file.min_quantity,
-            margin_call_percentage: file.margin_call_percentage,
+            maintenance_margin: file.maintenance_margin,
         }
     }
 }
@@ -146,7 +149,7 @@ pub struct SettingsFile {
     whitelisted_makers: Vec<PublicKey>,
 
     min_quantity: u64,
-    margin_call_percentage: f32,
+    maintenance_margin: f32,
 }
 
 impl From<Settings> for SettingsFile {
@@ -162,7 +165,7 @@ impl From<Settings> for SettingsFile {
             whitelist_enabled: false,
             whitelisted_makers: value.whitelisted_makers,
             min_quantity: value.min_quantity,
-            margin_call_percentage: value.margin_call_percentage,
+            maintenance_margin: value.maintenance_margin,
         }
     }
 }
@@ -194,7 +197,7 @@ mod tests {
             )
             .unwrap()],
             min_quantity: 1,
-            margin_call_percentage: 0.1,
+            maintenance_margin: 0.1,
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();

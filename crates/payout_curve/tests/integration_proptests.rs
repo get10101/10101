@@ -18,9 +18,9 @@ use rust_decimal_macros::dec;
 use std::fs::File;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
-use trade::cfd::calculate_long_liquidation_price;
+use trade::cfd::calculate_long_bankruptcy_price;
 use trade::cfd::calculate_margin;
-use trade::cfd::calculate_short_liquidation_price;
+use trade::cfd::calculate_short_bankruptcy_price;
 use trade::Direction;
 
 /// set this to true to export test data to csv files
@@ -45,11 +45,11 @@ fn calculating_payout_curve_doesnt_crash_1() {
         Direction::Short => (leverage_trader, leverage_coordinator),
     };
 
-    let long_liquidation_price = calculate_long_liquidation_price(
+    let long_liquidation_price = calculate_long_bankruptcy_price(
         Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let short_liquidation_price = calculate_short_liquidation_price(
+    let short_liquidation_price = calculate_short_bankruptcy_price(
         Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
@@ -87,11 +87,11 @@ fn calculating_payout_curve_doesnt_crash_2() {
         Direction::Short => (leverage_trader, leverage_coordinator),
     };
 
-    let long_liquidation_price = calculate_long_liquidation_price(
+    let long_liquidation_price = calculate_long_bankruptcy_price(
         Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let short_liquidation_price = calculate_short_liquidation_price(
+    let short_liquidation_price = calculate_short_bankruptcy_price(
         Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
@@ -129,11 +129,11 @@ fn calculating_payout_curve_doesnt_crash_3() {
         Direction::Short => (leverage_trader, leverage_coordinator),
     };
 
-    let long_liquidation_price = calculate_long_liquidation_price(
+    let long_liquidation_price = calculate_long_bankruptcy_price(
         Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
         initial_price,
     );
-    let short_liquidation_price = calculate_short_liquidation_price(
+    let short_liquidation_price = calculate_short_bankruptcy_price(
         Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
         initial_price,
     );
@@ -180,11 +180,11 @@ proptest! {
             Direction::Short => (leverage_trader, leverage_coordinator),
         };
 
-        let long_liquidation_price = calculate_long_liquidation_price(
+        let long_liquidation_price = calculate_long_bankruptcy_price(
             Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
             initial_price,
         );
-        let short_liquidation_price = calculate_short_liquidation_price(
+        let short_liquidation_price = calculate_short_bankruptcy_price(
             Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
             initial_price,
         );

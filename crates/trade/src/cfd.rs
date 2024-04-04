@@ -46,18 +46,34 @@ pub fn calculate_quantity(opening_price: f32, margin: u64, leverage: f32) -> f32
     quantity.to_f32().expect("quantity to fit into f32")
 }
 
-pub fn calculate_long_liquidation_price(leverage: Decimal, price: Decimal) -> Decimal {
-    price * leverage / (leverage + Decimal::ONE)
+pub fn calculate_long_bankruptcy_price(leverage: Decimal, price: Decimal) -> Decimal {
+    calculate_long_liquidation_price(leverage, price, Decimal::ZERO)
+}
+
+pub fn calculate_long_liquidation_price(
+    leverage: Decimal,
+    price: Decimal,
+    maintenance_margin: Decimal,
+) -> Decimal {
+    price * leverage / (leverage + Decimal::ONE - (maintenance_margin * leverage))
+}
+
+pub fn calculate_short_bankruptcy_price(leverage: Decimal, price: Decimal) -> Decimal {
+    calculate_short_liquidation_price(leverage, price, Decimal::ZERO)
 }
 
 /// Calculate liquidation price for the party going short.
-pub fn calculate_short_liquidation_price(leverage: Decimal, price: Decimal) -> Decimal {
+pub fn calculate_short_liquidation_price(
+    leverage: Decimal,
+    price: Decimal,
+    maintenance_margin: Decimal,
+) -> Decimal {
     // If the leverage is equal to 1, the liquidation price will go towards infinity
     if leverage == Decimal::ONE {
         return Decimal::from(BTCUSD_MAX_PRICE);
     }
 
-    price * leverage / (leverage - Decimal::ONE)
+    price * leverage / (leverage - Decimal::ONE + (maintenance_margin * leverage))
 }
 
 /// Compute the payout for the given CFD parameters at a particular `closing_price`.

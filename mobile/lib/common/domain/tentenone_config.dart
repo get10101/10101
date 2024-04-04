@@ -14,6 +14,6 @@ class TenTenOneConfig {
 
   static bridge.TenTenOneConfig apiDummy() {
     return const bridge.TenTenOneConfig(
-        liquidityOptions: [], minQuantity: 1, marginCallPercentage: 0.1);
+        liquidityOptions: [], minQuantity: 1, maintenanceMargin: 0.1);
   }
 }

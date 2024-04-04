@@ -1,5 +1,6 @@
 use crate::calculations::calculate_liquidation_price;
 use crate::calculations::calculate_pnl;
+use crate::get_maintenance_margin;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
@@ -88,8 +89,13 @@ impl Position {
 
         let average_entry_price = order.execution_price().expect("order to be filled");
 
-        let liquidation_price =
-            calculate_liquidation_price(average_entry_price, order.leverage, order.direction);
+        let maintenance_margin = get_maintenance_margin();
+        let liquidation_price = calculate_liquidation_price(
+            average_entry_price,
+            order.leverage,
+            order.direction,
+            maintenance_margin,
+        );
 
         let contracts = decimal_from_f32(order.quantity);
 
@@ -493,10 +499,12 @@ impl Position {
                 / (starting_contracts_relative / starting_average_execution_price
                     + order_contracts_relative / order_execution_price);
 
+            let maintenance_margin = get_maintenance_margin();
             let updated_liquidation_price = calculate_liquidation_price(
                 f32_from_decimal(updated_average_execution_price),
                 f32_from_decimal(starting_leverage),
                 self.direction,
+                maintenance_margin,
             );
 
             let updated_collateral = {
@@ -775,7 +783,7 @@ mod tests {
         assert_eq!(updated_position.contract_symbol, position.contract_symbol);
         assert_eq!(updated_position.direction, position.direction);
         assert_eq!(updated_position.average_entry_price, 36_446.805);
-        assert_eq!(updated_position.liquidation_price, 24297.873);
+        assert_eq!(updated_position.liquidation_price, 26033.436);
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 20_578);
         assert!(!updated_position.stable);
@@ -923,7 +931,7 @@ mod tests {
         assert_eq!(updated_position.contract_symbol, position.contract_symbol);
         assert_eq!(updated_position.direction, order.direction);
         assert_eq!(updated_position.average_entry_price, 36_401.5);
-        assert_eq!(updated_position.liquidation_price, 24_267.666);
+        assert_eq!(updated_position.liquidation_price, 26001.072);
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 13_736);
         assert!(!updated_position.stable);

@@ -123,7 +123,7 @@ void main() {
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1,
-            marginCallPercentage: 0.1));
+            maintenanceMargin: 0.1));
 
     when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
       return getDummyCandles(1000);
@@ -239,7 +239,7 @@ void main() {
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1,
-            marginCallPercentage: 0.1));
+            maintenanceMargin: 0.1));
 
     when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
 
