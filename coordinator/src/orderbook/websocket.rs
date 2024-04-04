@@ -116,8 +116,11 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 )
                             };
 
-                            let referral_status = referrals::referral_status(trader_id, &mut conn)
-                                .unwrap_or(ReferralStatus::new(trader_id));
+                            let referral_status = referrals::update_referral_status_for_user(
+                                &mut conn,
+                                trader_id.to_string(),
+                            )
+                            .unwrap_or(ReferralStatus::new(trader_id));
 
                             if let Err(e) = local_sender
                                 .send(Message::Authenticated(TenTenOneConfig {

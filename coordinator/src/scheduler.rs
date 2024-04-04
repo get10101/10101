@@ -4,6 +4,7 @@ use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
+use crate::referrals;
 use crate::settings::Settings;
 use anyhow::Result;
 use bitcoin::Network;
@@ -46,6 +47,23 @@ impl NotificationScheduler {
             node,
             notifier,
         }
+    }
+
+    pub async fn update_bonus_status_for_users(
+        &self,
+        pool: Pool<ConnectionManager<PgConnection>>,
+    ) -> Result<()> {
+        let schedule = self.settings.update_user_bonus_status_scheduler.clone();
+
+        let uuid = self
+            .scheduler
+            .add(build_update_bonus_status_job(schedule.as_str(), pool)?)
+            .await?;
+        tracing::debug!(
+            job_id = uuid.to_string(),
+            "Started new job to update users bonus status"
+        );
+        Ok(())
     }
 
     pub async fn add_reminder_to_close_expired_position_job(
@@ -210,6 +228,31 @@ fn build_rollover_notification_job(
             Err(error) => Box::pin(async move {
                 tracing::error!("Could not load positions with fcm token {error:#}")
             }),
+        }
+    })
+}
+
+fn build_update_bonus_status_job(
+    schedule: &str,
+    pool: Pool<ConnectionManager<PgConnection>>,
+) -> Result<Job, JobSchedulerError> {
+    Job::new_async(schedule, move |_, _| {
+        let mut conn = pool.get().expect("To be able to get a db connection");
+
+        match referrals::update_referral_status(&mut conn) {
+            Ok(number_of_updated_users) => Box::pin({
+                async move {
+                    tracing::debug!(
+                        number_of_updated_users,
+                        "Successfully updated users bonus status."
+                    )
+                }
+            }),
+            Err(error) => {
+                Box::pin(
+                    async move { tracing::error!("Could not load update bonus status {error:#}") },
+                )
+            }
         }
     })
 }

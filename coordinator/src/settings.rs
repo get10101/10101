@@ -57,6 +57,15 @@ pub struct Settings {
     /// *     *     *      *              *       *             *
     pub close_liquidated_position_scheduler: String,
 
+    // We don't want the doc block below to be auto-formatted.
+    #[rustfmt::skip]
+    /// A cron syntax for updating users bonus status
+    ///
+    /// The format is :
+    /// sec   min   hour   day of month   month   day of week   year
+    /// *     *     *      *              *       *             *
+    pub update_user_bonus_status_scheduler: String,
+
     // Location of the settings file in the file system.
     path: PathBuf,
 
@@ -127,6 +136,7 @@ impl Settings {
             rollover_window_close_scheduler: file.rollover_window_close_scheduler,
             close_expired_position_scheduler: file.close_expired_position_scheduler,
             close_liquidated_position_scheduler: file.close_liquidated_position_scheduler,
+            update_user_bonus_status_scheduler: file.update_user_bonus_status_scheduler,
             path,
             whitelist_enabled: file.whitelist_enabled,
             whitelisted_makers: file.whitelisted_makers,
@@ -150,6 +160,7 @@ pub struct SettingsFile {
 
     close_expired_position_scheduler: String,
     close_liquidated_position_scheduler: String,
+    update_user_bonus_status_scheduler: String,
 
     whitelist_enabled: bool,
     whitelisted_makers: Vec<PublicKey>,
@@ -169,6 +180,7 @@ impl From<Settings> for SettingsFile {
             rollover_window_close_scheduler: value.rollover_window_close_scheduler,
             close_expired_position_scheduler: value.close_expired_position_scheduler,
             close_liquidated_position_scheduler: value.close_liquidated_position_scheduler,
+            update_user_bonus_status_scheduler: value.update_user_bonus_status_scheduler,
             whitelist_enabled: false,
             whitelisted_makers: value.whitelisted_makers,
             min_quantity: value.min_quantity,
@@ -199,6 +211,7 @@ mod tests {
             rollover_window_close_scheduler: "bar".to_string(),
             close_expired_position_scheduler: "baz".to_string(),
             close_liquidated_position_scheduler: "baz".to_string(),
+            update_user_bonus_status_scheduler: "bazinga".to_string(),
             whitelist_enabled: false,
             whitelisted_makers: vec![PublicKey::from_str(
                 "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",

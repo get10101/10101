@@ -83,6 +83,16 @@ pub fn by_id(conn: &mut PgConnection, id: String) -> QueryResult<Option<User>> {
     Ok(x)
 }
 
+/// Returns all users which have logged in since the `cut_off`
+pub fn all_with_login_date(
+    conn: &mut PgConnection,
+    cut_off: OffsetDateTime,
+) -> QueryResult<Vec<User>> {
+    users::dsl::users
+        .filter(users::last_login.ge(cut_off))
+        .load(conn)
+}
+
 pub fn upsert_user(
     conn: &mut PgConnection,
     trader_id: PublicKey,

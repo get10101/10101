@@ -400,9 +400,10 @@ pub async fn get_user_referral_status(
     let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
         .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
 
-    let referral_status = referrals::referral_status(trader_pubkey, &mut conn).map_err(|err| {
-        AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
-    })?;
+    let referral_status =
+        referrals::get_referral_status(trader_pubkey, &mut conn).map_err(|err| {
+            AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
+        })?;
     Ok(Json(referral_status))
 }
 

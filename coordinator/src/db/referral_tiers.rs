@@ -44,6 +44,15 @@ pub(crate) fn all_active(conn: &mut PgConnection) -> QueryResult<Vec<ReferralTie
         .load::<ReferralTier>(conn)
 }
 
+pub(crate) fn tier_by_tier_level(
+    conn: &mut PgConnection,
+    tier_level: i32,
+) -> QueryResult<ReferralTier> {
+    referral_tiers::table
+        .filter(referral_tiers::tier_level.eq(tier_level))
+        .first(conn)
+}
+
 /// Returns volume of referred users
 pub fn get_referrals_per_referral_code(
     connection: &mut PgConnection,
@@ -87,7 +96,7 @@ pub struct UserReferralSummaryView {
 
 pub(crate) fn all_referrals_by_referring_user(
     conn: &mut PgConnection,
-    trader_pubkey: PublicKey,
+    trader_pubkey: &PublicKey,
 ) -> QueryResult<Vec<UserReferralSummaryView>> {
     // we have to do this manually because diesel does not support views. If you make a change to
     // below, make sure to test this against a life db as errors will only be thrown at runtime

@@ -73,6 +73,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    bonus_status (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        tier_level -> Int4,
+        fee_rebate -> Float4,
+        remaining_trades -> Int4,
+        activation_timestamp -> Timestamptz,
+        deactivation_timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     channel_opening_params (order_id) {
         order_id -> Text,
         coordinator_reserve -> Int8,
@@ -452,6 +464,7 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     answers,
+    bonus_status,
     channel_opening_params,
     channels,
     choices,

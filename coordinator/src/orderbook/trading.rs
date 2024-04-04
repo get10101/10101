@@ -213,7 +213,7 @@ pub async fn process_new_market_order(
     let fee_percent = { node.settings.read().await.order_matching_fee_rate };
     let fee_percent = Decimal::try_from(fee_percent).expect("to fit into decimal");
 
-    let status = referrals::referral_status(order.trader_id, &mut conn)?;
+    let status = referrals::get_referral_status(order.trader_id, &mut conn)?;
     let fee_discount = status.referral_fee_bonus;
     let fee_percent = fee_percent - (fee_percent * fee_discount);
 

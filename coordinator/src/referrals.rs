@@ -4,6 +4,7 @@ use crate::db::referral_tiers::UserReferralSummaryView;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use commons::referral_from_pubkey;
 use commons::ReferralStatus;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
@@ -12,23 +13,121 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::str::FromStr;
+use time::OffsetDateTime;
 
-pub fn referral_status(
+/// When updating a referral status we only want to look at users which had a login in the last 48h.
+const DAYS_SINCE_LAST_LOGIN: i64 = 2;
+
+pub fn get_referral_status(
     trader_pubkey: PublicKey,
     connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
 ) -> Result<ReferralStatus> {
-    let referrals = db::referral_tiers::all_referrals_by_referring_user(connection, trader_pubkey)?;
-
     let user = db::user::get_user(connection, &trader_pubkey)?.context("User not found")?;
-
+    let referrals =
+        db::referral_tiers::all_referrals_by_referring_user(connection, &trader_pubkey)?;
     let referral_tiers = db::referral_tiers::all_active(connection)?;
 
     let referral_code = user.referral_code;
 
-    calculate_referral_tier(referrals, referral_tiers, referral_code)
+    let mut status = db::bonus_status::active_status_for_user(connection, &trader_pubkey)?;
+    if status.is_empty() {
+        return Ok(ReferralStatus::new(trader_pubkey));
+    }
+
+    // we take the highest tier
+    status.sort_by(|a, b| b.tier_level.cmp(&a.tier_level));
+
+    let bonus_status = status
+        .first()
+        .expect("to have at least 1 element due to the check above");
+
+    if bonus_status.remaining_trades <= 0
+        || bonus_status
+            .deactivation_timestamp
+            .le(&OffsetDateTime::now_utc())
+    {
+        tracing::debug!(
+            trader_pubkey = user.pubkey,
+            tier_level = bonus_status.tier_level,
+            "User's bonus status has already been expired"
+        );
+        return Ok(ReferralStatus::new(trader_pubkey));
+    }
+
+    let referral_tier = referral_tiers
+        .iter()
+        .find(|tier| tier.tier_level == bonus_status.tier_level)
+        .context("User's referral tier not found")?;
+
+    Ok(ReferralStatus {
+        referral_code,
+        number_of_activated_referrals: referrals
+            .iter()
+            .filter(|referral| {
+                referral.referred_user_total_quantity.floor() as i32
+                    > referral_tier.min_volume_per_referral
+            })
+            .count(),
+        number_of_total_referrals: referrals.len(),
+        referral_tier: bonus_status.tier_level as usize,
+        referral_fee_bonus: Decimal::from_f32(referral_tier.fee_rebate).expect("to fit"),
+    })
 }
 
-fn calculate_referral_tier(
+pub fn update_referral_status(
+    connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> Result<usize> {
+    let users = db::user::all_with_login_date(
+        connection,
+        OffsetDateTime::now_utc() - time::Duration::days(DAYS_SINCE_LAST_LOGIN),
+    )?;
+    let len = users.len();
+
+    for user in users {
+        let trader_pubkey = user.pubkey.clone();
+        if let Err(err) = update_referral_status_for_user(connection, user.pubkey) {
+            tracing::error!(
+                trader_pubkey,
+                "Failed at updating referral status for user {err}"
+            )
+        }
+    }
+
+    Ok(len)
+}
+
+/// Updates the referral status for a user based on data in the database
+pub fn update_referral_status_for_user(
+    connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
+    trader_pubkey: String,
+) -> Result<ReferralStatus> {
+    let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str()).expect("to be a valid pubkey");
+    let referrals =
+        db::referral_tiers::all_referrals_by_referring_user(connection, &trader_pubkey)?;
+    let referral_tiers = db::referral_tiers::all_active(connection)?;
+    let referral_status = calculate_referral_tier_inner(
+        referrals,
+        referral_tiers,
+        referral_from_pubkey(trader_pubkey),
+    )?;
+    let status = db::bonus_status::insert(
+        connection,
+        &trader_pubkey,
+        referral_status.referral_tier as i32,
+    )?;
+    tracing::debug!(
+        trader_pubkey = trader_pubkey.to_string(),
+        tier_level = status.tier_level,
+        remaining_trades = status.remaining_trades,
+        activation_timestamp = status.activation_timestamp.to_string(),
+        deactivation_timestamp = status.deactivation_timestamp.to_string(),
+        "Updated user's bonus status"
+    );
+    Ok(referral_status)
+}
+
+fn calculate_referral_tier_inner(
     referrals: Vec<UserReferralSummaryView>,
     referral_tiers: Vec<ReferralTier>,
     referral_code: String,
@@ -98,7 +197,7 @@ fn calculate_referral_tier(
 pub mod tests {
     use crate::db::referral_tiers::ReferralTier;
     use crate::db::referral_tiers::UserReferralSummaryView;
-    use crate::referrals::calculate_referral_tier;
+    use crate::referrals::calculate_referral_tier_inner;
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
@@ -108,7 +207,8 @@ pub mod tests {
     pub fn given_no_referred_users_then_tier_level_0() {
         let referral_code = "DUMMY".to_string();
         let referral_tier =
-            calculate_referral_tier(vec![], create_dummy_tiers(), referral_code.clone()).unwrap();
+            calculate_referral_tier_inner(vec![], create_dummy_tiers(), referral_code.clone())
+                .unwrap();
 
         assert_eq!(referral_tier.referral_tier, 0);
         assert_eq!(referral_tier.referral_fee_bonus, Decimal::ZERO);
@@ -120,7 +220,7 @@ pub mod tests {
     #[test]
     pub fn given_tier_1_referred_users_then_tier_level_1() {
         let referral_code = "DUMMY".to_string();
-        let referral_tier = calculate_referral_tier(
+        let referral_tier = calculate_referral_tier_inner(
             create_dummy_referrals(10, dec!(1001)),
             create_dummy_tiers(),
             referral_code.clone(),
@@ -137,7 +237,7 @@ pub mod tests {
     #[test]
     pub fn given_tier_2_referred_users_then_tier_level_2() {
         let referral_code = "DUMMY".to_string();
-        let referral_tier = calculate_referral_tier(
+        let referral_tier = calculate_referral_tier_inner(
             create_dummy_referrals(20, dec!(2001)),
             create_dummy_tiers(),
             referral_code.clone(),
@@ -156,7 +256,7 @@ pub mod tests {
         let mut tier_2 = create_dummy_referrals(10, dec!(2001));
         tier_1.append(&mut tier_2);
         let referral_tier =
-            calculate_referral_tier(tier_1, create_dummy_tiers(), referral_code).unwrap();
+            calculate_referral_tier_inner(tier_1, create_dummy_tiers(), referral_code).unwrap();
 
         assert_eq!(referral_tier.referral_tier, 1);
         assert_eq!(referral_tier.number_of_activated_referrals, 10);
@@ -170,7 +270,7 @@ pub mod tests {
         let mut tier_2 = create_dummy_referrals(10, dec!(3001));
         tier_1.append(&mut tier_2);
         let referral_tier =
-            calculate_referral_tier(tier_1, create_dummy_tiers(), referral_code).unwrap();
+            calculate_referral_tier_inner(tier_1, create_dummy_tiers(), referral_code).unwrap();
 
         assert_eq!(referral_tier.referral_tier, 1);
         assert_eq!(referral_tier.number_of_activated_referrals, 10);
@@ -184,7 +284,7 @@ pub mod tests {
         let mut tier_2 = create_dummy_referrals(40, dec!(3001));
         tier_1.append(&mut tier_2);
         let referral_tier =
-            calculate_referral_tier(tier_1, create_dummy_tiers(), referral_code).unwrap();
+            calculate_referral_tier_inner(tier_1, create_dummy_tiers(), referral_code).unwrap();
 
         assert_eq!(referral_tier.referral_tier, 3);
         assert_eq!(referral_tier.number_of_activated_referrals, 40);
