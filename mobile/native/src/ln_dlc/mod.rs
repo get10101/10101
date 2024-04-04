@@ -269,8 +269,6 @@ pub fn run(runtime: &Runtime) -> Result<()> {
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
-        // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
-
         let address = {
             let listener = TcpListener::bind("0.0.0.0:0")?;
             listener.local_addr().expect("To get a free local address")
