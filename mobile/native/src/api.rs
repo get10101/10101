@@ -20,7 +20,6 @@ use crate::ln_dlc;
 use crate::ln_dlc::get_storage;
 use crate::logger;
 use crate::max_quantity::max_quantity;
-use crate::orderbook;
 use crate::polls;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
@@ -522,15 +521,7 @@ fn run_internal(
 
     let (_health, tx) = health::Health::new(runtime);
 
-    orderbook::subscribe(
-        ln_dlc::get_node_key(),
-        runtime,
-        tx.orderbook,
-        fcm_token,
-        tx_websocket,
-    )?;
-
-    ln_dlc::run(runtime)
+    ln_dlc::run(runtime, tx, fcm_token, tx_websocket)
 }
 
 pub fn get_new_address() -> Result<String> {

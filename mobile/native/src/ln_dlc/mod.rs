@@ -12,9 +12,11 @@ use crate::dlc::dlc_handler;
 use crate::dlc::dlc_handler::DlcHandler;
 use crate::event;
 use crate::event::EventInternal;
+use crate::health::Tx;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistory;
+use crate::orderbook;
 use crate::position::ForceCloseDlcChannelSubscriber;
 use crate::state;
 use crate::storage::TenTenOneNodeStorage;
@@ -42,6 +44,7 @@ use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
 use commons::CollaborativeRevertTraderResponse;
+use commons::OrderbookRequest;
 use dlc::PartyParams;
 use dlc_manager::channel::Channel as DlcChannel;
 use itertools::chain;
@@ -86,6 +89,7 @@ use std::time::SystemTime;
 use time::OffsetDateTime;
 use tokio::runtime;
 use tokio::runtime::Runtime;
+use tokio::sync::broadcast;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
@@ -262,7 +266,12 @@ pub fn get_storage() -> TenTenOneNodeStorage {
 /// Start the node
 ///
 /// Assumes that the seed has already been initialized
-pub fn run(runtime: &Runtime) -> Result<()> {
+pub fn run(
+    runtime: &Runtime,
+    tx: Tx,
+    fcm_token: String,
+    tx_websocket: broadcast::Sender<OrderbookRequest>,
+) -> Result<()> {
     runtime.block_on(async move {
         event::publish(&EventInternal::Init("Starting full ldk node".to_string()));
 
@@ -317,6 +326,14 @@ pub fn run(runtime: &Runtime) -> Result<()> {
 
         let node = Arc::new(Node::new(node, _running));
         state::set_node(node.clone());
+
+        orderbook::subscribe(
+            node.inner.node_key(),
+            runtime,
+            tx.orderbook,
+            fcm_token,
+            tx_websocket,
+        )?;
 
         if let Err(e) = spawn_blocking({
             let node = node.clone();
