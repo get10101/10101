@@ -1,0 +1,4842 @@
+---
+source: crates/payout_curve/src/lib.rs
+expression: payout_function
+---
+[
+    (
+        PayoutPoint {
+            event_outcome: 0,
+            outcome_payout: 200300000,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 19999,
+            outcome_payout: 200300000,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 19999,
+            outcome_payout: 200300000,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20000,
+            outcome_payout: 198807463,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20000,
+            outcome_payout: 198807463,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20199,
+            outcome_payout: 198807463,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20199,
+            outcome_payout: 198807463,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20200,
+            outcome_payout: 195866502,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20200,
+            outcome_payout: 195866502,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20399,
+            outcome_payout: 195866502,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20399,
+            outcome_payout: 195866502,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20400,
+            outcome_payout: 192982927,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20400,
+            outcome_payout: 192982927,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20599,
+            outcome_payout: 192982927,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20599,
+            outcome_payout: 192982927,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20600,
+            outcome_payout: 190155072,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20600,
+            outcome_payout: 190155072,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20799,
+            outcome_payout: 190155072,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20799,
+            outcome_payout: 190155072,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20800,
+            outcome_payout: 187381340,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20800,
+            outcome_payout: 187381340,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 20999,
+            outcome_payout: 187381340,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 20999,
+            outcome_payout: 187381340,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21000,
+            outcome_payout: 184660190,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21000,
+            outcome_payout: 184660190,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21199,
+            outcome_payout: 184660190,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21199,
+            outcome_payout: 184660190,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21200,
+            outcome_payout: 181990141,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21200,
+            outcome_payout: 181990141,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21399,
+            outcome_payout: 181990141,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21399,
+            outcome_payout: 181990141,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21400,
+            outcome_payout: 179369767,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21400,
+            outcome_payout: 179369767,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21599,
+            outcome_payout: 179369767,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21599,
+            outcome_payout: 179369767,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21600,
+            outcome_payout: 176797696,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21600,
+            outcome_payout: 176797696,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21799,
+            outcome_payout: 176797696,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21799,
+            outcome_payout: 176797696,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21800,
+            outcome_payout: 174272603,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21800,
+            outcome_payout: 174272603,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 21999,
+            outcome_payout: 174272603,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 21999,
+            outcome_payout: 174272603,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22000,
+            outcome_payout: 171793213,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22000,
+            outcome_payout: 171793213,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22199,
+            outcome_payout: 171793213,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22199,
+            outcome_payout: 171793213,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22200,
+            outcome_payout: 169358296,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22200,
+            outcome_payout: 169358296,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22399,
+            outcome_payout: 169358296,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22399,
+            outcome_payout: 169358296,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22400,
+            outcome_payout: 166966667,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22400,
+            outcome_payout: 166966667,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22599,
+            outcome_payout: 166966667,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22599,
+            outcome_payout: 166966667,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22600,
+            outcome_payout: 164617181,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22600,
+            outcome_payout: 164617181,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22799,
+            outcome_payout: 164617181,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22799,
+            outcome_payout: 164617181,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22800,
+            outcome_payout: 162308734,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22800,
+            outcome_payout: 162308734,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 22999,
+            outcome_payout: 162308734,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 22999,
+            outcome_payout: 162308734,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23000,
+            outcome_payout: 160040260,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23000,
+            outcome_payout: 160040260,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23199,
+            outcome_payout: 160040260,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23199,
+            outcome_payout: 160040260,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23200,
+            outcome_payout: 157810730,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23200,
+            outcome_payout: 157810730,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23399,
+            outcome_payout: 157810730,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23399,
+            outcome_payout: 157810730,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23400,
+            outcome_payout: 155619149,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23400,
+            outcome_payout: 155619149,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23599,
+            outcome_payout: 155619149,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23599,
+            outcome_payout: 155619149,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23600,
+            outcome_payout: 153464557,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23600,
+            outcome_payout: 153464557,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23799,
+            outcome_payout: 153464557,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23799,
+            outcome_payout: 153464557,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23800,
+            outcome_payout: 151346025,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23800,
+            outcome_payout: 151346025,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 23999,
+            outcome_payout: 151346025,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 23999,
+            outcome_payout: 151346025,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24000,
+            outcome_payout: 149262656,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24000,
+            outcome_payout: 149262656,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24199,
+            outcome_payout: 149262656,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24199,
+            outcome_payout: 149262656,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24200,
+            outcome_payout: 147213580,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24200,
+            outcome_payout: 147213580,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24399,
+            outcome_payout: 147213580,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24399,
+            outcome_payout: 147213580,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24400,
+            outcome_payout: 145197959,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24400,
+            outcome_payout: 145197959,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24599,
+            outcome_payout: 145197959,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24599,
+            outcome_payout: 145197959,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24600,
+            outcome_payout: 143214980,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24600,
+            outcome_payout: 143214980,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24799,
+            outcome_payout: 143214980,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24799,
+            outcome_payout: 143214980,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24800,
+            outcome_payout: 141263855,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24800,
+            outcome_payout: 141263855,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 24999,
+            outcome_payout: 141263855,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 24999,
+            outcome_payout: 141263855,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25000,
+            outcome_payout: 139343825,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25000,
+            outcome_payout: 139343825,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25199,
+            outcome_payout: 139343825,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25199,
+            outcome_payout: 139343825,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25200,
+            outcome_payout: 137454150,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25200,
+            outcome_payout: 137454150,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25399,
+            outcome_payout: 137454150,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25399,
+            outcome_payout: 137454150,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25400,
+            outcome_payout: 135594118,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25400,
+            outcome_payout: 135594118,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25599,
+            outcome_payout: 135594118,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25599,
+            outcome_payout: 135594118,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25600,
+            outcome_payout: 133763035,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25600,
+            outcome_payout: 133763035,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25799,
+            outcome_payout: 133763035,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25799,
+            outcome_payout: 133763035,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25800,
+            outcome_payout: 131960232,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25800,
+            outcome_payout: 131960232,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 25999,
+            outcome_payout: 131960232,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 25999,
+            outcome_payout: 131960232,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26000,
+            outcome_payout: 130185057,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26000,
+            outcome_payout: 130185057,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26199,
+            outcome_payout: 130185057,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26199,
+            outcome_payout: 130185057,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26200,
+            outcome_payout: 128436882,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26200,
+            outcome_payout: 128436882,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26399,
+            outcome_payout: 128436882,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26399,
+            outcome_payout: 128436882,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26400,
+            outcome_payout: 126715094,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26400,
+            outcome_payout: 126715094,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26599,
+            outcome_payout: 126715094,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26599,
+            outcome_payout: 126715094,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26600,
+            outcome_payout: 125019101,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26600,
+            outcome_payout: 125019101,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26799,
+            outcome_payout: 125019101,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26799,
+            outcome_payout: 125019101,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26800,
+            outcome_payout: 123348327,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26800,
+            outcome_payout: 123348327,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 26999,
+            outcome_payout: 123348327,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 26999,
+            outcome_payout: 123348327,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27000,
+            outcome_payout: 121702214,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27000,
+            outcome_payout: 121702214,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27199,
+            outcome_payout: 121702214,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27199,
+            outcome_payout: 121702214,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27200,
+            outcome_payout: 120080220,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27200,
+            outcome_payout: 120080220,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27399,
+            outcome_payout: 120080220,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27399,
+            outcome_payout: 120080220,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27400,
+            outcome_payout: 118481818,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27400,
+            outcome_payout: 118481818,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27599,
+            outcome_payout: 118481818,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27599,
+            outcome_payout: 118481818,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27600,
+            outcome_payout: 116906498,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27600,
+            outcome_payout: 116906498,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27799,
+            outcome_payout: 116906498,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27799,
+            outcome_payout: 116906498,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27800,
+            outcome_payout: 115353763,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27800,
+            outcome_payout: 115353763,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 27999,
+            outcome_payout: 115353763,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 27999,
+            outcome_payout: 115353763,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28000,
+            outcome_payout: 113823132,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28000,
+            outcome_payout: 113823132,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28199,
+            outcome_payout: 113823132,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28199,
+            outcome_payout: 113823132,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28200,
+            outcome_payout: 112314134,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28200,
+            outcome_payout: 112314134,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28399,
+            outcome_payout: 112314134,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28399,
+            outcome_payout: 112314134,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28400,
+            outcome_payout: 110826316,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28400,
+            outcome_payout: 110826316,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28599,
+            outcome_payout: 110826316,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28599,
+            outcome_payout: 110826316,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28600,
+            outcome_payout: 109359233,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28600,
+            outcome_payout: 109359233,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28799,
+            outcome_payout: 109359233,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28799,
+            outcome_payout: 109359233,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28800,
+            outcome_payout: 107912457,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28800,
+            outcome_payout: 107912457,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 28999,
+            outcome_payout: 107912457,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 28999,
+            outcome_payout: 107912457,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29000,
+            outcome_payout: 106485567,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29000,
+            outcome_payout: 106485567,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29199,
+            outcome_payout: 106485567,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29199,
+            outcome_payout: 106485567,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29200,
+            outcome_payout: 105078157,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29200,
+            outcome_payout: 105078157,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29399,
+            outcome_payout: 105078157,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29399,
+            outcome_payout: 105078157,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29400,
+            outcome_payout: 103689831,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29400,
+            outcome_payout: 103689831,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29599,
+            outcome_payout: 103689831,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29599,
+            outcome_payout: 103689831,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29600,
+            outcome_payout: 102320202,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29600,
+            outcome_payout: 102320202,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29799,
+            outcome_payout: 102320202,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29799,
+            outcome_payout: 102320202,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29800,
+            outcome_payout: 100968896,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29800,
+            outcome_payout: 100968896,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 29999,
+            outcome_payout: 100968896,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 29999,
+            outcome_payout: 100968896,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30000,
+            outcome_payout: 99635548,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30000,
+            outcome_payout: 99635548,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30199,
+            outcome_payout: 99635548,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30199,
+            outcome_payout: 99635548,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30200,
+            outcome_payout: 98319802,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30200,
+            outcome_payout: 98319802,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30399,
+            outcome_payout: 98319802,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30399,
+            outcome_payout: 98319802,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30400,
+            outcome_payout: 97021311,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30400,
+            outcome_payout: 97021311,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30599,
+            outcome_payout: 97021311,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30599,
+            outcome_payout: 97021311,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30600,
+            outcome_payout: 95739739,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30600,
+            outcome_payout: 95739739,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30799,
+            outcome_payout: 95739739,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30799,
+            outcome_payout: 95739739,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30800,
+            outcome_payout: 94474757,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30800,
+            outcome_payout: 94474757,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 30999,
+            outcome_payout: 94474757,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 30999,
+            outcome_payout: 94474757,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31000,
+            outcome_payout: 93226045,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31000,
+            outcome_payout: 93226045,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31199,
+            outcome_payout: 93226045,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31199,
+            outcome_payout: 93226045,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31200,
+            outcome_payout: 91993291,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31200,
+            outcome_payout: 91993291,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31399,
+            outcome_payout: 91993291,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31399,
+            outcome_payout: 91993291,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31400,
+            outcome_payout: 90776190,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31400,
+            outcome_payout: 90776190,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31599,
+            outcome_payout: 90776190,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31599,
+            outcome_payout: 90776190,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31600,
+            outcome_payout: 89574448,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31600,
+            outcome_payout: 89574448,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31799,
+            outcome_payout: 89574448,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31799,
+            outcome_payout: 89574448,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31800,
+            outcome_payout: 88387774,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31800,
+            outcome_payout: 88387774,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 31999,
+            outcome_payout: 88387774,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 31999,
+            outcome_payout: 88387774,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32000,
+            outcome_payout: 87215888,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32000,
+            outcome_payout: 87215888,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32199,
+            outcome_payout: 87215888,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32199,
+            outcome_payout: 87215888,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32200,
+            outcome_payout: 86058514,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32200,
+            outcome_payout: 86058514,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32399,
+            outcome_payout: 86058514,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32399,
+            outcome_payout: 86058514,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32400,
+            outcome_payout: 84915385,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32400,
+            outcome_payout: 84915385,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32599,
+            outcome_payout: 84915385,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32599,
+            outcome_payout: 84915385,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32600,
+            outcome_payout: 83786239,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32600,
+            outcome_payout: 83786239,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32799,
+            outcome_payout: 83786239,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32799,
+            outcome_payout: 83786239,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32800,
+            outcome_payout: 82670821,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32800,
+            outcome_payout: 82670821,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 32999,
+            outcome_payout: 82670821,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 32999,
+            outcome_payout: 82670821,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33000,
+            outcome_payout: 81568882,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33000,
+            outcome_payout: 81568882,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33199,
+            outcome_payout: 81568882,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33199,
+            outcome_payout: 81568882,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33200,
+            outcome_payout: 80480180,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33200,
+            outcome_payout: 80480180,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33399,
+            outcome_payout: 80480180,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33399,
+            outcome_payout: 80480180,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33400,
+            outcome_payout: 79404478,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33400,
+            outcome_payout: 79404478,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33599,
+            outcome_payout: 79404478,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33599,
+            outcome_payout: 79404478,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33600,
+            outcome_payout: 78341543,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33600,
+            outcome_payout: 78341543,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33799,
+            outcome_payout: 78341543,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33799,
+            outcome_payout: 78341543,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33800,
+            outcome_payout: 77291150,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33800,
+            outcome_payout: 77291150,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 33999,
+            outcome_payout: 77291150,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 33999,
+            outcome_payout: 77291150,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34000,
+            outcome_payout: 76253079,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34000,
+            outcome_payout: 76253079,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34199,
+            outcome_payout: 76253079,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34199,
+            outcome_payout: 76253079,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34200,
+            outcome_payout: 75227114,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34200,
+            outcome_payout: 75227114,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34399,
+            outcome_payout: 75227114,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34399,
+            outcome_payout: 75227114,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34400,
+            outcome_payout: 74213043,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34400,
+            outcome_payout: 74213043,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34599,
+            outcome_payout: 74213043,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34599,
+            outcome_payout: 74213043,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34600,
+            outcome_payout: 73210663,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34600,
+            outcome_payout: 73210663,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34799,
+            outcome_payout: 73210663,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34799,
+            outcome_payout: 73210663,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34800,
+            outcome_payout: 72219771,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34800,
+            outcome_payout: 72219771,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 34999,
+            outcome_payout: 72219771,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 34999,
+            outcome_payout: 72219771,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35000,
+            outcome_payout: 71240171,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35000,
+            outcome_payout: 71240171,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35199,
+            outcome_payout: 71240171,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35199,
+            outcome_payout: 71240171,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35200,
+            outcome_payout: 70271671,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35200,
+            outcome_payout: 70271671,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35399,
+            outcome_payout: 70271671,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35399,
+            outcome_payout: 70271671,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35400,
+            outcome_payout: 69314085,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35400,
+            outcome_payout: 69314085,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35599,
+            outcome_payout: 69314085,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35599,
+            outcome_payout: 69314085,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35600,
+            outcome_payout: 68367227,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35600,
+            outcome_payout: 68367227,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35799,
+            outcome_payout: 68367227,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35799,
+            outcome_payout: 68367227,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35800,
+            outcome_payout: 67430919,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35800,
+            outcome_payout: 67430919,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 35999,
+            outcome_payout: 67430919,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 35999,
+            outcome_payout: 67430919,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36000,
+            outcome_payout: 66504986,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36000,
+            outcome_payout: 66504986,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36199,
+            outcome_payout: 66504986,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36199,
+            outcome_payout: 66504986,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36200,
+            outcome_payout: 65589256,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36200,
+            outcome_payout: 65589256,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36399,
+            outcome_payout: 65589256,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36399,
+            outcome_payout: 65589256,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36400,
+            outcome_payout: 64683562,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36400,
+            outcome_payout: 64683562,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36599,
+            outcome_payout: 64683562,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36599,
+            outcome_payout: 64683562,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36600,
+            outcome_payout: 63787738,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36600,
+            outcome_payout: 63787738,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36799,
+            outcome_payout: 63787738,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36799,
+            outcome_payout: 63787738,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36800,
+            outcome_payout: 62901626,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36800,
+            outcome_payout: 62901626,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 36999,
+            outcome_payout: 62901626,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 36999,
+            outcome_payout: 62901626,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37000,
+            outcome_payout: 62025067,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37000,
+            outcome_payout: 62025067,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37199,
+            outcome_payout: 62025067,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37199,
+            outcome_payout: 62025067,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37200,
+            outcome_payout: 61157909,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37200,
+            outcome_payout: 61157909,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37399,
+            outcome_payout: 61157909,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37399,
+            outcome_payout: 61157909,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37400,
+            outcome_payout: 60300000,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37400,
+            outcome_payout: 60300000,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37599,
+            outcome_payout: 60300000,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37599,
+            outcome_payout: 60300000,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37600,
+            outcome_payout: 59451194,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37600,
+            outcome_payout: 59451194,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37799,
+            outcome_payout: 59451194,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37799,
+            outcome_payout: 59451194,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37800,
+            outcome_payout: 58611346,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37800,
+            outcome_payout: 58611346,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 37999,
+            outcome_payout: 58611346,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 37999,
+            outcome_payout: 58611346,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38000,
+            outcome_payout: 57780315,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38000,
+            outcome_payout: 57780315,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38199,
+            outcome_payout: 57780315,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38199,
+            outcome_payout: 57780315,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38200,
+            outcome_payout: 56957963,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38200,
+            outcome_payout: 56957963,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38399,
+            outcome_payout: 56957963,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38399,
+            outcome_payout: 56957963,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38400,
+            outcome_payout: 56144156,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38400,
+            outcome_payout: 56144156,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38599,
+            outcome_payout: 56144156,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38599,
+            outcome_payout: 56144156,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38600,
+            outcome_payout: 55338760,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38600,
+            outcome_payout: 55338760,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38799,
+            outcome_payout: 55338760,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38799,
+            outcome_payout: 55338760,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38800,
+            outcome_payout: 54541645,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38800,
+            outcome_payout: 54541645,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 38999,
+            outcome_payout: 54541645,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 38999,
+            outcome_payout: 54541645,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39000,
+            outcome_payout: 53752685,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39000,
+            outcome_payout: 53752685,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39199,
+            outcome_payout: 53752685,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39199,
+            outcome_payout: 53752685,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39200,
+            outcome_payout: 52971756,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39200,
+            outcome_payout: 52971756,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39399,
+            outcome_payout: 52971756,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39399,
+            outcome_payout: 52971756,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39400,
+            outcome_payout: 52198734,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39400,
+            outcome_payout: 52198734,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39599,
+            outcome_payout: 52198734,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39599,
+            outcome_payout: 52198734,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39600,
+            outcome_payout: 51433501,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39600,
+            outcome_payout: 51433501,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39799,
+            outcome_payout: 51433501,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39799,
+            outcome_payout: 51433501,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39800,
+            outcome_payout: 50675940,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39800,
+            outcome_payout: 50675940,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 39999,
+            outcome_payout: 50675940,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 39999,
+            outcome_payout: 50675940,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40000,
+            outcome_payout: 49925935,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40000,
+            outcome_payout: 49925935,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40199,
+            outcome_payout: 49925935,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40199,
+            outcome_payout: 49925935,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40200,
+            outcome_payout: 49183375,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40200,
+            outcome_payout: 49183375,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40399,
+            outcome_payout: 49183375,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40399,
+            outcome_payout: 49183375,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40400,
+            outcome_payout: 48448148,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40400,
+            outcome_payout: 48448148,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40599,
+            outcome_payout: 48448148,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40599,
+            outcome_payout: 48448148,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40600,
+            outcome_payout: 47720147,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40600,
+            outcome_payout: 47720147,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40799,
+            outcome_payout: 47720147,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40799,
+            outcome_payout: 47720147,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40800,
+            outcome_payout: 46999267,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40800,
+            outcome_payout: 46999267,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 40999,
+            outcome_payout: 46999267,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 40999,
+            outcome_payout: 46999267,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41000,
+            outcome_payout: 46285401,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41000,
+            outcome_payout: 46285401,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41199,
+            outcome_payout: 46285401,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41199,
+            outcome_payout: 46285401,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41200,
+            outcome_payout: 45578450,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41200,
+            outcome_payout: 45578450,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41399,
+            outcome_payout: 45578450,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41399,
+            outcome_payout: 45578450,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41400,
+            outcome_payout: 44878313,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41400,
+            outcome_payout: 44878313,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41599,
+            outcome_payout: 44878313,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41599,
+            outcome_payout: 44878313,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41600,
+            outcome_payout: 44184892,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41600,
+            outcome_payout: 44184892,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41799,
+            outcome_payout: 44184892,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41799,
+            outcome_payout: 44184892,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41800,
+            outcome_payout: 43498091,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41800,
+            outcome_payout: 43498091,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 41999,
+            outcome_payout: 43498091,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 41999,
+            outcome_payout: 43498091,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42000,
+            outcome_payout: 42817815,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42000,
+            outcome_payout: 42817815,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42199,
+            outcome_payout: 42817815,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42199,
+            outcome_payout: 42817815,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42200,
+            outcome_payout: 42143972,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42200,
+            outcome_payout: 42143972,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42399,
+            outcome_payout: 42143972,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42399,
+            outcome_payout: 42143972,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42400,
+            outcome_payout: 41476471,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42400,
+            outcome_payout: 41476471,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42599,
+            outcome_payout: 41476471,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42599,
+            outcome_payout: 41476471,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42600,
+            outcome_payout: 40815222,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42600,
+            outcome_payout: 40815222,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42799,
+            outcome_payout: 40815222,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42799,
+            outcome_payout: 40815222,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42800,
+            outcome_payout: 40160140,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42800,
+            outcome_payout: 40160140,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 42999,
+            outcome_payout: 40160140,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 42999,
+            outcome_payout: 40160140,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43000,
+            outcome_payout: 39511137,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43000,
+            outcome_payout: 39511137,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43199,
+            outcome_payout: 39511137,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43199,
+            outcome_payout: 39511137,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43200,
+            outcome_payout: 38868129,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43200,
+            outcome_payout: 38868129,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43399,
+            outcome_payout: 38868129,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43399,
+            outcome_payout: 38868129,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43400,
+            outcome_payout: 38231034,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43400,
+            outcome_payout: 38231034,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43599,
+            outcome_payout: 38231034,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43599,
+            outcome_payout: 38231034,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43600,
+            outcome_payout: 37599771,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43600,
+            outcome_payout: 37599771,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43799,
+            outcome_payout: 37599771,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43799,
+            outcome_payout: 37599771,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43800,
+            outcome_payout: 36974260,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43800,
+            outcome_payout: 36974260,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 43999,
+            outcome_payout: 36974260,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 43999,
+            outcome_payout: 36974260,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44000,
+            outcome_payout: 36354422,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44000,
+            outcome_payout: 36354422,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44199,
+            outcome_payout: 36354422,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44199,
+            outcome_payout: 36354422,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44200,
+            outcome_payout: 35740181,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44200,
+            outcome_payout: 35740181,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44399,
+            outcome_payout: 35740181,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44399,
+            outcome_payout: 35740181,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44400,
+            outcome_payout: 35131461,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44400,
+            outcome_payout: 35131461,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44599,
+            outcome_payout: 35131461,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44599,
+            outcome_payout: 35131461,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44600,
+            outcome_payout: 34528188,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44600,
+            outcome_payout: 34528188,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44799,
+            outcome_payout: 34528188,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44799,
+            outcome_payout: 34528188,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44800,
+            outcome_payout: 33930290,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44800,
+            outcome_payout: 33930290,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 44999,
+            outcome_payout: 33930290,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 44999,
+            outcome_payout: 33930290,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45000,
+            outcome_payout: 33337694,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45000,
+            outcome_payout: 33337694,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45199,
+            outcome_payout: 33337694,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45199,
+            outcome_payout: 33337694,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45200,
+            outcome_payout: 32750331,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45200,
+            outcome_payout: 32750331,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45399,
+            outcome_payout: 32750331,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45399,
+            outcome_payout: 32750331,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45400,
+            outcome_payout: 32168132,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45400,
+            outcome_payout: 32168132,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45599,
+            outcome_payout: 32168132,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45599,
+            outcome_payout: 32168132,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45600,
+            outcome_payout: 31591028,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45600,
+            outcome_payout: 31591028,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45799,
+            outcome_payout: 31591028,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45799,
+            outcome_payout: 31591028,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45800,
+            outcome_payout: 31018954,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45800,
+            outcome_payout: 31018954,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 45999,
+            outcome_payout: 31018954,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 45999,
+            outcome_payout: 31018954,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46000,
+            outcome_payout: 30451844,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46000,
+            outcome_payout: 30451844,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46199,
+            outcome_payout: 30451844,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46199,
+            outcome_payout: 30451844,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46200,
+            outcome_payout: 29889633,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46200,
+            outcome_payout: 29889633,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46399,
+            outcome_payout: 29889633,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46399,
+            outcome_payout: 29889633,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46400,
+            outcome_payout: 29332258,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46400,
+            outcome_payout: 29332258,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46599,
+            outcome_payout: 29332258,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46599,
+            outcome_payout: 29332258,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46600,
+            outcome_payout: 28779657,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46600,
+            outcome_payout: 28779657,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46799,
+            outcome_payout: 28779657,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46799,
+            outcome_payout: 28779657,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46800,
+            outcome_payout: 28231770,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46800,
+            outcome_payout: 28231770,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 46999,
+            outcome_payout: 28231770,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 46999,
+            outcome_payout: 28231770,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47000,
+            outcome_payout: 27688535,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47000,
+            outcome_payout: 27688535,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47199,
+            outcome_payout: 27688535,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47199,
+            outcome_payout: 27688535,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47200,
+            outcome_payout: 27149894,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47200,
+            outcome_payout: 27149894,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47399,
+            outcome_payout: 27149894,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47399,
+            outcome_payout: 27149894,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47400,
+            outcome_payout: 26615789,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47400,
+            outcome_payout: 26615789,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47599,
+            outcome_payout: 26615789,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47599,
+            outcome_payout: 26615789,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47600,
+            outcome_payout: 26086164,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47600,
+            outcome_payout: 26086164,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47799,
+            outcome_payout: 26086164,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47799,
+            outcome_payout: 26086164,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47800,
+            outcome_payout: 25560960,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47800,
+            outcome_payout: 25560960,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 47999,
+            outcome_payout: 25560960,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 47999,
+            outcome_payout: 25560960,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48000,
+            outcome_payout: 25040125,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48000,
+            outcome_payout: 25040125,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48199,
+            outcome_payout: 25040125,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48199,
+            outcome_payout: 25040125,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48200,
+            outcome_payout: 24523602,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48200,
+            outcome_payout: 24523602,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48399,
+            outcome_payout: 24523602,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48399,
+            outcome_payout: 24523602,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48400,
+            outcome_payout: 24011340,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48400,
+            outcome_payout: 24011340,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48599,
+            outcome_payout: 24011340,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48599,
+            outcome_payout: 24011340,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48600,
+            outcome_payout: 23503285,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48600,
+            outcome_payout: 23503285,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48799,
+            outcome_payout: 23503285,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48799,
+            outcome_payout: 23503285,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48800,
+            outcome_payout: 22999387,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48800,
+            outcome_payout: 22999387,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 48999,
+            outcome_payout: 22999387,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 48999,
+            outcome_payout: 22999387,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49000,
+            outcome_payout: 22499593,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49000,
+            outcome_payout: 22499593,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49199,
+            outcome_payout: 22499593,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49199,
+            outcome_payout: 22499593,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49200,
+            outcome_payout: 22003854,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49200,
+            outcome_payout: 22003854,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49399,
+            outcome_payout: 22003854,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49399,
+            outcome_payout: 22003854,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49400,
+            outcome_payout: 21512121,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49400,
+            outcome_payout: 21512121,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49599,
+            outcome_payout: 21512121,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49599,
+            outcome_payout: 21512121,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49600,
+            outcome_payout: 21024346,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49600,
+            outcome_payout: 21024346,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49799,
+            outcome_payout: 21024346,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49799,
+            outcome_payout: 21024346,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49800,
+            outcome_payout: 20540481,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49800,
+            outcome_payout: 20540481,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 49999,
+            outcome_payout: 20540481,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 49999,
+            outcome_payout: 20540481,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50000,
+            outcome_payout: 20060479,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50000,
+            outcome_payout: 20060479,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50199,
+            outcome_payout: 20060479,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50199,
+            outcome_payout: 20060479,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50200,
+            outcome_payout: 19584294,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50200,
+            outcome_payout: 19584294,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50399,
+            outcome_payout: 19584294,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50399,
+            outcome_payout: 19584294,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50400,
+            outcome_payout: 19111881,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50400,
+            outcome_payout: 19111881,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50599,
+            outcome_payout: 19111881,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50599,
+            outcome_payout: 19111881,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50600,
+            outcome_payout: 18643195,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50600,
+            outcome_payout: 18643195,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50799,
+            outcome_payout: 18643195,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50799,
+            outcome_payout: 18643195,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50800,
+            outcome_payout: 18178193,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50800,
+            outcome_payout: 18178193,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 50999,
+            outcome_payout: 18178193,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 50999,
+            outcome_payout: 18178193,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51000,
+            outcome_payout: 17716830,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51000,
+            outcome_payout: 17716830,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51199,
+            outcome_payout: 17716830,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51199,
+            outcome_payout: 17716830,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51200,
+            outcome_payout: 17259064,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51200,
+            outcome_payout: 17259064,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51399,
+            outcome_payout: 17259064,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51399,
+            outcome_payout: 17259064,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51400,
+            outcome_payout: 16804854,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51400,
+            outcome_payout: 16804854,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51599,
+            outcome_payout: 16804854,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51599,
+            outcome_payout: 16804854,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51600,
+            outcome_payout: 16354159,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51600,
+            outcome_payout: 16354159,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51799,
+            outcome_payout: 16354159,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51799,
+            outcome_payout: 16354159,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51800,
+            outcome_payout: 15906936,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51800,
+            outcome_payout: 15906936,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 51999,
+            outcome_payout: 15906936,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 51999,
+            outcome_payout: 15906936,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52000,
+            outcome_payout: 15463148,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52000,
+            outcome_payout: 15463148,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52199,
+            outcome_payout: 15463148,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52199,
+            outcome_payout: 15463148,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52200,
+            outcome_payout: 15022753,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52200,
+            outcome_payout: 15022753,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52399,
+            outcome_payout: 15022753,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52399,
+            outcome_payout: 15022753,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52400,
+            outcome_payout: 14585714,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52400,
+            outcome_payout: 14585714,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52599,
+            outcome_payout: 14585714,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52599,
+            outcome_payout: 14585714,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52600,
+            outcome_payout: 14151992,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52600,
+            outcome_payout: 14151992,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52799,
+            outcome_payout: 14151992,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52799,
+            outcome_payout: 14151992,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52800,
+            outcome_payout: 13721550,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52800,
+            outcome_payout: 13721550,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 52999,
+            outcome_payout: 13721550,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 52999,
+            outcome_payout: 13721550,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53000,
+            outcome_payout: 13294350,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53000,
+            outcome_payout: 13294350,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53199,
+            outcome_payout: 13294350,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53199,
+            outcome_payout: 13294350,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53200,
+            outcome_payout: 12870356,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53200,
+            outcome_payout: 12870356,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53399,
+            outcome_payout: 12870356,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53399,
+            outcome_payout: 12870356,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53400,
+            outcome_payout: 12449533,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53400,
+            outcome_payout: 12449533,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53599,
+            outcome_payout: 12449533,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53599,
+            outcome_payout: 12449533,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53600,
+            outcome_payout: 12031844,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53600,
+            outcome_payout: 12031844,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53799,
+            outcome_payout: 12031844,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53799,
+            outcome_payout: 12031844,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53800,
+            outcome_payout: 11617254,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53800,
+            outcome_payout: 11617254,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 53999,
+            outcome_payout: 11617254,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 53999,
+            outcome_payout: 11617254,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54000,
+            outcome_payout: 11205730,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54000,
+            outcome_payout: 11205730,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54199,
+            outcome_payout: 11205730,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54199,
+            outcome_payout: 11205730,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54200,
+            outcome_payout: 10797238,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54200,
+            outcome_payout: 10797238,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54399,
+            outcome_payout: 10797238,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54399,
+            outcome_payout: 10797238,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54400,
+            outcome_payout: 10391743,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54400,
+            outcome_payout: 10391743,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54599,
+            outcome_payout: 10391743,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54599,
+            outcome_payout: 10391743,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54600,
+            outcome_payout: 9989214,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54600,
+            outcome_payout: 9989214,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54799,
+            outcome_payout: 9989214,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54799,
+            outcome_payout: 9989214,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54800,
+            outcome_payout: 9589617,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54800,
+            outcome_payout: 9589617,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 54999,
+            outcome_payout: 9589617,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 54999,
+            outcome_payout: 9589617,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55000,
+            outcome_payout: 9192922,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55000,
+            outcome_payout: 9192922,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55199,
+            outcome_payout: 9192922,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55199,
+            outcome_payout: 9192922,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55200,
+            outcome_payout: 8799096,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55200,
+            outcome_payout: 8799096,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55399,
+            outcome_payout: 8799096,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55399,
+            outcome_payout: 8799096,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55400,
+            outcome_payout: 8408108,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55400,
+            outcome_payout: 8408108,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55599,
+            outcome_payout: 8408108,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55599,
+            outcome_payout: 8408108,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55600,
+            outcome_payout: 8019928,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55600,
+            outcome_payout: 8019928,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55799,
+            outcome_payout: 8019928,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55799,
+            outcome_payout: 8019928,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55800,
+            outcome_payout: 7634526,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55800,
+            outcome_payout: 7634526,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 55999,
+            outcome_payout: 7634526,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 55999,
+            outcome_payout: 7634526,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56000,
+            outcome_payout: 7251872,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56000,
+            outcome_payout: 7251872,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56199,
+            outcome_payout: 7251872,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56199,
+            outcome_payout: 7251872,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56200,
+            outcome_payout: 6871936,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56200,
+            outcome_payout: 6871936,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56399,
+            outcome_payout: 6871936,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56399,
+            outcome_payout: 6871936,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56400,
+            outcome_payout: 6494690,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56400,
+            outcome_payout: 6494690,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56599,
+            outcome_payout: 6494690,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56599,
+            outcome_payout: 6494690,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56600,
+            outcome_payout: 6120106,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56600,
+            outcome_payout: 6120106,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56799,
+            outcome_payout: 6120106,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56799,
+            outcome_payout: 6120106,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56800,
+            outcome_payout: 5748155,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56800,
+            outcome_payout: 5748155,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 56999,
+            outcome_payout: 5748155,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 56999,
+            outcome_payout: 5748155,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57000,
+            outcome_payout: 5378809,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57000,
+            outcome_payout: 5378809,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57199,
+            outcome_payout: 5378809,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57199,
+            outcome_payout: 5378809,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57200,
+            outcome_payout: 5012042,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57200,
+            outcome_payout: 5012042,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57399,
+            outcome_payout: 5012042,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57399,
+            outcome_payout: 5012042,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57400,
+            outcome_payout: 4647826,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57400,
+            outcome_payout: 4647826,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57599,
+            outcome_payout: 4647826,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57599,
+            outcome_payout: 4647826,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57600,
+            outcome_payout: 4286135,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57600,
+            outcome_payout: 4286135,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57799,
+            outcome_payout: 4286135,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57799,
+            outcome_payout: 4286135,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57800,
+            outcome_payout: 3926943,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57800,
+            outcome_payout: 3926943,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 57999,
+            outcome_payout: 3926943,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 57999,
+            outcome_payout: 3926943,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58000,
+            outcome_payout: 3570224,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58000,
+            outcome_payout: 3570224,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58199,
+            outcome_payout: 3570224,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58199,
+            outcome_payout: 3570224,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58200,
+            outcome_payout: 3215952,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58200,
+            outcome_payout: 3215952,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58399,
+            outcome_payout: 3215952,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58399,
+            outcome_payout: 3215952,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58400,
+            outcome_payout: 2864103,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58400,
+            outcome_payout: 2864103,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58599,
+            outcome_payout: 2864103,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58599,
+            outcome_payout: 2864103,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58600,
+            outcome_payout: 2514651,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58600,
+            outcome_payout: 2514651,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58799,
+            outcome_payout: 2514651,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58799,
+            outcome_payout: 2514651,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58800,
+            outcome_payout: 2167572,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58800,
+            outcome_payout: 2167572,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 58999,
+            outcome_payout: 2167572,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 58999,
+            outcome_payout: 2167572,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59000,
+            outcome_payout: 1822843,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59000,
+            outcome_payout: 1822843,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59199,
+            outcome_payout: 1822843,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59199,
+            outcome_payout: 1822843,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59200,
+            outcome_payout: 1480438,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59200,
+            outcome_payout: 1480438,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59399,
+            outcome_payout: 1480438,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59399,
+            outcome_payout: 1480438,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59400,
+            outcome_payout: 1140336,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59400,
+            outcome_payout: 1140336,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59599,
+            outcome_payout: 1140336,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59599,
+            outcome_payout: 1140336,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59600,
+            outcome_payout: 802513,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59600,
+            outcome_payout: 802513,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59799,
+            outcome_payout: 802513,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59799,
+            outcome_payout: 802513,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59800,
+            outcome_payout: 466945,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59800,
+            outcome_payout: 466945,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 59999,
+            outcome_payout: 466945,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 59999,
+            outcome_payout: 466945,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 60000,
+            outcome_payout: 300000,
+            extra_precision: 0,
+        },
+    ),
+    (
+        PayoutPoint {
+            event_outcome: 60000,
+            outcome_payout: 300000,
+            extra_precision: 0,
+        },
+        PayoutPoint {
+            event_outcome: 1048575,
+            outcome_payout: 300000,
+            extra_precision: 0,
+        },
+    ),
+]

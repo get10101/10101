@@ -1,4 +1,5 @@
 use anyhow::ensure;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
@@ -19,9 +20,8 @@ use trade::Direction;
 /// because not all intervals are equally as likely. That way we can avoid excessive CET generation.
 pub const ROUNDING_PERCENT: f32 = 0.01;
 
-/// Defines the steps to take in the payout curve for one point. A step of 2 means, that two points
-/// are $1 away from each other.
-const PAYOUT_CURVE_DISCRETIZATION_STEPS: u64 = 20;
+/// Number of intervals which we want to use to discretize the payout function.
+const PAYOUT_CURVE_DISCRETIZATION_INTERVALS: u64 = 200;
 
 /// A payout point representing a payout for a given outcome.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -180,116 +180,48 @@ pub fn build_inverse_payout_function(
         pieces.push((*lower, *upper));
     }
 
-    let mid_range_highest_price_payout_point_end = mid_range.last().expect("at least one").1;
-    if mid_range_highest_price_payout_point_end.event_outcome < BTCUSD_MAX_PRICE {
-        // To ensure that payouts and prices are continuous.
-        if mid_range_highest_price_payout_point_end.event_outcome
-            == short_liquidation_interval_start.event_outcome
-        {
-            // E.g.
-            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
-            //   - short_liquidation_interval_start         = (  100_000 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
-            //
-            // Transformed into:
-            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
-            //   - new_interval_start                       = (  100_000 USD/BTC, 10_000 sats)
-            //   - new_interval_end                         = (  674_287 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_start         = (  674_287 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
-            //
-            // By introducing an interval that goes from the highest mid-range price to half-way to
-            // the maximum price.
-            let new_interval_start = mid_range_highest_price_payout_point_end;
+    pieces.push((
+        short_liquidation_interval_start,
+        short_liquidation_interval_end,
+    ));
 
-            let new_interval_end_price = mid_range_highest_price_payout_point_end.event_outcome
-                + (mid_range_highest_price_payout_point_end.event_outcome + BTCUSD_MAX_PRICE) / 2;
-
-            let short_liquidation_interval_start = PayoutPoint {
-                event_outcome: new_interval_end_price,
-                outcome_payout: short_liquidation_interval_start.outcome_payout,
-                extra_precision: 0,
+    // Connect the intervals `[(X, A), (Y, A))]` and `[(Y, B), (Z, B)]` by introducing a step-up
+    // interval in between:
+    //
+    // `[(X, A), (Y - 1, A))]`, `[(Y - 1, A), (Y, B)]`, `[(Y, B), (Z, D)]`.
+    //
+    // E.g. converting
+    //
+    // `[($100, 60 sats), ($200, 60 sats)]`, `[($200, 30 sats), ($300, 30 sats)]` into
+    //
+    // `[($100, 60 sats), ($199, 60 sats)]`, `[($199, 60 sats), ($200, 30 sats)]`, `[($200, 30
+    // sats), ($300, 30 sats)]`.
+    let pieces_minus_first = pieces.iter().skip(1);
+    let mut pieces = pieces
+        .iter()
+        .zip(pieces_minus_first)
+        .flat_map(|((a, b), (c, _))| {
+            let shared_point = PayoutPoint {
+                event_outcome: b.event_outcome - 1,
+                ..*b
             };
 
-            pieces.push((new_interval_start, short_liquidation_interval_start));
+            vec![(*a, shared_point), (shared_point, *c)]
+        })
+        .collect::<Vec<(PayoutPoint, PayoutPoint)>>();
 
-            pieces.push((
-                short_liquidation_interval_start,
-                short_liquidation_interval_end,
-            ));
-        } else {
-            // E.g.
-            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
-            //   - short_liquidation_interval_start         = (  101_000 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
-            //
-            // Transformed into:
-            //   - mid_range_highest_price_payout_point_end = (  100_000 USD/BTC, 10_000 sats)
-            //   - new_interval_start                       = (  100_000 USD/BTC, 10_000 sats)
-            //   - new_interval_end                         = (  101_000 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_start         = (  101_000 USD/BTC,      0 sats)
-            //   - short_liquidation_interval_end           = (1_048_575 USD/BTC,      0 sats)
-            //
-            // By introducing an interval that connects the highest mid-range price to the start of
-            // the liquidation interval.
-            let new_interval_start = mid_range_highest_price_payout_point_end;
+    // The last interval is dropped by zipping an iterator of length `L` with an iterator of length
+    // `L-1`, dropping the last element implicitly. Therefore, we need to reintroduce the last
+    // element.
+    pieces.push((
+        short_liquidation_interval_start,
+        short_liquidation_interval_end,
+    ));
 
-            let new_interval_end_price = short_liquidation_interval_start.event_outcome;
-
-            let short_liquidation_interval_start = PayoutPoint {
-                event_outcome: new_interval_end_price,
-                outcome_payout: short_liquidation_interval_start.outcome_payout,
-                extra_precision: 0,
-            };
-
-            pieces.push((new_interval_start, short_liquidation_interval_start));
-
-            pieces.push((
-                short_liquidation_interval_start,
-                short_liquidation_interval_end,
-            ));
-        }
-    } else {
-        // We are here if the short liquidation price is exactly `BTCUSD_MAX_PRICE`. This
-        // corresponds to the party going short using a leverage of 1.
-
-        // E.g.
-        //   - mid_range_highest_price_payout_point_start = (1_048_560 USD/BTC,     95 sats)
-        //   - mid_range_highest_price_payout_point_end   = (1_048_575 USD/BTC,      0 sats)
-        //   - short_liquidation_interval_start           = (1_048_575 USD/BTC,      0 sats)
-        //   - short_liquidation_interval_end             = (1_048_575 USD/BTC,      0 sats)
-        //
-        // Transformed into:
-        //   - mid_range_highest_price_payout_point_start = (1_048_560 USD/BTC,     95 sats)
-        //   - mid_range_highest_price_payout_point_end   = (1_048_567 USD/BTC,      0 sats)
-        //   - short_liquidation_interval_start           = (1_048_567 USD/BTC,      0 sats)
-        //   - short_liquidation_interval_end             = (1_048_575 USD/BTC,      0 sats)
-        //
-        // By making sure that the short liquidation interval is not constant price, because
-        // `rust-dlc` will probably reject that.
-
-        let mid_range_highest_price_payout_point_start = mid_range.last().expect("at least one").0;
-
-        let short_liquidation_interval_start_price = mid_range_highest_price_payout_point_start
-            .event_outcome
-            + ((mid_range_highest_price_payout_point_end.event_outcome
-                - mid_range_highest_price_payout_point_start.event_outcome)
-                / 2);
-
-        pieces.last_mut().expect("at least one").1.event_outcome =
-            short_liquidation_interval_start_price;
-
-        let short_liquidation_interval_start = PayoutPoint {
-            event_outcome: short_liquidation_interval_start_price,
-            outcome_payout: short_liquidation_interval_start.outcome_payout,
-            extra_precision: 0,
-        };
-
-        pieces.push((
-            short_liquidation_interval_start,
-            short_liquidation_interval_end,
-        ));
-    }
+    let pieces = pieces
+        .into_iter()
+        .filter(|(start, end)| start.event_outcome != end.event_outcome)
+        .collect::<Vec<_>>();
 
     Ok(pieces)
 }
@@ -350,10 +282,6 @@ fn calculate_long_liquidation_interval_payouts(
 ///
 /// Returns tuples of payout points, first item is lower point, next item is higher point of two
 /// points on the payout curve.
-///
-/// TODO: We should almost certainly define our own step function to avoid having to use the
-/// `rust-dlc` `RoundingIntervals`, which can cause problems on the boundaries between different
-/// `RoundingInterval`s.
 fn calculate_mid_range_payouts(
     offer_party: PartyParams,
     accept_party: PartyParams,
@@ -380,72 +308,47 @@ fn calculate_mid_range_payouts(
         Direction::Short => (accept_party.margin, offer_party.margin),
     };
 
+    let step = {
+        let diff = short_liquidation_price
+            .checked_sub(long_liquidation_price)
+            .context("Long liquidation price smaller than short liquidation price")?;
+        diff / PAYOUT_CURVE_DISCRETIZATION_INTERVALS
+    };
+
     let pieces = (long_liquidation_price..short_liquidation_price)
-        .step_by(PAYOUT_CURVE_DISCRETIZATION_STEPS as usize)
+        .step_by(step as usize)
         .map(|interval_start_price| {
-            // Interval start payout point.
+            let interval_mid_price = interval_start_price + step / 2;
+
+            let pnl = calculate_pnl(
+                initial_price,
+                Decimal::from(interval_mid_price),
+                quantity,
+                offer_direction,
+                long_margin,
+                short_margin,
+            )?;
 
             // If this is the start of the middle interval after the long liquidation interval.
-            let interval_start_payout = if interval_start_price == long_liquidation_price {
-                // We can build this first payout based on the long liquidation interval end payout,
-                // but it already includes the collateral reserve, so we don't have to add it
-                // again.
-
-                long_liquidation_interval_end_payout.outcome_payout as i64
-            } else {
-                let pnl = calculate_pnl(
-                    initial_price,
-                    Decimal::from(interval_start_price),
-                    quantity,
-                    offer_direction,
-                    long_margin,
-                    short_margin,
-                )?;
-
-                offer_party.total_collateral() as i64 + pnl
-            };
+            let interval_payout = offer_party.total_collateral() as i64 + pnl;
 
             // Payout cannot be below min.
-            let interval_start_payout = interval_start_payout.max(min_payout_offer_party as i64);
+            let interval_payout = interval_payout.max(min_payout_offer_party as i64);
 
             // Payout cannot be above max.
-            let interval_start_payout = interval_start_payout.min(max_payout_offer_party as i64);
+            let interval_payout = interval_payout.min(max_payout_offer_party as i64);
 
             let interval_start_payout_point = PayoutPoint {
                 event_outcome: interval_start_price,
-                outcome_payout: interval_start_payout as u64,
+                outcome_payout: interval_payout as u64,
                 extra_precision: 0,
             };
 
-            // Interval end payout point.
-
-            let interval_end_price = (interval_start_price + PAYOUT_CURVE_DISCRETIZATION_STEPS)
-                .min(short_liquidation_price);
-
-            let interval_end_payout = if interval_end_price == short_liquidation_price {
-                short_liquidation_interval_start_payout.outcome_payout as i64
-            } else {
-                let pnl = calculate_pnl(
-                    initial_price,
-                    Decimal::from(interval_end_price),
-                    quantity,
-                    offer_direction,
-                    long_margin,
-                    short_margin,
-                )?;
-
-                offer_party.total_collateral() as i64 + pnl
-            };
-
-            // Payout cannot be below min.
-            let interval_end_payout = interval_end_payout.max(min_payout_offer_party as i64);
-
-            // Payout cannot be above max.
-            let interval_end_payout = interval_end_payout.min(max_payout_offer_party as i64);
+            let interval_end_price = (interval_start_price + step).min(short_liquidation_price);
 
             let interval_end_payout_point = PayoutPoint {
                 event_outcome: interval_end_price,
-                outcome_payout: interval_end_payout as u64,
+                outcome_payout: interval_payout as u64,
                 extra_precision: 0,
             };
 
@@ -466,7 +369,17 @@ fn calculate_short_liquidation_interval_payouts(
     liquidation_price_short: Decimal,
     collateral_reserve_short: u64,
 ) -> Result<(PayoutPoint, PayoutPoint)> {
-    let liquidation_price_short = liquidation_price_short.to_u64().expect("to fit");
+    let liquidation_price_short = {
+        let price = liquidation_price_short.to_u64().expect("to fit");
+
+        // We cannot end up generating an interval with a constant price, because `rust-dlc` says
+        // that `Payout points must have ascending event outcome value`.
+        if price == BTCUSD_MAX_PRICE {
+            price - 1
+        } else {
+            price
+        }
+    };
 
     let (lower, upper) = match offer_direction {
         // If the offer party is long and the short party gets liquidated, the offer party gets all
@@ -514,6 +427,7 @@ fn calculate_short_liquidation_interval_payouts(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use insta::assert_debug_snapshot;
     use proptest::prelude::*;
     use rust_decimal::prelude::FromPrimitive;
     use rust_decimal::prelude::ToPrimitive;
@@ -639,150 +553,56 @@ mod tests {
     }
 
     #[test]
-    fn snapshot_test_mid_range_offerer() {
-        // setup
+    fn payout_function_snapshot() {
         let quantity = 60_000.0;
         let initial_price = dec!(30_000);
-        let long_leverage = 2.0;
-        let short_leverage = 2.0;
+        let leverage_long = Decimal::TWO;
+        let leverage_short = Decimal::TWO;
 
-        let offer_margin =
-            Amount::from_sat(calculate_margin(initial_price, quantity, long_leverage));
-        let accept_margin =
-            Amount::from_sat(calculate_margin(initial_price, quantity, short_leverage));
         let collateral_reserve_offer = Amount::from_sat(300_000);
+        let collateral_reserve_accept = Amount::ZERO;
 
-        let long_liquidation_price = calculate_long_liquidation_price(
-            Decimal::from_f32(long_leverage).expect("to fit into f32"),
-            initial_price,
-        );
-        let short_liquidation_price = calculate_short_liquidation_price(
-            Decimal::from_f32(short_leverage).expect("to fit into f32"),
-            initial_price,
-        );
+        let offer_party_direction = Direction::Short;
 
-        let party_params_offer = PartyParams::new(offer_margin, collateral_reserve_offer);
-        let party_params_accept = PartyParams::new(accept_margin, Amount::ZERO);
-
-        let total_collateral =
-            party_params_offer.total_collateral() + party_params_accept.total_collateral();
-
-        // act: offer long
-        let mid_range_payouts_offer_long = {
-            let offer_direction = Direction::Long;
-
-            calculate_mid_range_payouts(
-                party_params_offer,
-                party_params_accept,
-                initial_price,
-                &PayoutPoint {
-                    event_outcome: long_liquidation_price.to_u64().unwrap(),
-                    outcome_payout: party_params_offer.collateral_reserve,
-                    extra_precision: 0,
-                },
-                &PayoutPoint {
-                    event_outcome: short_liquidation_price.to_u64().unwrap(),
-                    outcome_payout: party_params_offer.total_collateral()
-                        + party_params_accept.margin,
-                    extra_precision: 0,
-                },
-                offer_direction,
-                quantity,
-            )
-            .expect("To be able to compute mid range")
+        let (leverage_offer, leverage_accept) = match offer_party_direction {
+            Direction::Long => (leverage_long, leverage_short),
+            Direction::Short => (leverage_short, leverage_long),
         };
 
-        // act: offer short
-        let mid_range_payouts_offer_short = {
-            let offer_direction = Direction::Short;
+        let margin_offer =
+            calculate_margin(initial_price, quantity, leverage_offer.to_f32().unwrap());
+        let margin_accept =
+            calculate_margin(initial_price, quantity, leverage_accept.to_f32().unwrap());
 
-            calculate_mid_range_payouts(
-                party_params_offer,
-                party_params_accept,
-                initial_price,
-                &PayoutPoint {
-                    event_outcome: long_liquidation_price.to_u64().unwrap(),
-                    outcome_payout: party_params_offer.total_collateral()
-                        + party_params_accept.margin,
-                    extra_precision: 0,
-                },
-                &PayoutPoint {
-                    event_outcome: short_liquidation_price.to_u64().unwrap(),
-                    outcome_payout: party_params_offer.collateral_reserve,
-                    extra_precision: 0,
-                },
-                offer_direction,
-                quantity,
-            )
-            .expect("To be able to compute mid range")
+        let offer_party = PartyParams {
+            margin: margin_offer,
+            collateral_reserve: collateral_reserve_offer.to_sat(),
         };
 
-        if PRINT_CSV {
-            let file = File::create("src/payout_curve/mid_range_long.csv").unwrap();
-            let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
-            for (lower, upper) in &mid_range_payouts_offer_long {
-                wtr.serialize(lower).expect("to be able to write");
-                wtr.serialize(upper).expect("to be able to write");
-            }
-            wtr.flush().unwrap();
-            let file = File::create("src/payout_curve/mid_range_short.csv").unwrap();
-            let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
-            for (lower, upper) in &mid_range_payouts_offer_short {
-                wtr.serialize(lower).expect("to be able to write");
-                wtr.serialize(upper).expect("to be able to write");
-            }
-            wtr.flush().unwrap();
-        }
+        let accept_party = PartyParams {
+            margin: margin_accept,
+            collateral_reserve: collateral_reserve_accept.to_sat(),
+        };
 
-        let should_mid_range_payouts =
-            should_data_offerer().expect("To be able to load sample data");
+        let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
+        let short_liquidation_price =
+            calculate_short_liquidation_price(leverage_short, initial_price);
+        let price_params = PriceParams {
+            initial_price,
+            long_liquidation_price,
+            short_liquidation_price,
+        };
 
-        // assert
-        for (lower, upper) in &mid_range_payouts_offer_long {
-            assert!(
-                should_mid_range_payouts
-                    .iter()
-                    .any(|item| item.start == lower.event_outcome
-                        && (item.payout_accept + item.collateral_reserve_offer)
-                            .min(total_collateral)
-                            == lower.outcome_payout),
-                "{:?} was not in should payout curve - accept",
-                lower
-            );
-            assert!(
-                should_mid_range_payouts
-                    .iter()
-                    .any(|item| item.start == upper.event_outcome
-                        && (item.payout_accept + item.collateral_reserve_offer)
-                            .min(total_collateral)
-                            == upper.outcome_payout),
-                "{:?} was not in should payout curve - accept",
-                upper
-            );
-        }
+        let payout_function = build_inverse_payout_function(
+            quantity,
+            offer_party,
+            accept_party,
+            price_params,
+            offer_party_direction,
+        )
+        .unwrap();
 
-        for (lower, upper) in &mid_range_payouts_offer_short {
-            assert!(
-                should_mid_range_payouts
-                    .iter()
-                    .any(|item| item.start == lower.event_outcome
-                        && (item.payout_offer + item.collateral_reserve_offer)
-                            .min(total_collateral)
-                            == lower.outcome_payout),
-                "{:?} was not in should payout curve - offer",
-                lower
-            );
-            assert!(
-                should_mid_range_payouts
-                    .iter()
-                    .any(|item| item.start == upper.event_outcome
-                        && (item.payout_offer + item.collateral_reserve_offer)
-                            .min(total_collateral)
-                            == upper.outcome_payout),
-                "{:?} was not in should payout curve - offer",
-                upper
-            );
-        }
+        assert_debug_snapshot!(payout_function);
     }
 
     #[test]
@@ -943,22 +763,8 @@ mod tests {
         .unwrap();
 
         // assert
-        assert_eq!(lower.event_outcome, BTCUSD_MAX_PRICE);
+        assert_eq!(lower.event_outcome, BTCUSD_MAX_PRICE - 1);
         assert_eq!(upper.event_outcome, BTCUSD_MAX_PRICE);
-    }
-
-    /// Loads the sample data from a csv file
-    fn should_data_offerer() -> Result<Vec<ShouldPayout>> {
-        let mut rdr = csv::ReaderBuilder::new()
-            .delimiter(b';')
-            .from_path("src/payout_curve/should_data_offer_short.csv")?;
-        let mut should_samples = vec![];
-        for result in rdr.deserialize() {
-            let record: ShouldPayout = result?;
-
-            should_samples.push(record);
-        }
-        Ok(should_samples)
     }
 
     #[derive(Serialize, Deserialize)]
@@ -1121,7 +927,6 @@ mod tests {
                 .iter()
                 .all(|(lower, upper)| lower.outcome_payout > 0 && upper.outcome_payout > 0);
         }
-
     }
 }
 
@@ -1177,7 +982,6 @@ mod bounds_tests {
                 offer_party_direction
             );
         }
-
     }
 
     #[track_caller]

@@ -11,10 +11,8 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::build_inverse_payout_function;
 use payout_curve::PartyParams;
 use payout_curve::PriceParams;
-use payout_curve::ROUNDING_PERCENT;
 use proptest::prelude::*;
 use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::fs::File;
@@ -300,24 +298,13 @@ fn computed_payout_curve(
 
     let total_collateral =
         party_params_coordinator.total_collateral() + party_params_trader.total_collateral();
-    let total_margin = party_params_coordinator.margin() + party_params_trader.margin();
     let _ = payout_function.to_range_payouts(
         total_collateral,
         &RoundingIntervals {
-            intervals: vec![
-                RoundingInterval {
-                    begin_interval: 0,
-                    rounding_mod: 1,
-                },
-                RoundingInterval {
-                    begin_interval: long_liquidation_price.to_u64().unwrap(),
-                    rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
-                },
-                RoundingInterval {
-                    begin_interval: short_liquidation_price.to_u64().unwrap(),
-                    rounding_mod: 1,
-                },
-            ],
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 1,
+            }],
         },
     )?;
 
