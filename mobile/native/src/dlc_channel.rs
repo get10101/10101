@@ -4,6 +4,7 @@ use flutter_rust_bridge::frb;
 #[frb]
 #[derive(Clone)]
 pub struct DlcChannel {
+    pub reference_id: String,
     pub dlc_channel_id: String,
     pub channel_state: ChannelState,
 }
@@ -69,6 +70,7 @@ pub enum SignedChannelState {
 impl From<dlc::DlcChannel> for DlcChannel {
     fn from(value: dlc::DlcChannel) -> Self {
         DlcChannel {
+            reference_id: value.reference_id,
             dlc_channel_id: value.channel_id,
             channel_state: value.channel_state.into(),
         }

@@ -6,6 +6,7 @@ mod subscriber;
 
 #[derive(Clone, Debug)]
 pub struct DlcChannel {
+    pub reference_id: String,
     pub channel_id: String,
     pub channel_state: ChannelState,
 }
@@ -136,7 +137,13 @@ impl From<&Channel> for DlcChannel {
             },
         };
 
+        let reference_id = value
+            .get_reference_id()
+            .map(hex::encode)
+            .unwrap_or(hex::encode(value.get_id()));
+
         Self {
+            reference_id,
             channel_id: hex::encode(value.get_id()),
             channel_state,
         }
