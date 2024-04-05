@@ -7,6 +7,7 @@ use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
+use bitcoin::SignedAmount;
 use diesel::prelude::*;
 use diesel::query_builder::QueryId;
 use diesel::result::QueryResult;
@@ -136,18 +137,27 @@ impl Position {
         Ok(positions)
     }
 
-    /// sets the status of the position in state `Proposed` to a new state
-    pub fn update_proposed_position(
+    /// Set the `position_state` column from to `updated`. This will only succeed if the column does
+    /// match one of the values contained in `original`.
+    pub fn update_position_state(
         conn: &mut PgConnection,
         trader_pubkey: String,
-        state: crate::position::models::PositionState,
+        original: Vec<crate::position::models::PositionState>,
+        updated: crate::position::models::PositionState,
     ) -> QueryResult<crate::position::models::Position> {
-        let state = PositionState::from(state);
+        if original.is_empty() {
+            // It is not really a `NotFound` error, but `diesel` does not make it easy to build
+            // other variants.
+            return QueryResult::Err(diesel::result::Error::NotFound);
+        }
+
+        let updated = PositionState::from(updated);
+
         let position: Position = diesel::update(positions::table)
             .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
-            .filter(positions::position_state.eq(PositionState::Proposed))
+            .filter(positions::position_state.eq_any(original.into_iter().map(PositionState::from)))
             .set((
-                positions::position_state.eq(state),
+                positions::position_state.eq(updated),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
             .get_result(conn)?;
@@ -228,6 +238,51 @@ impl Position {
         }
 
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn set_position_to_resizing(
+        conn: &mut PgConnection,
+        trader_pubkey: PublicKey,
+        temporary_contract_id: ContractId,
+        quantity: Decimal,
+        trader_direction: trade::Direction,
+        trader_margin: Amount,
+        coordinator_margin: Amount,
+        average_entry_price: Decimal,
+        expiry: OffsetDateTime,
+        coordinator_liquidation_price: Decimal,
+        trader_liquidation_price: Decimal,
+        // Reducing or changing direction may generate PNL.
+        realized_pnl: Option<SignedAmount>,
+        order_matching_fee: Amount,
+    ) -> QueryResult<usize> {
+        let resize_trader_realized_pnl_sat = realized_pnl.unwrap_or_default().to_sat();
+
+        diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey.to_string()))
+            .filter(positions::position_state.eq(PositionState::Open))
+            .set((
+                positions::position_state.eq(PositionState::Resizing),
+                positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
+                positions::quantity.eq(quantity.to_f32().expect("to fit")),
+                positions::trader_direction.eq(Direction::from(trader_direction)),
+                positions::average_entry_price.eq(average_entry_price.to_f32().expect("to fit")),
+                positions::trader_liquidation_price
+                    .eq(trader_liquidation_price.to_f32().expect("to fit")),
+                positions::coordinator_liquidation_price
+                    .eq(coordinator_liquidation_price.to_f32().expect("to fit")),
+                positions::coordinator_margin.eq(coordinator_margin.to_sat() as i64),
+                positions::expiry_timestamp.eq(expiry),
+                positions::trader_realized_pnl_sat
+                    .eq(positions::trader_realized_pnl_sat + resize_trader_realized_pnl_sat),
+                positions::trader_unrealized_pnl_sat.eq(0),
+                positions::trader_margin.eq(trader_margin.to_sat() as i64),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+                positions::order_matching_fees
+                    .eq(positions::order_matching_fees + order_matching_fee.to_sat() as i64),
+            ))
+            .execute(conn)
     }
 
     pub fn set_position_to_open(

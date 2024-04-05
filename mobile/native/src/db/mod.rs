@@ -347,12 +347,12 @@ pub fn delete_positions() -> Result<()> {
 pub fn update_position_state(
     contract_symbol: ::trade::ContractSymbol,
     position_state: trade::position::PositionState,
-) -> Result<()> {
+) -> Result<trade::position::Position> {
     let mut db = connection()?;
-    Position::update_state(contract_symbol.into(), position_state.into(), &mut db)
+    let position = Position::update_state(contract_symbol.into(), position_state.into(), &mut db)
         .context("Failed to update position state")?;
 
-    Ok(())
+    Ok(position.into())
 }
 
 pub fn update_position(resized_position: trade::position::Position) -> Result<()> {

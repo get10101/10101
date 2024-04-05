@@ -12,6 +12,7 @@ use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
+use crate::trade::models::NewTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -19,6 +20,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
+use bitcoin::SignedAmount;
 use commons::MatchState;
 use commons::Message;
 use commons::OrderState;
@@ -39,12 +41,14 @@ use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::signed_channel_state_name;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
 use trade::cfd::calculate_long_liquidation_price;
 use trade::cfd::calculate_margin;
+use trade::cfd::calculate_pnl;
 use trade::cfd::calculate_short_liquidation_price;
 use trade::Direction;
 use uuid::Uuid;
@@ -52,7 +56,7 @@ use uuid::Uuid;
 pub mod models;
 pub mod websocket;
 
-pub enum TradeAction {
+enum TradeAction {
     OpenDlcChannel,
     OpenPosition {
         channel_id: DlcChannelId,
@@ -63,7 +67,30 @@ pub enum TradeAction {
         channel_id: DlcChannelId,
         position: Box<Position>,
     },
-    ResizePosition,
+    ResizePosition {
+        channel_id: DlcChannelId,
+        position: Box<Position>,
+        resize_action: ResizeAction,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResizeAction {
+    Increase {
+        /// Absolute number of contracts we increase the position by.
+        contracts: Decimal,
+        average_execution_price: Decimal,
+    },
+    Decrease {
+        /// Absolute number of contracts we decrease the position by.
+        contracts: Decimal,
+        average_execution_price: Decimal,
+    },
+    ChangeDirection {
+        /// The sign determines the new direction.
+        contracts_new_direction: Decimal,
+        average_execution_price: Decimal,
+    },
 }
 
 pub struct TradeExecutor {
@@ -91,8 +118,11 @@ impl TradeExecutor {
                 if let Err(e) =
                     self.update_order_and_match(order_id, MatchState::Filled, OrderState::Taken)
                 {
-                    tracing::error!(%trader_id,
-                        %order_id,"Failed to update order and match state. Error: {e:#}");
+                    tracing::error!(
+                        %trader_id,
+                        %order_id,
+                        "Failed to update order and match state. Error: {e:#}"
+                    );
                 }
 
                 // Everything has been processed successfully, we can safely send the last dlc
@@ -159,7 +189,15 @@ impl TradeExecutor {
 
         tracing::info!(%trader_id, %order_id, "Executing match");
 
-        match self.determine_trade_action(&mut connection, params).await? {
+        let trade_action = self.determine_trade_action(&mut connection, params).await?;
+
+        ensure!(
+            matches!(trade_action, TradeAction::ClosePosition { .. })
+                || self.node.settings.read().await.allow_opening_positions,
+            "Trading is disabled except for closing positions"
+        );
+
+        match trade_action {
             TradeAction::OpenDlcChannel => {
                 let collateral_reserve_coordinator = params
                     .coordinator_reserve
@@ -204,8 +242,21 @@ impl TradeExecutor {
                     channel_id,
                 )
                 .await
-                .with_context(|| format!("Failed at closing position {}", position.id))?,
-            TradeAction::ResizePosition => unimplemented!(),
+                .with_context(|| format!("Failed to close position {}", position.id))?,
+            TradeAction::ResizePosition {
+                channel_id,
+                position,
+                resize_action,
+            } => self
+                .resize_position(
+                    &mut connection,
+                    channel_id,
+                    &position,
+                    &params.trade_params,
+                    resize_action,
+                )
+                .await
+                .with_context(|| format!("Failed to resize position {}", position.id))?,
         };
 
         Ok(())
@@ -385,6 +436,9 @@ impl TradeExecutor {
 
         // How many coins the coordinator will keep outside of the bet. They still go in the DLC
         // channel, but the payout will be at least this much for the coordinator.
+        //
+        // TODO: Do we want to let the coordinator use accrued order-matching fees as margin?
+        // Probably not.
         let coordinator_collateral_reserve = (coordinator_dlc_channel_collateral
             + order_matching_fee)
             .checked_sub(margin_coordinator)
@@ -446,7 +500,8 @@ impl TradeExecutor {
             .get(ConfirmationTarget::Normal)
             .as_sat_per_vb()
             .round();
-        // This fee rate is used to construct the CET transactions.
+        // This fee rate is actually ignored since the fee reserve is defined when the channel is
+        // first opened.
         let fee_rate = Decimal::try_from(sats_per_vbyte)?
             .to_u64()
             .context("failed to convert to u64")?;
@@ -513,7 +568,205 @@ impl TradeExecutor {
         .await
     }
 
-    // Creates a position and a trade from the trade params
+    async fn resize_position(
+        &self,
+        conn: &mut PgConnection,
+        dlc_channel_id: DlcChannelId,
+        position: &Position,
+        trade_params: &TradeParams,
+        resize_action: ResizeAction,
+    ) -> Result<()> {
+        if !self.node.inner.is_dlc_channel_confirmed(&dlc_channel_id)? {
+            bail!("Underlying DLC channel not yet confirmed");
+        }
+
+        let peer_id = trade_params.pubkey;
+
+        let maintenance_margin_rate = {
+            Decimal::try_from(self.node.settings.read().await.maintenance_margin_rate)
+                .expect("to fit")
+        };
+
+        tracing::info!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            channel_id = %hex::encode(dlc_channel_id),
+            ?resize_action,
+            ?position,
+            ?trade_params,
+            "Resizing position"
+        );
+
+        let order_matching_fee = trade_params.order_matching_fee();
+
+        // The leverage does not change when we resize a position.
+
+        let original_coordinator_collateral_reserve = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance(&dlc_channel_id)?;
+        let original_trader_collateral_reserve = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
+
+        let resized_position = apply_resize_to_position(
+            resize_action,
+            position,
+            original_coordinator_collateral_reserve,
+            original_trader_collateral_reserve,
+            order_matching_fee,
+            maintenance_margin_rate,
+        )?;
+
+        let leverage_coordinator = position.coordinator_leverage;
+        let leverage_trader = position.trader_leverage;
+
+        tracing::debug!(
+            %peer_id,
+            order_id = %trade_params.filled_with.order_id,
+            leverage_coordinator,
+            leverage_trader,
+            %order_matching_fee,
+            ?resized_position,
+            "DLC channel update parameters"
+        );
+
+        let ResizedPosition {
+            contracts,
+            coordinator_direction,
+            average_execution_price,
+            coordinator_liquidation_price,
+            trader_liquidation_price,
+            margin_coordinator,
+            margin_trader,
+            collateral_reserve_coordinator,
+            collateral_reserve_trader,
+            realized_pnl,
+        } = resized_position;
+
+        let contract_descriptor = payout_curve::build_contract_descriptor(
+            average_execution_price,
+            margin_coordinator.to_sat(),
+            margin_trader.to_sat(),
+            leverage_coordinator,
+            leverage_trader,
+            coordinator_direction,
+            collateral_reserve_coordinator.to_sat(),
+            collateral_reserve_trader.to_sat(),
+            contracts.to_f32().expect("to fit"),
+            trade_params.contract_symbol,
+        )
+        .context("Could not build contract descriptor")?;
+
+        let contract_symbol = trade_params.contract_symbol.label();
+        let expiry_timestamp = trade_params.filled_with.expiry_timestamp;
+        let expiry_unix_timestamp = expiry_timestamp.unix_timestamp();
+
+        let sats_per_vbyte = self
+            .node
+            .inner
+            .fee_rate_estimator
+            .get(ConfirmationTarget::Normal)
+            .as_sat_per_vb()
+            .round();
+        // This fee rate is actually ignored since the fee reserve is defined when the channel is
+        // first opened.
+        let fee_rate = Decimal::try_from(sats_per_vbyte)?
+            .to_u64()
+            .context("failed to convert to u64")?;
+
+        // The contract input to be used for setting up the trade between the trader and the
+        // coordinator.
+        let event_id = format!("{contract_symbol}{expiry_unix_timestamp}");
+
+        tracing::debug!(
+            event_id,
+            oracle=%trade_params.filled_with.oracle_pk,
+            "Proposing DLC channel update"
+        );
+
+        let contract_input = ContractInput {
+            offer_collateral: margin_coordinator.to_sat() + collateral_reserve_coordinator.to_sat(),
+            accept_collateral: margin_trader.to_sat() + collateral_reserve_trader.to_sat(),
+            fee_rate,
+            contract_infos: vec![ContractInputInfo {
+                contract_descriptor,
+                oracles: OracleInput {
+                    public_keys: vec![to_xonly_pk_29(trade_params.filled_with.oracle_pk)],
+                    event_id,
+                    threshold: 1,
+                },
+            }],
+        };
+
+        let protocol_id = ProtocolId::new();
+        let channel = self.node.inner.get_dlc_channel_by_id(&dlc_channel_id)?;
+        let previous_id = match channel.get_reference_id() {
+            Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
+            None => None,
+        };
+
+        let temporary_contract_id = self
+            .node
+            .inner
+            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id.into())
+            .await
+            .context("Could not propose DLC channel update")?;
+
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
+        protocol_executor.start_dlc_protocol(
+            protocol_id,
+            previous_id,
+            &temporary_contract_id,
+            &channel.get_id(),
+            DlcProtocolType::Renew {
+                trade_params: (protocol_id, trade_params).into(),
+            },
+        )?;
+
+        db::positions::Position::set_position_to_resizing(
+            conn,
+            peer_id,
+            temporary_contract_id,
+            contracts,
+            coordinator_direction.opposite(),
+            margin_trader,
+            margin_coordinator,
+            average_execution_price,
+            expiry_timestamp,
+            coordinator_liquidation_price,
+            trader_liquidation_price,
+            realized_pnl,
+            order_matching_fee,
+        )?;
+
+        // We add the trade before it is complete so that we can insert the PNL now. Otherwise the
+        // information is lost.
+        db::trades::insert(
+            conn,
+            NewTrade {
+                position_id: position.id,
+                contract_symbol: position.contract_symbol,
+                trader_pubkey: position.trader,
+                quantity: trade_params.quantity,
+                trader_leverage: position.trader_leverage,
+                // TODO: To be removed.
+                coordinator_margin: 0,
+                trader_direction: trade_params.direction,
+                average_price: trade_params
+                    .average_execution_price()
+                    .to_f32()
+                    .expect("to fit"),
+                order_matching_fee,
+                trader_realized_pnl_sat: realized_pnl.map(SignedAmount::to_sat),
+                is_complete: false,
+            },
+        )?;
+
+        Ok(())
+    }
+
     async fn persist_position(
         &self,
         connection: &mut PgConnection,
@@ -691,11 +944,6 @@ impl TradeExecutor {
         {
             None => {
                 ensure!(
-                    self.node.settings.read().await.allow_opening_positions,
-                    "Opening positions is disabled"
-                );
-
-                ensure!(
                     !self
                         .node
                         .inner
@@ -717,18 +965,11 @@ impl TradeExecutor {
                         ..
                     },
                 ..
-            }) => {
-                ensure!(
-                    self.node.settings.read().await.allow_opening_positions,
-                    "Opening positions is disabled"
-                );
-
-                TradeAction::OpenPosition {
-                    channel_id,
-                    own_payout,
-                    counter_payout,
-                }
-            }
+            }) => TradeAction::OpenPosition {
+                channel_id,
+                own_payout,
+                counter_payout,
+            },
             Some(SignedChannel {
                 state: SignedChannelState::Established { .. },
                 channel_id,
@@ -755,18 +996,50 @@ impl TradeExecutor {
                     compute_relative_contracts(contracts, &trade_params.direction)
                 };
 
-                if position_contracts + trade_contracts == Decimal::ZERO {
-                    TradeAction::ClosePosition {
+                let average_execution_price = trade_params.filled_with.average_execution_price();
+
+                match (position_contracts, trade_contracts) {
+                    // If they cancel out, we are closing the position.
+                    (p, t) if (p + t).is_zero() => TradeAction::ClosePosition {
                         channel_id,
                         position: Box::new(position),
+                    },
+                    // If the signs are the same, we are increasing the position.
+                    (p, t) if (p * t).is_sign_positive() => TradeAction::ResizePosition {
+                        channel_id,
+                        position: Box::new(position),
+                        resize_action: ResizeAction::Increase {
+                            contracts: t.abs(),
+                            average_execution_price,
+                        },
+                    },
+                    // If the signs are different and the trade contracts are lower than the
+                    // position contracts, we are decreasing the position.
+                    (p, t) if (p * t).is_sign_negative() && t.abs() < p.abs() => {
+                        TradeAction::ResizePosition {
+                            channel_id,
+                            position: Box::new(position),
+                            resize_action: ResizeAction::Decrease {
+                                contracts: t.abs(),
+                                average_execution_price,
+                            },
+                        }
                     }
-                } else {
-                    ensure!(
-                        self.node.settings.read().await.allow_opening_positions,
-                        "Resizing positions is disabled"
-                    );
+                    // If the signs are different and the trade contracts are greater than the
+                    // position contracts, we are changing position direction.
+                    (p, t) => {
+                        let contracts_new_direction = t.abs() - p.abs();
+                        let contracts_new_direction = contracts_new_direction.abs();
 
-                    bail!("Position resizing not yet possible");
+                        TradeAction::ResizePosition {
+                            channel_id,
+                            position: Box::new(position),
+                            resize_action: ResizeAction::ChangeDirection {
+                                contracts_new_direction,
+                                average_execution_price,
+                            },
+                        }
+                    }
                 }
             }
             Some(signed_channel) => {
@@ -779,6 +1052,416 @@ impl TradeExecutor {
 
         Ok(trade_action)
     }
+}
+
+/// The [`Position`] values that can change after a resize.
+#[derive(Debug, PartialEq)]
+struct ResizedPosition {
+    contracts: Decimal,
+    coordinator_direction: Direction,
+    average_execution_price: Decimal,
+    coordinator_liquidation_price: Decimal,
+    trader_liquidation_price: Decimal,
+    margin_coordinator: Amount,
+    margin_trader: Amount,
+    collateral_reserve_coordinator: Amount,
+    collateral_reserve_trader: Amount,
+    realized_pnl: Option<SignedAmount>,
+}
+
+// We want to recompute the `ContractInput` from scratch. But we need to make sure that the
+// computed values are sensible: the app and coordinator margin must be within certain
+// bounds.
+//
+// The `accumulated_order_matching_fees` sets the lower bound for the
+// `coordinator_collateral_reserve`.
+//
+// Cases:
+//
+// 1. Increasing position: Capped by collateral reserves. Remember that the
+// `accumulated_order_matching_fees` cannot be used.
+//
+// 2. Reducing position: Converts some unrealised PNL into realised PNL. Only requirement is
+// that the trader should be able to pay for the order-matching fee (what to do if they
+// can't afford it?! I suppose we liquidate).
+//
+// 3. Change direction: What if we close the model position and create a new one? The
+// underlying protocol will still be renew.
+fn apply_resize_to_position(
+    resize_action: ResizeAction,
+    position: &Position,
+    original_coordinator_collateral_reserve: Amount,
+    original_trader_collateral_reserve: Amount,
+    order_matching_fee: Amount,
+    maintenance_margin_rate: Decimal,
+) -> Result<ResizedPosition> {
+    let resized_position = match resize_action {
+        ResizeAction::Increase {
+            contracts,
+            average_execution_price: order_execution_price,
+        } => {
+            let order_contracts = contracts;
+
+            let extra_margin_coordinator = Amount::from_sat(calculate_margin(
+                order_execution_price,
+                order_contracts.to_f32().expect("to fit"),
+                position.coordinator_leverage,
+            ));
+            let margin_coordinator =
+                Amount::from_sat(position.coordinator_margin as u64) + extra_margin_coordinator;
+
+            let original_accumulated_order_matching_fees = position.order_matching_fees;
+
+            // The coordinator will not use the accrued fees to increase the margin.
+            let effective_coordinator_collateral_reserve = original_coordinator_collateral_reserve
+                .checked_sub(original_accumulated_order_matching_fees)
+                .with_context(|| {
+                    format!(
+                        "This should not happen, but alas: \
+                         original_accumulated_order_matching_fees ({}) > \
+                         original_coordinator_collateral_reserve ({}) ",
+                        original_accumulated_order_matching_fees,
+                        original_coordinator_collateral_reserve
+                    )
+                })?;
+
+            let coordinator_collateral_reserve = effective_coordinator_collateral_reserve
+                .checked_sub(extra_margin_coordinator)
+                .with_context(|| {
+                    format!(
+                        "Coordinator does not have enough funds to cover resize margin: \
+                         extra_margin_coordinator ({}) > \
+                         effective_coordinator_collateral_reserve ({})",
+                        extra_margin_coordinator, effective_coordinator_collateral_reserve
+                    )
+                })?;
+
+            let collateral_reserve_coordinator = coordinator_collateral_reserve
+                + original_accumulated_order_matching_fees
+                + order_matching_fee;
+
+            let extra_margin_trader = Amount::from_sat(calculate_margin(
+                order_execution_price,
+                order_contracts.to_f32().expect("to fit"),
+                position.trader_leverage,
+            ));
+            let margin_trader =
+                Amount::from_sat(position.trader_margin as u64) + extra_margin_trader;
+
+            let collateral_reserve_trader = original_trader_collateral_reserve
+                .checked_sub(order_matching_fee)
+                .and_then(|collateral| collateral.checked_sub(extra_margin_trader))
+                .with_context(|| {
+                    format!(
+                        "Coordinator does not have enough funds to cover resize margin: \
+                         extra_margin_trader ({}) + order_matching_fee ({}) > \
+                         original_trader_collateral_reserve ({})",
+                        extra_margin_trader, order_matching_fee, original_trader_collateral_reserve
+                    )
+                })?;
+
+            let starting_contracts = Decimal::from_f32(position.quantity).expect("to fit");
+
+            let total_contracts = starting_contracts + order_contracts;
+
+            let starting_average_execution_price =
+                Decimal::from_f32(position.average_entry_price).expect("to fit");
+
+            let average_execution_price = (starting_contracts + order_contracts)
+                / (starting_contracts / starting_average_execution_price
+                    + order_contracts / order_execution_price);
+
+            let coordinator_direction = position.trader_direction.opposite();
+
+            let realized_pnl = None;
+
+            let coordinator_liquidation_price = liquidation_price(
+                average_execution_price,
+                Decimal::try_from(position.coordinator_leverage).expect("to fit"),
+                position.trader_direction.opposite(),
+                maintenance_margin_rate,
+            );
+
+            let trader_liquidation_price = liquidation_price(
+                average_execution_price,
+                Decimal::try_from(position.trader_leverage).expect("to fit"),
+                position.trader_direction,
+                maintenance_margin_rate,
+            );
+
+            ResizedPosition {
+                contracts: total_contracts,
+                coordinator_direction,
+                average_execution_price,
+                coordinator_liquidation_price,
+                trader_liquidation_price,
+                margin_coordinator,
+                margin_trader,
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+                realized_pnl,
+            }
+        }
+        ResizeAction::Decrease {
+            contracts: order_contracts,
+            average_execution_price: order_average_execution_price,
+        } => {
+            let position_contracts = Decimal::try_from(position.quantity).expect("to fit");
+            let total_contracts = position_contracts - order_contracts;
+
+            let coordinator_direction = position.trader_direction.opposite();
+
+            let position_average_execution_price =
+                Decimal::try_from(position.average_entry_price).expect("to fit");
+            let trader_liquidation_price =
+                Decimal::try_from(position.trader_liquidation_price).expect("to fit");
+            let coordinator_liquidation_price =
+                Decimal::try_from(position.coordinator_liquidation_price).expect("to fit");
+
+            let margin_coordinator = {
+                let margin_reduction = Amount::from_sat(calculate_margin(
+                    order_average_execution_price,
+                    order_contracts.to_f32().expect("to fit"),
+                    position.coordinator_leverage,
+                ));
+
+                Amount::from_sat(position.coordinator_margin as u64)
+                    .checked_sub(margin_reduction)
+                    .context("Coordinator margin below zero after resize")?
+            };
+
+            let margin_trader = {
+                let margin_reduction = Amount::from_sat(calculate_margin(
+                    order_average_execution_price,
+                    order_contracts.to_f32().expect("to fit"),
+                    position.trader_leverage,
+                ));
+
+                Amount::from_sat(position.trader_margin as u64)
+                    .checked_sub(margin_reduction)
+                    .context("Trader margin below zero after resize")?
+            };
+
+            let (original_margin_long, original_margin_short) = match position.trader_direction {
+                Direction::Long => (
+                    position.trader_margin as u64,
+                    position.coordinator_margin as u64,
+                ),
+                Direction::Short => (
+                    position.coordinator_margin as u64,
+                    position.trader_margin as u64,
+                ),
+            };
+
+            // The PNL is capped by the margin, so the coordinator should never end up eating into
+            // the accrued order matching fees to pay the trader.
+            let realized_pnl_trader = calculate_pnl(
+                position_average_execution_price,
+                order_average_execution_price,
+                order_contracts.to_f32().expect("to fit"),
+                position.trader_direction,
+                original_margin_long,
+                original_margin_short,
+            )?;
+            let realized_pnl_trader = SignedAmount::from_sat(realized_pnl_trader);
+
+            let collateral_reserve_coordinator = {
+                let margin_coordinator_before =
+                    Amount::from_sat(position.coordinator_margin as u64);
+                let margin_decrease = margin_coordinator_before
+                    .checked_sub(margin_coordinator)
+                    .with_context(|| {
+                        format!(
+                            "Nonsense margin change for position decrease: \
+                             before ({margin_coordinator_before}) < after ({margin_coordinator})"
+                        )
+                    })?;
+
+                let reserve = original_coordinator_collateral_reserve
+                    .to_signed()
+                    .expect("to fit")
+                    + margin_decrease.to_signed().expect("to fit")
+                    - realized_pnl_trader;
+
+                let reserve = reserve.to_unsigned().with_context(|| {
+                    format!(
+                        "Position decrease leaves coordinator with negative reserve: \
+                         original_collateral_reserve: {original_coordinator_collateral_reserve}, \
+                         margin_decrease: {margin_decrease}, \
+                         realized_pnl_trader: {realized_pnl_trader}"
+                    )
+                })?;
+
+                reserve + order_matching_fee
+            };
+
+            let collateral_reserve_trader = {
+                let margin_trader_before = Amount::from_sat(position.trader_margin as u64);
+                let margin_decrease = margin_trader_before
+                    .checked_sub(margin_trader)
+                    .with_context(|| {
+                        format!(
+                            "Nonsense margin change for position decrease: \
+                             before ({margin_trader_before}) < after ({margin_trader})"
+                        )
+                    })?;
+
+                let reserve = original_trader_collateral_reserve
+                    .to_signed()
+                    .expect("to fit")
+                    + margin_decrease.to_signed().expect("to fit")
+                    + realized_pnl_trader
+                    - order_matching_fee.to_signed().expect("to fit");
+
+                reserve.to_unsigned().with_context(|| {
+                    format!(
+                        "Position decrease leaves trader with negative reserve: \
+                         original_collateral_reserve: {original_trader_collateral_reserve}, \
+                         margin_decrease: {margin_decrease}, \
+                         realized_pnl_trader: {realized_pnl_trader}, \
+                         order_matching_fee: {order_matching_fee}"
+                    )
+                })?
+            };
+
+            ResizedPosition {
+                contracts: total_contracts,
+                coordinator_direction,
+                average_execution_price: position_average_execution_price,
+                coordinator_liquidation_price,
+                trader_liquidation_price,
+                margin_coordinator,
+                margin_trader,
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+                realized_pnl: Some(realized_pnl_trader),
+            }
+        }
+        ResizeAction::ChangeDirection {
+            contracts_new_direction,
+            average_execution_price: order_average_execution_price,
+        } => {
+            let trader_direction = position.trader_direction.opposite();
+            let coordinator_direction = trader_direction.opposite();
+
+            let trader_liquidation_price = liquidation_price(
+                order_average_execution_price,
+                Decimal::try_from(position.trader_leverage).expect("to fit"),
+                trader_direction,
+                maintenance_margin_rate,
+            );
+
+            let coordinator_liquidation_price = liquidation_price(
+                order_average_execution_price,
+                Decimal::try_from(position.coordinator_leverage).expect("to fit"),
+                trader_direction.opposite(),
+                maintenance_margin_rate,
+            );
+
+            let new_margin_coordinator = Amount::from_sat(calculate_margin(
+                order_average_execution_price,
+                contracts_new_direction.to_f32().expect("to fit"),
+                position.coordinator_leverage,
+            ));
+
+            let new_margin_trader = Amount::from_sat(calculate_margin(
+                order_average_execution_price,
+                contracts_new_direction.to_f32().expect("to fit"),
+                position.trader_leverage,
+            ));
+
+            let position_average_execution_price =
+                Decimal::try_from(position.average_entry_price).expect("to fit");
+            let (original_margin_long, original_margin_short) = match position.trader_direction {
+                Direction::Long => (
+                    position.trader_margin as u64,
+                    position.coordinator_margin as u64,
+                ),
+                Direction::Short => (
+                    position.coordinator_margin as u64,
+                    position.trader_margin as u64,
+                ),
+            };
+
+            // The PNL is capped by the margin, so the coordinator should never end up eating into
+            // the accrued order matching fees to pay the trader.
+            let realized_pnl_trader = calculate_pnl(
+                position_average_execution_price,
+                order_average_execution_price,
+                position.quantity,
+                position.trader_direction,
+                original_margin_long,
+                original_margin_short,
+            )?;
+            let realized_pnl_trader = SignedAmount::from_sat(realized_pnl_trader);
+
+            let collateral_reserve_trader = {
+                let original_reserve = original_trader_collateral_reserve
+                    .to_signed()
+                    .expect("to fit");
+
+                let closed_margin = SignedAmount::from_sat(calculate_margin(
+                    order_average_execution_price,
+                    position.quantity,
+                    position.trader_leverage,
+                ) as i64);
+
+                let new_margin = new_margin_trader.to_signed().expect("to fit");
+
+                let order_matching_fee = order_matching_fee.to_signed().expect("to fit");
+
+                let reserve = original_reserve + closed_margin - new_margin + realized_pnl_trader
+                    - order_matching_fee;
+
+                reserve.to_unsigned().with_context(|| {
+                    format!(
+                        "Position direction change leaves trader with negative reserve: \
+                         original_collateral_reserve: {original_trader_collateral_reserve}, \
+                         closed_margin: {closed_margin}, \
+                         new_margin: {new_margin_trader}, \
+                         realized_pnl_trader: {realized_pnl_trader}, \
+                         order_matching_fee {order_matching_fee}"
+                    )
+                })?
+            };
+
+            let collateral_reserve_coordinator = {
+                let total_channel_collateral =
+                    Amount::from_sat((position.trader_margin + position.coordinator_margin) as u64)
+                        + original_coordinator_collateral_reserve
+                        + original_trader_collateral_reserve;
+
+                total_channel_collateral
+                    .checked_sub(
+                        collateral_reserve_trader + new_margin_trader + new_margin_coordinator,
+                    )
+                    .with_context(|| {
+                        format!(
+                            "Computed negative coordinator collateral reserve: \
+                             total_channel_collateral ({total_channel_collateral}) < \
+                             collateral_reserve_trader ({collateral_reserve_trader}) + \
+                             new_margin_trader ({new_margin_trader}) + \
+                             new_margin_coordinator ({new_margin_coordinator})"
+                        )
+                    })?
+            };
+
+            ResizedPosition {
+                contracts: contracts_new_direction,
+                coordinator_direction,
+                average_execution_price: order_average_execution_price,
+                coordinator_liquidation_price,
+                trader_liquidation_price,
+                margin_coordinator: new_margin_coordinator,
+                margin_trader: new_margin_trader,
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+                realized_pnl: Some(realized_pnl_trader),
+            }
+        }
+    };
+
+    Ok(resized_position)
 }
 
 fn margin_trader(trade_params: &TradeParams) -> u64 {
@@ -831,4 +1514,188 @@ pub fn coordinator_leverage_for_trade(_counterparty_peer_id: &PublicKey) -> Resu
     let leverage_coordinator = 2.0;
 
     Ok(leverage_coordinator)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_debug_snapshot;
+    use rust_decimal_macros::dec;
+    use std::str::FromStr;
+    use trade::ContractSymbol;
+
+    #[test]
+    fn apply_resize() {
+        check(
+            100.0,
+            Direction::Long,
+            dec!(27_491.0),
+            2.0,
+            2.0,
+            Amount::from_sat(1_091),
+            ResizeAction::Increase {
+                contracts: dec!(100),
+                average_execution_price: dec!(20_000),
+            },
+            Amount::from_sat(2_000),
+            Amount::from_sat(319_213),
+            Amount::from_sat(319_213),
+            dec!(0.1),
+        );
+
+        check(
+            500.0,
+            Direction::Long,
+            dec!(27_336.5),
+            2.0,
+            2.0,
+            Amount::from_sat(5_487),
+            ResizeAction::Increase {
+                contracts: dec!(100),
+                average_execution_price: dec!(28_251),
+            },
+            Amount::from_sat(1_062),
+            Amount::from_sat(2_090_959),
+            Amount::from_sat(5_085_472),
+            dec!(0.1),
+        );
+
+        check(
+            100.0,
+            Direction::Long,
+            dec!(27_491.0),
+            2.0,
+            2.0,
+            Amount::from_sat(1_091),
+            ResizeAction::Decrease {
+                contracts: dec!(50),
+                average_execution_price: dec!(20_000),
+            },
+            Amount::from_sat(2_000),
+            Amount::from_sat(319_213),
+            Amount::from_sat(319_213),
+            dec!(0.1),
+        );
+
+        check(
+            100.0,
+            Direction::Long,
+            dec!(27_491.0),
+            2.0,
+            2.0,
+            Amount::from_sat(1_091),
+            ResizeAction::ChangeDirection {
+                contracts_new_direction: dec!(100),
+                average_execution_price: dec!(20_000),
+            },
+            Amount::from_sat(2_000),
+            Amount::from_sat(319_213),
+            Amount::from_sat(319_213),
+            dec!(0.1),
+        );
+
+        check(
+            50.0,
+            Direction::Long,
+            dec!(27_491.0),
+            2.0,
+            2.0,
+            Amount::from_sat(1_091),
+            ResizeAction::ChangeDirection {
+                contracts_new_direction: dec!(100),
+                average_execution_price: dec!(20_000),
+            },
+            Amount::from_sat(2_000),
+            Amount::from_sat(319_213),
+            Amount::from_sat(319_213),
+            dec!(0.1),
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[track_caller]
+    fn check(
+        quantity: f32,
+        trader_direction: Direction,
+        average_entry_price: Decimal,
+        coordinator_leverage: f32,
+        trader_leverage: f32,
+        accumulated_order_matching_fees: Amount,
+        resize_action: ResizeAction,
+        order_matching_fee: Amount,
+        original_coordinator_collateral_reserve: Amount,
+        original_trader_collateral_reserve: Amount,
+        maintenance_margin: Decimal,
+    ) {
+        let coordinator_liquidation_price = liquidation_price(
+            average_entry_price,
+            Decimal::try_from(coordinator_leverage).unwrap(),
+            trader_direction.opposite(),
+            maintenance_margin,
+        );
+        let trader_liquidation_price = liquidation_price(
+            average_entry_price,
+            Decimal::try_from(trader_leverage).unwrap(),
+            trader_direction,
+            maintenance_margin,
+        );
+
+        let coordinator_margin =
+            calculate_margin(average_entry_price, quantity, coordinator_leverage);
+        let trader_margin = calculate_margin(average_entry_price, quantity, trader_leverage);
+
+        let resized_position = apply_resize_to_position(
+            resize_action,
+            &Position {
+                id: 1,
+                trader: PublicKey::from_str(
+                    "02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655",
+                )
+                .unwrap(),
+                contract_symbol: ContractSymbol::BtcUsd,
+                quantity,
+                trader_direction,
+                average_entry_price: average_entry_price.to_f32().unwrap(),
+                closing_price: None,
+                trader_realized_pnl_sat: None,
+                coordinator_liquidation_price: coordinator_liquidation_price.to_f32().unwrap(),
+                trader_liquidation_price: trader_liquidation_price.to_f32().unwrap(),
+                trader_margin: trader_margin as i64,
+                coordinator_margin: coordinator_margin as i64,
+                trader_leverage,
+                coordinator_leverage,
+                position_state: PositionState::Open,
+                order_matching_fees: accumulated_order_matching_fees,
+                creation_timestamp: OffsetDateTime::now_utc(),
+                expiry_timestamp: OffsetDateTime::now_utc(),
+                update_timestamp: OffsetDateTime::now_utc(),
+                temporary_contract_id: None,
+                stable: false,
+            },
+            original_coordinator_collateral_reserve,
+            original_trader_collateral_reserve,
+            order_matching_fee,
+            maintenance_margin,
+        )
+        .unwrap();
+
+        insta::with_settings!({
+            snapshot_suffix => format!(
+                "{trader_direction:?}-{quantity}-{}",
+                resize_action.name()
+            )
+        }, {
+            assert_debug_snapshot!(resized_position);
+        });
+    }
+
+    impl ResizeAction {
+        fn name(&self) -> &str {
+            match self {
+                ResizeAction::Increase { .. } => "increase",
+                ResizeAction::Decrease { .. } => "decrease",
+                ResizeAction::ChangeDirection { .. } => "change-direction",
+            }
+        }
+    }
 }

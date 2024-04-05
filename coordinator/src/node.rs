@@ -406,9 +406,10 @@ impl Node {
                                     "DLC Channel offer has been rejected. Setting position to failed."
                                 );
 
-                                db::positions::Position::update_proposed_position(
+                                db::positions::Position::update_position_state(
                                     &mut connection,
                                     node_id.to_string(),
+                                    vec![PositionState::Proposed],
                                     PositionState::Failed,
                                 )?;
                             }
@@ -442,9 +443,10 @@ impl Node {
                                     "DLC Channel renew offer has been rejected. Setting position to failed."
                                 );
 
-                                db::positions::Position::update_proposed_position(
+                                db::positions::Position::update_position_state(
                                     &mut connection,
                                     node_id.to_string(),
+                                    vec![PositionState::Proposed],
                                     PositionState::Failed,
                                 )?;
                             }

@@ -1006,6 +1006,7 @@ dependencies = [
  "fcm",
  "futures",
  "hex",
+ "insta",
  "lazy_static",
  "lightning",
  "lightning-invoice",

@@ -247,7 +247,7 @@ impl DlcProtocolExecutor {
                     let contract_id = contract_id
                         .context("missing contract id")
                         .map_err(|_| RollbackTransaction)?;
-                    self.finish_open_trade_dlc_protocol(
+                    self.finish_open_or_resize_trade_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
@@ -401,9 +401,6 @@ impl DlcProtocolExecutor {
 
         let order_matching_fee = trade_params.matching_fee;
 
-        // TODO(holzeis): Add optional pnl to trade.
-        // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
-        // -> Short or Short -> Long.
         let new_trade = NewTrade {
             position_id: position.id,
             contract_symbol: position.contract_symbol,
@@ -415,6 +412,7 @@ impl DlcProtocolExecutor {
             average_price: trade_params.average_price,
             order_matching_fee,
             trader_realized_pnl_sat: Some(trader_realized_pnl_sat),
+            is_complete: true,
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -422,12 +420,14 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the open trade dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
-    /// - Set dlc protocol to success
-    /// - Updates the `[PostionState::Proposed`] position state to `[PostionState::Open]`
-    /// - Creates and inserts the new trade
-    fn finish_open_trade_dlc_protocol(
+    /// Complete an open or resize trade DLC protocol as successful and update the 10101 metadata
+    /// accordingly, in a single database transaction.
+    ///
+    /// - Set DLC protocol to success.
+    /// - Update the [`PositionState::Proposed`] or [`PositionState::Resizing`] position state to
+    ///   [`PositionState::Open`].
+    /// - Create and insert the new trade.
+    fn finish_open_or_resize_trade_dlc_protocol(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
@@ -442,12 +442,21 @@ impl DlcProtocolExecutor {
             channel_id,
         )?;
 
+        let original = db::positions::Position::get_position_by_trader(
+            conn,
+            trade_params.trader,
+            vec![PositionState::Proposed, PositionState::Resizing],
+        )?
+        .context("Can't finish open or resize protocol without position")
+        .map_err(|_| RollbackTransaction)?;
+
         // TODO(holzeis): We are still updating the position based on the position state. This
         // will change once we only have a single position per user and representing
         // the position only as view on multiple trades.
-        let position = db::positions::Position::update_proposed_position(
+        let position = db::positions::Position::update_position_state(
             conn,
             trade_params.trader.to_string(),
+            vec![PositionState::Proposed, PositionState::Resizing],
             PositionState::Open,
         )?;
 
@@ -460,23 +469,29 @@ impl DlcProtocolExecutor {
 
         let order_matching_fee = trade_params.matching_fee;
 
-        // TODO(holzeis): Add optional pnl to trade.
-        // Instead of tracking pnl on the position we want to track pnl on the trade. e.g. Long
-        // -> Short or Short -> Long.
-        let new_trade = NewTrade {
-            position_id: position.id,
-            contract_symbol: position.contract_symbol,
-            trader_pubkey: trade_params.trader,
-            quantity: trade_params.quantity,
-            trader_leverage: trade_params.leverage,
-            coordinator_margin: coordinator_margin as i64,
-            trader_direction: trade_params.direction,
-            average_price: trade_params.average_price,
-            order_matching_fee,
-            trader_realized_pnl_sat: None,
-        };
+        if matches!(original.position_state, PositionState::Resizing) {
+            // A resizing protocol may generate PNL, but here we are not able to calculate it, so
+            // the `Trade` has to be inserted before it is complete. So here we just have to mark
+            // the `Trade` as complete.
 
-        db::trades::insert(conn, new_trade)?;
+            db::trades::mark_as_completed(conn, position.id)?;
+        } else {
+            let new_trade = NewTrade {
+                position_id: position.id,
+                contract_symbol: position.contract_symbol,
+                trader_pubkey: trade_params.trader,
+                quantity: trade_params.quantity,
+                trader_leverage: trade_params.leverage,
+                coordinator_margin: coordinator_margin as i64,
+                trader_direction: trade_params.direction,
+                average_price: trade_params.average_price,
+                order_matching_fee,
+                trader_realized_pnl_sat: None,
+                is_complete: true,
+            };
+
+            db::trades::insert(conn, new_trade)?;
+        };
 
         Ok(())
     }

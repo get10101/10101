@@ -17,6 +17,7 @@ pub struct NewTrade {
     pub average_price: f32,
     pub order_matching_fee: Amount,
     pub trader_realized_pnl_sat: Option<i64>,
+    pub is_complete: bool,
 }
 
 #[derive(Debug)]
@@ -34,4 +35,5 @@ pub struct Trade {
     pub timestamp: OffsetDateTime,
     pub order_matching_fee: Amount,
     pub trader_realized_pnl_sat: Option<i64>,
+    pub is_complete: bool,
 }

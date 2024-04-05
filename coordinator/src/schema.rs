@@ -437,6 +437,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         order_matching_fee_sat -> Int8,
         trader_realized_pnl_sat -> Nullable<Int8>,
+        is_complete -> Bool,
     }
 }
 

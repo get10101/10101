@@ -1,4 +1,3 @@
-use crate::calculations::calculate_margin;
 use crate::db;
 use crate::event;
 use crate::event::EventInternal;
@@ -24,9 +23,7 @@ pub fn get_positions() -> Result<Vec<Position>> {
 /// be updated to `Closing` state.
 pub fn update_position_after_order_submitted(submitted_order: &Order) -> Result<()> {
     if let Some(position) = get_position_matching_order(submitted_order)? {
-        db::update_position_state(position.contract_symbol, PositionState::Closing)?;
-        let mut position = position;
-        position.position_state = PositionState::Closing;
+        let position = db::update_position_state(position.contract_symbol, PositionState::Closing)?;
         event::publish(&EventInternal::PositionUpdateNotification(position));
     }
     Ok(())
@@ -44,34 +41,50 @@ pub fn get_position_matching_order(order: &Order) -> Result<Option<Position>> {
     }
 }
 
-/// Sets the position to the given state
+/// Set the position to the given [`PositionState`].
 pub fn set_position_state(state: PositionState) -> Result<()> {
     if let Some(position) = db::get_positions()?.first() {
-        db::update_position_state(position.contract_symbol, state)?;
-        let mut position = position.clone();
-        position.position_state = state;
+        let position = db::update_position_state(position.contract_symbol, state)?;
         event::publish(&EventInternal::PositionUpdateNotification(position));
     }
 
     Ok(())
 }
 
-/// A channel renewal could be triggered for:
+/// A channel renewal could be triggered to:
 ///
-/// - Rolling over (no offer associated).
-/// - Opening a new position.
-/// - Resizing a new position.
+/// - Roll over (no offer associated).
+/// - Open a new position.
+/// - Resize a position.
 pub fn handle_channel_renewal_offer(expiry_timestamp: OffsetDateTime) -> Result<()> {
-    // FIXME: This won't always be true once we reintroduce position resizing.
     if let Some(position) = db::get_positions()?.first() {
-        tracing::debug!("Setting position to rollover");
-        db::rollover_position(position.contract_symbol, expiry_timestamp)?;
-        let mut position = position.clone();
-        position.position_state = PositionState::Rollover;
-        position.expiry = expiry_timestamp;
-        event::publish(&EventInternal::PositionUpdateNotification(position));
+        // Assume that if there is an order in filling we are dealing with position resizing.
+        //
+        // TODO: This has caused problems in the past. Any other ideas? We could generate
+        // `ProtocolId`s using `OrderId`s whenever possible on the coordinator, and compare the two
+        // values here to be sure.
+        if db::get_order_in_filling()?.is_some() {
+            tracing::debug!("Setting position to resizing");
+
+            let position =
+                db::update_position_state(position.contract_symbol, PositionState::Resizing)?;
+
+            event::publish(&EventInternal::PositionUpdateNotification(position));
+        }
+        // Without an order, we must be rolling over.
+        else {
+            tracing::debug!("Setting position to rollover");
+
+            db::rollover_position(position.contract_symbol, expiry_timestamp)?;
+
+            let mut position = position.clone();
+            position.position_state = PositionState::Rollover;
+            position.expiry = expiry_timestamp;
+
+            event::publish(&EventInternal::PositionUpdateNotification(position));
+        }
     } else {
-        // If we have no position we must be opening a new one.
+        // If we have no position, we must be opening a new one.
         tracing::info!("Received channel renewal proposal to open new position");
     }
 
@@ -83,27 +96,16 @@ pub fn update_position_after_dlc_channel_creation_or_update(
     filled_order: Order,
     expiry: OffsetDateTime,
 ) -> Result<()> {
-    let execution_price = filled_order
-        .execution_price()
-        .expect("filled order to have a price");
-
-    // This used to be determined by the DLC collateral, but we now allow part of
-    // the DLC collateral to be excluded from the trade (the collateral reserve).
-    let margin = calculate_margin(
-        execution_price,
-        filled_order.quantity,
-        filled_order.leverage,
-    );
-
     let (position, trades) = match db::get_positions()?.first() {
         None => {
+            // TODO: This log message seems to assume that we can only reach this branch if the
+            // channel was just created. Is that true?
             tracing::debug!(
                 order = ?filled_order,
-                %margin,
                 "Creating position after DLC channel creation"
             );
 
-            let (position, trade) = Position::new_open(filled_order, margin, expiry);
+            let (position, trade) = Position::new_open(filled_order, expiry);
 
             tracing::info!(?trade, ?position, "Position created");
 
@@ -119,7 +121,7 @@ pub fn update_position_after_dlc_channel_creation_or_update(
         ) => {
             tracing::info!("Calculating new position after DLC channel has been resized");
 
-            let (position, trades) = position.clone().apply_order(filled_order, expiry, margin)?;
+            let (position, trades) = position.clone().apply_order(filled_order, expiry)?;
 
             let position = position.context("Resized position has vanished")?;
 
@@ -169,10 +171,7 @@ pub fn update_position_after_dlc_closure(filled_order: Option<Order>) -> Result<
 
         // After closing the DLC channel we do not need to update the position's expiry anymore.
         let expiry = position.expiry;
-        // The collateral is 0 since the DLC channel has been closed.
-        let actual_collateral = 0;
-        let (new_position, trades) =
-            position.apply_order(filled_order, expiry, actual_collateral)?;
+        let (new_position, trades) = position.apply_order(filled_order, expiry)?;
 
         tracing::debug!(?trades, "Calculated closing trades");
 

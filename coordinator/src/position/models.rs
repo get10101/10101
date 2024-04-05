@@ -439,31 +439,56 @@ impl std::fmt::Debug for NewPosition {
 
 impl std::fmt::Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            id,
+            trader,
+            contract_symbol,
+            quantity,
+            trader_direction,
+            average_entry_price,
+            closing_price,
+            trader_realized_pnl_sat,
+            coordinator_liquidation_price,
+            trader_liquidation_price,
+            trader_margin,
+            coordinator_margin,
+            trader_leverage,
+            coordinator_leverage,
+            position_state,
+            order_matching_fees,
+            creation_timestamp,
+            expiry_timestamp,
+            update_timestamp,
+            temporary_contract_id,
+            stable,
+        } = self;
+
         f.debug_struct("Position")
-            .field("id", &self.id)
-            .field("contract_symbol", &self.contract_symbol)
-            .field("trader_leverage", &self.trader_leverage)
-            .field("quantity", &self.quantity)
-            .field("trader_direction", &self.trader_direction)
-            .field("average_entry_price", &self.average_entry_price)
-            .field("trader_liquidation_price", &self.trader_liquidation_price)
+            .field("id", &id)
+            .field("contract_symbol", &contract_symbol)
+            .field("trader_leverage", &trader_leverage)
+            .field("quantity", &quantity)
+            .field("trader_direction", &trader_direction)
+            .field("average_entry_price", &average_entry_price)
+            .field("trader_liquidation_price", &trader_liquidation_price)
             .field(
                 "coordinator_liquidation_price",
-                &self.coordinator_liquidation_price,
+                &coordinator_liquidation_price,
             )
-            .field("position_state", &self.position_state)
-            .field("coordinator_margin", &self.coordinator_margin)
-            .field("creation_timestamp", &self.creation_timestamp)
-            .field("expiry_timestamp", &self.expiry_timestamp)
-            .field("update_timestamp", &self.update_timestamp)
+            .field("position_state", &position_state)
+            .field("coordinator_margin", &coordinator_margin)
+            .field("creation_timestamp", &creation_timestamp)
+            .field("expiry_timestamp", &expiry_timestamp)
+            .field("update_timestamp", &update_timestamp)
             // Otherwise we end up printing the hex of the internal representation.
-            .field("trader", &self.trader.to_string())
-            .field("coordinator_leverage", &self.coordinator_leverage)
-            .field("temporary_contract_id", &self.temporary_contract_id)
-            .field("closing_price", &self.closing_price)
-            .field("trader_margin", &self.trader_margin)
-            .field("stable", &self.stable)
-            .field("trader_realized_pnl_sat", &self.trader_realized_pnl_sat)
+            .field("trader", &trader.to_string())
+            .field("coordinator_leverage", &coordinator_leverage)
+            .field("temporary_contract_id", &temporary_contract_id)
+            .field("closing_price", &closing_price)
+            .field("trader_margin", &trader_margin)
+            .field("stable", &stable)
+            .field("trader_realized_pnl_sat", &trader_realized_pnl_sat)
+            .field("order_matching_fees", &order_matching_fees)
             .finish()
     }
 }

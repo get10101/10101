@@ -1,0 +1,18 @@
+---
+source: coordinator/src/trade/mod.rs
+expression: resized_position
+---
+ResizedPosition {
+    contracts: 50,
+    coordinator_direction: Short,
+    average_execution_price: 27491,
+    coordinator_liquidation_price: 45818.33,
+    trader_liquidation_price: 19636.43,
+    margin_coordinator: Amount(0.00056878 BTC),
+    margin_trader: Amount(0.00056878 BTC),
+    collateral_reserve_coordinator: Amount(0.00514335 BTC),
+    collateral_reserve_trader: Amount(0.00374091 BTC),
+    realized_pnl: Some(
+        SignedAmount(-0.00068122 BTC),
+    ),
+}
