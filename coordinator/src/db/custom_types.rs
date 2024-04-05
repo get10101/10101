@@ -1,3 +1,4 @@
+use crate::db::bonus_status::BonusType;
 use crate::db::dlc_channels::DlcChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::dlc_protocols::DlcProtocolState;
@@ -5,6 +6,7 @@ use crate::db::dlc_protocols::DlcProtocolType;
 use crate::db::polls::PollType;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
+use crate::schema::sql_types::BonusStatusType;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::DlcChannelStateType;
@@ -229,6 +231,28 @@ impl FromSql<DlcChannelStateType, Pg> for DlcChannelState {
             b"Closed" => Ok(DlcChannelState::Closed),
             b"Failed" => Ok(DlcChannelState::Failed),
             b"Cancelled" => Ok(DlcChannelState::Cancelled),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<BonusStatusType, Pg> for BonusType {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            BonusType::Referral => out.write_all(b"Referral")?,
+            BonusType::Referent => out.write_all(b"Referent")?,
+            BonusType::Promotion => out.write_all(b"Promotion")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<BonusStatusType, Pg> for BonusType {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Referral" => Ok(BonusType::Referral),
+            b"Referent" => Ok(BonusType::Referent),
+            b"Promotion" => Ok(BonusType::Promotion),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

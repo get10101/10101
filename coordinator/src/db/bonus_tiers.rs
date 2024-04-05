@@ -1,5 +1,6 @@
 use crate::db;
-use crate::schema::referral_tiers;
+use crate::db::bonus_status::BonusType;
+use crate::schema::bonus_tiers;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use diesel::prelude::*;
@@ -20,8 +21,8 @@ pub struct Referral {
 }
 
 #[derive(Queryable, Debug, Clone)]
-#[diesel(table_name = referral_tiers)]
-pub(crate) struct ReferralTier {
+#[diesel(table_name = bonus_tiers)]
+pub(crate) struct BonusTier {
     // this is needed because this field needs to be here to satisfy diesel
     #[allow(dead_code)]
     pub(crate) id: i32,
@@ -33,23 +34,29 @@ pub(crate) struct ReferralTier {
     pub(crate) fee_rebate: f32,
     #[allow(dead_code)]
     pub(crate) number_of_trades: i32,
+    pub(crate) bonus_tier_type: BonusType,
     // this is needed because this field needs to be here to satisfy diesel
     #[allow(dead_code)]
     pub(crate) active: bool,
 }
 
-pub(crate) fn all_active(conn: &mut PgConnection) -> QueryResult<Vec<ReferralTier>> {
-    referral_tiers::table
-        .filter(referral_tiers::active.eq(true))
-        .load::<ReferralTier>(conn)
+/// Returns all active bonus tiers for given types
+pub(crate) fn all_active_by_type(
+    conn: &mut PgConnection,
+    types: Vec<BonusType>,
+) -> QueryResult<Vec<BonusTier>> {
+    bonus_tiers::table
+        .filter(bonus_tiers::active.eq(true))
+        .filter(bonus_tiers::bonus_tier_type.eq_any(types))
+        .load::<BonusTier>(conn)
 }
 
 pub(crate) fn tier_by_tier_level(
     conn: &mut PgConnection,
     tier_level: i32,
-) -> QueryResult<ReferralTier> {
-    referral_tiers::table
-        .filter(referral_tiers::tier_level.eq(tier_level))
+) -> QueryResult<BonusTier> {
+    bonus_tiers::table
+        .filter(bonus_tiers::tier_level.eq(tier_level))
         .first(conn)
 }
 
@@ -78,7 +85,7 @@ pub fn get_referrals_per_referral_code(
     Ok(referrals)
 }
 
-#[derive(Debug, QueryableByName)]
+#[derive(Debug, QueryableByName, Clone)]
 pub struct UserReferralSummaryView {
     #[diesel(sql_type = Text)]
     pub referring_user: String,

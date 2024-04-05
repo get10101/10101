@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:share_plus/share_plus.dart';
 
+import '../../logger/logger.dart';
+
 class UserSettings extends StatefulWidget {
   static const route = "${SettingsScreen.route}/$subRouteName";
   static const subRouteName = "user";
@@ -71,16 +73,33 @@ class _UserSettingsState extends State<UserSettings> {
                   }
 
                   final referralCode = snapshot.data!.referralCode;
+                  final bonusStatusType = snapshot.data!.bonusStatusType;
+                  logger.i("----- $bonusStatusType");
                   final referralTier = snapshot.data!.referralTier;
                   final numberOfActivatedReferrals = snapshot.data!.numberOfActivatedReferrals;
                   final numberOfTotalReferrals = snapshot.data!.numberOfTotalReferrals;
                   final referralFeeBonus = snapshot.data!.referralFeeBonus.toStringAsFixed(2);
 
+                  String referralTierName = "None";
+                  switch (bonusStatusType) {
+                    case rust.BonusStatusType.None:
+                      referralTierName = "None";
+                      break;
+                    case rust.BonusStatusType.Referral:
+                      referralTierName = "Referral";
+                      break;
+                    case rust.BonusStatusType.Referent:
+                      referralTierName = "Referent";
+                      break;
+                    case rust.BonusStatusType.Promotion:
+                      referralTierName = "Promotion";
+                  }
+
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        "Referral status",
+                        "Referral status ",
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 10),
@@ -122,18 +141,9 @@ class _UserSettingsState extends State<UserSettings> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text("Active referrals", style: TextStyle(fontSize: 18)),
-                          Text(numberOfActivatedReferrals.toString(),
-                              style: const TextStyle(fontSize: 18)),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
                           RichText(
                               text: const TextSpan(
-                                  text: "Total referrals",
+                                  text: "Active/total referrals",
                                   style: TextStyle(fontSize: 18, color: Colors.black),
                                   children: [
                                 TextSpan(
@@ -144,17 +154,40 @@ class _UserSettingsState extends State<UserSettings> {
                                       ],
                                     ))
                               ])),
-                          Text("$numberOfTotalReferrals", style: const TextStyle(fontSize: 18)),
+                          Text("$numberOfActivatedReferrals/$numberOfTotalReferrals",
+                              style: const TextStyle(fontSize: 18)),
                         ],
                       ),
                       const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("Referral Tier", style: TextStyle(fontSize: 18)),
-                          Text(referralTier.toString(), style: const TextStyle(fontSize: 18)),
-                        ],
-                      ),
+                      Visibility(
+                          visible: bonusStatusType == rust.BonusStatusType.Referral,
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Referral Level", style: TextStyle(fontSize: 18)),
+                                  Text(referralTierName, style: const TextStyle(fontSize: 18)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Referral Tier Level", style: TextStyle(fontSize: 18)),
+                                  Text("$referralTier", style: const TextStyle(fontSize: 18)),
+                                ],
+                              ),
+                            ],
+                          )),
+                      Visibility(
+                          visible: bonusStatusType == rust.BonusStatusType.Referent,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Referral Tier", style: TextStyle(fontSize: 18)),
+                              Text(referralTierName, style: const TextStyle(fontSize: 18)),
+                            ],
+                          )),
                       const SizedBox(height: 5),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -173,7 +206,7 @@ class _UserSettingsState extends State<UserSettings> {
                                   FontFeature.superscripts(),
                                 ],
                               )),
-                          Text("Referents that did not trade enough yet.")
+                          Text("Some referents have not traded enough yet.")
                         ],
                       )
                     ],
