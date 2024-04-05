@@ -835,6 +835,28 @@ pub struct ReferralStatus {
     pub number_of_total_referrals: usize,
     pub referral_tier: usize,
     pub referral_fee_bonus: f32,
+    /// The type of this referral status
+    pub bonus_status_type: BonusStatusType,
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum BonusStatusType {
+    #[default]
+    None,
+    /// The bonus is because he referred enough users
+    Referral,
+    /// The user has been referred and gets a bonus
+    Referent,
+}
+
+impl From<commons::BonusStatusType> for BonusStatusType {
+    fn from(value: commons::BonusStatusType) -> Self {
+        match value {
+            commons::BonusStatusType::Referral => BonusStatusType::Referral,
+            commons::BonusStatusType::Referent => BonusStatusType::Referent,
+            commons::BonusStatusType::Promotion => BonusStatusType::Promotion,
+        }
+    }
 }
 
 impl From<commons::ReferralStatus> for ReferralStatus {
@@ -845,6 +867,10 @@ impl From<commons::ReferralStatus> for ReferralStatus {
             number_of_activated_referrals: value.number_of_activated_referrals,
             number_of_total_referrals: value.number_of_total_referrals,
             referral_fee_bonus: value.referral_fee_bonus.to_f32().expect("to fit into f32"),
+            bonus_status_type: value
+                .bonus_status_type
+                .map(|status| status.into())
+                .unwrap_or_default(),
         }
     }
 }

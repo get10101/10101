@@ -100,6 +100,18 @@ pub struct ReferralStatus {
     /// Activated bonus, a percentage to be subtracted from the matching fee.
     #[serde(with = "rust_decimal::serde::float")]
     pub referral_fee_bonus: Decimal,
+    /// The type of this referral status
+    pub bonus_status_type: Option<BonusStatusType>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Copy, PartialEq, Eq)]
+pub enum BonusStatusType {
+    /// The bonus is because he referred enough users
+    Referral,
+    /// The user has been referred and gets a bonus
+    Referent,
+    /// This bonus is part of a promotion
+    Promotion,
 }
 
 impl ReferralStatus {
@@ -110,6 +122,7 @@ impl ReferralStatus {
             number_of_total_referrals: 0,
             referral_tier: 0,
             referral_fee_bonus: Default::default(),
+            bonus_status_type: None,
         }
     }
 }

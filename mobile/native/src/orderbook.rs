@@ -211,7 +211,9 @@ async fn handle_orderbook_message(
 
     match msg {
         Message::Authenticated(config) => {
-            tracing::info!("Successfully logged in to 10101 websocket api!");
+            tracing::info!(
+                referral_status = ?config.referral_status,
+                "Successfully logged in to 10101 websocket api!");
             state::set_tentenone_config(config.clone());
             event::publish(&EventInternal::Authenticated(config));
         }

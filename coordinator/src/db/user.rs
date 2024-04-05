@@ -1,3 +1,6 @@
+use crate::db::bonus_status;
+use crate::db::bonus_status::BonusType;
+use crate::db::bonus_tiers;
 use crate::schema;
 use crate::schema::users;
 use anyhow::bail;
@@ -116,7 +119,7 @@ pub fn upsert_user(
             fcm_token: "".to_owned(),
             last_login: timestamp,
             version: version.clone(),
-            used_referral_code,
+            used_referral_code: used_referral_code.clone(),
         })
         .on_conflict(schema::users::pubkey)
         .do_update()
@@ -127,6 +130,22 @@ pub fn upsert_user(
             users::version.eq(version),
         ))
         .get_result(conn)?;
+
+    if let Some(referral_code) = used_referral_code {
+        // we need to check if this referral code is sane
+        if let Ok(Some(_)) = get_user_for_referral(conn, referral_code.as_str()) {
+            let bonus_tier = bonus_tiers::all_active_by_type(conn, vec![BonusType::Referent])?;
+            let bonus_tier = bonus_tier.first().expect("to have at least one tier");
+            bonus_status::insert(conn, &trader_id, bonus_tier.tier_level, BonusType::Referent)?;
+        } else {
+            tracing::warn!(
+                referral_code,
+                trader_pubkey = trader_id.to_string(),
+                "User tried to register with invalid referral code"
+            )
+        }
+    }
+
     Ok(user)
 }
 
@@ -214,4 +233,12 @@ pub fn get_referred_users(conn: &mut PgConnection, referral_code: String) -> Res
         .load(conn)?;
 
     Ok(users)
+}
+pub fn get_user_for_referral(conn: &mut PgConnection, referral_code: &str) -> Result<Option<User>> {
+    let user = users::table
+        .filter(users::referral_code.eq(referral_code))
+        .first(conn)
+        .optional()?;
+
+    Ok(user)
 }
