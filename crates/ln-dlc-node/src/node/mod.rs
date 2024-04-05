@@ -129,7 +129,7 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     pub sub_channel_manager: Arc<SubChannelManager<D, S, N>>,
 
     /// All oracles clients the node is aware of.
-    oracles: Vec<Arc<P2PDOracleClient>>,
+    pub oracles: Vec<Arc<P2PDOracleClient>>,
     pub dlc_message_handler: Arc<DlcMessageHandler>,
     pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 

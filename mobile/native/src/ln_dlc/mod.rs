@@ -15,6 +15,7 @@ use crate::event::EventInternal;
 use crate::ln_dlc::node::Node;
 use crate::ln_dlc::node::NodeStorage;
 use crate::ln_dlc::node::WalletHistory;
+use crate::position::ForceCloseDlcChannelSubscriber;
 use crate::state;
 use crate::storage::TenTenOneNodeStorage;
 use crate::trade::order;
@@ -87,7 +88,6 @@ use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
-use trade::ContractSymbol;
 use uuid::Uuid;
 
 pub mod node;
@@ -269,8 +269,6 @@ pub fn run(runtime: &Runtime) -> Result<()> {
         let mut ephemeral_randomness = [0; 32];
         thread_rng().fill_bytes(&mut ephemeral_randomness);
 
-        // TODO: Subscribe to events from the orderbook and publish OrderFilledWith event
-
         let address = {
             let listener = TcpListener::bind("0.0.0.0:0")?;
             listener.local_addr().expect("To get a free local address")
@@ -283,6 +281,7 @@ pub fn run(runtime: &Runtime) -> Result<()> {
         let storage = get_storage();
 
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
+        event::subscribe(ForceCloseDlcChannelSubscriber);
 
         let node_event_handler = Arc::new(NodeEventHandler::new());
 
@@ -839,17 +838,6 @@ fn update_state_after_collab_revert(
     };
 
     position::handler::update_position_after_dlc_closure(Some(filled_order))?;
-
-    match db::delete_positions() {
-        Ok(_) => {
-            event::publish(&EventInternal::PositionCloseNotification(
-                ContractSymbol::BtcUsd,
-            ));
-        }
-        Err(error) => {
-            tracing::error!("Could not delete position : {error:#}");
-        }
-    }
 
     let node = node.inner.clone();
 

@@ -112,7 +112,7 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
 }
 
 RichText getForceCloseChannelText(DlcChannelChangeNotifier dlcChannelChangeNotifier) {
-  if (dlcChannelChangeNotifier.hasDlcChannel()) {
+  if (!dlcChannelChangeNotifier.hasDlcChannel()) {
     return RichText(
         text: const TextSpan(
       text:

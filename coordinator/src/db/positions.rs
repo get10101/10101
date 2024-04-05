@@ -13,6 +13,8 @@ use diesel::AsExpression;
 use diesel::FromSqlRow;
 use dlc_manager::ContractId;
 use hex::FromHex;
+use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::any::TypeId;
 use time::OffsetDateTime;
 
@@ -181,24 +183,19 @@ impl Position {
     /// exactly 1)
     pub fn set_open_position_to_closing(
         conn: &mut PgConnection,
-        trader_pubkey: String,
-        closing_price: f32,
-    ) -> Result<()> {
-        let affected_rows = diesel::update(positions::table)
-            .filter(positions::trader_pubkey.eq(trader_pubkey.clone()))
+        trader: &PublicKey,
+        closing_price: Option<Decimal>,
+    ) -> QueryResult<usize> {
+        let closing_price = closing_price.map(|price| price.to_f32().expect("to fit into f32"));
+        diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader.to_string()))
             .filter(positions::position_state.eq(PositionState::Open))
             .set((
                 positions::position_state.eq(PositionState::Closing),
-                positions::closing_price.eq(Some(closing_price)),
+                positions::closing_price.eq(closing_price),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
             ))
-            .execute(conn)?;
-
-        if affected_rows == 0 {
-            bail!("Could not update position to Closing for {trader_pubkey}")
-        }
-
-        Ok(())
+            .execute(conn)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -267,17 +264,17 @@ impl Position {
         conn: &mut PgConnection,
         id: i32,
         trader_realized_pnl_sat: i64,
-    ) -> QueryResult<crate::position::models::Position> {
-        let position: Position = diesel::update(positions::table)
+        closing_price: Decimal,
+    ) -> QueryResult<usize> {
+        diesel::update(positions::table)
             .filter(positions::id.eq(id))
             .set((
                 positions::position_state.eq(PositionState::Closed),
                 positions::trader_realized_pnl_sat.eq(Some(trader_realized_pnl_sat)),
                 positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+                positions::closing_price.eq(closing_price.to_f32().expect("to fit into f32")),
             ))
-            .get_result(conn)?;
-
-        Ok(crate::position::models::Position::from(position))
+            .execute(conn)
     }
 
     pub fn set_position_to_closed(conn: &mut PgConnection, id: i32) -> Result<()> {

@@ -1,4 +1,5 @@
 use crate::dlc_protocol::ProtocolId;
+use crate::node::channel;
 use crate::schema::dlc_channels;
 use crate::schema::sql_types::DlcChannelStateType;
 use bitcoin::secp256k1::PublicKey;
@@ -6,15 +7,23 @@ use bitcoin::Amount;
 use bitcoin::Txid;
 use bitcoin_old::hashes::hex::ToHex;
 use diesel::query_builder::QueryId;
+use diesel::AsChangeset;
 use diesel::AsExpression;
 use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
+use diesel::OptionalExtension;
 use diesel::PgConnection;
+use diesel::QueryDsl;
 use diesel::QueryResult;
+use diesel::Queryable;
+use diesel::QueryableByName;
 use diesel::RunQueryDsl;
 use dlc_manager::DlcChannelId;
+use hex::FromHex;
 use std::any::TypeId;
+use std::str::FromStr;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = DlcChannelStateType)]
@@ -25,6 +34,28 @@ pub(crate) enum DlcChannelState {
     Closed,
     Failed,
     Cancelled,
+}
+
+#[derive(QueryableByName, Queryable, Debug, Clone, PartialEq, AsChangeset)]
+#[diesel(table_name = dlc_channels)]
+pub(crate) struct DlcChannel {
+    id: i32,
+    open_protocol_id: Uuid,
+    channel_id: String,
+    trader_pubkey: String,
+    channel_state: DlcChannelState,
+    trader_reserve_sats: i64,
+    coordinator_reserve_sats: i64,
+    funding_txid: Option<String>,
+    close_txid: Option<String>,
+    settle_txid: Option<String>,
+    buffer_txid: Option<String>,
+    claim_txid: Option<String>,
+    punish_txid: Option<String>,
+    created_at: OffsetDateTime,
+    updated_at: OffsetDateTime,
+    coordinator_funding_sats: i64,
+    trader_funding_sats: i64,
 }
 
 impl QueryId for DlcChannelStateType {
@@ -199,4 +230,63 @@ pub(crate) fn set_channel_cancelled(
         ))
         .filter(dlc_channels::open_protocol_id.eq(protocol_id.to_uuid()))
         .execute(conn)
+}
+
+pub(crate) fn get_dlc_channel(
+    conn: &mut PgConnection,
+    channel_id: &DlcChannelId,
+) -> QueryResult<Option<channel::DlcChannel>> {
+    let dlc_channel: Option<DlcChannel> = dlc_channels::table
+        .filter(dlc_channels::channel_id.eq(channel_id.to_hex()))
+        .first(conn)
+        .optional()?;
+
+    Ok(dlc_channel.map(channel::DlcChannel::from))
+}
+
+impl From<DlcChannel> for channel::DlcChannel {
+    fn from(value: DlcChannel) -> Self {
+        Self {
+            channel_id: DlcChannelId::from_hex(value.channel_id).expect("valid dlc channel id"),
+            trader: PublicKey::from_str(&value.trader_pubkey).expect("valid pubkey"),
+            channel_state: channel::DlcChannelState::from(value.channel_state),
+            trader_reserve_sats: Amount::from_sat(value.trader_reserve_sats as u64),
+            coordinator_reserve_sats: Amount::from_sat(value.coordinator_reserve_sats as u64),
+            trader_funding_sats: Amount::from_sat(value.trader_funding_sats as u64),
+            coordinator_funding_sats: Amount::from_sat(value.coordinator_funding_sats as u64),
+            funding_txid: value
+                .funding_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            close_txid: value
+                .close_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            settle_txid: value
+                .settle_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            buffer_txid: value
+                .buffer_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            claim_txid: value
+                .claim_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            punish_txid: value
+                .punish_txid
+                .map(|txid| Txid::from_str(&txid).expect("valid txid")),
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+        }
+    }
+}
+
+impl From<DlcChannelState> for channel::DlcChannelState {
+    fn from(value: DlcChannelState) -> Self {
+        match value {
+            DlcChannelState::Pending => channel::DlcChannelState::Pending,
+            DlcChannelState::Open => channel::DlcChannelState::Open,
+            DlcChannelState::Closing => channel::DlcChannelState::Closing,
+            DlcChannelState::Closed => channel::DlcChannelState::Closed,
+            DlcChannelState::Failed => channel::DlcChannelState::Failed,
+            DlcChannelState::Cancelled => channel::DlcChannelState::Cancelled,
+        }
+    }
 }
