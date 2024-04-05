@@ -17,7 +17,7 @@ dependencies:
   flutter_native_splash: ^2.2.19
   flutter_svg: ^2.0.5
   provider: ^6.0.5
-  intl: ^0.18.0
+  intl: ^0.19.0
   decimal: ^2.3.2
   slide_to_confirm: ^1.1.0
   path_provider: ^2.0.15
@@ -49,8 +49,6 @@ dependencies:
   screenshot: ^2.1.0
   syncfusion_flutter_sliders: ^24.2.9
   syncfusion_flutter_core: ^24.2.9
-dependency_overrides:
-  intl: ^0.18.0
 dev_dependencies:
   analyzer: ^6.4.1
   flutter_launcher_icons: ^0.13.1
