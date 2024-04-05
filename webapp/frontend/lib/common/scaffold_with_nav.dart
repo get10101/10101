@@ -136,12 +136,12 @@ class ScaffoldWithNavigationBar extends StatelessWidget {
     return Scaffold(
       body: body,
       bottomNavigationBar: NavigationBar(
-        overlayColor: MaterialStateColor.resolveWith(
-          (Set<MaterialState> states) {
-            if (states.contains(MaterialState.focused)) {
+        overlayColor: WidgetStateColor.resolveWith(
+          (Set<WidgetState> states) {
+            if (states.contains(WidgetState.focused)) {
               return Colors.green;
             }
-            if (states.contains(MaterialState.error)) {
+            if (states.contains(WidgetState.error)) {
               return Colors.red;
             }
             return Colors.grey;

@@ -100,12 +100,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          prefixIconColor: MaterialStateColor.resolveWith(
-            (Set<MaterialState> states) {
-              if (states.contains(MaterialState.focused)) {
+          prefixIconColor: WidgetStateColor.resolveWith(
+            (Set<WidgetState> states) {
+              if (states.contains(WidgetState.focused)) {
                 return tenTenOnePurple;
               }
-              if (states.contains(MaterialState.error)) {
+              if (states.contains(WidgetState.error)) {
                 return Colors.red;
               }
               return Colors.grey;
@@ -115,9 +115,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
             // this is the button background color
-            backgroundColor: MaterialStateProperty.resolveWith<Color>(
-              (Set<MaterialState> states) {
-                if (states.contains(MaterialState.disabled)) {
+            backgroundColor: WidgetStateProperty.resolveWith<Color>(
+              (Set<WidgetState> states) {
+                if (states.contains(WidgetState.disabled)) {
                   // Return grey color when the button is disabled
                   return Colors.grey;
                 }
@@ -126,8 +126,8 @@ class _TenTenOneAppState extends State<TenTenOneApp> {
               },
             ),
             // this is the button text color
-            foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+            foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
               RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5.0),
               ),

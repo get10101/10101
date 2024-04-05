@@ -137,17 +137,16 @@ class _SendScreenState extends State<SendScreen> {
                               }
                             : null,
                         style: ButtonStyle(
-                            padding:
-                                MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                            backgroundColor: MaterialStateProperty.resolveWith((states) {
-                              if (states.contains(MaterialState.disabled)) {
+                            padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                            backgroundColor: WidgetStateProperty.resolveWith((states) {
+                              if (states.contains(WidgetState.disabled)) {
                                 return tenTenOnePurple.shade100;
                               } else {
                                 return tenTenOnePurple;
                               }
                             }),
-                            shape: MaterialStateProperty.resolveWith((states) {
-                              if (states.contains(MaterialState.disabled)) {
+                            shape: WidgetStateProperty.resolveWith((states) {
+                              if (states.contains(WidgetState.disabled)) {
                                 return RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10.0),
                                   side: BorderSide(color: tenTenOnePurple.shade100),
