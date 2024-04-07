@@ -102,8 +102,6 @@ async fn process_pending_match(
 
         let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
 
-        // TODO: get the matching fee as a sum from all matches.
-
         let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {

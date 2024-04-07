@@ -92,6 +92,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::BonusStatusType;
+
+    bonus_tiers (id) {
+        id -> Int4,
+        tier_level -> Int4,
+        min_users_to_refer -> Int4,
+        fee_rebate -> Float4,
+        bonus_tier_type -> BonusStatusType,
+        active -> Bool,
+    }
+}
+
+diesel::table! {
     channel_opening_params (order_id) {
         order_id -> Text,
         coordinator_reserve -> Int8,
@@ -370,17 +384,12 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::BonusStatusType;
-
-    bonus_tiers (id) {
+    referral_tiers (id) {
         id -> Int4,
         tier_level -> Int4,
         min_users_to_refer -> Int4,
-        min_volume_per_referral -> Int4,
         fee_rebate -> Float4,
         number_of_trades -> Int4,
-        bonus_tier_type -> BonusStatusType,
         active -> Bool,
     }
 }
@@ -476,6 +485,7 @@ diesel::joinable!(trades -> positions (position_id));
 diesel::allow_tables_to_appear_in_same_query!(
     answers,
     bonus_status,
+    bonus_tiers,
     channel_opening_params,
     channels,
     choices,
@@ -493,7 +503,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     polls,
     polls_whitelist,
     positions,
-    bonus_tiers,
+    referral_tiers,
     routing_fees,
     spendable_outputs,
     trade_params,

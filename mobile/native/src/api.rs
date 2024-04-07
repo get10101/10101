@@ -854,7 +854,6 @@ impl From<commons::BonusStatusType> for BonusStatusType {
         match value {
             commons::BonusStatusType::Referral => BonusStatusType::Referral,
             commons::BonusStatusType::Referent => BonusStatusType::Referent,
-            commons::BonusStatusType::Promotion => BonusStatusType::Promotion,
         }
     }
 }

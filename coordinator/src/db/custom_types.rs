@@ -241,7 +241,6 @@ impl ToSql<BonusStatusType, Pg> for BonusType {
         match *self {
             BonusType::Referral => out.write_all(b"Referral")?,
             BonusType::Referent => out.write_all(b"Referent")?,
-            BonusType::Promotion => out.write_all(b"Promotion")?,
         }
         Ok(IsNull::No)
     }
@@ -252,7 +251,6 @@ impl FromSql<BonusStatusType, Pg> for BonusType {
         match bytes.as_bytes() {
             b"Referral" => Ok(BonusType::Referral),
             b"Referent" => Ok(BonusType::Referent),
-            b"Promotion" => Ok(BonusType::Promotion),
             _ => Err("Unrecognized enum variant".into()),
         }
     }
