@@ -11,7 +11,6 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use payout_curve::build_inverse_payout_function;
 use payout_curve::PartyParams;
 use payout_curve::PayoutPoint;
-use payout_curve::ROUNDING_PERCENT;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -181,9 +180,6 @@ fn computed_payout_curve(
     csv_path: &str,
     payout_points: Vec<(PayoutPoint, PayoutPoint)>,
 ) -> Result<()> {
-    let long_liquidation_price = payout_points.first().unwrap().1.event_outcome;
-    let short_liquidation_price = payout_points.last().unwrap().0.event_outcome;
-
     let mut pieces = vec![];
     for (lower, upper) in payout_points {
         let lower_range = PolynomialPayoutCurvePiece::new(vec![
@@ -205,24 +201,13 @@ fn computed_payout_curve(
         PayoutFunction::new(pieces).context("could not create payout function")?;
     let total_collateral =
         party_params_coordinator.total_collateral() + party_params_trader.total_collateral();
-    let total_margin = party_params_coordinator.margin() + party_params_trader.margin();
     let range_payouts = payout_function.to_range_payouts(
         total_collateral,
         &RoundingIntervals {
-            intervals: vec![
-                RoundingInterval {
-                    begin_interval: 0,
-                    rounding_mod: 1,
-                },
-                RoundingInterval {
-                    begin_interval: long_liquidation_price,
-                    rounding_mod: (total_margin as f32 * ROUNDING_PERCENT) as u64,
-                },
-                RoundingInterval {
-                    begin_interval: short_liquidation_price,
-                    rounding_mod: 1,
-                },
-            ],
+            intervals: vec![RoundingInterval {
+                begin_interval: 0,
+                rounding_mod: 1,
+            }],
         },
     )?;
 
