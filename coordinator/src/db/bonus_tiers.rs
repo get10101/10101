@@ -1,19 +1,15 @@
-use crate::db;
 use crate::db::bonus_status::BonusType;
 use crate::schema::bonus_tiers;
-use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use diesel::pg::sql_types::Timestamptz;
 use diesel::prelude::*;
 use diesel::sql_query;
 use diesel::sql_types::Float;
 use diesel::sql_types::Text;
-use diesel::sql_types::Timestamptz;
 use diesel::PgConnection;
 use diesel::QueryResult;
 use diesel::Queryable;
-use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
-use std::str::FromStr;
 use time::OffsetDateTime;
 
 pub struct Referral {
@@ -22,21 +18,14 @@ pub struct Referral {
 
 #[derive(Queryable, Debug, Clone)]
 #[diesel(table_name = bonus_tiers)]
+// this is needed because some fields are unused but need to be here for diesel
+#[allow(dead_code)]
 pub(crate) struct BonusTier {
-    // this is needed because this field needs to be here to satisfy diesel
-    #[allow(dead_code)]
     pub(crate) id: i32,
     pub(crate) tier_level: i32,
     pub(crate) min_users_to_refer: i32,
-    pub(crate) min_volume_per_referral: i32,
-    // TODO: to be used
-    #[allow(dead_code)]
     pub(crate) fee_rebate: f32,
-    #[allow(dead_code)]
-    pub(crate) number_of_trades: i32,
     pub(crate) bonus_tier_type: BonusType,
-    // this is needed because this field needs to be here to satisfy diesel
-    #[allow(dead_code)]
     pub(crate) active: bool,
 }
 
@@ -60,31 +49,6 @@ pub(crate) fn tier_by_tier_level(
         .first(conn)
 }
 
-/// Returns volume of referred users
-pub fn get_referrals_per_referral_code(
-    connection: &mut PgConnection,
-    referral_code: String,
-) -> Result<Vec<Referral>> {
-    let referred_users = db::user::get_referred_users(connection, referral_code)?;
-
-    let mut referrals = vec![];
-    for user in referred_users {
-        let public_key = PublicKey::from_str(user.pubkey.as_str()).expect("To be a valid pubkey");
-        let trades = db::trades::get_trades(connection, public_key)?;
-        let total_volume = trades.iter().map(|trade| trade.quantity).sum::<f32>();
-        tracing::debug!(
-            referred_user_id = user.pubkey,
-            total_volume,
-            "Referred user found"
-        );
-        referrals.push(Referral {
-            volume: Decimal::from_f32(total_volume).expect("to fit into f32"),
-        })
-    }
-
-    Ok(referrals)
-}
-
 #[derive(Debug, QueryableByName, Clone)]
 pub struct UserReferralSummaryView {
     #[diesel(sql_type = Text)]
@@ -101,6 +65,7 @@ pub struct UserReferralSummaryView {
     pub referred_user_total_quantity: f32,
 }
 
+/// Returns all referred users for by referrer with trading volume > 0
 pub(crate) fn all_referrals_by_referring_user(
     conn: &mut PgConnection,
     trader_pubkey: &PublicKey,
@@ -112,7 +77,8 @@ pub(crate) fn all_referrals_by_referring_user(
                 referred_user_referral_code, \
                 timestamp, \
                 referred_user_total_quantity \
-                    FROM user_referral_summary_view where referring_user = $1";
+                    FROM user_referral_summary_view where referring_user = $1 \
+                    and referred_user_total_quantity > 0";
     let summaries: Vec<UserReferralSummaryView> = sql_query(query)
         .bind::<Text, _>(trader_pubkey.to_string())
         .load(conn)?;

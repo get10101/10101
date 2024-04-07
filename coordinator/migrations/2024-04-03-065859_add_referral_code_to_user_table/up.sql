@@ -5,26 +5,23 @@ ALTER TABLE users
 ALTER TABLE users
     ADD COLUMN used_referral_code TEXT;
 
-CREATE TYPE "BonusStatus_Type" AS ENUM ('Referral', 'Referent', 'Promotion');
+CREATE TYPE "BonusStatus_Type" AS ENUM ('Referral', 'Referent');
 
 CREATE TABLE bonus_tiers (
     id SERIAL PRIMARY KEY,
     tier_level INTEGER NOT NULL,
     min_users_to_refer INTEGER NOT NULL,
-    min_volume_per_referral INTEGER NOT NULL,
     fee_rebate REAL NOT NULL,
-    number_of_trades INTEGER NOT NULL,
     bonus_tier_type "BonusStatus_Type" NOT NULL,
     active BOOLEAN NOT NULL
 );
 
-INSERT INTO bonus_tiers (tier_level, min_users_to_refer, min_volume_per_referral, fee_rebate, number_of_trades, bonus_tier_type, active)
-VALUES
-    (0, 0, 0, 0.0, 0, 'Referral', true),
-    (1, 5, 1000, 0.25, 10, 'Referral', true),
-    (2, 10, 5000, 0.40, 10, 'Referral', true),
-    (3, 20, 10000, 0.60, 10, 'Referral', true),
-    (4, 0, 0, 0.1, 0, 'Referent', true);
+INSERT INTO bonus_tiers (tier_level, min_users_to_refer, fee_rebate, bonus_tier_type, active)
+VALUES (0, 0, 0.0, 'Referral', true),
+       (1, 3, 0.20, 'Referral', true),
+       (2, 5, 0.35, 'Referral', true),
+       (3, 10, 0.50, 'Referral', true),
+       (4, 0, 0.1, 'Referent', true);
 
 CREATE VIEW user_referral_summary_view AS
 SELECT u2.pubkey AS referring_user,

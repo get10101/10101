@@ -137,6 +137,11 @@ pub fn upsert_user(
             let bonus_tier = bonus_tiers::all_active_by_type(conn, vec![BonusType::Referent])?;
             let bonus_tier = bonus_tier.first().expect("to have at least one tier");
             bonus_status::insert(conn, &trader_id, bonus_tier.tier_level, BonusType::Referent)?;
+            tracing::info!(
+                referral_code,
+                trader_pubkey = trader_id.to_string(),
+                "New user has been referred and got referral bonus"
+            )
         } else {
             tracing::warn!(
                 referral_code,

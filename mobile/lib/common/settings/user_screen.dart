@@ -7,8 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:share_plus/share_plus.dart';
 
-import '../../logger/logger.dart';
-
 class UserSettings extends StatefulWidget {
   static const route = "${SettingsScreen.route}/$subRouteName";
   static const subRouteName = "user";
@@ -74,7 +72,6 @@ class _UserSettingsState extends State<UserSettings> {
 
                   final referralCode = snapshot.data!.referralCode;
                   final bonusStatusType = snapshot.data!.bonusStatusType;
-                  logger.i("----- $bonusStatusType");
                   final referralTier = snapshot.data!.referralTier;
                   final numberOfActivatedReferrals = snapshot.data!.numberOfActivatedReferrals;
                   final numberOfTotalReferrals = snapshot.data!.numberOfTotalReferrals;
@@ -141,7 +138,7 @@ class _UserSettingsState extends State<UserSettings> {
                         children: [
                           RichText(
                               text: const TextSpan(
-                                  text: "Active/total referrals",
+                                  text: "Active",
                                   style: TextStyle(fontSize: 18, color: Colors.black),
                                   children: [
                                 TextSpan(
@@ -150,7 +147,11 @@ class _UserSettingsState extends State<UserSettings> {
                                       fontFeatures: <FontFeature>[
                                         FontFeature.superscripts(),
                                       ],
-                                    ))
+                                    )),
+                                TextSpan(
+                                  text: '/total referrals',
+                                  style: TextStyle(fontSize: 18, color: Colors.black),
+                                )
                               ])),
                           Text("$numberOfActivatedReferrals/$numberOfTotalReferrals",
                               style: const TextStyle(fontSize: 18)),
@@ -204,7 +205,7 @@ class _UserSettingsState extends State<UserSettings> {
                                   FontFeature.superscripts(),
                                 ],
                               )),
-                          Text("Some referents have not traded enough yet.")
+                          Text("Referred users that have traded.")
                         ],
                       )
                     ],

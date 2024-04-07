@@ -110,8 +110,6 @@ pub enum BonusStatusType {
     Referral,
     /// The user has been referred and gets a bonus
     Referent,
-    /// This bonus is part of a promotion
-    Promotion,
 }
 
 impl ReferralStatus {

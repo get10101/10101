@@ -867,7 +867,7 @@ fn update_state_after_collab_revert(
                 state: OrderState::Filled {
                     execution_price: execution_price.to_f32().expect("to fit into f32"),
                     // this fee here doesn't matter because it's not being used anywhere
-                    matching_fee: Amount::from_sat(1000),
+                    matching_fee: Amount::ZERO,
                 },
                 creation_timestamp: OffsetDateTime::now_utc(),
                 order_expiry_timestamp: OffsetDateTime::now_utc(),

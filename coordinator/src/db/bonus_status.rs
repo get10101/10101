@@ -24,8 +24,6 @@ pub enum BonusType {
     Referral,
     /// The user has been referred and gets a bonus
     Referent,
-    /// The user has been part of a promotion
-    Promotion,
 }
 
 #[allow(dead_code)]
@@ -47,7 +45,6 @@ impl From<BonusType> for commons::BonusStatusType {
         match value {
             BonusType::Referral => commons::BonusStatusType::Referral,
             BonusType::Referent => commons::BonusStatusType::Referent,
-            BonusType::Promotion => commons::BonusStatusType::Promotion,
         }
     }
 }
