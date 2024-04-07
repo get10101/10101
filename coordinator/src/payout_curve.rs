@@ -238,41 +238,50 @@ mod tests {
     }
 
     #[test]
+    /// We check that the generated payout function takes into account the provided collateral
+    /// reserves. A party's collateral reserve is their coins in the DLC channel that are not being
+    /// wagered. As such, we expect _any_ of their payouts to be _at least_ their collateral
+    /// reserve.
     fn payout_function_respects_collateral_reserve() {
+        // Arrange
+
         let initial_price = dec!(28_251);
         let quantity = 500.0;
-        let leverage_coordinator = 2.0;
-        let coordinator_margin = calculate_margin(initial_price, quantity, leverage_coordinator);
+        let leverage_offer = 2.0;
+        let margin_offer = calculate_margin(initial_price, quantity, leverage_offer);
 
-        let leverage_trader = 2.0;
-        let trader_margin = calculate_margin(initial_price, quantity, leverage_trader);
+        let leverage_accept = 2.0;
+        let margin_accept = calculate_margin(initial_price, quantity, leverage_accept);
 
-        let coordinator_direction = Direction::Short;
+        let direction_offer = Direction::Short;
 
-        let coordinator_collateral_reserve = 2_120_386;
-        let trader_collateral_reserve = 5_115_076;
+        let collateral_reserve_offer = 2_120_386;
+        let collateral_reserve_accept = 5_115_076;
 
-        let total_collateral = coordinator_margin
-            + trader_margin
-            + coordinator_collateral_reserve
-            + trader_collateral_reserve;
+        let total_collateral =
+            margin_offer + margin_accept + collateral_reserve_offer + collateral_reserve_accept;
 
         let symbol = ContractSymbol::BtcUsd;
 
+        // Act
+
         let descriptor = build_contract_descriptor(
             initial_price,
-            coordinator_margin,
-            trader_margin,
-            leverage_coordinator,
-            leverage_trader,
-            coordinator_direction,
-            coordinator_collateral_reserve,
-            trader_collateral_reserve,
+            margin_offer,
+            margin_accept,
+            leverage_offer,
+            leverage_accept,
+            direction_offer,
+            collateral_reserve_offer,
+            collateral_reserve_accept,
             quantity,
             symbol,
         )
         .unwrap();
 
+        // Assert
+
+        // Extract the payouts from the generated `ContractDescriptor`.
         let range_payouts = match descriptor {
             ContractDescriptor::Enum(_) => unreachable!(),
             ContractDescriptor::Numerical(numerical) => {
@@ -280,6 +289,7 @@ mod tests {
             }
         };
 
+        // The offer party gets liquidated when they get the minimum amount of sats as a payout.
         let liquidation_payout_offer = range_payouts
             .iter()
             .min_by(|a, b| a.payout.offer.cmp(&b.payout.offer))
@@ -287,8 +297,10 @@ mod tests {
             .payout
             .offer;
 
-        assert_eq!(liquidation_payout_offer, coordinator_collateral_reserve);
+        // The minimum amount the offer party can get as a payout is their collateral reserve.
+        assert_eq!(liquidation_payout_offer, collateral_reserve_offer);
 
+        // The accept party gets liquidated when they get the minimum amount of sats as a payout.
         let liquidation_payout_accept = range_payouts
             .iter()
             .min_by(|a, b| a.payout.accept.cmp(&b.payout.accept))
@@ -296,7 +308,8 @@ mod tests {
             .payout
             .accept;
 
-        assert_eq!(liquidation_payout_accept, trader_collateral_reserve);
+        // The minimum amount the accept party can get as a payout is their collateral reserve.
+        assert_eq!(liquidation_payout_accept, collateral_reserve_accept);
     }
 
     proptest! {
