@@ -32,9 +32,8 @@ pub async fn monitor(node: Node, trading_sender: mpsc::Sender<NewOrderMessage>) 
     }
 }
 
-/// Checks all open positions if given the best price the maintenance margin has been reached and
-/// the position needs to get liquidated. If so an async match is created and the user is notified
-/// about the pending liquidation.
+/// For all open positions, check if the maintenance margin has been reached. Send a liquidation
+/// async match to the traders whose positions have been liquidated.
 async fn check_if_positions_need_to_get_liquidated(
     trading_sender: mpsc::Sender<NewOrderMessage>,
     node: Node,
