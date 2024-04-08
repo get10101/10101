@@ -30,6 +30,7 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 use std::cmp::Ordering;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -222,28 +223,33 @@ pub async fn process_new_market_order(
         trader_pubkey = trader_pubkey_string,
         %fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
 
-    let matched_orders =
-        match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
-            Ok(Some(matched_orders)) => matched_orders,
-            Ok(None) => {
-                // TODO(holzeis): Currently we still respond to the user immediately if there
-                // has been a match or not, that's the reason why we also have to set the order
-                // to failed here. But actually we could keep the order until either expired or
-                // a match has been found and then update the state accordingly.
+    let matched_orders = match match_order(
+        &order,
+        opposite_direction_limit_orders,
+        network,
+        oracle_pk,
+        fee_percent,
+    ) {
+        Ok(Some(matched_orders)) => matched_orders,
+        Ok(None) => {
+            // TODO(holzeis): Currently we still respond to the user immediately if there
+            // has been a match or not, that's the reason why we also have to set the order
+            // to failed here. But actually we could keep the order until either expired or
+            // a match has been found and then update the state accordingly.
 
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
-                    .map_err(|e| anyhow!("{e:#}"))?;
-                return Err(TradingError::NoMatchFound(format!(
-                    "Could not match order {}",
-                    order.id
-                )));
-            }
-            Err(e) => {
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
-                    .map_err(|e| anyhow!("{e:#}"))?;
-                return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
-            }
-        };
+            orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                .map_err(|e| anyhow!("{e:#}"))?;
+            return Err(TradingError::NoMatchFound(format!(
+                "Could not match order {}",
+                order.id
+            )));
+        }
+        Err(e) => {
+            orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                .map_err(|e| anyhow!("{e:#}"))?;
+            return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
+        }
+    };
 
     tracing::info!(
         trader_id=%order.trader_id,
@@ -356,6 +362,7 @@ fn match_order(
     opposite_direction_orders: Vec<Order>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
+    fee_percent: Decimal,
 ) -> Result<Option<MatchParams>> {
     if market_order.order_type == OrderType::Limit {
         // We don't match limit orders with other limit orders at the moment.
@@ -392,13 +399,21 @@ fn match_order(
 
     let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
-    // TODO(bonomat:ordermatching): get this from somewhere. Get the tier for the trader and the fee
-    // from settings
-    let matching_fee = Amount::ZERO;
-
     let matches = matched_orders
         .iter()
         .map(|maker_order| {
+            let matching_fee = market_order.quantity / maker_order.price * fee_percent;
+            let matching_fee = matching_fee.round_dp_with_strategy(8, RoundingStrategy::MidpointAwayFromZero);
+            let matching_fee = match Amount::from_btc(matching_fee.to_f64().expect("to fit")) {
+                Ok(fee) => {fee}
+                Err(err) => {
+                    tracing::error!(
+                        trader_pubkey = maker_order.trader_id.to_string(),
+                        order_id = maker_order.id.to_string(),
+                        "Failed calculating order matching fee for order {err:?}. Falling back to 0");
+                    Amount::ZERO
+                }
+            };
             (
                 TraderMatchParams {
                     trader_id: maker_order.trader_id,
@@ -655,6 +670,7 @@ mod tests {
             all_orders,
             Network::Bitcoin,
             get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .unwrap()
         .unwrap();
@@ -737,6 +753,7 @@ mod tests {
             all_orders,
             Network::Bitcoin,
             get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .is_err());
     }
@@ -794,6 +811,7 @@ mod tests {
             all_orders,
             Network::Bitcoin,
             get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .unwrap();
 

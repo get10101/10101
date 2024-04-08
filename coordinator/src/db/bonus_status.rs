@@ -1,5 +1,4 @@
 use crate::db::bonus_tiers;
-use crate::db::referral_tiers::tier_by_tier_level;
 use crate::schema::bonus_status;
 use crate::schema::sql_types::BonusStatusType;
 use bitcoin::secp256k1::PublicKey;

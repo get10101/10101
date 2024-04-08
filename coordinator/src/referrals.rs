@@ -1,8 +1,6 @@
 use crate::db;
-use crate::db::bonus_status::BonusStatus;
 use crate::db::bonus_status::BonusType;
 use crate::db::bonus_tiers::BonusTier;
-use crate::db::user::User;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -26,14 +24,17 @@ pub fn get_referral_status(
     let mut bonus_status = db::bonus_status::active_status_for_user(connection, &trader_pubkey)?;
     let user = db::user::get_user(connection, &trader_pubkey)?.context("User not found")?;
 
-    // we sort by tier_level, higher tier means better bonus
-    bonus_status.sort_by(|a, b| b.tier_level.cmp(&a.tier_level));
+    // we sort by fee_rebate
+    bonus_status.sort_by(|a, b| {
+        b.fee_rebate
+            .partial_cmp(&a.fee_rebate)
+            .expect("to be able to sort")
+    });
 
     // next we pick the highest
     if let Some(bonus) = bonus_status.first() {
         let referrals =
             db::bonus_tiers::all_referrals_by_referring_user(connection, &trader_pubkey)?;
-        let tier = db::bonus_tiers::tier_by_tier_level(connection, bonus.tier_level)?;
 
         return Ok(ReferralStatus {
             referral_code: user.referral_code,
@@ -42,47 +43,14 @@ pub fn get_referral_status(
                 .filter(|referral| referral.referred_user_total_quantity.floor() > 0.0)
                 .count(),
             number_of_total_referrals: referrals.len(),
-            referral_tier: tier.tier_level as usize,
-            referral_fee_bonus: Decimal::from_f32(tier.fee_rebate).expect("to fit"),
+            referral_tier: bonus.tier_level as usize,
+            referral_fee_bonus: Decimal::from_f32(bonus.fee_rebate).expect("to fit"),
             bonus_status_type: Some(bonus.bonus_type.into()),
         });
     }
 
-    // if he has no one referred so far, we check for an active referent bonus
-    if let Some(status) = has_active_referent_bonus(connection, bonus_status.as_slice(), &user)? {
-        return Ok(status);
-    }
-
     // None of the above, user is a boring normal user
     Ok(ReferralStatus::new(trader_pubkey))
-}
-
-fn has_active_referent_bonus(
-    connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
-    bonus_status: &[BonusStatus],
-    user: &User,
-) -> Result<Option<ReferralStatus>> {
-    if let Some(bonus) = bonus_status
-        .iter()
-        .find(|status| BonusType::Referent == status.bonus_type)
-    {
-        tracing::debug!(
-            trader_pubkey = bonus.trader_pubkey,
-            bonus_type = ?bonus.bonus_type,
-            tier_level = bonus.tier_level,
-            "Trader was referred");
-        let tier = db::bonus_tiers::tier_by_tier_level(connection, bonus.tier_level)?;
-
-        return Ok(Some(ReferralStatus {
-            referral_code: user.referral_code.clone(),
-            number_of_activated_referrals: 0,
-            number_of_total_referrals: 0,
-            referral_tier: tier.tier_level as usize,
-            referral_fee_bonus: Decimal::from_f32(tier.fee_rebate).expect("to fit"),
-            bonus_status_type: Some(bonus.bonus_type.into()),
-        }));
-    }
-    Ok(None)
 }
 
 pub fn update_referral_status(
@@ -186,18 +154,11 @@ pub fn update_referral_status_for_user(
 
     tracing::debug!(
         trader_pubkey = trader_pubkey.to_string(),
-        "Trader doesn't have any referral status yet"
+        "Trader doesn't have any new referral status yet"
     );
 
-    // User doesn't have any referral status yet
-    Ok(ReferralStatus {
-        referral_code,
-        number_of_activated_referrals: 0,
-        number_of_total_referrals: 0,
-        referral_tier: 0,
-        referral_fee_bonus: Decimal::ZERO,
-        bonus_status_type: None,
-    })
+    // User doesn't have any new referral status yet
+    Ok(status)
 }
 
 /// Returns the tier_level of the calculated tier.

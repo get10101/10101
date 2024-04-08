@@ -237,7 +237,14 @@ fn build_update_bonus_status_job(
     pool: Pool<ConnectionManager<PgConnection>>,
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
-        let mut conn = pool.get().expect("To be able to get a db connection");
+        let mut conn = match pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return Box::pin(async move {
+                    tracing::error!("Failed to get connection. Error: {e:#}")
+                });
+            }
+        };
 
         match referrals::update_referral_status(&mut conn) {
             Ok(number_of_updated_users) => Box::pin({
