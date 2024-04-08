@@ -4,7 +4,7 @@ use crate::db;
 use crate::db::connection;
 use crate::event;
 use crate::event::EventInternal;
-use crate::get_maintenance_margin;
+use crate::get_maintenance_margin_rate;
 use crate::ln_dlc;
 use crate::state::get_node;
 use crate::trade::position::Position;
@@ -113,12 +113,12 @@ pub fn recreate_position() -> Result<()> {
         }
     };
 
-    let maintenance_margin = get_maintenance_margin();
+    let maintenance_margin_rate = get_maintenance_margin_rate();
     let liquidation_price = calculate_liquidation_price(
         average_entry_price,
         order.leverage,
         order.direction,
-        maintenance_margin,
+        maintenance_margin_rate,
     );
 
     let position = Position {

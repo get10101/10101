@@ -1,6 +1,6 @@
 use crate::calculations::calculate_liquidation_price;
 use crate::calculations::calculate_pnl;
-use crate::get_maintenance_margin;
+use crate::get_maintenance_margin_rate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
@@ -89,12 +89,12 @@ impl Position {
 
         let average_entry_price = order.execution_price().expect("order to be filled");
 
-        let maintenance_margin = get_maintenance_margin();
+        let maintenance_margin_rate = get_maintenance_margin_rate();
         let liquidation_price = calculate_liquidation_price(
             average_entry_price,
             order.leverage,
             order.direction,
-            maintenance_margin,
+            maintenance_margin_rate,
         );
 
         let contracts = decimal_from_f32(order.quantity);
@@ -499,12 +499,12 @@ impl Position {
                 / (starting_contracts_relative / starting_average_execution_price
                     + order_contracts_relative / order_execution_price);
 
-            let maintenance_margin = get_maintenance_margin();
+            let maintenance_margin_rate = get_maintenance_margin_rate();
             let updated_liquidation_price = calculate_liquidation_price(
                 f32_from_decimal(updated_average_execution_price),
                 f32_from_decimal(starting_leverage),
                 self.direction,
-                maintenance_margin,
+                maintenance_margin_rate,
             );
 
             let updated_collateral = {

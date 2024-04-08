@@ -53,9 +53,9 @@ pub fn calculate_long_bankruptcy_price(leverage: Decimal, price: Decimal) -> Dec
 pub fn calculate_long_liquidation_price(
     leverage: Decimal,
     price: Decimal,
-    maintenance_margin: Decimal,
+    maintenance_margin_rate: Decimal,
 ) -> Decimal {
-    price * leverage / (leverage + Decimal::ONE - (maintenance_margin * leverage))
+    price * leverage / (leverage + Decimal::ONE - (maintenance_margin_rate * leverage))
 }
 
 pub fn calculate_short_bankruptcy_price(leverage: Decimal, price: Decimal) -> Decimal {
@@ -66,14 +66,14 @@ pub fn calculate_short_bankruptcy_price(leverage: Decimal, price: Decimal) -> De
 pub fn calculate_short_liquidation_price(
     leverage: Decimal,
     price: Decimal,
-    maintenance_margin: Decimal,
+    maintenance_margin_rate: Decimal,
 ) -> Decimal {
     // If the leverage is equal to 1, the liquidation price will go towards infinity
     if leverage == Decimal::ONE {
         return Decimal::from(BTCUSD_MAX_PRICE);
     }
 
-    price * leverage / (leverage - Decimal::ONE + (maintenance_margin * leverage))
+    price * leverage / (leverage - Decimal::ONE + (maintenance_margin_rate * leverage))
 }
 
 /// Compute the payout for the given CFD parameters at a particular `closing_price`.
@@ -486,9 +486,9 @@ mod tests {
     pub fn test_calculate_long_liquidation_price() {
         let leverage = dec!(2);
         let price = dec!(30_000);
-        let maintenance_margin = dec!(0);
+        let maintenance_margin_rate = dec!(0);
         let liquidation_price =
-            calculate_long_liquidation_price(leverage, price, maintenance_margin);
+            calculate_long_liquidation_price(leverage, price, maintenance_margin_rate);
         let bankruptcy_price = calculate_long_bankruptcy_price(leverage, price);
         assert_eq!(dec!(20_000), liquidation_price);
         assert_eq!(liquidation_price, bankruptcy_price);
@@ -498,32 +498,32 @@ mod tests {
     pub fn test_calculate_short_liquidation_price() {
         let leverage = dec!(2);
         let price = dec!(30_000);
-        let maintenance_margin = dec!(0);
+        let maintenance_margin_rate = dec!(0);
         let liquidation_price =
-            calculate_short_liquidation_price(leverage, price, maintenance_margin);
+            calculate_short_liquidation_price(leverage, price, maintenance_margin_rate);
         let bankruptcy_price = calculate_short_bankruptcy_price(leverage, price);
         assert_eq!(dec!(60_000), liquidation_price);
         assert_eq!(liquidation_price, bankruptcy_price);
     }
     #[test]
-    pub fn test_calculate_long_liquidation_price_with_maintenance_margin() {
+    pub fn test_calculate_long_liquidation_price_with_maintenance_margin_rate() {
         let leverage = dec!(2);
         let price = dec!(30_000);
-        let maintenance_margin = dec!(0.1);
+        let maintenance_margin_rate = dec!(0.1);
         let liquidation_price =
-            calculate_long_liquidation_price(leverage, price, maintenance_margin);
+            calculate_long_liquidation_price(leverage, price, maintenance_margin_rate);
         let bankruptcy_price = calculate_long_bankruptcy_price(leverage, price);
         assert_eq!(dec!(21428.571428571428571428571429), liquidation_price);
         assert_ne!(liquidation_price, bankruptcy_price);
     }
 
     #[test]
-    pub fn test_calculate_short_liquidation_price_with_maintenance_margin() {
+    pub fn test_calculate_short_liquidation_price_with_maintenance_margin_rate() {
         let leverage = dec!(2);
         let price = dec!(30_000);
-        let maintenance_margin = dec!(0.1);
+        let maintenance_margin_rate = dec!(0.1);
         let liquidation_price =
-            calculate_short_liquidation_price(leverage, price, maintenance_margin);
+            calculate_short_liquidation_price(leverage, price, maintenance_margin_rate);
         let bankruptcy_price = calculate_short_bankruptcy_price(leverage, price);
         assert_eq!(dec!(50000), liquidation_price);
         assert_ne!(liquidation_price, bankruptcy_price);
