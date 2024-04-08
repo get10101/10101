@@ -191,7 +191,7 @@ class MemeWidget extends StatelessWidget {
       decoration: TextDecoration.underline,
     );
     var secondaryTextValue =
-        TextStyle(color: pnlColor, fontWeight: FontWeight.bold, fontSize: 15.0);
+        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.0);
     var primaryTextStypeValue = TextStyle(
       color: pnlColor,
       fontWeight: FontWeight.bold,
@@ -208,8 +208,8 @@ class MemeWidget extends StatelessWidget {
         itemBuilder: (BuildContext context, int index) {
           return Container(
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(5.0),
-                border: Border.all(color: Colors.grey, width: 1)),
+              borderRadius: BorderRadius.circular(5.0),
+            ),
             child: Stack(
               children: [
                 Column(
@@ -320,37 +320,43 @@ class MemeWidget extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Row(
-                              children: [
-                                Text(
+                          Row(
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
                                   pnl.formatted(),
                                   style: primaryTextStypeValue,
                                 ),
-                                Icon(
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Icon(
                                   BitcoinIcons.satoshi_v2,
                                   color: pnlColor,
                                   size: 20,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Row(
-                              children: [
-                                Text(
+                          Row(
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
                                   pnlPercent.toString(),
                                   style: primaryTextStypeValue,
                                 ),
-                                Icon(
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Icon(
                                   Icons.percent,
                                   color: pnlColor,
                                   size: 20,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           )
                         ],
                       ),
@@ -366,14 +372,14 @@ class MemeWidget extends StatelessWidget {
                           Row(
                             children: [
                               const Text(
-                                "Side",
+                                "Leverage",
                                 style: secondaryTextHeading,
                               ),
                               const SizedBox(
                                 width: 5,
                               ),
                               Text(
-                                "${leverage.formattedReverse()} ${direction.nameU}",
+                                leverage.formattedReverse(),
                                 style: secondaryTextValue,
                               )
                             ],
@@ -385,14 +391,14 @@ class MemeWidget extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     const Text(
-                                      "Entry price",
+                                      "Side",
                                       style: secondaryTextHeading,
                                     ),
                                     const SizedBox(
                                       width: 5,
                                     ),
                                     Text(
-                                      entryPrice.toString(),
+                                      direction.nameU,
                                       style: secondaryTextValue,
                                     )
                                   ],
