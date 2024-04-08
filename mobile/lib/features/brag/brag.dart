@@ -11,6 +11,8 @@ import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:get_10101/ffi.dart' as rust;
 import 'package:screenshot/screenshot.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -304,12 +306,28 @@ class MemeWidget extends StatelessWidget {
                                   color: tenTenOnePurple,
                                 ),
                                 borderRadius: const BorderRadius.all(Radius.circular(5))),
-                            child: Padding(
-                              padding: const EdgeInsets.all(2.0),
-                              child: SvgPicture.asset('assets/10101-qr-transparent.svg',
-                                  colorFilter:
-                                      const ColorFilter.mode(Colors.black, BlendMode.srcIn)),
-                            )),
+                            child: FutureBuilder(
+                                future: rust.api.referralStatus(),
+                                builder: (BuildContext context,
+                                    AsyncSnapshot<rust.ReferralStatus> snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const CircularProgressIndicator();
+                                  }
+                                  return QrImageView(
+                                    data:
+                                        "https://referral.10101.finance?referral=${snapshot.data!.referralCode}",
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    version: QrVersions.auto,
+                                    padding: const EdgeInsets.all(1),
+                                  );
+                                })),
                       )),
                 ),
                 Column(
