@@ -213,11 +213,14 @@ pub async fn process_new_market_order(
     let fee_percent = { node.settings.read().await.order_matching_fee_rate };
     let fee_percent = Decimal::try_from(fee_percent).expect("to fit into decimal");
 
+    let trader_pubkey_string = order.trader_id.to_string();
     let status = referrals::get_referral_status(order.trader_id, &mut conn)?;
     let fee_discount = status.referral_fee_bonus;
     let fee_percent = fee_percent - (fee_percent * fee_discount);
 
-    tracing::debug!(%fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
+    tracing::debug!(
+        trader_pubkey = trader_pubkey_string,
+        %fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
 
     let matched_orders =
         match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
