@@ -178,7 +178,10 @@ pub fn get_maintenance_margin_rate() -> Decimal {
         Some(config) => {
             Decimal::try_from(config.maintenance_margin_rate).expect("to fit into decimal")
         }
-        None => dec!(0.1),
+        None => {
+            tracing::warn!("The ten ten one config is not ready yet. Returning default value!");
+            dec!(0.1)
+        }
     }
 }
 
