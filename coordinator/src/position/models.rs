@@ -64,43 +64,47 @@ pub enum PositionState {
     ResizeOpeningSubchannelProposed,
 }
 
-/// The position acts as an aggregate of one contract of one user.
-/// The position represents the values of the trader; i.e. the leverage, collateral and direction
-/// and the coordinator leverage
+/// The trading position for a user identified by `trader`.
 #[derive(Clone)]
 pub struct Position {
     pub id: i32,
+    pub trader: PublicKey,
     pub contract_symbol: ContractSymbol,
-    /// the traders leverage
-    pub trader_leverage: f32,
     pub quantity: f32,
-    /// the traders direction
     pub trader_direction: Direction,
+
     pub average_entry_price: f32,
-    /// the traders liquidation price
+    pub closing_price: Option<f32>,
+    pub trader_realized_pnl_sat: Option<i64>,
+
     pub trader_liquidation_price: f32,
     pub coordinator_liquidation_price: f32,
-    pub position_state: PositionState,
+
+    pub trader_margin: i64,
     pub coordinator_margin: i64,
+
+    pub trader_leverage: f32,
+    pub coordinator_leverage: f32,
+
+    pub position_state: PositionState,
+
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
-    pub trader: PublicKey,
-    /// the coordinators leverage
-    pub coordinator_leverage: f32,
 
-    /// The temporary contract id that is created when the contract is being offered
+    /// The temporary contract ID that is created when an [`OfferedContract`] is sent.
     ///
-    /// We use the temporary contract id because the actual contract id might not be known at that
-    /// point. The temporary contract id is propagated to all states until the contract is
+    /// We use the temporary contract ID because the actual contract ID is not always available.
+    /// The temporary contract ID is propagated to all `rust-dlc` states until the contract is
     /// closed.
-    /// This field is optional for backwards compatibility because we cannot deterministically
-    /// associate already existing contracts with positions.
+    ///
+    /// This field is optional to maintain backwards compatibility, because we cannot
+    /// deterministically associate already existing contracts with positions.
+    ///
+    /// [`OfferedContract`]: dlc_manager::contract::offered_contract::OfferedContract
     pub temporary_contract_id: Option<ContractId>,
-    pub closing_price: Option<f32>,
-    pub trader_margin: i64,
+
     pub stable: bool,
-    pub trader_realized_pnl_sat: Option<i64>,
 }
 
 impl Position {
