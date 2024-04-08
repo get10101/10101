@@ -434,9 +434,9 @@ mod tests {
     use rust_decimal_macros::dec;
     use std::fs::File;
     use std::ops::Mul;
-    use trade::cfd::calculate_long_liquidation_price;
+    use trade::cfd::calculate_long_bankruptcy_price;
     use trade::cfd::calculate_margin;
-    use trade::cfd::calculate_short_liquidation_price;
+    use trade::cfd::calculate_short_bankruptcy_price;
 
     /// set this to true to export test data to csv files
     /// An example gnuplot file has been provided in [`payout_curve.gp`]
@@ -584,9 +584,9 @@ mod tests {
             collateral_reserve: collateral_reserve_accept.to_sat(),
         };
 
-        let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
+        let long_liquidation_price = calculate_long_bankruptcy_price(leverage_long, initial_price);
         let short_liquidation_price =
-            calculate_short_liquidation_price(leverage_short, initial_price);
+            calculate_short_bankruptcy_price(leverage_short, initial_price);
         let price_params = PriceParams {
             initial_price,
             long_liquidation_price,
@@ -620,11 +620,11 @@ mod tests {
 
         let collateral_reserve_offer = Amount::from_sat(155);
 
-        let long_liquidation_price = calculate_long_liquidation_price(
+        let long_liquidation_price = calculate_long_bankruptcy_price(
             Decimal::from_f32(long_leverage).expect("to fit into f32"),
             initial_price,
         );
-        let short_liquidation_price = calculate_short_liquidation_price(
+        let short_liquidation_price = calculate_short_bankruptcy_price(
             Decimal::from_f32(short_leverage).expect("to fit into f32"),
             initial_price,
         );
@@ -888,11 +888,11 @@ mod tests {
                 Amount::from_sat(collateral_reserve)
             };
 
-            let long_liquidation_price = calculate_long_liquidation_price(
+            let long_liquidation_price = calculate_long_bankruptcy_price(
                 Decimal::from_f32(long_leverage).expect("to fit into f32"),
                 initial_price,
             );
-            let short_liquidation_price = calculate_short_liquidation_price(
+            let short_liquidation_price = calculate_short_bankruptcy_price(
                 Decimal::from_f32(short_leverage).expect("to fit into f32"),
                 initial_price,
             );
@@ -936,9 +936,9 @@ mod bounds_tests {
     use proptest::prelude::*;
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal_macros::dec;
-    use trade::cfd::calculate_long_liquidation_price;
+    use trade::cfd::calculate_long_bankruptcy_price;
     use trade::cfd::calculate_margin;
-    use trade::cfd::calculate_short_liquidation_price;
+    use trade::cfd::calculate_short_bankruptcy_price;
 
     #[test]
     fn correct_bounds_between_middle_and_liquidation_intervals() {
@@ -1014,9 +1014,9 @@ mod bounds_tests {
             collateral_reserve: collateral_reserve_accept,
         };
 
-        let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
+        let long_liquidation_price = calculate_long_bankruptcy_price(leverage_long, initial_price);
         let short_liquidation_price =
-            calculate_short_liquidation_price(leverage_short, initial_price);
+            calculate_short_bankruptcy_price(leverage_short, initial_price);
         let price_params = PriceParams {
             initial_price,
             long_liquidation_price,

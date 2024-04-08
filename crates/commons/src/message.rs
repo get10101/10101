@@ -24,7 +24,7 @@ pub enum Message {
     DeleteOrder(Uuid),
     Update(Order),
     InvalidAuthentication(String),
-    Authenticated(LspConfig),
+    Authenticated(TenTenOneConfig),
     Match(FilledWith),
     AsyncMatch {
         order: Order,
@@ -65,11 +65,11 @@ impl From<anyhow::Error> for TradingError {
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
-pub struct LspConfig {
-    /// The fee rate to be used for the DLC contracts in sats/vbyte
-    pub contract_tx_fee_rate: u64,
+pub struct TenTenOneConfig {
     // The liquidity options for onboarding
     pub liquidity_options: Vec<LiquidityOption>,
+    pub min_quantity: u64,
+    pub maintenance_margin: f32,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]

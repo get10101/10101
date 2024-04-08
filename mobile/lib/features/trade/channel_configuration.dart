@@ -5,7 +5,7 @@ import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/amount_text_field.dart';
 import 'package:get_10101/common/amount_text_input_form_field.dart';
-import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
@@ -75,7 +75,7 @@ class ChannelConfiguration extends StatefulWidget {
 class _ChannelConfiguration extends State<ChannelConfiguration> {
   final TextEditingController _collateralController = TextEditingController();
 
-  late final LspChangeNotifier lspChangeNotifier;
+  late final TenTenOneConfigChangeNotifier tentenoneConfigChangeNotifier;
   late final DlcChannelChangeNotifier dlcChannelChangeNotifier;
 
   Amount minMargin = Amount.zero();
@@ -100,8 +100,8 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
   void initState() {
     super.initState();
 
-    lspChangeNotifier = context.read<LspChangeNotifier>();
-    var tradeConstraints = lspChangeNotifier.channelInfoService.getTradeConstraints();
+    tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
+    var tradeConstraints = tentenoneConfigChangeNotifier.channelInfoService.getTradeConstraints();
 
     DlcChannelService dlcChannelService =
         context.read<DlcChannelChangeNotifier>().dlcChannelService;

@@ -33,8 +33,6 @@ class OrderListItem extends StatelessWidget {
       OrderState.rejected => const Icon(Icons.error, color: Colors.red, size: iconSize),
     };
 
-    NumberFormat priceFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
-
     return Column(
       children: [
         Card(
@@ -63,16 +61,18 @@ class OrderListItem extends StatelessWidget {
                               order.direction == Direction.long ? tradeTheme.buy : tradeTheme.sell,
                           fontWeight: FontWeight.bold)),
                   TextSpan(
-                      text: " ${formatter.format(order.quantity.toInt)} ",
+                      text: " ${order.quantity} ",
                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const TextSpan(text: "contracts")
                 ],
               ),
             ),
             trailing: RichText(
               text: TextSpan(style: DefaultTextStyle.of(context).style, children: <InlineSpan>[
                 WidgetSpan(alignment: PlaceholderAlignment.middle, child: statusIcon),
-                TextSpan(text: " ${order.state.name}")
+                TextSpan(
+                    text: order.state == OrderState.filled && order.reason != OrderReason.manual
+                        ? " ${order.reason.name}"
+                        : " ${order.state.name}")
               ]),
             ),
             subtitle: RichText(
@@ -81,7 +81,7 @@ class OrderListItem extends StatelessWidget {
                   const TextSpan(text: "@ ", style: TextStyle(color: Colors.grey)),
                   TextSpan(
                       text: order.executionPrice != null
-                          ? priceFormatter.format(order.executionPrice)
+                          ? "${order.executionPrice!}"
                           : "Market Price")
                 ])),
           ),

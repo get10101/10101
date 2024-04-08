@@ -257,6 +257,7 @@ pub mod tests {
             trader_direction: Direction::Long,
             average_entry_price: 0.0,
             trader_liquidation_price: 0.0,
+            coordinator_liquidation_price: 0.0,
             position_state: PositionState::Closed { pnl: 0 },
             coordinator_margin: 0,
             creation_timestamp: OffsetDateTime::now_utc(),

@@ -40,6 +40,7 @@ pub struct Position {
     pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
+    pub coordinator_liquidation_price: f32,
 }
 
 impl Position {
@@ -230,7 +231,8 @@ impl Position {
         coordinator_margin: i64,
         trader_margin: i64,
         average_entry_price: f32,
-        liquidation_price: f32,
+        trader_liquidation_price: f32,
+        coordinator_liquidation_price: f32,
         expiry_timestamp: OffsetDateTime,
         temporary_contract_id: ContractId,
     ) -> Result<()> {
@@ -247,7 +249,8 @@ impl Position {
                 positions::coordinator_margin.eq(coordinator_margin),
                 positions::trader_margin.eq(trader_margin),
                 positions::average_entry_price.eq(average_entry_price),
-                positions::trader_liquidation_price.eq(liquidation_price),
+                positions::trader_liquidation_price.eq(trader_liquidation_price),
+                positions::coordinator_liquidation_price.eq(coordinator_liquidation_price),
                 positions::expiry_timestamp.eq(expiry_timestamp),
                 positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
             ))
@@ -389,6 +392,7 @@ impl From<Position> for crate::position::models::Position {
             trader_direction: trade::Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
             trader_liquidation_price: value.trader_liquidation_price,
+            coordinator_liquidation_price: value.coordinator_liquidation_price,
             position_state: crate::position::models::PositionState::from((
                 value.position_state,
                 value.trader_realized_pnl_sat,
@@ -420,6 +424,7 @@ struct NewPosition {
     pub trader_direction: Direction,
     pub average_entry_price: f32,
     pub trader_liquidation_price: f32,
+    pub coordinator_liquidation_price: f32,
     pub position_state: PositionState,
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
@@ -438,7 +443,14 @@ impl From<crate::position::models::NewPosition> for NewPosition {
             quantity: value.quantity,
             trader_direction: Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
-            trader_liquidation_price: value.trader_liquidation_price,
+            trader_liquidation_price: value
+                .trader_liquidation_price
+                .to_f32()
+                .expect("to fit into f32"),
+            coordinator_liquidation_price: value
+                .coordinator_liquidation_price
+                .to_f32()
+                .expect("to fit into f32"),
             position_state: PositionState::Proposed,
             coordinator_margin: value.coordinator_margin,
             expiry_timestamp: value.expiry_timestamp,

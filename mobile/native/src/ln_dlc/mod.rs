@@ -76,6 +76,7 @@ use ln_dlc_node::ConfirmationStatus;
 use ln_dlc_storage::DlcChannelEvent;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
@@ -170,6 +171,13 @@ pub async fn full_sync(stop_gap: usize) -> Result<()> {
 
 pub fn get_seed_phrase() -> Vec<String> {
     state::get_seed().get_seed_phrase()
+}
+
+pub fn get_maintenance_margin() -> Decimal {
+    match state::try_get_tentenone_config() {
+        Some(config) => Decimal::try_from(config.maintenance_margin).expect("to fit into decimal"),
+        None => dec!(0.1),
+    }
 }
 
 /// Gets the seed from the storage or from disk. However it will panic if the seed can not be found.

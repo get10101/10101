@@ -95,7 +95,7 @@ use tracing::instrument;
 pub struct AppState {
     pub node: Node,
     // Channel used to send messages to all connected clients.
-    pub tx_price_feed: broadcast::Sender<Message>,
+    pub tx_orderbook_feed: broadcast::Sender<Message>,
     /// A channel used to send messages about position updates
     pub tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     pub tx_user_feed: broadcast::Sender<NewUserMessage>,
@@ -120,7 +120,7 @@ pub fn router(
     announcement_addresses: Vec<SocketAddress>,
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
-    tx_price_feed: broadcast::Sender<Message>,
+    tx_orderbook_feed: broadcast::Sender<Message>,
     tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
@@ -133,7 +133,7 @@ pub fn router(
         node,
         pool,
         settings: RwLock::new(settings),
-        tx_price_feed,
+        tx_orderbook_feed,
         tx_position_feed,
         tx_user_feed,
         trading_sender,

@@ -3,8 +3,11 @@ contract_tx_fee_rate = 9
 rollover_window_open_scheduler = "0 5 15 * * 5,6"
 rollover_window_close_scheduler = "0 5 13 * * 5,6"
 close_expired_position_scheduler = "0 0 12 * * *"
+close_liquidated_position_scheduler = "0 0 12 * * *"
 whitelist_enabled = false
 whitelisted_makers = []
+min_quantity = 1
+margin_call_percentage = 0.1
 
 [ln_dlc]
 off_chain_sync_interval = 5

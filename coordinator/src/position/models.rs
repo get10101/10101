@@ -30,7 +30,8 @@ pub struct NewPosition {
     pub trader_direction: Direction,
     pub trader: PublicKey,
     pub average_entry_price: f32,
-    pub trader_liquidation_price: f32,
+    pub trader_liquidation_price: Decimal,
+    pub coordinator_liquidation_price: Decimal,
     pub coordinator_margin: i64,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
@@ -79,6 +80,7 @@ pub struct Position {
     pub average_entry_price: f32,
     /// the traders liquidation price
     pub trader_liquidation_price: f32,
+    pub coordinator_liquidation_price: f32,
     pub position_state: PositionState,
     pub coordinator_margin: i64,
     pub creation_timestamp: OffsetDateTime,
@@ -411,6 +413,10 @@ impl std::fmt::Debug for NewPosition {
             .field("trader", &self.trader.to_string())
             .field("average_entry_price", &self.average_entry_price)
             .field("trader_liquidation_price", &self.trader_liquidation_price)
+            .field(
+                "coordinator_liquidation_price",
+                &self.coordinator_liquidation_price,
+            )
             .field("coordinator_margin", &self.coordinator_margin)
             .field("expiry_timestamp", &self.expiry_timestamp)
             .field("temporary_contract_id", &self.temporary_contract_id)
@@ -431,6 +437,10 @@ impl std::fmt::Debug for Position {
             .field("trader_direction", &self.trader_direction)
             .field("average_entry_price", &self.average_entry_price)
             .field("trader_liquidation_price", &self.trader_liquidation_price)
+            .field(
+                "coordinator_liquidation_price",
+                &self.coordinator_liquidation_price,
+            )
             .field("position_state", &self.position_state)
             .field("coordinator_margin", &self.coordinator_margin)
             .field("creation_timestamp", &self.creation_timestamp)
@@ -464,6 +474,7 @@ mod tests {
             trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
             trader_liquidation_price: 20_000.0,
+            coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -498,6 +509,7 @@ mod tests {
             trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
             trader_liquidation_price: 20_000.0,
+            coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -532,6 +544,7 @@ mod tests {
             trader_direction: Direction::Long,
             average_entry_price: 40_000.0,
             trader_liquidation_price: 20_000.0,
+            coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
             coordinator_margin: 125_000,
             creation_timestamp: OffsetDateTime::now_utc(),
@@ -973,6 +986,7 @@ mod tests {
                 trader_direction: Direction::Long,
                 average_entry_price: 10000.0,
                 trader_liquidation_price: 0.0,
+                coordinator_liquidation_price: 0.0,
                 position_state: PositionState::Open,
                 coordinator_margin: 1000,
                 creation_timestamp: OffsetDateTime::now_utc(),

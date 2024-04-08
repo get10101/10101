@@ -6,9 +6,9 @@ use crate::routes::AppState;
 use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
 use commons::create_sign_message;
-use commons::LspConfig;
 use commons::Message;
 use commons::OrderbookRequest;
+use commons::TenTenOneConfig;
 use commons::AUTH_SIGN_MESSAGE;
 use futures::SinkExt;
 use futures::StreamExt;
@@ -28,7 +28,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
     // We subscribe *before* sending the "joined" message, so that we will also
     // display it to our client.
-    let mut price_feed = state.tx_price_feed.subscribe();
+    let mut price_feed = state.tx_orderbook_feed.subscribe();
 
     let (local_sender, mut local_receiver) = mpsc::channel::<Message>(100);
 
@@ -105,15 +105,16 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();
 
-                            let contract_tx_fee_rate = {
+                            let (min_quantity, maintenance_margin) = {
                                 let settings = state.settings.read().await;
-                                settings.contract_tx_fee_rate
+                                (settings.min_quantity, settings.maintenance_margin)
                             };
 
                             if let Err(e) = local_sender
-                                .send(Message::Authenticated(LspConfig {
-                                    contract_tx_fee_rate,
+                                .send(Message::Authenticated(TenTenOneConfig {
                                     liquidity_options,
+                                    min_quantity,
+                                    maintenance_margin,
                                 }))
                                 .await
                             {

@@ -49,7 +49,12 @@ pub fn calculate_pnl(
     )
 }
 
-pub fn calculate_liquidation_price(price: f32, leverage: f32, direction: Direction) -> f32 {
+pub fn calculate_liquidation_price(
+    price: f32,
+    leverage: f32,
+    direction: Direction,
+    maintenance_margin: Decimal,
+) -> f32 {
     let initial_price = Decimal::try_from(price).expect("Price to fit");
 
     tracing::trace!("Initial price: {}", price);
@@ -57,8 +62,12 @@ pub fn calculate_liquidation_price(price: f32, leverage: f32, direction: Directi
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");
 
     let liquidation_price = match direction {
-        Direction::Long => cfd::calculate_long_liquidation_price(leverage, initial_price),
-        Direction::Short => cfd::calculate_short_liquidation_price(leverage, initial_price),
+        Direction::Long => {
+            cfd::calculate_long_liquidation_price(leverage, initial_price, maintenance_margin)
+        }
+        Direction::Short => {
+            cfd::calculate_short_liquidation_price(leverage, initial_price, maintenance_margin)
+        }
     };
 
     let liquidation_price = liquidation_price.to_f32().expect("price to fit into f32");

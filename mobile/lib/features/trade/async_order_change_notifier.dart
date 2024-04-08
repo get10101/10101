@@ -62,6 +62,8 @@ class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
           switch (asyncTrade.orderReason) {
             case OrderReason.expired:
               content = const Text("Your position has been closed due to expiry.");
+            case OrderReason.liquidated:
+              content = const Text("Your position has been closed due to liquidation.");
             case OrderReason.manual:
               logger.e("A manual order should not appear as an async trade!");
               content = Container();

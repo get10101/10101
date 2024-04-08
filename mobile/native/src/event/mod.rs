@@ -6,8 +6,8 @@ use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
-use commons::LspConfig;
 use commons::Prices;
+use commons::TenTenOneConfig;
 use commons::TradeParams;
 use std::fmt;
 use std::hash::Hash;
@@ -37,7 +37,7 @@ pub enum EventInternal {
     PositionCloseNotification(ContractSymbol),
     PriceUpdateNotification(Prices),
     ServiceHealthUpdate(ServiceUpdate),
-    Authenticated(LspConfig),
+    Authenticated(TenTenOneConfig),
     BackgroundNotification(BackgroundTask),
     SpendableOutputs,
     DlcChannelEvent(DlcChannel),

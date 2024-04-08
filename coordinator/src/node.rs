@@ -36,6 +36,7 @@ use tokio::sync::RwLock;
 
 pub mod channel;
 pub mod expired_positions;
+pub mod liquidated_positions;
 pub mod rollover;
 pub mod storage;
 pub mod unrealized_pnl;
@@ -45,6 +46,7 @@ pub struct NodeSettings {
     // At times, we want to disallow opening new positions (e.g. before
     // scheduled upgrade)
     pub allow_opening_positions: bool,
+    pub maintenance_margin: f32,
 }
 
 #[derive(Clone)]

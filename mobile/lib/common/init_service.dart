@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/application/lsp_change_notifier.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
-import 'package:get_10101/common/domain/lsp_config.dart';
+import 'package:get_10101/common/domain/tentenone_config.dart';
 import 'package:get_10101/common/full_sync_change_notifier.dart';
 import 'package:get_10101/features/brag/github_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
@@ -66,7 +66,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
-    ChangeNotifierProvider(create: (context) => LspChangeNotifier(channelInfoService)),
+    ChangeNotifierProvider(create: (context) => TenTenOneConfigChangeNotifier(channelInfoService)),
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
     ChangeNotifierProvider(create: (context) => FullSyncChangeNotifier()),
     Provider(create: (context) => config),
@@ -95,7 +95,7 @@ void subscribeToNotifiers(BuildContext context) {
   final rolloverChangeNotifier = context.read<RolloverChangeNotifier>();
   final recoverDlcChangeNotifier = context.read<RecoverDlcChangeNotifier>();
   final collabRevertChangeNotifier = context.read<CollabRevertChangeNotifier>();
-  final lspConfigChangeNotifier = context.read<LspChangeNotifier>();
+  final tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
   final fullSyncChangeNotifier = context.read<FullSyncChangeNotifier>();
   final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
@@ -139,7 +139,8 @@ void subscribeToNotifiers(BuildContext context) {
   eventService.subscribe(
       collabRevertChangeNotifier, bridge.Event.backgroundNotification(CollabRevert.apiDummy()));
 
-  eventService.subscribe(lspConfigChangeNotifier, bridge.Event.authenticated(LspConfig.apiDummy()));
+  eventService.subscribe(
+      tentenoneConfigChangeNotifier, bridge.Event.authenticated(TenTenOneConfig.apiDummy()));
 
   eventService.subscribe(
       fullSyncChangeNotifier, bridge.Event.backgroundNotification(FullSync.apiDummy()));

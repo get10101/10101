@@ -210,10 +210,10 @@ async fn handle_orderbook_message(
     tracing::trace!(%msg, "New orderbook message");
 
     match msg {
-        Message::Authenticated(lsp_config) => {
+        Message::Authenticated(config) => {
             tracing::info!("Successfully logged in to 10101 websocket api!");
-            state::set_lsp_config(lsp_config.clone());
-            event::publish(&EventInternal::Authenticated(lsp_config));
+            state::set_tentenone_config(config.clone());
+            event::publish(&EventInternal::Authenticated(config));
         }
         Message::Rollover(_) => {
             tracing::info!("Received a rollover notification from orderbook.");

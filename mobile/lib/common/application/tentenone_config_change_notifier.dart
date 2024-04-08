@@ -4,14 +4,13 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/liquidity_option.dart';
 
-// TODO: Name seems wrong as we use this to get on-chain sats too.
-class LspChangeNotifier extends ChangeNotifier implements Subscriber {
+class TenTenOneConfigChangeNotifier extends ChangeNotifier implements Subscriber {
   ChannelInfoService channelInfoService;
 
   List<LiquidityOption> _liquidityOptions = [];
   int contractTxFeeRate = 0;
 
-  LspChangeNotifier(this.channelInfoService);
+  TenTenOneConfigChangeNotifier(this.channelInfoService);
 
   List<LiquidityOption> getLiquidityOptions(bool activeOnly) {
     return _liquidityOptions.where((option) => option.active || !activeOnly).toList();
@@ -24,7 +23,6 @@ class LspChangeNotifier extends ChangeNotifier implements Subscriber {
           event.field0.liquidityOptions.map((lo) => LiquidityOption.from(lo)).toList();
 
       _liquidityOptions.sort((a, b) => a.rank.compareTo(b.rank));
-      contractTxFeeRate = event.field0.contractTxFeeRate;
       super.notifyListeners();
     }
   }

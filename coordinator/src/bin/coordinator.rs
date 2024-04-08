@@ -11,6 +11,7 @@ use coordinator::message::NewUserMessage;
 use coordinator::metrics;
 use coordinator::metrics::init_meter;
 use coordinator::node::expired_positions;
+use coordinator::node::liquidated_positions;
 use coordinator::node::rollover;
 use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
@@ -48,6 +49,7 @@ use tracing::metadata::LevelFilter;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
+const LIQUIDATED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
 const UNREALIZED_PNL_SYNC_INTERVAL: Duration = Duration::from_secs(10 * 60);
 
@@ -247,7 +249,7 @@ async fn main() -> Result<()> {
 
     let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
 
-    let (tx_price_feed, _rx) = broadcast::channel(100);
+    let (tx_orderbook_feed, _rx) = broadcast::channel(100);
 
     let notification_service = NotificationService::new(opts.fcm_api_key.clone());
 
@@ -259,7 +261,7 @@ async fn main() -> Result<()> {
 
     let (_handle, trading_sender) = trading::start(
         node.clone(),
-        tx_price_feed.clone(),
+        tx_orderbook_feed.clone(),
         auth_users_notifier.clone(),
         network,
         node.inner.oracle_pubkey,
@@ -302,6 +304,17 @@ async fn main() -> Result<()> {
         }
     });
 
+    tokio::spawn({
+        let node = node.clone();
+        let trading_sender = trading_sender.clone();
+        async move {
+            loop {
+                tokio::time::sleep(LIQUIDATED_POSITION_SYNC_INTERVAL).await;
+                liquidated_positions::monitor(node.clone(), trading_sender.clone()).await
+            }
+        }
+    });
+
     let user_backup = SledBackup::new(data_dir.to_string_lossy().to_string());
 
     let app = router(
@@ -312,7 +325,7 @@ async fn main() -> Result<()> {
         opts.p2p_announcement_addresses(),
         NODE_ALIAS,
         trading_sender,
-        tx_price_feed,
+        tx_orderbook_feed,
         tx_position_feed,
         tx_user_feed,
         auth_users_notifier.clone(),
@@ -341,7 +354,12 @@ async fn main() -> Result<()> {
             scheduler
                 .add_reminder_to_close_expired_position_job(pool.clone())
                 .await
-                .expect("To add the close expired positiosn reminder job");
+                .expect("To add the close expired position reminder job");
+
+            scheduler
+                .add_reminder_to_close_liquidated_position_job(pool.clone())
+                .await
+                .expect("To add the close liquidated position reminder job");
 
             scheduler
                 .start()

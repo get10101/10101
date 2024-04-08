@@ -17,10 +17,10 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::fs::File;
 use std::ops::Mul;
-use trade::cfd::calculate_long_liquidation_price;
+use trade::cfd::calculate_long_bankruptcy_price;
 use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
-use trade::cfd::calculate_short_liquidation_price;
+use trade::cfd::calculate_short_bankruptcy_price;
 use trade::Direction;
 
 /// The example below will export the computed payout curve and how it should look like as CSV.
@@ -34,12 +34,12 @@ fn main() -> Result<()> {
     let leverage_long = 2.0;
 
     let price_params = {
-        let short_liquidation_price = calculate_short_liquidation_price(
+        let short_liquidation_price = calculate_short_bankruptcy_price(
             Decimal::from_f32(leverage_short).expect("to be able to parse f32"),
             initial_price,
         );
 
-        let long_liquidation_price = calculate_long_liquidation_price(
+        let long_liquidation_price = calculate_long_bankruptcy_price(
             Decimal::from_f32(leverage_long).expect("to be able to parse f32"),
             initial_price,
         );
@@ -274,8 +274,8 @@ pub fn should_payouts_as_csv_short(
     let file = File::create(csv_path)?;
     let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
 
-    let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
-    let short_liquidation_price = calculate_short_liquidation_price(leverage_short, initial_price);
+    let long_liquidation_price = calculate_long_bankruptcy_price(leverage_long, initial_price);
+    let short_liquidation_price = calculate_short_bankruptcy_price(leverage_short, initial_price);
 
     wtr.write_record(["price", "payout_offer", "trader"])?;
     wtr.write_record(&[0.to_string(), total_collateral.to_string(), 0.to_string()])?;
@@ -379,8 +379,8 @@ pub fn should_payouts_as_csv_long(
     let file = File::create(csv_path)?;
     let mut wtr = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
 
-    let long_liquidation_price = calculate_long_liquidation_price(leverage_long, initial_price);
-    let short_liquidation_price = calculate_short_liquidation_price(leverage_short, initial_price);
+    let long_liquidation_price = calculate_long_bankruptcy_price(leverage_long, initial_price);
+    let short_liquidation_price = calculate_short_bankruptcy_price(leverage_short, initial_price);
 
     wtr.write_record(["price", "payout_offer", "trader"])?;
     wtr.write_record(&[

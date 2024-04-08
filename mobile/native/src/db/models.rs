@@ -229,6 +229,7 @@ impl From<crate::trade::order::OrderReason> for OrderReason {
         match value {
             crate::trade::order::OrderReason::Manual => OrderReason::Manual,
             crate::trade::order::OrderReason::Expired => OrderReason::Expired,
+            crate::trade::order::OrderReason::Liquidated => OrderReason::Liquidated,
         }
     }
 }
@@ -238,6 +239,7 @@ impl From<OrderReason> for crate::trade::order::OrderReason {
         match value {
             OrderReason::Manual => crate::trade::order::OrderReason::Manual,
             OrderReason::Expired => crate::trade::order::OrderReason::Expired,
+            OrderReason::Liquidated => crate::trade::order::OrderReason::Liquidated,
         }
     }
 }
@@ -549,6 +551,7 @@ impl TryFrom<(OrderType, Option<f32>)> for crate::trade::order::OrderType {
 pub enum OrderReason {
     Manual,
     Expired,
+    Liquidated,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
