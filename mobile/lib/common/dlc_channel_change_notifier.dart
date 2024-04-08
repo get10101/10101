@@ -177,7 +177,18 @@ class DlcChannelChangeNotifier extends ChangeNotifier implements Subscriber {
   void notify(bridge.Event event) {
     if (event is bridge.Event_DlcChannelEvent) {
       DlcChannel channel = DlcChannel.fromApi(event.field0);
-      channels[channel.id] = channel;
+
+      if (channels.containsKey(event.field0.referenceId)) {
+        // if we can find the channel on the reference id we can remove it now as we have the correct
+        // channel id
+        channels.remove(event.field0.referenceId);
+      } else if (event.field0.channelState is bridge.ChannelState_Offered) {
+        // if the channel state is in offered we save the channel on the reference id as the channel
+        // id will change.
+        channels[event.field0.referenceId] = channel;
+      } else {
+        channels[channel.id] = channel;
+      }
 
       notifyListeners();
     } else {

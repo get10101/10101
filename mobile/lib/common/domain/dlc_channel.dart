@@ -12,7 +12,7 @@ class DlcChannel {
 
   static bridge.DlcChannel apiDummy() {
     return const bridge.DlcChannel(
-        dlcChannelId: '', channelState: bridge.ChannelState.failedAccept());
+        dlcChannelId: '', channelState: bridge.ChannelState.failedAccept(), referenceId: '');
   }
 
   static DlcChannel fromApi(bridge.DlcChannel dlcChannel) {
