@@ -105,16 +105,16 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();
 
-                            let (min_quantity, maintenance_margin) = {
+                            let (min_quantity, maintenance_margin_rate) = {
                                 let settings = state.settings.read().await;
-                                (settings.min_quantity, settings.maintenance_margin)
+                                (settings.min_quantity, settings.maintenance_margin_rate)
                             };
 
                             if let Err(e) = local_sender
                                 .send(Message::Authenticated(TenTenOneConfig {
                                     liquidity_options,
                                     min_quantity,
-                                    maintenance_margin,
+                                    maintenance_margin_rate,
                                 }))
                                 .await
                             {

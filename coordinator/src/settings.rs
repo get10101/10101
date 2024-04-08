@@ -71,7 +71,7 @@ pub struct Settings {
 
     /// The maintenance margin in percent, defining the required margin in the position. If the
     /// margin drops below that the position gets liquidated.
-    pub maintenance_margin: f32,
+    pub maintenance_margin_rate: f32,
 }
 
 impl Settings {
@@ -105,7 +105,7 @@ impl Settings {
     pub fn to_node_settings(&self) -> NodeSettings {
         NodeSettings {
             allow_opening_positions: self.new_positions_enabled,
-            maintenance_margin: self.maintenance_margin,
+            maintenance_margin_rate: self.maintenance_margin_rate,
         }
     }
 
@@ -126,7 +126,7 @@ impl Settings {
             whitelist_enabled: file.whitelist_enabled,
             whitelisted_makers: file.whitelisted_makers,
             min_quantity: file.min_quantity,
-            maintenance_margin: file.maintenance_margin,
+            maintenance_margin_rate: file.maintenance_margin_rate,
         }
     }
 }
@@ -149,7 +149,7 @@ pub struct SettingsFile {
     whitelisted_makers: Vec<PublicKey>,
 
     min_quantity: u64,
-    maintenance_margin: f32,
+    maintenance_margin_rate: f32,
 }
 
 impl From<Settings> for SettingsFile {
@@ -165,7 +165,7 @@ impl From<Settings> for SettingsFile {
             whitelist_enabled: false,
             whitelisted_makers: value.whitelisted_makers,
             min_quantity: value.min_quantity,
-            maintenance_margin: value.maintenance_margin,
+            maintenance_margin_rate: value.maintenance_margin_rate,
         }
     }
 }
@@ -197,7 +197,7 @@ mod tests {
             )
             .unwrap()],
             min_quantity: 1,
-            maintenance_margin: 0.1,
+            maintenance_margin_rate: 0.1,
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();

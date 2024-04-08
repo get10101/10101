@@ -530,22 +530,22 @@ impl TradeExecutor {
         stable: bool,
     ) -> Result<()> {
         let price = trade_params.average_execution_price();
-        let maintenance_margin = { self.node.settings.read().await.maintenance_margin };
-        let maintenance_margin =
-            Decimal::try_from(maintenance_margin).expect("to fit into decimal");
+        let maintenance_margin_rate = { self.node.settings.read().await.maintenance_margin_rate };
+        let maintenance_margin_rate =
+            Decimal::try_from(maintenance_margin_rate).expect("to fit into decimal");
 
         let trader_liquidation_price = liquidation_price(
             price,
             Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
             trade_params.direction,
-            maintenance_margin,
+            maintenance_margin_rate,
         );
 
         let coordinator_liquidation_price = liquidation_price(
             price,
             Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
             trade_params.direction.opposite(),
-            maintenance_margin,
+            maintenance_margin_rate,
         );
 
         let margin_coordinator = margin_coordinator(trade_params, coordinator_leverage);

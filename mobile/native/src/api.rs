@@ -62,7 +62,7 @@ pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
 pub struct TenTenOneConfig {
     pub liquidity_options: Vec<LiquidityOption>,
     pub min_quantity: u64,
-    pub maintenance_margin: f32,
+    pub maintenance_margin_rate: f32,
 }
 
 impl From<commons::TenTenOneConfig> for TenTenOneConfig {
@@ -74,7 +74,7 @@ impl From<commons::TenTenOneConfig> for TenTenOneConfig {
                 .map(|lo| lo.into())
                 .collect(),
             min_quantity: value.min_quantity,
-            maintenance_margin: value.maintenance_margin,
+            maintenance_margin_rate: value.maintenance_margin_rate,
         }
     }
 }
@@ -293,12 +293,12 @@ pub fn calculate_liquidation_price(
     leverage: f32,
     direction: Direction,
 ) -> SyncReturn<f32> {
-    let maintenance_margin = ln_dlc::get_maintenance_margin();
+    let maintenance_margin_rate = ln_dlc::get_maintenance_margin_rate();
     SyncReturn(calculations::calculate_liquidation_price(
         price,
         leverage,
         direction,
-        maintenance_margin,
+        maintenance_margin_rate,
     ))
 }
 

@@ -173,10 +173,15 @@ pub fn get_seed_phrase() -> Vec<String> {
     state::get_seed().get_seed_phrase()
 }
 
-pub fn get_maintenance_margin() -> Decimal {
+pub fn get_maintenance_margin_rate() -> Decimal {
     match state::try_get_tentenone_config() {
-        Some(config) => Decimal::try_from(config.maintenance_margin).expect("to fit into decimal"),
-        None => dec!(0.1),
+        Some(config) => {
+            Decimal::try_from(config.maintenance_margin_rate).expect("to fit into decimal")
+        }
+        None => {
+            tracing::warn!("The ten ten one config is not ready yet. Returning default value!");
+            dec!(0.1)
+        }
     }
 }
 

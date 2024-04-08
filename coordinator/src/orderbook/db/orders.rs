@@ -265,6 +265,7 @@ pub fn get_best_price(
     Ok(best_price)
 }
 
+/// Returns the best price to sell.
 pub fn get_best_bid_price(
     conn: &mut PgConnection,
     contract_symbol: trade::ContractSymbol,
@@ -281,6 +282,7 @@ pub fn get_best_bid_price(
     Ok(price.map(|bid| Decimal::try_from(bid).expect("to fit into decimal")))
 }
 
+/// Returns the best price to buy.
 pub fn get_best_ask_price(
     conn: &mut PgConnection,
     contract_symbol: trade::ContractSymbol,

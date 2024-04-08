@@ -53,7 +53,7 @@ pub fn calculate_liquidation_price(
     price: f32,
     leverage: f32,
     direction: Direction,
-    maintenance_margin: Decimal,
+    maintenance_margin_rate: Decimal,
 ) -> f32 {
     let initial_price = Decimal::try_from(price).expect("Price to fit");
 
@@ -63,10 +63,10 @@ pub fn calculate_liquidation_price(
 
     let liquidation_price = match direction {
         Direction::Long => {
-            cfd::calculate_long_liquidation_price(leverage, initial_price, maintenance_margin)
+            cfd::calculate_long_liquidation_price(leverage, initial_price, maintenance_margin_rate)
         }
         Direction::Short => {
-            cfd::calculate_short_liquidation_price(leverage, initial_price, maintenance_margin)
+            cfd::calculate_short_liquidation_price(leverage, initial_price, maintenance_margin_rate)
         }
     };
 
