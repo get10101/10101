@@ -115,20 +115,22 @@ fn build_notification(kind: &NotificationKind) -> fcm::Notification<'_> {
     let mut notification_builder = fcm::NotificationBuilder::new();
     match kind {
         NotificationKind::PositionSoonToExpire => {
-            notification_builder.title("Your position is about to expire");
-            notification_builder.body("Rollover your position for the next cycle.");
+            notification_builder.title("Your position is about to expire ⏳");
+            notification_builder
+                .body("Open your app to roll over your position for the next cycle.");
         }
         NotificationKind::PositionExpired => {
-            notification_builder.title("Your position has expired");
-            notification_builder.body("Close your position.");
+            notification_builder.title("Your position has expired 🥴");
+            notification_builder.body("Open your app to execute the expiration.");
         }
         NotificationKind::PositionLiquidated => {
-            notification_builder.title("Your position has been liquidated");
-            notification_builder.body("Close your position.");
+            notification_builder.title("Your position has been liquidated 📉📈");
+            notification_builder.body("Open your app to execute the liquidation.");
         }
         NotificationKind::RolloverWindowOpen => {
-            notification_builder.title("Rollover window is open");
-            notification_builder.body("Rollover your position for the next cycle.");
+            notification_builder.title("Rollover window is open 🪟");
+            notification_builder
+                .body("Open your app to roll over your position for the next cycle.");
         }
         NotificationKind::CollaborativeRevert => {
             notification_builder.title("Error detected");
