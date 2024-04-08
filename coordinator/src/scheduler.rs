@@ -163,7 +163,14 @@ fn build_rollover_notification_job(
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
         let notifier = notifier.clone();
-        let mut conn = pool.get().expect("To be able to get a db connection");
+        let mut conn = match pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return Box::pin(async move {
+                    tracing::error!("Failed to get connection. Error: {e:#}")
+                });
+            }
+        };
 
         if !commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
             return Box::pin(async move {
@@ -214,7 +221,14 @@ fn build_remind_to_close_expired_position_notification_job(
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
         let notification_sender = notification_sender.clone();
-        let mut conn = pool.get().expect("To be able to get a db connection");
+        let mut conn = match pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return Box::pin(async move {
+                    tracing::error!("Failed to get connection. Error: {e:#}")
+                });
+            }
+        };
 
         // Note, positions that are expired longer than
         // [`crate::node::expired_positions::EXPIRED_POSITION_TIMEOUT`] are set to closing, hence
@@ -253,7 +267,14 @@ fn build_remind_to_close_liquidated_position_notification_job(
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
         let notification_sender = notification_sender.clone();
-        let mut conn = pool.get().expect("To be able to get a db connection");
+        let mut conn = match pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return Box::pin(async move {
+                    tracing::error!("Failed to get connection. Error: {e:#}")
+                });
+            }
+        };
 
         // Note, positions that are liquidated longer than
         // [`crate::node::liquidated_positions::LIQUIDATED_POSITION_TIMEOUT`] are set to closing,
