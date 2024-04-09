@@ -90,8 +90,61 @@ impl Order {
         Ok(())
     }
 
+    pub fn set_order_state_to_failed(
+        order_id: String,
+        execution_price: Option<f32>,
+        matching_fee: Option<Amount>,
+        failure_reason: FailureReason,
+        conn: &mut SqliteConnection,
+    ) -> Result<Order> {
+        Self::update_state(
+            order_id,
+            OrderState::Failed,
+            execution_price,
+            matching_fee,
+            Some(failure_reason),
+            conn,
+        )
+    }
+
+    pub fn set_order_state_to_open(order_id: String, conn: &mut SqliteConnection) -> Result<Order> {
+        Self::update_state(order_id, OrderState::Open, None, None, None, conn)
+    }
+
+    pub fn set_order_state_to_filling(
+        order_id: Uuid,
+        execution_price: f32,
+        matching_fee: Amount,
+        conn: &mut SqliteConnection,
+    ) -> Result<Order> {
+        Self::update_state(
+            order_id.to_string(),
+            OrderState::Filling,
+            Some(execution_price),
+            Some(matching_fee),
+            None,
+            conn,
+        )
+    }
+
+    pub fn set_order_state_to_filled(
+        order_id: Uuid,
+        execution_price: f32,
+        matching_fee: Amount,
+        conn: &mut SqliteConnection,
+    ) -> Result<Order> {
+        Self::update_state(
+            order_id.to_string(),
+            OrderState::Filled,
+            Some(execution_price),
+            Some(matching_fee),
+            None,
+            conn,
+        )
+    }
+
     /// updates the status of the given order in the db
-    pub fn update_state(
+    fn update_state(
         order_id: String,
         order_state: OrderState,
         execution_price: Option<f32>,
@@ -637,49 +690,7 @@ impl From<crate::trade::order::OrderState> for (OrderState, Option<f32>, Option<
     }
 }
 
-impl TryFrom<(OrderState, Option<(f32, i64)>, Option<FailureReason>)>
-    for crate::trade::order::OrderState
-{
-    type Error = Error;
-
-    fn try_from(
-        value: (OrderState, Option<(f32, i64)>, Option<FailureReason>),
-    ) -> std::result::Result<Self, Self::Error> {
-        let order_state = match value.0 {
-            OrderState::Initial => crate::trade::order::OrderState::Initial,
-            OrderState::Rejected => crate::trade::order::OrderState::Rejected,
-            OrderState::Open => crate::trade::order::OrderState::Open,
-            OrderState::Failed => match value.2 {
-                None => crate::trade::order::OrderState::Failed {
-                    execution_price: value.1.map(|(execution_price, _)| execution_price),
-                    reason: crate::trade::order::FailureReason::Unknown,
-                },
-                Some(reason) => crate::trade::order::OrderState::Failed {
-                    execution_price: value.1.map(|(execution_price, _)| execution_price),
-                    reason: reason.into(),
-                },
-            },
-            OrderState::Filled => match value.1 {
-                None => return Err(Error::MissingExecutionPrice),
-                Some((execution_price, matching_fee)) => crate::trade::order::OrderState::Filled {
-                    execution_price,
-                    matching_fee: Amount::from_sat(matching_fee as u64),
-                },
-            },
-            OrderState::Filling => match value.1 {
-                None => return Err(Error::MissingExecutionPrice),
-                Some((execution_price, matching_fee)) => crate::trade::order::OrderState::Filling {
-                    execution_price,
-                    matching_fee: Amount::from_sat(matching_fee as u64),
-                },
-            },
-        };
-
-        Ok(order_state)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, FromSqlRow, AsExpression, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, FromSqlRow, AsExpression, Serialize, Deserialize, Default)]
 #[diesel(sql_type = Text)]
 pub enum FailureReason {
     FailedToSetToFilling,

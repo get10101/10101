@@ -12,6 +12,7 @@ use crate::trade;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use bitcoin::Network;
 use diesel::connection::SimpleConnection;
 use diesel::r2d2;
@@ -160,24 +161,28 @@ impl From<trade::order::OrderState> for OrderState {
     }
 }
 
-pub fn update_order_state(
+pub fn set_order_state_to_failed(
     order_id: Uuid,
-    order_state: trade::order::OrderState,
+    failure_reason: FailureReason,
+    execution_price: Option<f32>,
 ) -> Result<trade::order::Order> {
     let mut db = connection()?;
-
-    let execution_price = order_state.execution_price();
-    let matching_fee = order_state.matching_fee();
-    let failure_reason = order_state.failure_reason().map(|reason| reason.into());
-    let order = Order::update_state(
+    let order = Order::set_order_state_to_failed(
         order_id.to_string(),
-        order_state.into(),
         execution_price,
-        matching_fee,
+        None,
         failure_reason,
         &mut db,
     )
-    .context("Failed to update order state")?;
+    .context("Failed to set order state to failed")?;
+
+    Ok(order.try_into()?)
+}
+
+pub fn set_order_state_to_open(order_id: Uuid) -> Result<trade::order::Order> {
+    let mut db = connection()?;
+    let order = Order::set_order_state_to_open(order_id.to_string(), &mut db)
+        .context("Failed to set order state to open")?;
 
     Ok(order.try_into()?)
 }
@@ -267,6 +272,32 @@ pub fn get_last_failed_order() -> Result<Option<trade::order::Order>> {
     Ok(order)
 }
 
+pub fn set_order_state_to_filled(
+    order_id: Uuid,
+    execution_price: f32,
+    matching_fee: Amount,
+) -> Result<trade::order::Order> {
+    let mut connection = connection()?;
+    let order =
+        Order::set_order_state_to_filled(order_id, execution_price, matching_fee, &mut connection)?;
+    Ok(order.try_into()?)
+}
+
+pub fn set_order_state_to_filling(
+    order_id: Uuid,
+    execution_price: f32,
+    matching_fee: Amount,
+) -> Result<trade::order::Order> {
+    let mut connection = connection()?;
+    let order = Order::set_order_state_to_filling(
+        order_id,
+        execution_price,
+        matching_fee,
+        &mut connection,
+    )?;
+    Ok(order.try_into()?)
+}
+
 /// Return an [`Order`] that is currently in [`OrderState::Filling`].
 pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
     let mut db = connection()?;
@@ -293,12 +324,11 @@ pub fn get_order_in_filling() -> Result<Option<trade::order::Order>> {
                     "Setting unexpected Filling order to Failed"
                 );
 
-                if let Err(e) = Order::update_state(
+                if let Err(e) = Order::set_order_state_to_failed(
                     order.id.clone(),
-                    OrderState::Failed,
                     order.execution_price,
                     None,
-                    Some(FailureReason::TimedOut),
+                    FailureReason::TimedOut,
                     &mut db,
                 ) {
                     tracing::error!("Failed to set old Filling order to Failed: {e:#}");

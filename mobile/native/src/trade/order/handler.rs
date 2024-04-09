@@ -94,12 +94,10 @@ pub async fn submit_order(
 
         tracing::error!(order_id, "Failed to post new order: {err:#}");
 
-        update_order_state_in_db_and_ui(
+        set_order_to_failed_and_update_ui(
             order.id,
-            OrderState::Failed {
-                execution_price: order.execution_price(),
-                reason: FailureReason::OrderRejected(err.to_string()),
-            },
+            FailureReason::OrderRejected(err.to_string()),
+            order.execution_price(),
         )
         .map_err(SubmitOrderError::Storage)?;
 
@@ -110,8 +108,7 @@ pub async fn submit_order(
         return Err(SubmitOrderError::Orderbook(err));
     }
 
-    update_order_state_in_db_and_ui(order.id, OrderState::Open)
-        .map_err(SubmitOrderError::Storage)?;
+    set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
 
     Ok(order.id)
@@ -219,17 +216,12 @@ pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith
             // the order has already been inserted to the database. Most likely because the async
             // match has already been received. We still want to retry this order as the previous
             // attempt seems to have failed.
-            db::update_order_state(
-                order.id,
-                OrderState::Filling {
-                    execution_price,
-                    matching_fee,
-                },
-            )?;
-            order.state = OrderState::Filling {
+            let order_state = OrderState::Filling {
                 execution_price,
                 matching_fee,
             };
+            db::set_order_state_to_filling(order.id, execution_price, matching_fee)?;
+            order.state = order_state;
             order
         }
     };
@@ -245,12 +237,7 @@ pub(crate) fn order_filling(
     execution_price: f32,
     matching_fee: Amount,
 ) -> Result<()> {
-    let state = OrderState::Filling {
-        execution_price,
-        matching_fee,
-    };
-
-    if let Err(e) = update_order_state_in_db_and_ui(order_id, state) {
+    if let Err(e) = set_order_to_filling_and_update_ui(order_id, execution_price, matching_fee) {
         let e_string = format!("{e:#}");
         match order_failed(Some(order_id), FailureReason::FailedToSetToFilling, e) {
             Ok(()) => {
@@ -291,13 +278,8 @@ pub(crate) fn order_filled() -> Result<Order> {
         None => bail!("No order to mark as Filled"),
     };
 
-    let filled_order = update_order_state_in_db_and_ui(
-        order_being_filled.id,
-        OrderState::Filled {
-            execution_price: *execution_price,
-            matching_fee: *matching_fee,
-        },
-    )?;
+    let filled_order =
+        set_order_to_filled_and_update_ui(order_being_filled.id, *execution_price, *matching_fee)?;
 
     tracing::debug!(order = ?filled_order, "Order filled");
 
@@ -318,13 +300,7 @@ pub(crate) fn order_failed(
     };
 
     if let Some(order_id) = order_id {
-        update_order_state_in_db_and_ui(
-            order_id,
-            OrderState::Failed {
-                execution_price: None,
-                reason,
-            },
-        )?;
+        set_order_to_failed_and_update_ui(order_id, reason, None)?;
     }
 
     // TODO: fixme. this so ugly, even a Sphynx cat is beautiful against this.
@@ -373,9 +349,48 @@ pub fn check_open_orders() -> Result<()> {
     Ok(())
 }
 
-fn update_order_state_in_db_and_ui(order_id: Uuid, state: OrderState) -> Result<Order> {
-    let order = db::update_order_state(order_id, state.clone())
-        .with_context(|| format!("Failed to update order {order_id} with state {state:?}"))?;
+fn set_order_to_failed_and_update_ui(
+    order_id: Uuid,
+    failure_reason: FailureReason,
+    execution_price: Option<f32>,
+) -> Result<Order> {
+    let order = db::set_order_state_to_failed(order_id, failure_reason.into(), execution_price)
+        .with_context(|| format!("Failed to update order {order_id} to state failed"))?;
+
+    ui_update(order.clone());
+
+    Ok(order)
+}
+
+fn set_order_to_open_and_update_ui(order_id: Uuid) -> Result<Order> {
+    let order = db::set_order_state_to_open(order_id)
+        .with_context(|| format!("Failed to update order {order_id} to state failed"))?;
+
+    ui_update(order.clone());
+
+    Ok(order)
+}
+
+fn set_order_to_filled_and_update_ui(
+    order_id: Uuid,
+    execution_price: f32,
+    matching_fee: Amount,
+) -> Result<Order> {
+    let order = db::set_order_state_to_filled(order_id, execution_price, matching_fee)
+        .with_context(|| format!("Failed to update order {order_id} to state filled"))?;
+
+    ui_update(order.clone());
+
+    Ok(order)
+}
+
+fn set_order_to_filling_and_update_ui(
+    order_id: Uuid,
+    execution_price: f32,
+    matching_fee: Amount,
+) -> Result<Order> {
+    let order = db::set_order_state_to_filling(order_id, execution_price, matching_fee)
+        .with_context(|| format!("Failed to update order {order_id} to state filling"))?;
 
     ui_update(order.clone());
 
