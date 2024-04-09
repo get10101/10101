@@ -28,7 +28,6 @@ use rust_decimal::prelude::ToPrimitive;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
@@ -41,8 +40,6 @@ use tokio_tungstenite_wasm as tungstenite;
 /// This could be fixed by only sending the rollover message once the channel is usable with the
 /// trader.
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
-
-const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn subscribe(
     secret_key: SecretKey,
@@ -65,44 +62,6 @@ pub fn subscribe(
 
         // Need a Mutex as it's being accessed from websocket stream and pruning task
         let orders = Arc::new(Mutex::new(Vec::<Order>::new()));
-
-        let _prune_expired_orders_task = {
-            let orders = orders.clone();
-            tokio::spawn(async move {
-                loop {
-                    {
-                        tracing::debug!("Pruning expired orders");
-                        let mut orders = orders.lock();
-                        let orders_before_pruning = orders.len();
-                        *orders = orders
-                            .iter()
-                            .filter(|order| order.expiry >= OffsetDateTime::now_utc())
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        let orders_after_pruning = orders.len();
-
-                        if orders_after_pruning < orders_before_pruning {
-                            let amount_pruned = orders_before_pruning - orders_after_pruning;
-                            tracing::debug!(
-                                orders_before_pruning,
-                                orders_after_pruning,
-                                "Pruned {amount_pruned} expired orders"
-                            );
-
-                            // Current best price might have changed
-                            if let Err(e) =
-                                position::handler::price_update(best_current_price(&orders))
-                            {
-                                tracing::error!(
-                                    "Price update from the orderbook failed. Error: {e:#}"
-                                );
-                            }
-                        }
-                    }
-                    tokio::time::sleep(EXPIRED_ORDER_PRUNING_INTERVAL).await;
-                }
-            })
-        };
 
         let fcm_token = if fcm_token.is_empty() {
             None
