@@ -8,13 +8,13 @@ import 'package:get_10101/common/calculations.dart';
 import 'package:get_10101/common/contract_symbol_icon.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
-import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/services/new_order_service.dart';
 import 'package:get_10101/services/quote_service.dart';
 import 'package:get_10101/services/trade_constraints_service.dart';
 import 'package:get_10101/trade/collateral_slider.dart';
+import 'package:get_10101/trade/create_order_confirmation_dialog.dart';
 import 'package:provider/provider.dart';
 
 class CreateChannelConfirmationDialog extends StatefulWidget {
@@ -304,29 +304,30 @@ class _CreateChannelConfirmationDialogState extends State<CreateChannelConfirmat
                             ElevatedButton(
                               onPressed: notEnoughOnchainBalance
                                   ? null
-                                  : () async {
-                                      await NewOrderService.postNewOrder(
-                                              widget.leverage,
-                                              widget.quantity,
-                                              widget.direction == Direction.long.opposite(),
-                                              channelOpeningParams: ChannelOpeningParams(
-                                                  Amount.max(
-                                                      Amount.zero(),
-                                                      (_counterpartyChannelCollateral -
-                                                          counterpartyMargin)),
-                                                  Amount.max(Amount.zero(),
-                                                      _ownChannelCollateral - widget.margin)))
-                                          .then((orderId) {
-                                        showSnackBar(
-                                            messenger, "Market order created. Order id: $orderId.");
-                                        Navigator.pop(context);
-                                      }).catchError((error) {
-                                        showSnackBar(
-                                            messenger, "Failed creating market order: $error.");
-                                      }).whenComplete(widget.onConfirmation);
+                                  : () {
+                                      Navigator.pop(context);
+                                      showDialog(
+                                          context: context,
+                                          builder: (BuildContext context) {
+                                            return CreateOrderConfirmationDialog(
+                                                direction: widget.direction,
+                                                onConfirmation: () {},
+                                                onCancel: () {},
+                                                bestQuote: widget.bestQuote,
+                                                fee: widget.fee,
+                                                leverage: widget.leverage,
+                                                quantity: widget.quantity,
+                                                channelOpeningParams: ChannelOpeningParams(
+                                                    Amount.max(
+                                                        Amount.zero(),
+                                                        (_counterpartyChannelCollateral -
+                                                            counterpartyMargin)),
+                                                    Amount.max(Amount.zero(),
+                                                        _ownChannelCollateral - widget.margin)));
+                                          });
                                     },
                               style: ElevatedButton.styleFrom(fixedSize: const Size(100, 20)),
-                              child: const Text('Accept'),
+                              child: const Text('Next'),
                             ),
                           ],
                         ),

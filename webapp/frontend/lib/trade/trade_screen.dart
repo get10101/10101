@@ -14,14 +14,7 @@ class TradeScreen extends StatefulWidget {
   State<TradeScreen> createState() => _TradeScreenState();
 }
 
-class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStateMixin {
-  late final _tabController = TabController(length: 2, vsync: this);
-
-  @override
-  void initState() {
-    super.initState();
-  }
-
+class _TradeScreenState extends State<TradeScreen> {
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
@@ -39,18 +32,24 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 SizedBox(
                   height: 500,
                   width: 350,
-                  child: NewOrderWidget(tabController: _tabController),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      SizedBox(height: 420, width: 300, child: NewOrderForm()),
+                    ],
+                  ),
                 ),
-                const SizedBox(
+                SizedBox(
                   height: 10,
                 ),
-                const Expanded(
+                Expanded(
                     child:
                         SizedBox(height: 500, child: TradingViewWidgetHtml(cryptoName: "BTCUSD"))),
               ],
@@ -137,7 +136,13 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
                           borderRadius: BorderRadius.circular(8),
                           color: Colors.grey[100],
                         ),
-                        child: NewOrderWidget(tabController: _tabController),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: <Widget>[
+                            SizedBox(height: 420, width: 300, child: NewOrderForm()),
+                          ],
+                        ),
                       ),
                       const SizedBox(
                         height: 10,
@@ -159,48 +164,5 @@ class _TradeScreenState extends State<TradeScreen> with SingleTickerProviderStat
                     ],
                   ),
                 ))));
-  }
-}
-
-class NewOrderWidget extends StatelessWidget {
-  const NewOrderWidget({
-    super.key,
-    required TabController tabController,
-  }) : _tabController = tabController;
-
-  final TabController _tabController;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        SizedBox(
-          width: 300,
-          child: TabBar(
-            unselectedLabelColor: Colors.black,
-            labelColor: tenTenOnePurple,
-            controller: _tabController,
-            tabs: const [
-              Tab(
-                text: 'Buy',
-              ),
-              Tab(
-                text: 'Sell',
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          height: 420,
-          width: 300,
-          child: TabBarView(
-            controller: _tabController,
-            children: const <Widget>[NewOrderForm(isLong: true), NewOrderForm(isLong: false)],
-          ),
-        ),
-      ],
-    );
   }
 }

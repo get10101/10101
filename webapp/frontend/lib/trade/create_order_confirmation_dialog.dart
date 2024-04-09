@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/change_notifier/trade_constraint_change_notifier.dart';
+import 'package:get_10101/common/calculations.dart';
 import 'package:get_10101/common/contract_symbol_icon.dart';
 import 'package:get_10101/common/direction.dart';
 import 'package:get_10101/common/model.dart';
@@ -7,15 +9,17 @@ import 'package:get_10101/common/theme.dart';
 import 'package:get_10101/common/value_data_row.dart';
 import 'package:get_10101/services/new_order_service.dart';
 import 'package:get_10101/services/quote_service.dart';
+import 'package:provider/provider.dart';
 
 class CreateOrderConfirmationDialog extends StatelessWidget {
   final Direction direction;
   final Function() onConfirmation;
   final Function() onCancel;
-  final BestQuote? bestQuote;
+  final BestQuote bestQuote;
   final Amount? fee;
   final Leverage leverage;
   final Usd quantity;
+  final ChannelOpeningParams? channelOpeningParams;
 
   const CreateOrderConfirmationDialog(
       {super.key,
@@ -25,19 +29,28 @@ class CreateOrderConfirmationDialog extends StatelessWidget {
       required this.bestQuote,
       required this.fee,
       required this.leverage,
-      required this.quantity});
+      required this.quantity,
+      this.channelOpeningParams});
 
   @override
   Widget build(BuildContext context) {
     final messenger = ScaffoldMessenger.of(context);
     TenTenOneTheme tradeTheme = Theme.of(context).extension<TenTenOneTheme>()!;
 
-    Price? price = bestQuote?.bid;
+    Price? price = bestQuote.bid;
     if (direction == Direction.short) {
-      price = bestQuote?.ask;
+      price = bestQuote.ask;
     }
 
+    TradeConstraintsChangeNotifier tradeConstraintsChangeNotifier =
+        context.read<TradeConstraintsChangeNotifier>();
+    double maintenanceMarginRate =
+        tradeConstraintsChangeNotifier.tradeConstraints?.maintenanceMarginRate ?? 0.1;
+
     Color color = direction == Direction.long ? tradeTheme.buy : tradeTheme.sell;
+    final liquidationPrice = calculateLiquidationPrice(
+        quantity, bestQuote, leverage, maintenanceMarginRate, Direction.long == direction);
+    final margin = calculateMargin(quantity, bestQuote, leverage, Direction.long == direction);
 
     return Dialog(
       child: Padding(
@@ -71,21 +84,28 @@ class CreateOrderConfirmationDialog extends StatelessWidget {
                                       type: ValueType.contracts,
                                       value: quantity.formatted(),
                                       label: 'Quantity'),
-                                  //
+                                  ValueDataRow(
+                                    type: ValueType.amount,
+                                    value: margin,
+                                    label: "Margin",
+                                  ),
                                   ValueDataRow(
                                       type: ValueType.text,
                                       value: leverage.formatted(),
                                       label: 'Leverage'),
-                                  //
                                   ValueDataRow(
                                       type: ValueType.fiat,
                                       value: price?.asDouble ?? 0.0,
                                       label: 'Latest Market Price'),
-                                  //
                                   ValueDataRow(
                                     type: ValueType.amount,
                                     value: fee ?? Amount.zero(),
                                     label: "Fee estimate",
+                                  ),
+                                  ValueDataRow(
+                                    type: ValueType.fiat,
+                                    value: liquidationPrice.asDouble(),
+                                    label: "Liquidation price",
                                   ),
                                 ],
                               ),
@@ -120,7 +140,8 @@ class CreateOrderConfirmationDialog extends StatelessWidget {
                             ElevatedButton(
                               onPressed: () async {
                                 await NewOrderService.postNewOrder(
-                                        leverage, quantity, direction == Direction.long)
+                                        leverage, quantity, direction == Direction.long,
+                                        channelOpeningParams: channelOpeningParams)
                                     .then((orderId) {
                                   showSnackBar(
                                       messenger, "Market order created. Order id: $orderId.");
