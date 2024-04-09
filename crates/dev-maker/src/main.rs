@@ -1,6 +1,7 @@
 use crate::logger::init_tracing;
 use crate::orderbook_client::OrderbookClient;
 use anyhow::Result;
+use clap::Parser;
 use commons::NewLimitOrder;
 use commons::NewOrder;
 use reqwest::Url;
@@ -28,18 +29,27 @@ const ORDER_EXPIRY: u64 = 30;
 async fn main() -> Result<()> {
     init_tracing(LevelFilter::DEBUG)?;
 
+    let opts: Opts = Opts::parse();
+
+    let rates: Vec<Decimal> = match opts.sub_command() {
+        SubCommand::Historic => {
+            let mut historic_rates = historic_rates::read();
+            historic_rates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+            historic_rates.into_iter().map(|rate| rate.open).collect()
+        }
+        SubCommand::Fixed(Fixed { price }) => vec![Decimal::try_from(price)?],
+    };
+
     let client = OrderbookClient::new(Url::from_str("http://localhost:8000")?);
     let secret_key = SecretKey::new(&mut rand::thread_rng());
     let public_key = secret_key.public_key(SECP256K1);
 
     tracing::info!(pubkey = public_key.to_string(), "Starting new dev-maker");
 
-    let mut historic_rates = historic_rates::read();
-    historic_rates.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
     let mut past_ids = vec![];
     loop {
-        for historic_rate in &historic_rates {
+        for rate in &rates {
             let mut tmp_ids = vec![];
             for _ in 0..5 {
                 tmp_ids.push(
@@ -48,7 +58,7 @@ async fn main() -> Result<()> {
                         secret_key,
                         public_key,
                         Direction::Short,
-                        historic_rate.open + Decimal::from(1),
+                        rate + Decimal::ONE,
                         ORDER_EXPIRY,
                     )
                     .await,
@@ -59,7 +69,7 @@ async fn main() -> Result<()> {
                         secret_key,
                         public_key,
                         Direction::Long,
-                        historic_rate.open - Decimal::from(1),
+                        rate - Decimal::ONE,
                         ORDER_EXPIRY,
                     )
                     .await,
@@ -119,4 +129,30 @@ async fn post_order(
         tracing::error!("Failed posting new order {err:?}");
     }
     uuid
+}
+
+#[derive(Parser)]
+struct Opts {
+    #[clap(subcommand)]
+    subcmd: Option<SubCommand>,
+}
+
+impl Opts {
+    fn sub_command(&self) -> SubCommand {
+        self.subcmd
+            .clone()
+            .unwrap_or(SubCommand::Fixed(Fixed { price: 50_000.0 }))
+    }
+}
+
+#[derive(Parser, Clone)]
+enum SubCommand {
+    Historic,
+    Fixed(Fixed),
+}
+
+#[derive(Parser, Clone)]
+struct Fixed {
+    #[clap(default_value = "50000.0")]
+    price: f32,
 }

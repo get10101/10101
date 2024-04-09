@@ -345,12 +345,12 @@ impl Position {
         positions::table.load(conn)
     }
 
-    /// updates the status of the given order in the db
+    /// Update the status of the [`Position`] identified by the given [`ContractSymbol`].
     pub fn update_state(
         contract_symbol: ContractSymbol,
         state: PositionState,
         conn: &mut SqliteConnection,
-    ) -> Result<()> {
+    ) -> Result<Position> {
         let affected_rows = diesel::update(positions::table)
             .filter(schema::positions::contract_symbol.eq(contract_symbol))
             .set(schema::positions::state.eq(state))
@@ -360,7 +360,11 @@ impl Position {
             bail!("Could not update position")
         }
 
-        Ok(())
+        let position = positions::table
+            .filter(positions::contract_symbol.eq(contract_symbol))
+            .first(conn)?;
+
+        Ok(position)
     }
 
     // sets the position to rollover and updates the new expiry timestamp.

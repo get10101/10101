@@ -380,6 +380,7 @@ diesel::table! {
         trader_margin -> Int8,
         stable -> Bool,
         coordinator_liquidation_price -> Float4,
+        order_matching_fees -> Int8,
     }
 }
 
@@ -430,12 +431,12 @@ diesel::table! {
         trader_pubkey -> Text,
         quantity -> Float4,
         trader_leverage -> Float4,
-        collateral -> Int8,
         direction -> DirectionType,
         average_price -> Float4,
         timestamp -> Timestamptz,
         order_matching_fee_sat -> Int8,
         trader_realized_pnl_sat -> Nullable<Int8>,
+        is_complete -> Bool,
     }
 }
 

@@ -54,7 +54,6 @@ impl ToSql<PositionStateType, Pg> for PositionState {
             PositionState::Resizing => out.write_all(b"Resizing")?,
             PositionState::Proposed => out.write_all(b"Proposed")?,
             PositionState::Failed => out.write_all(b"Failed")?,
-            PositionState::ResizeProposed => out.write_all(b"ResizeProposed")?,
         }
         Ok(IsNull::No)
     }
@@ -70,7 +69,6 @@ impl FromSql<PositionStateType, Pg> for PositionState {
             b"Resizing" => Ok(PositionState::Resizing),
             b"Proposed" => Ok(PositionState::Proposed),
             b"Failed" => Ok(PositionState::Failed),
-            b"ResizeProposed" => Ok(PositionState::ResizeProposed),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

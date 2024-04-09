@@ -121,12 +121,33 @@ impl TestSetup {
 
     /// Start test with a running app with a funded wallet and an open position.
     pub async fn new_with_open_position() -> Self {
+        let order = dummy_order();
+
+        Self::new_with_open_position_custom(order, 0, 0).await
+    }
+
+    /// Start test with a running app with a funded wallet and an open position based on a custom
+    /// [`NewOrder`].
+    pub async fn new_with_open_position_custom(
+        order: NewOrder,
+        coordinator_collateral_reserve: u64,
+        trader_collateral_reserve: u64,
+    ) -> Self {
         let setup = Self::new_after_funding().await;
         let rx = &setup.app.rx;
 
-        tracing::info!("Opening a position");
-        let order = dummy_order();
-        submit_channel_opening_order(order.clone(), 0, 0);
+        tracing::info!(
+            ?order,
+            %coordinator_collateral_reserve,
+            %trader_collateral_reserve,
+            "Opening a position"
+        );
+
+        submit_channel_opening_order(
+            order.clone(),
+            coordinator_collateral_reserve,
+            trader_collateral_reserve,
+        );
 
         wait_until!(rx.order().is_some());
 

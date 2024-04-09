@@ -1006,6 +1006,7 @@ dependencies = [
  "fcm",
  "futures",
  "hex",
+ "insta",
  "lazy_static",
  "lightning",
  "lightning-invoice",
@@ -1324,6 +1325,7 @@ name = "dev-maker"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap 4.5.0",
  "commons",
  "reqwest",
  "rust_decimal",

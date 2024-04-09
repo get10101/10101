@@ -1,3 +1,4 @@
+import 'package:get_10101/util/environment.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
@@ -260,6 +261,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void initState() {
     super.initState();
+
+    if (Environment.parse().network == "regtest") {
+      _betaDisclaimer = true;
+      _loseDisclaimer = true;
+    }
 
     Preferences.instance.getContactDetails().then((value) => setState(() {
           _contact = value;

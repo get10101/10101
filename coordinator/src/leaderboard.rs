@@ -158,6 +158,7 @@ pub mod tests {
     use crate::position::models::Position;
     use crate::position::models::PositionState;
     use bitcoin::secp256k1::PublicKey;
+    use bitcoin::Amount;
     use rust_decimal_macros::dec;
     use std::collections::HashMap;
     use std::str::FromStr;
@@ -270,6 +271,7 @@ pub mod tests {
             trader_margin: 0,
             stable: false,
             trader_realized_pnl_sat: Some(pnl),
+            order_matching_fees: Amount::ZERO,
         }
     }
 

@@ -37,6 +37,7 @@ pub struct NewPosition {
     pub coordinator_leverage: f32,
     pub trader_margin: i64,
     pub stable: bool,
+    pub order_matching_fees: Amount,
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -59,48 +60,52 @@ pub enum PositionState {
     Failed,
     Rollover,
     Resizing,
-    /// We proposed a new protocol round for resizing, at the moment, we close the existing channel
-    /// and open a new one, in the future this will be the resize protocol by rust-dlc
-    ResizeOpeningSubchannelProposed,
 }
 
-/// The position acts as an aggregate of one contract of one user.
-/// The position represents the values of the trader; i.e. the leverage, collateral and direction
-/// and the coordinator leverage
+/// The trading position for a user identified by `trader`.
 #[derive(Clone)]
 pub struct Position {
     pub id: i32,
+    pub trader: PublicKey,
     pub contract_symbol: ContractSymbol,
-    /// the traders leverage
-    pub trader_leverage: f32,
     pub quantity: f32,
-    /// the traders direction
     pub trader_direction: Direction,
+
     pub average_entry_price: f32,
-    /// the traders liquidation price
+    pub closing_price: Option<f32>,
+    pub trader_realized_pnl_sat: Option<i64>,
+
     pub trader_liquidation_price: f32,
     pub coordinator_liquidation_price: f32,
-    pub position_state: PositionState,
+
+    pub trader_margin: i64,
     pub coordinator_margin: i64,
+
+    pub trader_leverage: f32,
+    pub coordinator_leverage: f32,
+
+    pub position_state: PositionState,
+
+    /// Accumulated order matching fees for the lifetime of the position.
+    pub order_matching_fees: Amount,
+
     pub creation_timestamp: OffsetDateTime,
     pub expiry_timestamp: OffsetDateTime,
     pub update_timestamp: OffsetDateTime,
-    pub trader: PublicKey,
-    /// the coordinators leverage
-    pub coordinator_leverage: f32,
 
-    /// The temporary contract id that is created when the contract is being offered
+    /// The temporary contract ID that is created when an [`OfferedContract`] is sent.
     ///
-    /// We use the temporary contract id because the actual contract id might not be known at that
-    /// point. The temporary contract id is propagated to all states until the contract is
+    /// We use the temporary contract ID because the actual contract ID is not always available.
+    /// The temporary contract ID is propagated to all `rust-dlc` states until the contract is
     /// closed.
-    /// This field is optional for backwards compatibility because we cannot deterministically
-    /// associate already existing contracts with positions.
+    ///
+    /// This field is optional to maintain backwards compatibility, because we cannot
+    /// deterministically associate already existing contracts with positions.
+    ///
+    /// [`OfferedContract`]: dlc_manager::contract::offered_contract::OfferedContract
     pub temporary_contract_id: Option<ContractId>,
-    pub closing_price: Option<f32>,
-    pub trader_margin: i64,
+
     pub stable: bool,
-    pub trader_realized_pnl_sat: Option<i64>,
 }
 
 impl Position {
@@ -434,31 +439,56 @@ impl std::fmt::Debug for NewPosition {
 
 impl std::fmt::Debug for Position {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self {
+            id,
+            trader,
+            contract_symbol,
+            quantity,
+            trader_direction,
+            average_entry_price,
+            closing_price,
+            trader_realized_pnl_sat,
+            coordinator_liquidation_price,
+            trader_liquidation_price,
+            trader_margin,
+            coordinator_margin,
+            trader_leverage,
+            coordinator_leverage,
+            position_state,
+            order_matching_fees,
+            creation_timestamp,
+            expiry_timestamp,
+            update_timestamp,
+            temporary_contract_id,
+            stable,
+        } = self;
+
         f.debug_struct("Position")
-            .field("id", &self.id)
-            .field("contract_symbol", &self.contract_symbol)
-            .field("trader_leverage", &self.trader_leverage)
-            .field("quantity", &self.quantity)
-            .field("trader_direction", &self.trader_direction)
-            .field("average_entry_price", &self.average_entry_price)
-            .field("trader_liquidation_price", &self.trader_liquidation_price)
+            .field("id", &id)
+            .field("contract_symbol", &contract_symbol)
+            .field("trader_leverage", &trader_leverage)
+            .field("quantity", &quantity)
+            .field("trader_direction", &trader_direction)
+            .field("average_entry_price", &average_entry_price)
+            .field("trader_liquidation_price", &trader_liquidation_price)
             .field(
                 "coordinator_liquidation_price",
-                &self.coordinator_liquidation_price,
+                &coordinator_liquidation_price,
             )
-            .field("position_state", &self.position_state)
-            .field("coordinator_margin", &self.coordinator_margin)
-            .field("creation_timestamp", &self.creation_timestamp)
-            .field("expiry_timestamp", &self.expiry_timestamp)
-            .field("update_timestamp", &self.update_timestamp)
+            .field("position_state", &position_state)
+            .field("coordinator_margin", &coordinator_margin)
+            .field("creation_timestamp", &creation_timestamp)
+            .field("expiry_timestamp", &expiry_timestamp)
+            .field("update_timestamp", &update_timestamp)
             // Otherwise we end up printing the hex of the internal representation.
-            .field("trader", &self.trader.to_string())
-            .field("coordinator_leverage", &self.coordinator_leverage)
-            .field("temporary_contract_id", &self.temporary_contract_id)
-            .field("closing_price", &self.closing_price)
-            .field("trader_margin", &self.trader_margin)
-            .field("stable", &self.stable)
-            .field("trader_realized_pnl_sat", &self.trader_realized_pnl_sat)
+            .field("trader", &trader.to_string())
+            .field("coordinator_leverage", &coordinator_leverage)
+            .field("temporary_contract_id", &temporary_contract_id)
+            .field("closing_price", &closing_price)
+            .field("trader_margin", &trader_margin)
+            .field("stable", &stable)
+            .field("trader_realized_pnl_sat", &trader_realized_pnl_sat)
+            .field("order_matching_fees", &order_matching_fees)
             .finish()
     }
 }
@@ -495,6 +525,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -530,6 +561,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -565,6 +597,7 @@ mod tests {
             trader_margin: 125_000,
             stable: false,
             trader_realized_pnl_sat: None,
+            order_matching_fees: Amount::ZERO,
         };
 
         let coordinator_settlement_amount = position
@@ -1015,6 +1048,7 @@ mod tests {
                 trader_margin: 1000,
                 stable: false,
                 trader_realized_pnl_sat: None,
+                order_matching_fees: Amount::ZERO,
             }
         }
 

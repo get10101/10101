@@ -72,6 +72,8 @@ pub fn build_contract_descriptor(
 /// Additionally returns the [`RoundingIntervals`] to indicate how it should be discretized.
 #[allow(clippy::too_many_arguments)]
 fn build_inverse_payout_function(
+    // TODO: The `coordinator_margin` and `trader_margin` are _not_ orthogonal to the other
+    // arguments passed in.
     coordinator_margin: u64,
     trader_margin: u64,
     initial_price: Decimal,

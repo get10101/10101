@@ -10,7 +10,8 @@ pub mod order;
 pub mod position;
 pub mod users;
 
-/// A trade is an event that moves funds between the Lightning wallet and a DLC channel.
+/// A trade is an event that moves funds between the DLC channel collateral reserve and a DLC
+/// channel.
 ///
 /// Every trade is associated with a single market order, but an order can be associated with
 /// multiple trades.
@@ -26,10 +27,10 @@ pub struct Trade {
     pub contracts: Decimal,
     /// Direction of the associated order.
     pub direction: Direction,
-    /// How many coins were moved between the Lightning wallet and the DLC channel.
+    /// How many coins were moved between the DLC channel collateral reserve and the DLC.
     ///
-    /// A positive value indicates that the money moved out of the Lightning wallet; a negative
-    /// value indicates that the money moved into the Lightning wallet.
+    /// A positive value indicates that the money moved out of the reserve; a negative value
+    /// indicates that the money moved into the reserve.
     pub trade_cost: SignedAmount,
     pub fee: Amount,
     /// If a position was reduced or closed because of this trade, how profitable it was.
