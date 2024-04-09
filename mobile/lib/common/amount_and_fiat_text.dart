@@ -14,8 +14,8 @@ class AmountAndFiatText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Selector<TradeValuesChangeNotifier, double>(
       selector: (_, provider) {
-        var askPrice = provider.getPrice()?.ask ?? 0.0;
-        var bidPrice = provider.getPrice()?.bid ?? 0.0;
+        var askPrice = provider.getAskPrice() ?? 0.0;
+        var bidPrice = provider.getBidPrice() ?? 0.0;
         var midMarket = (askPrice + bidPrice) / 2;
         return midMarket;
       },

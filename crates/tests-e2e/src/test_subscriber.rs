@@ -1,4 +1,3 @@
-use commons::Prices;
 use commons::TradeParams;
 use native::api::ContractSymbol;
 use native::api::WalletInfo;
@@ -10,6 +9,7 @@ use native::health::ServiceUpdate;
 use native::trade::order::Order;
 use native::trade::position::Position;
 use parking_lot::Mutex;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -21,7 +21,8 @@ pub struct Senders {
     position: watch::Sender<Option<Position>>,
     /// Init messages are simple strings
     init_msg: watch::Sender<Option<String>>,
-    prices: watch::Sender<Option<Prices>>,
+    ask_price: watch::Sender<Option<Decimal>>,
+    bid_price: watch::Sender<Option<Decimal>>,
     position_close: watch::Sender<Option<ContractSymbol>>,
     service: watch::Sender<Option<ServiceUpdate>>,
 }
@@ -34,7 +35,8 @@ pub struct TestSubscriber {
     order_filled: watch::Receiver<Option<Box<TradeParams>>>,
     position: watch::Receiver<Option<Position>>,
     init_msg: watch::Receiver<Option<String>>,
-    prices: watch::Receiver<Option<Prices>>,
+    ask_price: watch::Receiver<Option<Decimal>>,
+    bid_price: watch::Receiver<Option<Decimal>>,
     position_close: watch::Receiver<Option<ContractSymbol>>,
     services: Arc<Mutex<HashMap<Service, ServiceStatus>>>,
     _service_map_updater: tokio::task::JoinHandle<()>,
@@ -47,7 +49,8 @@ impl TestSubscriber {
         let (order_filled_tx, order_filled_rx) = watch::channel(None);
         let (position_tx, position_rx) = watch::channel(None);
         let (init_msg_tx, init_msg_rx) = watch::channel(None);
-        let (prices_tx, prices_rx) = watch::channel(None);
+        let (ask_prices_tx, ask_prices_rx) = watch::channel(None);
+        let (bid_prices_tx, bid_prices_rx) = watch::channel(None);
         let (position_close_tx, position_close_rx) = watch::channel(None);
         let (service_tx, mut service_rx) = watch::channel(None);
 
@@ -57,7 +60,8 @@ impl TestSubscriber {
             order_filled: order_filled_tx,
             position: position_tx,
             init_msg: init_msg_tx,
-            prices: prices_tx,
+            ask_price: ask_prices_tx,
+            bid_price: bid_prices_tx,
             position_close: position_close_tx,
             service: service_tx,
         };
@@ -83,7 +87,8 @@ impl TestSubscriber {
             order: order_rx,
             position: position_rx,
             init_msg: init_msg_rx,
-            prices: prices_rx,
+            ask_price: ask_prices_rx,
+            bid_price: bid_prices_rx,
             position_close: position_close_rx,
             services,
             _service_map_updater,
@@ -111,8 +116,11 @@ impl TestSubscriber {
         self.init_msg.borrow().as_ref().cloned()
     }
 
-    pub fn prices(&self) -> Option<Prices> {
-        self.prices.borrow().as_ref().cloned()
+    pub fn ask_price(&self) -> Option<Decimal> {
+        self.ask_price.borrow().as_ref().cloned()
+    }
+    pub fn bid_price(&self) -> Option<Decimal> {
+        self.bid_price.borrow().as_ref().cloned()
     }
 
     pub fn position_close(&self) -> Option<ContractSymbol> {
@@ -142,7 +150,8 @@ impl Subscriber for Senders {
             EventType::OrderUpdateNotification,
             EventType::PositionUpdateNotification,
             EventType::PositionClosedNotification,
-            EventType::PriceUpdateNotification,
+            EventType::AskPriceUpdateNotification,
+            EventType::BidPriceUpdateNotification,
             EventType::ServiceHealthUpdate,
             EventType::ChannelStatusUpdate,
         ]
@@ -174,8 +183,11 @@ impl Senders {
             native::event::EventInternal::PositionCloseNotification(contract_symbol) => {
                 self.position_close.send(Some(*contract_symbol))?;
             }
-            native::event::EventInternal::PriceUpdateNotification(prices) => {
-                self.prices.send(Some(prices.clone()))?;
+            native::event::EventInternal::AskPriceUpdateNotification(price) => {
+                self.ask_price.send(Some(*price))?;
+            }
+            native::event::EventInternal::BidPriceUpdateNotification(price) => {
+                self.bid_price.send(Some(*price))?;
             }
             native::event::EventInternal::ServiceHealthUpdate(update) => {
                 self.service.send(Some(update.clone()))?;

@@ -29,7 +29,6 @@ import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/wallet/domain/wallet_info.dart';
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -117,10 +116,14 @@ void subscribeToNotifiers(BuildContext context) {
       walletChangeNotifier, bridge.Event.walletInfoUpdateNotification(WalletInfo.apiDummy()));
 
   eventService.subscribe(
-      tradeValuesChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+      tradeValuesChangeNotifier, const bridge.Event.askPriceUpdateNotification(0.0));
+  eventService.subscribe(
+      tradeValuesChangeNotifier, const bridge.Event.bidPriceUpdateNotification(0.0));
 
   eventService.subscribe(
-      positionChangeNotifier, bridge.Event.priceUpdateNotification(Price.apiDummy()));
+      positionChangeNotifier, const bridge.Event.askPriceUpdateNotification(0.0));
+  eventService.subscribe(
+      positionChangeNotifier, const bridge.Event.bidPriceUpdateNotification(0.0));
 
   eventService.subscribe(
       serviceStatusNotifier, bridge.Event.serviceHealthUpdate(serviceUpdateApiDummy()));

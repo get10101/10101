@@ -58,8 +58,8 @@ class _PositionListItemState extends State<PositionListItem> {
 
     // We're a bit conservative, we only enable action when we have both bid and ask
     bool priceAvailable = notNullPosition.direction == Direction.long
-        ? positionChangeNotifier.price?.ask != null
-        : positionChangeNotifier.price?.bid != null;
+        ? positionChangeNotifier.bidPrice != null
+        : positionChangeNotifier.askPrice != null;
 
     if (!isPositionExpired) {
       Timer(notNullPosition.expiry.difference(DateTime.now().toUtc()), () {

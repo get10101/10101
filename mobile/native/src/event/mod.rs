@@ -6,9 +6,9 @@ use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
-use commons::Prices;
 use commons::TenTenOneConfig;
 use commons::TradeParams;
+use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
@@ -36,7 +36,8 @@ pub enum EventInternal {
     OrderFilledWith(Box<TradeParams>),
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
-    PriceUpdateNotification(Prices),
+    AskPriceUpdateNotification(Decimal),
+    BidPriceUpdateNotification(Decimal),
     ServiceHealthUpdate(ServiceUpdate),
     Authenticated(TenTenOneConfig),
     BackgroundNotification(BackgroundTask),
@@ -70,12 +71,13 @@ impl fmt::Display for EventInternal {
             EventInternal::OrderFilledWith(_) => "OrderFilledWith",
             EventInternal::PositionUpdateNotification(_) => "PositionUpdateNotification",
             EventInternal::PositionCloseNotification(_) => "PositionCloseNotification",
-            EventInternal::PriceUpdateNotification(_) => "PriceUpdateNotification",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
             EventInternal::BackgroundNotification(_) => "BackgroundNotification",
             EventInternal::SpendableOutputs => "SpendableOutputs",
             EventInternal::Authenticated(_) => "Authenticated",
             EventInternal::DlcChannelEvent(_) => "DlcChannelEvent",
+            EventInternal::AskPriceUpdateNotification(_) => "AskPriceUpdateNotification",
+            EventInternal::BidPriceUpdateNotification(_) => "BidPriceUpdateNotification",
         }
         .fmt(f)
     }
@@ -93,12 +95,13 @@ impl From<EventInternal> for EventType {
             EventInternal::OrderFilledWith(_) => EventType::OrderFilledWith,
             EventInternal::PositionUpdateNotification(_) => EventType::PositionUpdateNotification,
             EventInternal::PositionCloseNotification(_) => EventType::PositionClosedNotification,
-            EventInternal::PriceUpdateNotification(_) => EventType::PriceUpdateNotification,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,
             EventInternal::BackgroundNotification(_) => EventType::BackgroundNotification,
             EventInternal::SpendableOutputs => EventType::SpendableOutputs,
             EventInternal::Authenticated(_) => EventType::Authenticated,
             EventInternal::DlcChannelEvent(_) => EventType::DlcChannelEvent,
+            EventInternal::AskPriceUpdateNotification(_) => EventType::AskPriceUpdateNotification,
+            EventInternal::BidPriceUpdateNotification(_) => EventType::BidPriceUpdateNotification,
         }
     }
 }
@@ -112,7 +115,6 @@ pub enum EventType {
     OrderFilledWith,
     PositionUpdateNotification,
     PositionClosedNotification,
-    PriceUpdateNotification,
     ChannelReady,
     PaymentClaimed,
     PaymentSent,
@@ -123,4 +125,6 @@ pub enum EventType {
     SpendableOutputs,
     Authenticated,
     DlcChannelEvent,
+    AskPriceUpdateNotification,
+    BidPriceUpdateNotification,
 }

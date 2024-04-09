@@ -336,15 +336,21 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
 pub async fn get_positions(
     State(subscribers): State<Arc<AppSubscribers>>,
 ) -> Result<Json<Vec<Position>>, AppError> {
-    let orderbook_info = subscribers.orderbook_info();
+    let ask_price = subscribers.ask_price();
+    let bid_price = subscribers.ask_price();
 
     let positions = native::trade::position::handler::get_positions()?
         .into_iter()
         .map(|position| {
-            let quotes = orderbook_info
-                .clone()
-                .map(|prices| prices.get(&position.contract_symbol).cloned())
-                .and_then(|inner| inner);
+            let quotes = if let (Some(ask), Some(bid)) = (ask_price, bid_price) {
+                Some(Price {
+                    bid: Some(bid),
+                    ask: Some(ask),
+                })
+            } else {
+                None
+            };
+            // TODO: we should clean this annoying into up sometimes
             (position, quotes).into()
         })
         .collect::<Vec<Position>>();
@@ -488,17 +494,21 @@ pub struct BestQuote {
 
 pub async fn get_best_quote(
     State(subscribers): State<Arc<AppSubscribers>>,
-    Path(contract_symbol): Path<ContractSymbol>,
+    // todo: once we support multiple pairs we should use this
+    Path(_contract_symbol): Path<ContractSymbol>,
 ) -> Result<Json<Option<BestQuote>>, AppError> {
-    let quotes = subscribers
-        .orderbook_info()
-        .map(|prices| prices.get(&contract_symbol).cloned())
-        .and_then(|inner| inner);
+    let ask_price = subscribers.ask_price();
+    let bid_price = subscribers.bid_price();
 
-    Ok(Json(quotes.map(|quote| BestQuote {
-        price: quote,
+    let quotes = BestQuote {
+        price: Price {
+            bid: bid_price,
+            ask: ask_price,
+        },
         fee: ln_dlc::get_order_matching_fee_rate(),
-    })))
+    };
+
+    Ok(Json(Some(quotes)))
 }
 
 #[derive(Serialize, Default)]

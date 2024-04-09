@@ -44,7 +44,7 @@ pub fn best_current_price(current_orders: &[Order]) -> Prices {
 ///
 /// If you SELL, you ask and you get the best price someone is willing to buy at i.e. the highest
 /// bid price.
-fn best_bid_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
+pub fn best_bid_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
     orders
         .iter()
         .filter(|o| {
@@ -68,7 +68,7 @@ fn best_bid_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
 ///
 /// If you BUY, you bid and you get the best price someone is willing to sell at i.e. the lowest ask
 /// price.
-fn best_ask_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
+pub fn best_ask_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decimal> {
     orders
         .iter()
         .filter(|o| {
