@@ -34,7 +34,6 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::watch;
 use tokio_tungstenite_wasm as tungstenite;
-use uuid::Uuid;
 
 /// FIXME(holzeis): There is an edge case where the app is still open while we move into the
 /// rollover window. If the coordinator restarts while the app remains open in that scenario, the
@@ -282,8 +281,11 @@ async fn handle_orderbook_message(
         Message::DeleteOrder(order_id) => {
             let mut orders = orders.lock();
 
-            let found = remove_order(&mut orders, order_id);
-            if !found {
+            let old_length = orders.len();
+            orders.retain(|order| order.id != order_id);
+            let new_length = orders.len();
+
+            if old_length == new_length {
                 tracing::warn!(%order_id, "Could not remove non-existing order");
             }
 
@@ -292,8 +294,11 @@ async fn handle_orderbook_message(
         Message::Update(updated_order) => {
             let mut orders = orders.lock();
 
-            let found = remove_order(&mut orders, updated_order.id);
-            if !found {
+            let old_length = orders.len();
+            orders.retain(|order| order.id != updated_order.id);
+            let new_length = orders.len();
+
+            if old_length == new_length {
                 tracing::warn!(?updated_order, "Update without prior knowledge of order");
             }
 
@@ -360,17 +365,4 @@ fn update_prices_if_needed(cached_best_price: &mut Prices, orders: &[Order]) {
         }
         *cached_best_price = best_price;
     }
-}
-
-// Returns true if the order was found and removed
-fn remove_order(orders: &mut Vec<Order>, order_id: Uuid) -> bool {
-    let mut found = false;
-    for (index, element) in orders.iter().enumerate() {
-        if element.id == order_id {
-            found = true;
-            orders.remove(index);
-            break;
-        }
-    }
-    found
 }
