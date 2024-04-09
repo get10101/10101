@@ -101,6 +101,7 @@ async fn process_pending_match(
         tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
 
         let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
+
         let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
 
         let message = match order.order_reason {
@@ -176,6 +177,7 @@ fn get_filled_with_from_matches(
                 quantity: m.quantity,
                 pubkey: m.match_trader_id,
                 execution_price: m.execution_price,
+                matching_fee: m.matching_fee,
             })
             .collect(),
     })

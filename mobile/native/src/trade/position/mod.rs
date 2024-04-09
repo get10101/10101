@@ -10,7 +10,6 @@ use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
-use commons::order_matching_fee_taker;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -88,6 +87,7 @@ impl Position {
         let now_timestamp = OffsetDateTime::now_utc();
 
         let average_entry_price = order.execution_price().expect("order to be filled");
+        let matching_fee = order.matching_fee().expect("order to be filled");
 
         let maintenance_margin_rate = get_maintenance_margin_rate();
         let liquidation_price = calculate_liquidation_price(
@@ -140,11 +140,10 @@ impl Position {
         };
 
         let average_entry_price = decimal_from_f32(average_entry_price);
-        let fee = order_matching_fee_taker(order.quantity, average_entry_price);
 
         let margin_diff = SignedAmount::from_sat(actual_collateral_sat as i64);
 
-        let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, fee);
+        let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, matching_fee);
 
         let trade = Trade {
             order_id: order.id,
@@ -152,7 +151,7 @@ impl Position {
             contracts,
             direction: order.direction,
             trade_cost,
-            fee,
+            fee: matching_fee,
             pnl: None,
             price: average_entry_price,
             timestamp: now_timestamp,
@@ -249,6 +248,7 @@ impl Position {
                 .execution_price()
                 .expect("order to have an execution price"),
         );
+        let matching_fee = order.matching_fee().expect("to have matching fee in order");
 
         // If the directions differ (and the position has contracts!) we must reduce the position
         // (first).
@@ -259,8 +259,6 @@ impl Position {
 
             // Reduce position and order to 0.
             if contract_diff == 0.0 {
-                let fee = order_matching_fee_taker(order.quantity, order_execution_price);
-
                 // The margin difference corresponds to the entire margin for the position being
                 // closed, as a negative number.
                 let margin_diff = {
@@ -293,7 +291,7 @@ impl Position {
                     SignedAmount::from_sat(pnl)
                 };
 
-                let trade_cost = trade_cost(margin_diff, pnl, fee);
+                let trade_cost = trade_cost(margin_diff, pnl, matching_fee);
 
                 let trade = Trade {
                     order_id,
@@ -301,7 +299,7 @@ impl Position {
                     contracts: order_contracts,
                     direction: order.direction,
                     trade_cost,
-                    fee,
+                    fee: matching_fee,
                     pnl: Some(pnl),
                     price: order_execution_price,
                     timestamp: now_timestamp,
@@ -361,8 +359,6 @@ impl Position {
                     stable: self.stable,
                 };
 
-                let fee = order_matching_fee_taker(order.quantity, order_execution_price);
-
                 let margin_diff = {
                     let margin_before_btc = starting_contracts_relative.abs()
                         / (starting_leverage * starting_average_execution_price);
@@ -397,7 +393,7 @@ impl Position {
                     SignedAmount::from_sat(pnl)
                 };
 
-                let trade_cost = trade_cost(margin_diff, pnl, fee);
+                let trade_cost = trade_cost(margin_diff, pnl, matching_fee);
 
                 let trade = Trade {
                     order_id,
@@ -405,7 +401,7 @@ impl Position {
                     contracts: order_contracts_relative.abs(),
                     direction: order.direction,
                     trade_cost,
-                    fee,
+                    fee: matching_fee,
                     pnl: Some(pnl),
                     price: order_execution_price,
                     timestamp: now_timestamp,
@@ -421,10 +417,6 @@ impl Position {
             // Reduce position to 0, with leftover order.
             else {
                 let leftover_order_contracts = contract_diff.abs();
-
-                // This trade only includes the fee for the part of the other that was applied
-                // thus far.
-                let fee = order_matching_fee_taker(self.quantity, order_execution_price);
 
                 // The margin difference corresponds to the entire margin for the position being
                 // closed, as a negative number.
@@ -459,7 +451,7 @@ impl Position {
                     SignedAmount::from_sat(pnl)
                 };
 
-                let trade_cost = trade_cost(margin_diff, pnl, fee);
+                let trade_cost = trade_cost(margin_diff, pnl, matching_fee);
 
                 let trade = Trade {
                     order_id,
@@ -467,7 +459,7 @@ impl Position {
                     contracts: starting_contracts,
                     direction: order.direction,
                     trade_cost,
-                    fee,
+                    fee: matching_fee,
                     pnl: Some(pnl),
                     price: order_execution_price,
                     timestamp: now_timestamp,
@@ -539,8 +531,6 @@ impl Position {
                 stable,
             };
 
-            let fee = order_matching_fee_taker(order.quantity, order_execution_price);
-
             let margin_diff = {
                 let margin_before_btc = starting_contracts_relative.abs()
                     / (starting_leverage * starting_average_execution_price);
@@ -556,7 +546,7 @@ impl Position {
                 SignedAmount::from_btc(margin_diff_btc).expect("margin to fit into SignedAmount")
             };
 
-            let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, fee);
+            let trade_cost = trade_cost(margin_diff, SignedAmount::ZERO, matching_fee);
 
             let trade = Trade {
                 order_id,
@@ -564,7 +554,7 @@ impl Position {
                 contracts: order_contracts,
                 direction: order.direction,
                 trade_cost,
-                fee,
+                fee: matching_fee,
                 pnl: None,
                 price: order_execution_price,
                 timestamp: now_timestamp,
@@ -640,6 +630,7 @@ mod tests {
             order_type: OrderType::Market,
             state: OrderState::Filled {
                 execution_price: 32_000.0,
+                matching_fee: Amount::from_sat(1000),
             },
             creation_timestamp: now,
             order_expiry_timestamp: now,
@@ -664,8 +655,8 @@ mod tests {
         assert_eq!(opening_trade.contract_symbol, order.contract_symbol);
         assert_eq!(opening_trade.contracts, dec!(25));
         assert_eq!(opening_trade.direction, order.direction);
-        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(78_359));
-        assert_eq!(opening_trade.fee, Amount::from_sat(234));
+        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(79_125));
+        assert_eq!(opening_trade.fee, Amount::from_sat(1000));
         assert_eq!(opening_trade.pnl, None);
         assert_eq!(
             opening_trade.price,
@@ -701,6 +692,7 @@ mod tests {
             order_type: OrderType::Market,
             state: OrderState::Filled {
                 execution_price: 36_401.5,
+                matching_fee: Amount::from_sat(1000),
             },
             creation_timestamp: now,
             order_expiry_timestamp: now,
@@ -726,8 +718,8 @@ mod tests {
         assert_eq!(closing_trade.contract_symbol, order.contract_symbol);
         assert_eq!(closing_trade.contracts, Decimal::TEN);
         assert_eq!(closing_trade.direction, order.direction);
-        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_577));
-        assert_eq!(closing_trade.fee, Amount::from_sat(82));
+        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-12_659));
+        assert_eq!(closing_trade.fee, Amount::from_sat(1000));
         assert_eq!(closing_trade.pnl, Some(SignedAmount::from_sat(-51)));
         assert_eq!(
             closing_trade.price,
@@ -763,6 +755,7 @@ mod tests {
             order_type: OrderType::Market,
             state: OrderState::Filled {
                 execution_price: 36_401.5,
+                matching_fee: Amount::from_sat(1000),
             },
             creation_timestamp: now,
             order_expiry_timestamp: now,
@@ -797,8 +790,8 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(6_909));
-        assert_eq!(trade.fee, Amount::from_sat(41));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(7_868));
+        assert_eq!(trade.fee, Amount::from_sat(1000));
         assert_eq!(trade.pnl, None);
         assert_eq!(
             trade.price,
@@ -834,6 +827,7 @@ mod tests {
             order_type: OrderType::Market,
             state: OrderState::Filled {
                 execution_price: 36_401.5,
+                matching_fee: Amount::from_sat(1000),
             },
             creation_timestamp: now,
             order_expiry_timestamp: now,
@@ -874,8 +868,8 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-6_788));
-        assert_eq!(trade.fee, Amount::from_sat(41));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-5_829));
+        assert_eq!(trade.fee, Amount::from_sat(1000));
         assert_eq!(trade.pnl, Some(SignedAmount::from_sat(-26)));
         assert_eq!(
             trade.price,
@@ -911,6 +905,7 @@ mod tests {
             order_type: OrderType::Market,
             state: OrderState::Filled {
                 execution_price: 36_401.5,
+                matching_fee: Amount::from_sat(1000),
             },
             creation_timestamp: now,
             order_expiry_timestamp: now,
@@ -945,8 +940,8 @@ mod tests {
         assert_eq!(closing_trade.contract_symbol, order.contract_symbol);
         assert_eq!(closing_trade.contracts, Decimal::TEN);
         assert_eq!(closing_trade.direction, order.direction);
-        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_577));
-        assert_eq!(closing_trade.fee, Amount::from_sat(82));
+        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-12_659));
+        assert_eq!(closing_trade.fee, Amount::from_sat(1000));
         assert_eq!(closing_trade.pnl, Some(SignedAmount::from_sat(-51)));
         assert_eq!(
             closing_trade.price,
@@ -957,8 +952,8 @@ mod tests {
         assert_eq!(opening_trade.contract_symbol, order.contract_symbol);
         assert_eq!(opening_trade.contracts, Decimal::TEN);
         assert_eq!(opening_trade.direction, order.direction);
-        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(13_818));
-        assert_eq!(opening_trade.fee, Amount::from_sat(82));
+        assert_eq!(opening_trade.trade_cost, SignedAmount::from_sat(14_736));
+        assert_eq!(opening_trade.fee, Amount::from_sat(1000));
         assert_eq!(opening_trade.pnl, None);
         assert_eq!(
             opening_trade.price,

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
+import 'package:share_plus/share_plus.dart';
 
 class UserSettings extends StatefulWidget {
   static const route = "${SettingsScreen.route}/$subRouteName";
@@ -21,7 +23,7 @@ class _UserSettingsState extends State<UserSettings> {
     return Scaffold(
       body: SafeArea(
           child: Padding(
-        padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
+        padding: const EdgeInsets.only(top: 20, left: 18, right: 18),
         child: Column(
           children: [
             Row(
@@ -62,6 +64,155 @@ class _UserSettingsState extends State<UserSettings> {
               height: 20,
             ),
             FutureBuilder(
+                future: rust.api.referralStatus(),
+                builder: (BuildContext context, AsyncSnapshot<rust.ReferralStatus> snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
+
+                  final referralCode = snapshot.data!.referralCode;
+                  final bonusStatusType = snapshot.data!.bonusStatusType;
+                  final referralTier = snapshot.data!.referralTier;
+                  final numberOfActivatedReferrals = snapshot.data!.numberOfActivatedReferrals;
+                  final numberOfTotalReferrals = snapshot.data!.numberOfTotalReferrals;
+                  final referralFeeBonus = snapshot.data!.referralFeeBonus.toStringAsFixed(2);
+
+                  String referralTierName = "None";
+                  switch (bonusStatusType) {
+                    case rust.BonusStatusType.None:
+                      referralTierName = "None";
+                      break;
+                    case rust.BonusStatusType.Referral:
+                      referralTierName = "Referral";
+                      break;
+                    case rust.BonusStatusType.Referent:
+                      referralTierName = "Referent";
+                      break;
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Referral status ",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Referral code", style: TextStyle(fontSize: 18)),
+                          Row(
+                            children: [
+                              SelectableText(referralCode, style: const TextStyle(fontSize: 18)),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              GestureDetector(
+                                onTap: () async {
+                                  showSnackBar(
+                                      ScaffoldMessenger.of(context), "Copied $referralCode");
+                                  await Clipboard.setData(ClipboardData(text: referralCode));
+                                },
+                                child: Icon(
+                                  Icons.copy,
+                                  size: 18,
+                                  color: tenTenOnePurple.shade800,
+                                ),
+                              ),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              GestureDetector(
+                                child: const Icon(Icons.share, size: 18),
+                                onTap: () => Share.share(
+                                    "Join me and trade without counter-party risk. Use this referral to get a fee discount: $referralCode"),
+                              )
+                            ],
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          RichText(
+                              text: const TextSpan(
+                                  text: "Active",
+                                  style: TextStyle(fontSize: 18, color: Colors.black),
+                                  children: [
+                                TextSpan(
+                                    text: '*',
+                                    style: TextStyle(
+                                      fontFeatures: <FontFeature>[
+                                        FontFeature.superscripts(),
+                                      ],
+                                    )),
+                                TextSpan(
+                                  text: '/total referrals',
+                                  style: TextStyle(fontSize: 18, color: Colors.black),
+                                )
+                              ])),
+                          Text("$numberOfActivatedReferrals/$numberOfTotalReferrals",
+                              style: const TextStyle(fontSize: 18)),
+                        ],
+                      ),
+                      const Divider(),
+                      Visibility(
+                          visible: bonusStatusType == rust.BonusStatusType.Referral,
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Referral Level", style: TextStyle(fontSize: 18)),
+                                  Text(referralTierName, style: const TextStyle(fontSize: 18)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Referral Tier Level", style: TextStyle(fontSize: 18)),
+                                  Text("$referralTier", style: const TextStyle(fontSize: 18)),
+                                ],
+                              ),
+                            ],
+                          )),
+                      Visibility(
+                          visible: bonusStatusType == rust.BonusStatusType.Referent,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Referral Tier", style: TextStyle(fontSize: 18)),
+                              Text(referralTierName, style: const TextStyle(fontSize: 18)),
+                            ],
+                          )),
+                      const SizedBox(height: 5),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Active referral bonus", style: TextStyle(fontSize: 18)),
+                          Text("$referralFeeBonus%", style: const TextStyle(fontSize: 18)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text('*',
+                              style: TextStyle(
+                                fontFeatures: <FontFeature>[
+                                  FontFeature.superscripts(),
+                                ],
+                              )),
+                          Text("Referred users that have traded.")
+                        ],
+                      )
+                    ],
+                  );
+                }),
+            const SizedBox(height: 25),
+            FutureBuilder(
                 future: rust.api.getUserDetails(),
                 builder: (BuildContext context, AsyncSnapshot<rust.User> snapshot) {
                   if (!snapshot.hasData) {
@@ -71,91 +222,47 @@ class _UserSettingsState extends State<UserSettings> {
                   final nickname = snapshot.data?.nickname;
                   final contact = snapshot.data?.contact;
 
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  return Column(
+                    children: [
+                      const Row(
                         children: [
-                          const Text(
-                            "Contact details \n",
+                          Text(
+                            "Settings",
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                          RichText(
-                            text: const TextSpan(
-                              text:
-                                  '10101 will use these details to reach out to you in case of problems in the app. \n\n',
-                              style: TextStyle(fontSize: 16, color: Colors.black),
-                              children: <TextSpan>[
-                                TextSpan(
-                                  text: 'This can be a ',
-                                ),
-                                TextSpan(
-                                    text: 'Nostr Pubkey',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                  text: ', a ',
-                                ),
-                                TextSpan(
-                                    text: 'Telegram handle ',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                  text: 'or an ',
-                                ),
-                                TextSpan(
-                                    text: 'email address.',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                    text:
-                                        "\n\nIf you want to delete your contact details. Simply remove the details below.")
-                              ],
-                            ),
-                          ),
-                          CustomInputField(
-                            onConfirm: (value) async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              try {
-                                await rust.api.registerBeta(contact: value);
-                                showSnackBar(messenger, "Successfully updated to `$value`");
-                              } catch (error) {
-                                showSnackBar(messenger, "Failed updating details due to $error");
-                              }
-                            },
-                            labelText: "Contact details",
-                            initialValue: contact,
-                          ),
-                          const SizedBox(
-                            height: 20,
-                          ),
-                          const Text(
-                            "Nickname\n",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          RichText(
-                            text: const TextSpan(
-                              text:
-                                  'We extract a regular hall-of-fame leaderboard. If you want to be recognized, feel free to enter your prefered nickname or generate a random one.',
-                              style: TextStyle(fontSize: 16, color: Colors.black),
-                              children: [],
-                            ),
-                          ),
-                          NicknameWidget(
-                            initialValue: nickname,
-                            labelText: 'Nickname',
-                            onConfirm: (value) async {
-                              final messenger = ScaffoldMessenger.of(context);
-                              try {
-                                await rust.api.updateNickname(nickname: value);
-                                showSnackBar(messenger, "Successfully updated to `$value`");
-                              } catch (error) {
-                                showSnackBar(messenger, "Failed updating details due to $error");
-                              }
-                            },
-                          )
                         ],
                       ),
-                    ),
+                      CustomInputField(
+                        onConfirm: (value) async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await rust.api.registerBeta(contact: value);
+                            showSnackBar(messenger, "Successfully updated to `$value`");
+                          } catch (error) {
+                            showSnackBar(messenger, "Failed updating details due to $error");
+                          }
+                        },
+                        labelText: "Contact details",
+                        initialValue: contact,
+                        hintText: "Nostr, Email, X-handle",
+                      ),
+                      const SizedBox(
+                        height: 20,
+                      ),
+                      NicknameWidget(
+                        initialValue: nickname,
+                        labelText: 'Nickname',
+                        onConfirm: (value) async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await rust.api.updateNickname(nickname: value);
+                            showSnackBar(messenger, "Successfully updated to `$value`");
+                          } catch (error) {
+                            showSnackBar(messenger, "Failed updating details due to $error");
+                          }
+                        },
+                      )
+                    ],
                   );
                 }),
           ],
@@ -265,6 +372,7 @@ class _NicknameWidgetState extends State<NicknameWidget> {
 
 class CustomInputField extends StatefulWidget {
   final String labelText;
+  final String? hintText;
   final String? initialValue;
   final Function onConfirm;
 
@@ -272,6 +380,7 @@ class CustomInputField extends StatefulWidget {
     super.key,
     required this.onConfirm,
     required this.labelText,
+    this.hintText,
     this.initialValue,
   });
 
@@ -306,6 +415,7 @@ class _CustomInputFieldState extends State<CustomInputField> {
           decoration: InputDecoration(
             border: const UnderlineInputBorder(),
             labelText: labelText,
+            hintText: widget.hintText,
           ),
         ),
         Visibility(

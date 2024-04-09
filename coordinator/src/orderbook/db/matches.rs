@@ -4,6 +4,7 @@ use crate::schema::matches;
 use anyhow::ensure;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use diesel::ExpressionMethods;
 use diesel::Insertable;
 use diesel::PgConnection;
@@ -32,6 +33,7 @@ struct Matches {
     pub quantity: f32,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub matching_fee_sats: i64,
 }
 
 pub fn insert(conn: &mut PgConnection, match_params: &TraderMatchParams) -> Result<()> {
@@ -107,6 +109,7 @@ impl Matches {
                 quantity: m.quantity.to_f32().expect("to fit into f32"),
                 created_at: updated_at,
                 updated_at,
+                matching_fee_sats: m.matching_fee.to_sat() as i64,
             })
             .collect()
     }
@@ -125,6 +128,7 @@ impl From<commons::Matches> for Matches {
             quantity: value.quantity.to_f32().expect("to fit into f32"),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
+            matching_fee_sats: value.matching_fee.to_sat() as i64,
         }
     }
 }
@@ -153,6 +157,7 @@ impl From<Matches> for commons::Matches {
             quantity: Decimal::from_f32(value.quantity).expect("to fit into decimal"),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
+            matching_fee: Amount::from_sat(value.matching_fee_sats as u64),
         }
     }
 }

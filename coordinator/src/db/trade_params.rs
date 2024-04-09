@@ -3,6 +3,7 @@ use crate::dlc_protocol::ProtocolId;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trade_params;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use diesel::ExpressionMethods;
 use diesel::PgConnection;
 use diesel::QueryDsl;
@@ -23,6 +24,7 @@ pub(crate) struct TradeParams {
     pub leverage: f32,
     pub average_price: f32,
     pub direction: Direction,
+    pub matching_fee: i64,
 }
 
 pub(crate) fn insert(
@@ -68,6 +70,7 @@ impl From<TradeParams> for dlc_protocol::TradeParams {
             leverage: value.leverage,
             average_price: value.average_price,
             direction: trade::Direction::from(value.direction),
+            matching_fee: Amount::from_sat(value.matching_fee as u64),
         }
     }
 }

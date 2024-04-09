@@ -60,6 +60,10 @@ impl TradeParams {
     pub fn average_execution_price(&self) -> Decimal {
         self.filled_with.average_execution_price()
     }
+
+    pub fn order_matching_fee(&self) -> Amount {
+        self.filled_with.order_matching_fee()
+    }
 }
 
 /// A match for an order
@@ -90,6 +94,9 @@ pub struct Match {
     /// The trade is to be executed at this price.
     #[serde(with = "rust_decimal::serde::float")]
     pub execution_price: Decimal,
+
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub matching_fee: Amount,
 }
 
 impl From<Matches> for Match {
@@ -100,6 +107,7 @@ impl From<Matches> for Match {
             quantity: value.quantity,
             pubkey: value.trader_id,
             execution_price: value.execution_price,
+            matching_fee: value.matching_fee,
         }
     }
 }
@@ -148,6 +156,9 @@ impl FilledWith {
     pub fn average_execution_price(&self) -> Decimal {
         average_execution_price(self.matches.clone())
     }
+    pub fn order_matching_fee(&self) -> Amount {
+        self.matches.iter().map(|m| m.matching_fee).sum()
+    }
 }
 
 /// calculates the average execution price for inverse contracts
@@ -187,6 +198,7 @@ pub struct Matches {
     pub quantity: Decimal,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
+    pub matching_fee: Amount,
 }
 
 #[cfg(test)]
@@ -200,6 +212,7 @@ mod test {
     use crate::trade::Match;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::secp256k1::XOnlyPublicKey;
+    use bitcoin::Amount;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
     use time::OffsetDateTime;
@@ -225,6 +238,7 @@ mod test {
                     quantity: match_0_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_0_price,
+                    matching_fee: Amount::from_sat(1000),
                 },
                 Match {
                     id: Uuid::new_v4(),
@@ -232,6 +246,7 @@ mod test {
                     quantity: match_1_quantity,
                     pubkey: dummy_public_key(),
                     execution_price: match_1_price,
+                    matching_fee: Amount::from_sat(1000),
                 },
             ],
         };

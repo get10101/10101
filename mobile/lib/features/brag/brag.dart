@@ -11,6 +11,8 @@ import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:get_10101/ffi.dart' as rust;
 import 'package:screenshot/screenshot.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -191,7 +193,7 @@ class MemeWidget extends StatelessWidget {
       decoration: TextDecoration.underline,
     );
     var secondaryTextValue =
-        TextStyle(color: pnlColor, fontWeight: FontWeight.bold, fontSize: 15.0);
+        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.0);
     var primaryTextStypeValue = TextStyle(
       color: pnlColor,
       fontWeight: FontWeight.bold,
@@ -208,8 +210,8 @@ class MemeWidget extends StatelessWidget {
         itemBuilder: (BuildContext context, int index) {
           return Container(
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(5.0),
-                border: Border.all(color: Colors.grey, width: 1)),
+              borderRadius: BorderRadius.circular(5.0),
+            ),
             child: Stack(
               children: [
                 Column(
@@ -304,12 +306,28 @@ class MemeWidget extends StatelessWidget {
                                   color: tenTenOnePurple,
                                 ),
                                 borderRadius: const BorderRadius.all(Radius.circular(5))),
-                            child: Padding(
-                              padding: const EdgeInsets.all(2.0),
-                              child: SvgPicture.asset('assets/10101-qr-transparent.svg',
-                                  colorFilter:
-                                      const ColorFilter.mode(Colors.black, BlendMode.srcIn)),
-                            )),
+                            child: FutureBuilder(
+                                future: rust.api.referralStatus(),
+                                builder: (BuildContext context,
+                                    AsyncSnapshot<rust.ReferralStatus> snapshot) {
+                                  if (!snapshot.hasData) {
+                                    return const CircularProgressIndicator();
+                                  }
+                                  return QrImageView(
+                                    data:
+                                        "https://referral.10101.finance?referral=${snapshot.data!.referralCode}",
+                                    eyeStyle: const QrEyeStyle(
+                                      eyeShape: QrEyeShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    dataModuleStyle: const QrDataModuleStyle(
+                                      dataModuleShape: QrDataModuleShape.square,
+                                      color: Colors.black,
+                                    ),
+                                    version: QrVersions.auto,
+                                    padding: const EdgeInsets.all(1),
+                                  );
+                                })),
                       )),
                 ),
                 Column(
@@ -320,37 +338,43 @@ class MemeWidget extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Row(
-                              children: [
-                                Text(
+                          Row(
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
                                   pnl.formatted(),
                                   style: primaryTextStypeValue,
                                 ),
-                                Icon(
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Icon(
                                   BitcoinIcons.satoshi_v2,
                                   color: pnlColor,
                                   size: 20,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Row(
-                              children: [
-                                Text(
+                          Row(
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
                                   pnlPercent.toString(),
                                   style: primaryTextStypeValue,
                                 ),
-                                Icon(
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Icon(
                                   Icons.percent,
                                   color: pnlColor,
                                   size: 20,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           )
                         ],
                       ),
@@ -366,14 +390,14 @@ class MemeWidget extends StatelessWidget {
                           Row(
                             children: [
                               const Text(
-                                "Side",
+                                "Leverage",
                                 style: secondaryTextHeading,
                               ),
                               const SizedBox(
                                 width: 5,
                               ),
                               Text(
-                                "${leverage.formattedReverse()} ${direction.nameU}",
+                                leverage.formattedReverse(),
                                 style: secondaryTextValue,
                               )
                             ],
@@ -385,14 +409,14 @@ class MemeWidget extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     const Text(
-                                      "Entry price",
+                                      "Side",
                                       style: secondaryTextHeading,
                                     ),
                                     const SizedBox(
                                       width: 5,
                                     ),
                                     Text(
-                                      entryPrice.toString(),
+                                      direction.nameU,
                                       style: secondaryTextValue,
                                     )
                                   ],

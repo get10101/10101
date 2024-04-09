@@ -36,6 +36,7 @@ pub mod node;
 pub mod notifications;
 pub mod orderbook;
 pub mod position;
+pub mod referrals;
 pub mod routes;
 pub mod routing_fee;
 pub mod scheduler;

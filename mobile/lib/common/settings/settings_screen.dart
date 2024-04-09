@@ -174,19 +174,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 indent: 55,
                               ),
                               SettingsClickable(
-                                  icon: Icons.wallet_outlined,
-                                  title: "Wallet Settings",
+                                  icon: FontAwesomeIcons.userAstronaut,
+                                  title: "User Settings",
                                   callBackFunc: () =>
-                                      GoRouter.of(context).push(WalletSettings.route)),
+                                      GoRouter.of(context).push(UserSettings.route)),
                               const Divider(
                                 height: 0.5,
                                 thickness: 0.8,
                                 indent: 55,
                               ),
                               SettingsClickable(
-                                  icon: FontAwesomeIcons.userAstronaut,
-                                  title: "User Settings",
-                                  callBackFunc: () => GoRouter.of(context).push(UserSettings.route))
+                                  icon: Icons.wallet_outlined,
+                                  title: "Wallet Settings",
+                                  callBackFunc: () =>
+                                      GoRouter.of(context).push(WalletSettings.route))
                             ],
                           ),
                         )

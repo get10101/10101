@@ -2,7 +2,6 @@ use crate::calculations;
 use crate::channel_trade_constraints::channel_trade_constraints;
 use crate::ln_dlc;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
@@ -31,6 +30,9 @@ pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Deci
     let max_coordinator_margin =
         Amount::from_sat(channel_trade_constraints.max_counterparty_margin_sats);
     let max_trader_margin = Amount::from_sat(channel_trade_constraints.max_local_margin_sats);
+    let order_matching_fee_rate = channel_trade_constraints.order_matching_fee_rate;
+    let order_matching_fee_rate =
+        Decimal::try_from(order_matching_fee_rate).expect("to fit into decimal");
 
     let max_quantity = calculate_max_quantity(
         price,
@@ -39,6 +41,7 @@ pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Deci
         on_chain_fee_estimate,
         channel_trade_constraints.coordinator_leverage,
         trader_leverage,
+        order_matching_fee_rate,
     );
 
     Ok(max_quantity)
@@ -61,6 +64,7 @@ fn calculate_max_quantity(
     on_chain_fee_estimate: Option<Amount>,
     coordinator_leverage: f32,
     trader_leverage: f32,
+    order_matching_fee_rate: Decimal,
 ) -> Decimal {
     // subtract required on-chain fees with buffer if the trade is opening a channel.
     let max_coordinator_margin = max_coordinator_margin
@@ -91,7 +95,7 @@ fn calculate_max_quantity(
     };
 
     // calculate the fee from this quantity
-    let order_matching_fee = order_matching_fee_taker(quantity, price);
+    let order_matching_fee = commons::order_matching_fee(quantity, price, order_matching_fee_rate);
 
     // subtract the fee from the max local margin and recalculate the quantity. That
     // might not be perfect but the closest we can get with a relatively simple logic.
@@ -109,6 +113,7 @@ fn calculate_max_quantity(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_calculate_max_quantity() {
@@ -121,6 +126,7 @@ mod tests {
 
         let trader_leverage = 2.0;
         let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
             price,
@@ -129,6 +135,7 @@ mod tests {
             Some(on_chain_fee_estimate),
             coordinator_levarage,
             trader_leverage,
+            order_matching_fee_rate,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -137,7 +144,11 @@ mod tests {
             trader_leverage,
         );
 
-        let order_matching_fee = order_matching_fee_taker(max_quantity.to_f32().unwrap(), price);
+        let order_matching_fee = commons::order_matching_fee(
+            max_quantity.to_f32().unwrap(),
+            price,
+            order_matching_fee_rate,
+        );
 
         // Note this is not exactly the max margin the trader, but its the closest we can get.
         assert_eq!(
@@ -177,6 +188,7 @@ mod tests {
 
         let trader_leverage = 2.0;
         let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
             price,
@@ -185,6 +197,7 @@ mod tests {
             None,
             coordinator_levarage,
             trader_leverage,
+            order_matching_fee_rate,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -193,7 +206,11 @@ mod tests {
             trader_leverage,
         );
 
-        let order_matching_fee = order_matching_fee_taker(max_quantity.to_f32().unwrap(), price);
+        let order_matching_fee = commons::order_matching_fee(
+            max_quantity.to_f32().unwrap(),
+            price,
+            order_matching_fee_rate,
+        );
 
         // Note this is not exactly the max margin of the coordinator, but its the closest we can
         // get.
@@ -227,6 +244,7 @@ mod tests {
 
         let trader_leverage = 5.0;
         let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
             price,
@@ -235,6 +253,7 @@ mod tests {
             None,
             coordinator_levarage,
             trader_leverage,
+            order_matching_fee_rate,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -243,7 +262,11 @@ mod tests {
             trader_leverage,
         );
 
-        let order_matching_fee = order_matching_fee_taker(max_quantity.to_f32().unwrap(), price);
+        let order_matching_fee = commons::order_matching_fee(
+            max_quantity.to_f32().unwrap(),
+            price,
+            order_matching_fee_rate,
+        );
 
         // Note we can not max out the users balance, because the counterparty does not have enough
         // funds to match that trade on a leverage 2.0
@@ -277,6 +300,7 @@ mod tests {
 
         let trader_leverage = 2.0;
         let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
 
         let on_chain_fee_estimate = Amount::from_sat(1515);
 
@@ -287,6 +311,7 @@ mod tests {
             Some(on_chain_fee_estimate),
             coordinator_levarage,
             trader_leverage,
+            order_matching_fee_rate,
         );
 
         assert_eq!(max_quantity, Decimal::ZERO)
@@ -301,6 +326,7 @@ mod tests {
 
         let trader_leverage = 2.0;
         let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
 
         let on_chain_fee_estimate = Amount::from_sat(1515);
 
@@ -311,6 +337,7 @@ mod tests {
             Some(on_chain_fee_estimate),
             coordinator_levarage,
             trader_leverage,
+            order_matching_fee_rate,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -319,7 +346,11 @@ mod tests {
             trader_leverage,
         );
 
-        let order_matching_fee = order_matching_fee_taker(max_quantity.to_f32().unwrap(), price);
+        let order_matching_fee = commons::order_matching_fee(
+            max_quantity.to_f32().unwrap(),
+            price,
+            order_matching_fee_rate,
+        );
 
         // Note we can not max out the users balance, because the counterparty does not have enough
         // funds to match that trade on a leverage 2.0

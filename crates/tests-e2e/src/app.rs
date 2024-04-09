@@ -64,6 +64,11 @@ pub async fn run_app(seed_phrase: Option<Vec<String>>) -> AppHandle {
 
     wait_until!(app.rx.init_msg() == Some("10101 is ready.".to_string()));
     wait_until!(app.rx.wallet_info().is_some()); // wait for initial wallet sync
+
+    block_in_place(move || {
+        api::register_beta("hello@10101.finance".to_string(), None).expect("to work")
+    });
+
     app
 }
 

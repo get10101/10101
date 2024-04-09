@@ -1,5 +1,6 @@
 use crate::calculations::calculate_margin;
 use crate::ln_dlc;
+use bitcoin::Amount;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use serde::Serialize;
@@ -92,7 +93,10 @@ pub enum OrderState {
     /// Filling->Filled (if we eventually end up with a DLC)
     /// Filling->Failed (if we experience an error when executing the trade or the DLC manager
     /// reported back failure/rejection)
-    Filling { execution_price: f32 },
+    Filling {
+        execution_price: f32,
+        matching_fee: Amount,
+    },
 
     /// The order failed to be filled
     ///
@@ -115,7 +119,43 @@ pub enum OrderState {
     Filled {
         /// The execution price that the order was filled with
         execution_price: f32,
+        matching_fee: Amount,
     },
+}
+
+impl OrderState {
+    pub fn matching_fee(&self) -> Option<Amount> {
+        match self {
+            OrderState::Initial
+            | OrderState::Rejected
+            | OrderState::Failed { .. }
+            | OrderState::Open => None,
+            OrderState::Filling { matching_fee, .. } | OrderState::Filled { matching_fee, .. } => {
+                Some(*matching_fee)
+            }
+        }
+    }
+    pub fn execution_price(&self) -> Option<f32> {
+        match self {
+            OrderState::Initial
+            | OrderState::Rejected
+            | OrderState::Failed { .. }
+            | OrderState::Open => None,
+            OrderState::Filling {
+                execution_price, ..
+            }
+            | OrderState::Filled {
+                execution_price, ..
+            } => Some(*execution_price),
+        }
+    }
+    pub fn failure_reason(&self) -> Option<FailureReason> {
+        match self {
+            OrderState::Initial | OrderState::Rejected | OrderState::Open => None,
+            OrderState::Filling { .. } | OrderState::Filled { .. } => None,
+            OrderState::Failed { reason, .. } => Some(reason.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -169,8 +209,12 @@ impl Order {
     /// yet.
     pub fn execution_price(&self) -> Option<f32> {
         match self.state {
-            OrderState::Filling { execution_price }
-            | OrderState::Filled { execution_price }
+            OrderState::Filling {
+                execution_price, ..
+            }
+            | OrderState::Filled {
+                execution_price, ..
+            }
             | OrderState::Failed {
                 execution_price: Some(execution_price),
                 ..
@@ -181,6 +225,16 @@ impl Order {
                 tracing::error!("Executed price not known in state {:?}", self.state);
                 None
             }
+        }
+    }
+
+    /// This returns the matching fee once known
+    pub fn matching_fee(&self) -> Option<Amount> {
+        match self.state {
+            OrderState::Filling { matching_fee, .. } | OrderState::Filled { matching_fee, .. } => {
+                Some(matching_fee)
+            }
+            _ => None,
         }
     }
 

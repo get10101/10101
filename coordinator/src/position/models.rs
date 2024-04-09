@@ -7,7 +7,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
-use commons::order_matching_fee_taker;
 use commons::TradeParams;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
@@ -146,7 +145,11 @@ impl Position {
     }
 
     /// Calculate the settlement amount for the coordinator when closing the _entire_ position.
-    pub fn calculate_coordinator_settlement_amount(&self, closing_price: Decimal) -> Result<u64> {
+    pub fn calculate_coordinator_settlement_amount(
+        &self,
+        closing_price: Decimal,
+        matching_fee: Amount,
+    ) -> Result<u64> {
         let opening_price = Decimal::try_from(self.average_entry_price)?;
 
         let leverage_long = leverage_long(
@@ -168,6 +171,7 @@ impl Position {
             leverage_long,
             leverage_short,
             coordinator_direction,
+            matching_fee,
         )
     }
 
@@ -199,8 +203,9 @@ fn calculate_coordinator_settlement_amount(
     long_leverage: f32,
     short_leverage: f32,
     coordinator_direction: Direction,
+    matching_fee: Amount,
 ) -> Result<u64> {
-    let close_position_fee = order_matching_fee_taker(quantity, closing_price).to_sat() as i64;
+    let close_position_fee = matching_fee.to_sat();
 
     let long_margin = calculate_margin(opening_price, quantity, long_leverage);
     let short_margin = calculate_margin(opening_price, quantity, short_leverage);
@@ -493,7 +498,7 @@ mod tests {
         };
 
         let coordinator_settlement_amount = position
-            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .calculate_coordinator_settlement_amount(dec!(39_000), Amount::from_sat(769))
             .unwrap();
 
         assert_eq!(coordinator_settlement_amount, 132_179);
@@ -528,7 +533,7 @@ mod tests {
         };
 
         let coordinator_settlement_amount = position
-            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .calculate_coordinator_settlement_amount(dec!(39_000), Amount::from_sat(769))
             .unwrap();
 
         assert_eq!(coordinator_settlement_amount, 132_179);
@@ -563,7 +568,7 @@ mod tests {
         };
 
         let coordinator_settlement_amount = position
-            .calculate_coordinator_settlement_amount(dec!(39_000))
+            .calculate_coordinator_settlement_amount(dec!(39_000), Amount::from_sat(769))
             .unwrap();
 
         assert_eq!(coordinator_settlement_amount, 90_512);
@@ -589,6 +594,7 @@ mod tests {
             leverage_coordinator,
             1.0,
             Direction::Long,
+            Amount::from_sat(1000),
         )
         .unwrap();
 
@@ -613,6 +619,7 @@ mod tests {
             1.0,
             leverage_coordinator,
             Direction::Short,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -637,6 +644,7 @@ mod tests {
             leverage_coordinator,
             1.0,
             Direction::Long,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -661,6 +669,7 @@ mod tests {
             1.0,
             leverage_coordinator,
             Direction::Short,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -685,6 +694,7 @@ mod tests {
             leverage_coordinator,
             2.0,
             Direction::Long,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -709,6 +719,7 @@ mod tests {
             2.0,
             leverage_coordinator,
             Direction::Short,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -733,6 +744,7 @@ mod tests {
             leverage_coordinator,
             1.0,
             Direction::Long,
+            Amount::from_sat(13),
         )
         .unwrap();
 
@@ -757,6 +769,7 @@ mod tests {
             1.0,
             leverage_coordinator,
             Direction::Short,
+            Amount::from_sat(13),
         )
         .unwrap();
 

@@ -4,10 +4,12 @@ rollover_window_open_scheduler = "0 5 15 * * 5,6"
 rollover_window_close_scheduler = "0 5 13 * * 5,6"
 close_expired_position_scheduler = "0 0 12 * * *"
 close_liquidated_position_scheduler = "0 0 12 * * *"
+update_user_bonus_status_scheduler = "0 0 0 * * *"
 whitelist_enabled = false
 whitelisted_makers = []
 min_quantity = 1
 margin_call_percentage = 0.1
+order_matching_fee_rate = 0.003
 
 [ln_dlc]
 off_chain_sync_interval = 5

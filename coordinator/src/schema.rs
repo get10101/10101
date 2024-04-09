@@ -2,6 +2,10 @@
 
 pub mod sql_types {
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "BonusStatus_Type"))]
+    pub struct BonusStatusType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "ChannelState_Type"))]
     pub struct ChannelStateType;
 
@@ -69,6 +73,35 @@ diesel::table! {
         trader_pubkey -> Text,
         value -> Text,
         creation_timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::BonusStatusType;
+
+    bonus_status (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        tier_level -> Int4,
+        fee_rebate -> Float4,
+        bonus_type -> BonusStatusType,
+        activation_timestamp -> Timestamptz,
+        deactivation_timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::BonusStatusType;
+
+    bonus_tiers (id) {
+        id -> Int4,
+        tier_level -> Int4,
+        min_users_to_refer -> Int4,
+        fee_rebate -> Float4,
+        bonus_tier_type -> BonusStatusType,
+        active -> Bool,
     }
 }
 
@@ -245,6 +278,7 @@ diesel::table! {
         quantity -> Float4,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,
+        matching_fee_sats -> Int8,
     }
 }
 
@@ -380,6 +414,7 @@ diesel::table! {
         leverage -> Float4,
         average_price -> Float4,
         direction -> DirectionType,
+        matching_fee -> Int8,
     }
 }
 
@@ -424,6 +459,8 @@ diesel::table! {
         last_login -> Timestamptz,
         nickname -> Nullable<Text>,
         version -> Nullable<Text>,
+        referral_code -> Text,
+        used_referral_code -> Nullable<Text>,
     }
 }
 
@@ -436,6 +473,8 @@ diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     answers,
+    bonus_status,
+    bonus_tiers,
     channel_opening_params,
     channels,
     choices,

@@ -12,8 +12,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::Amount;
-use commons::order_matching_fee_taker;
-use commons::taker_fee;
+use commons::order_matching_fee;
 use commons::ChannelOpeningParams;
 use commons::Price;
 use native::api::ContractSymbol;
@@ -290,6 +289,9 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                     Direction::Short => price.ask,
                 };
 
+                // FIXME: A from implementation should not contain this kind of logic.
+                let fee_rate = ln_dlc::get_order_matching_fee_rate();
+
                 (
                     calculate_pnl(
                         position.average_entry_price,
@@ -300,7 +302,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                     )
                     .ok(),
                     price
-                        .map(|price| Some(order_matching_fee_taker(position.quantity, price)))
+                        .map(|price| Some(order_matching_fee(position.quantity, price, fee_rate)))
                         .and_then(|price| price),
                 )
             }
@@ -437,7 +439,10 @@ impl From<&native::trade::order::Order> for Order {
 
         // Note: we might overwrite a limit price here but this is not an issue because if a limit
         // order has been filled the limit price will be filled price and vice versa
-        if let native::trade::order::OrderState::Filled { execution_price } = value.state {
+        if let native::trade::order::OrderState::Filled {
+            execution_price, ..
+        } = value.state
+        {
             price.replace(execution_price);
         }
 
@@ -492,7 +497,7 @@ pub async fn get_best_quote(
 
     Ok(Json(quotes.map(|quote| BestQuote {
         price: quote,
-        fee: taker_fee(),
+        fee: ln_dlc::get_order_matching_fee_rate(),
     })))
 }
 

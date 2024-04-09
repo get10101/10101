@@ -211,7 +211,9 @@ async fn handle_orderbook_message(
 
     match msg {
         Message::Authenticated(config) => {
-            tracing::info!("Successfully logged in to 10101 websocket api!");
+            tracing::info!(
+                referral_status = ?config.referral_status,
+                "Successfully logged in to 10101 websocket api!");
             state::set_tentenone_config(config.clone());
             event::publish(&EventInternal::Authenticated(config));
         }
@@ -247,9 +249,11 @@ async fn handle_orderbook_message(
                 .to_f32()
                 .expect("to fit into f32");
 
-            order::handler::order_filling(order_id, execution_price).with_context(|| {
-                format!("Failed to process match update from orderbook. order_id = {order_id}")
-            })?;
+            let matching_fee = filled.order_matching_fee();
+
+            order::handler::order_filling(order_id, execution_price, matching_fee).with_context(
+                || format!("Failed to process match update from orderbook. order_id = {order_id}"),
+            )?;
         }
         Message::AllOrders(initial_orders) => {
             let mut orders = orders.lock();

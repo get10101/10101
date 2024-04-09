@@ -68,6 +68,7 @@ diesel::table! {
         order_expiry_timestamp -> BigInt,
         reason -> Text,
         stable -> Bool,
+        matching_fee_sats -> Nullable<BigInt>,
     }
 }
 

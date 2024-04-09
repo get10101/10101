@@ -35,6 +35,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
+use crate::referrals;
 use crate::settings::Settings;
 use crate::settings::SettingsFile;
 use crate::trade::websocket::InternalPositionUpdateMessage;
@@ -210,6 +211,10 @@ pub fn router(
             "/api/admin/migrate_dlc_channels",
             post(migrate_dlc_channels),
         )
+        .route(
+            "/api/admin/users/:trader_pubkey/referrals",
+            get(get_user_referral_status),
+        )
         .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
@@ -320,6 +325,7 @@ pub async fn post_register(
         register_params.contact.clone(),
         register_params.nickname.clone(),
         register_params.version.clone(),
+        register_params.referral_code,
     )
     .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
 
@@ -354,6 +360,7 @@ impl TryFrom<User> for commons::User {
             })?,
             contact: Some(value.contact).filter(|s| !s.is_empty()),
             nickname: value.nickname,
+            referral_code: value.referral_code,
         })
     }
 }
@@ -378,6 +385,26 @@ pub async fn get_user(
         None => Err(AppError::BadRequest("No user found".to_string())),
         Some(user) => Ok(Json(user.try_into()?)),
     }
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn get_user_referral_status(
+    State(state): State<Arc<AppState>>,
+    Path(trader_pubkey): Path<String>,
+) -> Result<Json<commons::ReferralStatus>, AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
+        .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
+
+    let referral_status =
+        referrals::get_referral_status(trader_pubkey, &mut conn).map_err(|err| {
+            AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
+        })?;
+    Ok(Json(referral_status))
 }
 
 async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {

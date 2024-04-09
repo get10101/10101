@@ -4,6 +4,7 @@ use crate::node::Node;
 use crate::notifications::NotificationKind;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
+use crate::referrals;
 use crate::trade::TradeExecutor;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -11,6 +12,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
+use bitcoin::Amount;
 use bitcoin::Network;
 use commons::ChannelOpeningParams;
 use commons::FilledWith;
@@ -28,6 +30,7 @@ use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use rust_decimal::RoundingStrategy;
 use std::cmp::Ordering;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -208,28 +211,45 @@ pub async fn process_new_market_order(
     )
     .map_err(|e| anyhow!("{e:#}"))?;
 
-    let matched_orders =
-        match match_order(&order, opposite_direction_limit_orders, network, oracle_pk) {
-            Ok(Some(matched_orders)) => matched_orders,
-            Ok(None) => {
-                // TODO(holzeis): Currently we still respond to the user immediately if there
-                // has been a match or not, that's the reason why we also have to set the order
-                // to failed here. But actually we could keep the order until either expired or
-                // a match has been found and then update the state accordingly.
+    let fee_percent = { node.settings.read().await.order_matching_fee_rate };
+    let fee_percent = Decimal::try_from(fee_percent).expect("to fit into decimal");
 
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
-                    .map_err(|e| anyhow!("{e:#}"))?;
-                return Err(TradingError::NoMatchFound(format!(
-                    "Could not match order {}",
-                    order.id
-                )));
-            }
-            Err(e) => {
-                orders::set_order_state(&mut conn, order.id, OrderState::Failed)
-                    .map_err(|e| anyhow!("{e:#}"))?;
-                return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
-            }
-        };
+    let trader_pubkey_string = order.trader_id.to_string();
+    let status = referrals::get_referral_status(order.trader_id, &mut conn)?;
+    let fee_discount = status.referral_fee_bonus;
+    let fee_percent = fee_percent - (fee_percent * fee_discount);
+
+    tracing::debug!(
+        trader_pubkey = trader_pubkey_string,
+        %fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
+
+    let matched_orders = match match_order(
+        &order,
+        opposite_direction_limit_orders,
+        network,
+        oracle_pk,
+        fee_percent,
+    ) {
+        Ok(Some(matched_orders)) => matched_orders,
+        Ok(None) => {
+            // TODO(holzeis): Currently we still respond to the user immediately if there
+            // has been a match or not, that's the reason why we also have to set the order
+            // to failed here. But actually we could keep the order until either expired or
+            // a match has been found and then update the state accordingly.
+
+            orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                .map_err(|e| anyhow!("{e:#}"))?;
+            return Err(TradingError::NoMatchFound(format!(
+                "Could not match order {}",
+                order.id
+            )));
+        }
+        Err(e) => {
+            orders::set_order_state(&mut conn, order.id, OrderState::Failed)
+                .map_err(|e| anyhow!("{e:#}"))?;
+            return Err(TradingError::Other(format!("Failed to match order: {e:#}")));
+        }
+    };
 
     tracing::info!(
         trader_id=%order.trader_id,
@@ -302,6 +322,7 @@ pub async fn process_new_market_order(
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), notifier);
+
         trade_executor
             .execute(&TradeAndChannelParams {
                 trade_params: TradeParams {
@@ -341,6 +362,7 @@ fn match_order(
     opposite_direction_orders: Vec<Order>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
+    fee_percent: Decimal,
 ) -> Result<Option<MatchParams>> {
     if market_order.order_type == OrderType::Limit {
         // We don't match limit orders with other limit orders at the moment.
@@ -380,6 +402,18 @@ fn match_order(
     let matches = matched_orders
         .iter()
         .map(|maker_order| {
+            let matching_fee = market_order.quantity / maker_order.price * fee_percent;
+            let matching_fee = matching_fee.round_dp_with_strategy(8, RoundingStrategy::MidpointAwayFromZero);
+            let matching_fee = match Amount::from_btc(matching_fee.to_f64().expect("to fit")) {
+                Ok(fee) => {fee}
+                Err(err) => {
+                    tracing::error!(
+                        trader_pubkey = maker_order.trader_id.to_string(),
+                        order_id = maker_order.id.to_string(),
+                        "Failed calculating order matching fee for order {err:?}. Falling back to 0");
+                    Amount::ZERO
+                }
+            };
             (
                 TraderMatchParams {
                     trader_id: maker_order.trader_id,
@@ -393,6 +427,7 @@ fn match_order(
                             quantity: market_order.quantity,
                             pubkey: market_order.trader_id,
                             execution_price: maker_order.price,
+                            matching_fee,
                         }],
                     },
                 },
@@ -402,6 +437,7 @@ fn match_order(
                     quantity: market_order.quantity,
                     pubkey: maker_order.trader_id,
                     execution_price: maker_order.price,
+                    matching_fee,
                 },
             )
         })
@@ -634,6 +670,7 @@ mod tests {
             all_orders,
             Network::Bitcoin,
             get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .unwrap()
         .unwrap();
@@ -715,7 +752,8 @@ mod tests {
             &order,
             all_orders,
             Network::Bitcoin,
-            get_oracle_public_key()
+            get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .is_err());
     }
@@ -773,6 +811,7 @@ mod tests {
             all_orders,
             Network::Bitcoin,
             get_oracle_public_key(),
+            Decimal::ZERO,
         )
         .unwrap();
 

@@ -2,6 +2,7 @@ use crate::order::Order;
 use crate::signature::Signature;
 use crate::trade::FilledWith;
 use crate::LiquidityOption;
+use crate::ReferralStatus;
 use anyhow::Result;
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
@@ -70,6 +71,8 @@ pub struct TenTenOneConfig {
     pub liquidity_options: Vec<LiquidityOption>,
     pub min_quantity: u64,
     pub maintenance_margin_rate: f32,
+    pub order_matching_fee_rate: f32,
+    pub referral_status: ReferralStatus,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]

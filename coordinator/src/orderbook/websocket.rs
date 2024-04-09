@@ -2,12 +2,14 @@ use crate::db;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
+use crate::referrals;
 use crate::routes::AppState;
 use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
 use commons::create_sign_message;
 use commons::Message;
 use commons::OrderbookRequest;
+use commons::ReferralStatus;
 use commons::TenTenOneConfig;
 use commons::AUTH_SIGN_MESSAGE;
 use futures::SinkExt;
@@ -105,16 +107,27 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();
 
-                            let (min_quantity, maintenance_margin_rate) = {
+                            let (min_quantity, maintenance_margin_rate, order_matching_fee_rate) = {
                                 let settings = state.settings.read().await;
-                                (settings.min_quantity, settings.maintenance_margin_rate)
+                                (
+                                    settings.min_quantity,
+                                    settings.maintenance_margin_rate,
+                                    settings.order_matching_fee_rate,
+                                )
                             };
 
+                            let referral_status = referrals::update_referral_status_for_user(
+                                &mut conn,
+                                trader_id.to_string(),
+                            )
+                            .unwrap_or(ReferralStatus::new(trader_id));
                             if let Err(e) = local_sender
                                 .send(Message::Authenticated(TenTenOneConfig {
                                     liquidity_options,
                                     min_quantity,
                                     maintenance_margin_rate,
+                                    order_matching_fee_rate,
+                                    referral_status,
                                 }))
                                 .await
                             {

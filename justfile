@@ -690,4 +690,28 @@ doctor:
     echo "Checking your dev environment for compatibility with building 10101."
     ./check_compatibility.sh
 
+db-coordinator-new migration_name="":
+    #!/usr/bin/env bash
+    cd coordinator;
+    diesel migration generate {{ migration_name }} \
+      --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook \
+      --migration-dir ./migrations \
+      --config-file ./diesel.toml
+
+db-coordinator-run:
+    #!/usr/bin/env bash
+    cd coordinator;
+    diesel migration run \
+      --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook \
+      --migration-dir ./migrations \
+      --config-file ./diesel.toml
+
+db-coordinator-redo:
+    #!/usr/bin/env bash
+    cd coordinator;
+    diesel migration redo \
+      --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook \
+      --migration-dir ./migrations \
+      --config-file ./diesel.toml
+
 # vim:expandtab:sw=4:ts=4

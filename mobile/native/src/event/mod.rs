@@ -32,6 +32,7 @@ pub enum EventInternal {
     Log(String),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
+    // TODO: this doesn't seem to be used anymore
     OrderFilledWith(Box<TradeParams>),
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
