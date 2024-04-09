@@ -510,10 +510,7 @@ async fn open_channel_and_position_and_settle_position(
     .await
     .unwrap();
 
-    // FIXME(holzeis): `Chopsticks automatically mined an additional block when calling its API. now
-    // that we have removed chopsticks this acutally translates to mining 2 blocks instead of just
-    // 1. related to https://github.com/get10101/10101/issues/1990`
-    mine(dlc_manager::manager::NB_CONFIRMATIONS as u16 + 1)
+    mine(dlc_manager::manager::NB_CONFIRMATIONS as u16)
         .await
         .unwrap();
 
