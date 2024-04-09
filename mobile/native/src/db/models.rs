@@ -39,6 +39,8 @@ pub enum Error {
     MissingPriceForLimitOrder,
     #[error("A filling or filled order has to have an execution price")]
     MissingExecutionPrice,
+    #[error("A filled order has to have a matching fee")]
+    MissingMatchingFee,
 }
 
 #[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
@@ -319,13 +321,6 @@ impl TryFrom<Order> for crate::trade::order::Order {
     type Error = Error;
 
     fn try_from(value: Order) -> std::result::Result<Self, Self::Error> {
-        let mut exec_price_and_matching_fee = None;
-        if let (Some(exec_price), Some(matching_fee)) =
-            (value.execution_price, value.matching_fee_sats)
-        {
-            exec_price_and_matching_fee = Some((exec_price, matching_fee));
-        }
-
         let order = crate::trade::order::Order {
             id: Uuid::parse_str(value.id.as_str()).map_err(Error::InvalidId)?,
             leverage: value.leverage,
@@ -333,12 +328,12 @@ impl TryFrom<Order> for crate::trade::order::Order {
             contract_symbol: value.contract_symbol.into(),
             direction: value.direction.into(),
             order_type: (value.order_type, value.limit_price).try_into()?,
-            state: (
+            state: derive_order_state(
                 value.state,
-                exec_price_and_matching_fee,
+                value.execution_price,
+                value.matching_fee_sats,
                 value.failure_reason.clone(),
-            )
-                .try_into()?,
+            )?,
             creation_timestamp: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("unix timestamp to fit in itself"),
             order_expiry_timestamp: OffsetDateTime::from_unix_timestamp(
@@ -352,6 +347,50 @@ impl TryFrom<Order> for crate::trade::order::Order {
 
         Ok(order)
     }
+}
+
+fn derive_order_state(
+    order_state: OrderState,
+    execution_price: Option<f32>,
+    matching_fee: Option<i64>,
+    failure_reason: Option<FailureReason>,
+) -> Result<crate::trade::order::OrderState, Error> {
+    let state = match order_state {
+        OrderState::Initial => crate::trade::order::OrderState::Initial,
+        OrderState::Rejected => crate::trade::order::OrderState::Rejected,
+        OrderState::Open => crate::trade::order::OrderState::Open,
+        OrderState::Filling => match execution_price {
+            None => return Err(Error::MissingExecutionPrice),
+            Some(execution_price) => crate::trade::order::OrderState::Filling {
+                execution_price,
+                matching_fee: Amount::from_sat(matching_fee.unwrap_or_default() as u64),
+            },
+        },
+        OrderState::Failed => crate::trade::order::OrderState::Failed {
+            execution_price,
+            reason: failure_reason.unwrap_or_default().into(),
+        },
+        OrderState::Filled => {
+            let execution_price = if let Some(execution_price) = execution_price {
+                execution_price
+            } else {
+                return Err(Error::MissingExecutionPrice);
+            };
+
+            let matching_fee = if let Some(matching_fee) = matching_fee {
+                matching_fee
+            } else {
+                return Err(Error::MissingMatchingFee);
+            };
+
+            crate::trade::order::OrderState::Filled {
+                execution_price,
+                matching_fee: Amount::from_sat(matching_fee as u64),
+            }
+        }
+    };
+
+    Ok(state)
 }
 
 #[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
@@ -703,6 +742,7 @@ pub enum FailureReason {
     SubchannelOfferDateUndetermined,
     SubchannelOfferUnacceptable,
     OrderRejected(String),
+    #[default]
     Unknown,
 }
 
