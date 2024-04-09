@@ -305,10 +305,8 @@ class _CreateChannelConfirmationDialogState extends State<CreateChannelConfirmat
                               onPressed: notEnoughOnchainBalance
                                   ? null
                                   : () async {
-                                      await NewOrderService.postNewOrder(
-                                              widget.leverage,
-                                              widget.quantity,
-                                              widget.direction == Direction.long.opposite(),
+                                      await NewOrderService.postNewOrder(widget.leverage,
+                                              widget.quantity, widget.direction == Direction.long,
                                               channelOpeningParams: ChannelOpeningParams(
                                                   Amount.max(
                                                       Amount.zero(),
