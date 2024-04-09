@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/payment.dart';
-import 'package:get_10101/wallet/walle_history_detail_dialog.dart';
+import 'package:get_10101/wallet/wallet_history_detail_dialog.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
