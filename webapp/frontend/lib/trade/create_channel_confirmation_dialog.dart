@@ -308,7 +308,7 @@ class _CreateChannelConfirmationDialogState extends State<CreateChannelConfirmat
                                       await NewOrderService.postNewOrder(
                                               widget.leverage,
                                               widget.quantity,
-                                              widget.direction == Direction.long.opposite(),
+                                              widget.direction == Direction.long,
                                               channelOpeningParams: ChannelOpeningParams(
                                                   Amount.max(
                                                       Amount.zero(),
