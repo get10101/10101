@@ -27,13 +27,17 @@ Amount calculateMargin(Usd quantity, BestQuote quote, Leverage leverage, bool is
 }
 
 Amount calculateLiquidationPrice(
-    Usd quantity, BestQuote quote, Leverage leverage, double maintenanceMargin, bool isLong) {
-  if (isLong && quote.ask != null) {
+    Usd quantity, BestQuote quote, Leverage leverage, double maintenanceMarginRate, bool isLong) {
+  if (isLong && quote.bid != null) {
     return Amount((quote.bid!.asDouble * leverage.asDouble) ~/
-        (leverage.asDouble + 1.0 + (maintenanceMargin * leverage.asDouble)));
-  } else if (!isLong && quote.bid != null) {
+        (leverage.asDouble + 1.0 - (maintenanceMarginRate * leverage.asDouble)));
+  } else if (!isLong && quote.ask != null) {
+    if (leverage.asDouble == 1.0) {
+      return Amount(1048575);
+    }
+
     return Amount((quote.ask!.asDouble * leverage.asDouble) ~/
-        (leverage.asDouble - 1.0 + (maintenanceMargin * leverage.asDouble)));
+        (leverage.asDouble - 1.0 + (maintenanceMarginRate * leverage.asDouble)));
   } else {
     return Amount.zero();
   }
