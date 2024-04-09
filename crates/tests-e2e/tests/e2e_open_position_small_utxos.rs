@@ -35,16 +35,7 @@ async fn can_open_position_with_multiple_small_utxos() {
     };
 
     // We take the ask price because the app is going long.
-    let ask_price = app
-        .rx
-        .prices()
-        .unwrap()
-        .get(&ContractSymbol::BtcUsd)
-        .unwrap()
-        .ask
-        .unwrap()
-        .to_f32()
-        .unwrap();
+    let ask_price = app.rx.ask_price().unwrap().to_f32().unwrap();
 
     let margin_app = calculate_margin(ask_price, order.quantity, order.leverage).0;
 

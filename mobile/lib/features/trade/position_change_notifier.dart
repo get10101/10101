@@ -9,14 +9,14 @@ import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
 
 class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   final PositionService _positionService;
 
   Map<ContractSymbol, Position> positions = {};
 
-  Price? price;
+  double? askPrice;
+  double? bidPrice;
 
   /// Amount of stabilised bitcoin in terms of USD (fiat)
   double getStableUSDAmountInFiat() {
@@ -94,8 +94,8 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
     if (event is bridge.Event_PositionUpdateNotification) {
       Position position = Position.fromApi(event.field0);
 
-      if (price != null) {
-        final pnl = _positionService.calculatePnl(position, price!);
+      if (askPrice != null && bidPrice != null) {
+        final pnl = _positionService.calculatePnl(position, askPrice!, bidPrice!);
         position.unrealizedPnl = pnl != null ? Amount(pnl) : null;
       } else {
         position.unrealizedPnl = null;
@@ -116,12 +116,20 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
       Preferences.instance.unsetOpenPosition();
 
       notifyListeners();
-    } else if (event is bridge.Event_PriceUpdateNotification) {
-      price = Price.fromApi(event.field0);
+    } else if (event is bridge.Event_AskPriceUpdateNotification ||
+        event is bridge.Event_BidPriceUpdateNotification) {
+      if (event is bridge.Event_AskPriceUpdateNotification) {
+        askPrice = event.field0;
+      }
+      if (event is bridge.Event_BidPriceUpdateNotification) {
+        bidPrice = event.field0;
+      }
+
       for (ContractSymbol symbol in positions.keys) {
-        if (price != null) {
+        if (askPrice != null && bidPrice != null) {
           if (positions[symbol] != null) {
-            final pnl = _positionService.calculatePnl(positions[symbol]!, price!);
+            // TODO: we can optimize this as we know the direction already we should only need to pass in one of the prices
+            final pnl = _positionService.calculatePnl(positions[symbol]!, askPrice!, bidPrice!);
             positions[symbol]!.unrealizedPnl = pnl != null ? Amount(pnl) : null;
           }
         }

@@ -23,6 +23,8 @@ pub use message::*;
 pub use order::*;
 pub use order_matching_fee::order_matching_fee;
 pub use polls::*;
+pub use price::best_ask_price;
+pub use price::best_bid_price;
 pub use price::best_current_price;
 pub use price::Price;
 pub use price::Prices;

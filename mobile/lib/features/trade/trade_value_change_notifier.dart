@@ -6,7 +6,6 @@ import 'package:get_10101/common/dummy_values.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
 
 class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
@@ -16,7 +15,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   late final TradeValues _buyTradeValues;
   late final TradeValues _sellTradeValues;
 
-  Price? _price;
+  double? _askPrice;
+  double? _bidPrice;
 
   bool maxQuantityLock = false;
 
@@ -90,35 +90,43 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   // Orderbook price updates both directions
-  void updatePrice(Price price) {
+  void updatePrice(double price, Direction direction) {
     bool update = false;
 
-    if (price.ask != _buyTradeValues.price) {
-      if (maxQuantityLock) {
-        _buyTradeValues.updatePriceAndQuantity(price.ask);
-      } else {
-        _buyTradeValues.updatePriceAndMargin(price.ask);
-      }
-
-      update = true;
+    switch (direction) {
+      case Direction.long:
+        _bidPrice = price;
+        if (price != _sellTradeValues.price) {
+          if (maxQuantityLock) {
+            _sellTradeValues.updatePriceAndQuantity(price);
+          } else {
+            _sellTradeValues.updatePriceAndMargin(price);
+          }
+          update = true;
+        }
+      case Direction.short:
+        _askPrice = price;
+        if (price != _buyTradeValues.price) {
+          if (maxQuantityLock) {
+            _buyTradeValues.updatePriceAndQuantity(price);
+          } else {
+            _buyTradeValues.updatePriceAndMargin(price);
+          }
+          update = true;
+        }
     }
-    if (price.bid != _sellTradeValues.price) {
-      if (maxQuantityLock) {
-        _sellTradeValues.updatePriceAndQuantity(price.bid);
-      } else {
-        _sellTradeValues.updatePriceAndMargin(price.bid);
-      }
-      update = true;
-    }
-    _price = price;
 
     if (update) {
       notifyListeners();
     }
   }
 
-  Price? getPrice() {
-    return _price;
+  double? getAskPrice() {
+    return _askPrice;
+  }
+
+  double? getBidPrice() {
+    return _bidPrice;
   }
 
   TradeValues fromDirection(Direction direction) =>
@@ -126,8 +134,11 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
 
   @override
   void notify(bridge.Event event) {
-    if (event is bridge.Event_PriceUpdateNotification) {
-      updatePrice(Price.fromApi(event.field0));
+    if (event is bridge.Event_AskPriceUpdateNotification) {
+      updatePrice(event.field0, Direction.short);
+    }
+    if (event is bridge.Event_BidPriceUpdateNotification) {
+      updatePrice(event.field0, Direction.long);
     }
   }
 }

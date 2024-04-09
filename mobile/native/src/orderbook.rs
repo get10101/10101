@@ -8,33 +8,33 @@ use crate::ln_dlc;
 use crate::state;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
-use crate::trade::position;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
-use commons::best_current_price;
+use commons::best_ask_price;
+use commons::best_bid_price;
 use commons::Message;
 use commons::Order;
 use commons::OrderState;
 use commons::OrderbookRequest;
-use commons::Prices;
 use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::watch;
 use tokio_tungstenite_wasm as tungstenite;
-use uuid::Uuid;
+use trade::ContractSymbol;
+use trade::Direction;
 
 /// FIXME(holzeis): There is an edge case where the app is still open while we move into the
 /// rollover window. If the coordinator restarts while the app remains open in that scenario, the
@@ -42,8 +42,6 @@ use uuid::Uuid;
 /// This could be fixed by only sending the rollover message once the channel is usable with the
 /// trader.
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
-
-const EXPIRED_ORDER_PRUNING_INTERVAL: Duration = Duration::from_secs(30);
 
 pub fn subscribe(
     secret_key: SecretKey,
@@ -66,44 +64,6 @@ pub fn subscribe(
 
         // Need a Mutex as it's being accessed from websocket stream and pruning task
         let orders = Arc::new(Mutex::new(Vec::<Order>::new()));
-
-        let _prune_expired_orders_task = {
-            let orders = orders.clone();
-            tokio::spawn(async move {
-                loop {
-                    {
-                        tracing::debug!("Pruning expired orders");
-                        let mut orders = orders.lock();
-                        let orders_before_pruning = orders.len();
-                        *orders = orders
-                            .iter()
-                            .filter(|order| order.expiry >= OffsetDateTime::now_utc())
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        let orders_after_pruning = orders.len();
-
-                        if orders_after_pruning < orders_before_pruning {
-                            let amount_pruned = orders_before_pruning - orders_after_pruning;
-                            tracing::debug!(
-                                orders_before_pruning,
-                                orders_after_pruning,
-                                "Pruned {amount_pruned} expired orders"
-                            );
-
-                            // Current best price might have changed
-                            if let Err(e) =
-                                position::handler::price_update(best_current_price(&orders))
-                            {
-                                tracing::error!(
-                                    "Price update from the orderbook failed. Error: {e:#}"
-                                );
-                            }
-                        }
-                    }
-                    tokio::time::sleep(EXPIRED_ORDER_PRUNING_INTERVAL).await;
-                }
-            })
-        };
 
         let fcm_token = if fcm_token.is_empty() {
             None
@@ -150,7 +110,7 @@ pub fn subscribe(
                         }
                     });
 
-                    let mut cached_best_price: Prices = HashMap::new();
+                    let mut cached_best_price: HashMap<Direction, Decimal> = HashMap::new();
                     loop {
                         let msg = match stream.try_next().await {
                             Ok(Some(msg)) => msg,
@@ -201,7 +161,7 @@ pub fn subscribe(
 
 async fn handle_orderbook_message(
     orders: Arc<Mutex<Vec<Order>>>,
-    cached_best_price: &mut Prices,
+    cached_best_price: &mut HashMap<Direction, Decimal>,
     msg: String,
 ) -> Result<()> {
     let msg =
@@ -271,29 +231,41 @@ async fn handle_orderbook_message(
             // if we receive a full set of new orders, we can clear the cached best price as it is
             // outdated information.
             cached_best_price.clear();
-            update_prices_if_needed(cached_best_price, &orders);
+            update_both_prices_if_needed(cached_best_price, &orders);
         }
         Message::NewOrder(order) => {
             let mut orders = orders.lock();
+            let direction = order.direction;
             orders.push(order);
 
-            update_prices_if_needed(cached_best_price, &orders);
+            match direction {
+                Direction::Long => update_bid_price_if_needed(cached_best_price, orders.as_slice()),
+                Direction::Short => {
+                    update_ask_price_if_needed(cached_best_price, orders.as_slice())
+                }
+            }
         }
         Message::DeleteOrder(order_id) => {
             let mut orders = orders.lock();
 
-            let found = remove_order(&mut orders, order_id);
-            if !found {
+            let old_length = orders.len();
+            orders.retain(|order| order.id != order_id);
+            let new_length = orders.len();
+
+            if old_length == new_length {
                 tracing::warn!(%order_id, "Could not remove non-existing order");
             }
 
-            update_prices_if_needed(cached_best_price, &orders);
+            update_both_prices_if_needed(cached_best_price, &orders);
         }
         Message::Update(updated_order) => {
             let mut orders = orders.lock();
 
-            let found = remove_order(&mut orders, updated_order.id);
-            if !found {
+            let old_length = orders.len();
+            orders.retain(|order| order.id != updated_order.id);
+            let new_length = orders.len();
+
+            if old_length == new_length {
                 tracing::warn!(?updated_order, "Update without prior knowledge of order");
             }
 
@@ -301,7 +273,7 @@ async fn handle_orderbook_message(
                 orders.push(updated_order);
             }
 
-            update_prices_if_needed(cached_best_price, &orders);
+            update_both_prices_if_needed(cached_best_price, &orders);
         }
         Message::DlcChannelCollaborativeRevert {
             channel_id,
@@ -352,25 +324,57 @@ async fn handle_orderbook_message(
     Ok(())
 }
 
-fn update_prices_if_needed(cached_best_price: &mut Prices, orders: &[Order]) {
-    let best_price = best_current_price(orders);
-    if *cached_best_price != best_price {
-        if let Err(e) = position::handler::price_update(best_price.clone()) {
-            tracing::error!("Price update from the orderbook failed. Error: {e:#}");
+fn update_both_prices_if_needed(
+    cached_best_price: &mut HashMap<Direction, Decimal>,
+    orders: &[Order],
+) {
+    update_bid_price_if_needed(cached_best_price, orders);
+    update_ask_price_if_needed(cached_best_price, orders);
+}
+
+fn update_bid_price_if_needed(
+    cached_best_price: &mut HashMap<Direction, Decimal>,
+    orders: &[Order],
+) {
+    let bid_price = best_bid_price(orders, ContractSymbol::BtcUsd);
+
+    update_price_if_needed(cached_best_price, bid_price, Direction::Long);
+}
+
+fn update_ask_price_if_needed(
+    cached_best_price: &mut HashMap<Direction, Decimal>,
+    orders: &[Order],
+) {
+    let ask_price = best_ask_price(orders, ContractSymbol::BtcUsd);
+
+    update_price_if_needed(cached_best_price, ask_price, Direction::Short);
+}
+
+fn update_price_if_needed(
+    cached_best_price: &mut HashMap<Direction, Decimal>,
+    new_price: Option<Decimal>,
+    direction: Direction,
+) {
+    if let Some(new_price) = new_price {
+        if let Some(cached_price) = cached_best_price.get(&direction) {
+            if *cached_price != new_price {
+                update_price(direction, new_price);
+                cached_best_price.insert(direction, new_price);
+            }
+        } else {
+            update_price(direction, new_price);
         }
-        *cached_best_price = best_price;
     }
 }
 
-// Returns true if the order was found and removed
-fn remove_order(orders: &mut Vec<Order>, order_id: Uuid) -> bool {
-    let mut found = false;
-    for (index, element) in orders.iter().enumerate() {
-        if element.id == order_id {
-            found = true;
-            orders.remove(index);
-            break;
+fn update_price(direction: Direction, new_price: Decimal) {
+    tracing::trace!(%new_price, direction = %direction, "New price");
+    match direction {
+        Direction::Long => {
+            event::publish(&EventInternal::BidPriceUpdateNotification(new_price));
+        }
+        Direction::Short => {
+            event::publish(&EventInternal::AskPriceUpdateNotification(new_price));
         }
     }
-    found
 }

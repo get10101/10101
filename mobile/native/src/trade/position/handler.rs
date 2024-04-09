@@ -8,9 +8,10 @@ use crate::trade::position::PositionState;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
-use commons::Prices;
+use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
+use trade::Direction;
 
 /// Fetch the positions from the database
 pub fn get_positions() -> Result<Vec<Position>> {
@@ -196,8 +197,14 @@ pub fn update_position_after_dlc_closure(filled_order: Option<Order>) -> Result<
     Ok(())
 }
 
-pub fn price_update(prices: Prices) -> Result<()> {
-    tracing::debug!(?prices, "Updating prices");
-    event::publish(&EventInternal::PriceUpdateNotification(prices));
-    Ok(())
+pub fn price_update(price: Decimal, direction: Direction) {
+    match direction {
+        Direction::Long => {
+            tracing::debug!(?price, "Updating long price");
+        }
+        Direction::Short => {
+            tracing::debug!(?price, "Updating short price");
+            event::publish(&EventInternal::AskPriceUpdateNotification(price));
+        }
+    }
 }

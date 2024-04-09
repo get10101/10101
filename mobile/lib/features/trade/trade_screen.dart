@@ -5,7 +5,6 @@ import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -50,8 +49,8 @@ class TradeScreen extends StatelessWidget {
       height: 60,
     );
 
-    bool isBuyButtonEnabled = positionChangeNotifier.price?.ask != null;
-    bool isSellButtonEnabled = positionChangeNotifier.price?.bid != null;
+    bool isBuyButtonEnabled = positionChangeNotifier.askPrice != null;
+    bool isSellButtonEnabled = positionChangeNotifier.bidPrice != null;
 
     return Scaffold(
         body: Container(
@@ -59,23 +58,27 @@ class TradeScreen extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 5),
-              Selector<TradeValuesChangeNotifier, Price?>(selector: (_, provider) {
-                return provider.getPrice();
-              }, builder: (context, price, child) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    LatestPriceWidget(
-                      label: "Latest Bid: ",
-                      price: Usd.fromDouble(price?.bid ?? 0.0),
-                    ),
-                    LatestPriceWidget(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Selector<TradeValuesChangeNotifier, double?>(selector: (_, provider) {
+                    return provider.getAskPrice();
+                  }, builder: (context, price, child) {
+                    return LatestPriceWidget(
                       label: "Latest Ask: ",
-                      price: Usd.fromDouble(price?.ask ?? 0.0),
-                    ),
-                  ],
-                );
-              }),
+                      price: Usd.fromDouble(price ?? 0.0),
+                    );
+                  }),
+                  Selector<TradeValuesChangeNotifier, double?>(selector: (_, provider) {
+                    return provider.getBidPrice();
+                  }, builder: (context, price, child) {
+                    return LatestPriceWidget(
+                      label: "Latest Bid: ",
+                      price: Usd.fromDouble(price ?? 0.0),
+                    );
+                  }),
+                ],
+              ),
               const SizedBox(height: 5),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,

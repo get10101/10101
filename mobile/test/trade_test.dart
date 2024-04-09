@@ -20,7 +20,7 @@ import 'package:get_10101/features/trade/application/position_service.dart';
 @GenerateNiceMocks([MockSpec<TradeValuesService>()])
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
-import 'package:get_10101/features/trade/domain/price.dart';
+import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
@@ -150,10 +150,14 @@ void main() {
 
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
 
-    final price = Price(bid: 30000.0, ask: 30000.0);
+    const askPrice = 30000.0;
+    const bidPrice = 30000.0;
+
     // We have to have current price, otherwise we can't take order
-    positionChangeNotifier.price = price;
-    tradeValuesChangeNotifier.updatePrice(price);
+    positionChangeNotifier.askPrice = askPrice;
+    positionChangeNotifier.bidPrice = bidPrice;
+    tradeValuesChangeNotifier.updatePrice(askPrice, Direction.short);
+    tradeValuesChangeNotifier.updatePrice(bidPrice, Direction.long);
 
     await tester.pumpWidget(MultiProvider(providers: [
       ChangeNotifierProvider(create: (context) => tradeValuesChangeNotifier),
@@ -276,10 +280,14 @@ void main() {
 
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
 
-    final price = Price(bid: 30000.0, ask: 30000.0);
+    const askPrice = 30000.0;
+    const bidPrice = 30000.0;
+
     // We have to have current price, otherwise we can't take order
-    positionChangeNotifier.price = price;
-    tradeValuesChangeNotifier.updatePrice(price);
+    positionChangeNotifier.askPrice = askPrice;
+    positionChangeNotifier.bidPrice = bidPrice;
+    tradeValuesChangeNotifier.updatePrice(askPrice, Direction.short);
+    tradeValuesChangeNotifier.updatePrice(bidPrice, Direction.long);
 
     await tester.pumpWidget(MultiProvider(providers: [
       ChangeNotifierProvider(create: (context) => tradeValuesChangeNotifier),
