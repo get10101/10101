@@ -1008,6 +1008,19 @@ pub fn estimated_funding_tx_fee() -> Result<Amount> {
     Ok(fee)
 }
 
+/// Returns true if the provided address belongs to our wallet and false otherwise.
+/// Returns and error if the address is invalid.
+///
+/// Note, this may return false if the wallet doesn't know about the address. A full sync is
+/// required then.
+pub fn is_address_mine(address: &str) -> Result<bool> {
+    let address: Address<NetworkUnchecked> = address.parse().context("Failed to parse address")?;
+    let is_mine = state::get_node()
+        .inner
+        .is_mine(&address.payload.script_pubkey());
+    Ok(is_mine)
+}
+
 pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Option<Amount>> {
     let address: Address<NetworkUnchecked> = address.parse().context("Failed to parse address")?;
     // This is safe to do because we are only using this address to estimate a fee.

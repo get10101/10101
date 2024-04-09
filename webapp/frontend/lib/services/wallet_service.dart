@@ -38,7 +38,7 @@ class WalletService {
             <String, dynamic>{'address': address, 'amount': amount.sats, 'fee': fee.sats}));
 
     if (response.statusCode != 200) {
-      throw FlutterError("Failed to send payment");
+      throw FlutterError(response.body);
     }
   }
 

@@ -46,6 +46,15 @@ pub struct Opts {
 
     #[clap(long)]
     pub secure: bool,
+
+    #[clap(long)]
+    pub whitelist_withdrawal_addresses: bool,
+
+    /// The whitelisted bitcoin addresses the wallet should be allowed to send to. Only honoured if
+    /// the [`whitelist_withdrawal_addresses`] flag is set to true.
+    #[arg(num_args(0..))]
+    #[clap(long)]
+    pub withdrawal_address: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
