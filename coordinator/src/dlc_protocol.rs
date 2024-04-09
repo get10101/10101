@@ -23,7 +23,6 @@ use std::fmt::Formatter;
 use std::str::from_utf8;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::Sender;
-use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::Direction;
 use uuid::Uuid;
@@ -392,13 +391,6 @@ impl DlcProtocolExecutor {
             closing_price,
         )?;
 
-        let coordinator_margin = calculate_margin(
-            closing_price,
-            trade_params.quantity,
-            crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
-                .map_err(|_| RollbackTransaction)?,
-        );
-
         let order_matching_fee = trade_params.matching_fee;
 
         let new_trade = NewTrade {
@@ -407,7 +399,6 @@ impl DlcProtocolExecutor {
             trader_pubkey: trade_params.trader,
             quantity: trade_params.quantity,
             trader_leverage: trade_params.leverage,
-            coordinator_margin: coordinator_margin as i64,
             trader_direction: trade_params.direction,
             average_price: trade_params.average_price,
             order_matching_fee,
@@ -460,13 +451,6 @@ impl DlcProtocolExecutor {
             PositionState::Open,
         )?;
 
-        let coordinator_margin = calculate_margin(
-            Decimal::try_from(trade_params.average_price).expect("to fit into decimal"),
-            trade_params.quantity,
-            crate::trade::coordinator_leverage_for_trade(&trade_params.trader)
-                .map_err(|_| RollbackTransaction)?,
-        );
-
         let order_matching_fee = trade_params.matching_fee;
 
         if matches!(original.position_state, PositionState::Resizing) {
@@ -482,7 +466,6 @@ impl DlcProtocolExecutor {
                 trader_pubkey: trade_params.trader,
                 quantity: trade_params.quantity,
                 trader_leverage: trade_params.leverage,
-                coordinator_margin: coordinator_margin as i64,
                 trader_direction: trade_params.direction,
                 average_price: trade_params.average_price,
                 order_matching_fee,

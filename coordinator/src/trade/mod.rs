@@ -751,8 +751,6 @@ impl TradeExecutor {
                 trader_pubkey: position.trader,
                 quantity: trade_params.quantity,
                 trader_leverage: position.trader_leverage,
-                // TODO: To be removed.
-                coordinator_margin: 0,
                 trader_direction: trade_params.direction,
                 average_price: trade_params
                     .average_execution_price()
