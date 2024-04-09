@@ -770,6 +770,7 @@ pub struct TradeConstraints {
     pub min_margin_sats: u64,
     pub estimated_funding_tx_fee_sats: u64,
     pub channel_fee_reserve_sats: u64,
+    pub maintenance_margin_rate: f32,
 }
 
 pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError> {
@@ -785,5 +786,6 @@ pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError>
         min_margin_sats: trade_constraints.min_margin,
         estimated_funding_tx_fee_sats: fee.to_sat(),
         channel_fee_reserve_sats: channel_fee_reserve.to_sat(),
+        maintenance_margin_rate: trade_constraints.maintenance_margin_rate,
     }))
 }

@@ -64,6 +64,10 @@ class TradeConstraints {
   @JsonKey(name: 'channel_fee_reserve_sats')
   final int channelFeeReserveSats;
 
+  /// The rate of margin that needs to stay as collateral on the trader side.
+  @JsonKey(name: 'maintenance_margin_rate')
+  final double maintenanceMarginRate;
+
   const TradeConstraints({
     required this.maxLocalMarginSats,
     required this.maxCounterpartyMarginSats,
@@ -73,8 +77,10 @@ class TradeConstraints {
     required this.minMarginSats,
     required this.estimatedFundingTxFeeSats,
     required this.channelFeeReserveSats,
+    required this.maintenanceMarginRate,
   });
 
   factory TradeConstraints.fromJson(Map<String, dynamic> json) => _$TradeConstraintsFromJson(json);
+
   Map<String, dynamic> toJson() => _$TradeConstraintsToJson(this);
 }
