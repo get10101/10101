@@ -108,7 +108,7 @@ class TradeValues {
     this.margin = margin;
     _recalculateQuantity();
     _recalculateFee();
-    _recalculateMaxQuantity();
+    recalculateMaxQuantity();
   }
 
   updatePriceAndQuantity(double? price) {
@@ -116,7 +116,7 @@ class TradeValues {
     _recalculateQuantity();
     _recalculateLiquidationPrice();
     _recalculateFee();
-    _recalculateMaxQuantity();
+    recalculateMaxQuantity();
   }
 
   updatePriceAndMargin(double? price) {
@@ -124,14 +124,14 @@ class TradeValues {
     _recalculateMargin();
     _recalculateLiquidationPrice();
     _recalculateFee();
-    _recalculateMaxQuantity();
+    recalculateMaxQuantity();
   }
 
   updateLeverage(Leverage leverage) {
     this.leverage = leverage;
     _recalculateMargin();
     _recalculateLiquidationPrice();
-    _recalculateMaxQuantity();
+    recalculateMaxQuantity();
   }
 
   // Can be used to calculate the counterparty's margin, based on their
@@ -162,7 +162,7 @@ class TradeValues {
     fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
   }
 
-  _recalculateMaxQuantity() {
+  recalculateMaxQuantity() {
     final quantity = tradeValuesService.calculateMaxQuantity(price: price, leverage: leverage);
     if (quantity != null) {
       maxQuantity = quantity;
