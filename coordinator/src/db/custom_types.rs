@@ -181,12 +181,13 @@ impl FromSql<ProtocolStateType, Pg> for DlcProtocolState {
 impl ToSql<ProtocolTypeType, Pg> for DlcProtocolType {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
         match *self {
-            DlcProtocolType::Open => out.write_all(b"open")?,
+            DlcProtocolType::OpenChannel => out.write_all(b"open-channel")?,
             DlcProtocolType::Settle => out.write_all(b"settle")?,
-            DlcProtocolType::Renew => out.write_all(b"renew")?,
+            DlcProtocolType::OpenPosition => out.write_all(b"open-position")?,
             DlcProtocolType::Rollover => out.write_all(b"rollover")?,
             DlcProtocolType::Close => out.write_all(b"close")?,
             DlcProtocolType::ForceClose => out.write_all(b"force-close")?,
+            DlcProtocolType::ResizePosition => out.write_all(b"resize-position")?,
         }
         Ok(IsNull::No)
     }
@@ -195,12 +196,13 @@ impl ToSql<ProtocolTypeType, Pg> for DlcProtocolType {
 impl FromSql<ProtocolTypeType, Pg> for DlcProtocolType {
     fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
         match bytes.as_bytes() {
-            b"open" => Ok(DlcProtocolType::Open),
+            b"open-channel" => Ok(DlcProtocolType::OpenChannel),
             b"settle" => Ok(DlcProtocolType::Settle),
-            b"renew" => Ok(DlcProtocolType::Renew),
+            b"open-position" => Ok(DlcProtocolType::OpenPosition),
             b"rollover" => Ok(DlcProtocolType::Rollover),
             b"close" => Ok(DlcProtocolType::Close),
             b"force-close" => Ok(DlcProtocolType::ForceClose),
+            b"resize-position" => Ok(DlcProtocolType::ResizePosition),
             _ => Err("Unrecognized enum variant for ProtocolTypeType".into()),
         }
     }

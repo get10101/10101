@@ -153,27 +153,49 @@ pub enum DlcProtocolState {
 
 #[derive(Clone, Debug)]
 pub enum DlcProtocolType {
-    Open { trade_params: TradeParams },
-    Renew { trade_params: TradeParams },
-    Settle { trade_params: TradeParams },
-    Close { trader: PublicKey },
-    ForceClose { trader: PublicKey },
-    Rollover { trader: PublicKey },
+    /// Opening a channel also opens a position.
+    OpenChannel {
+        trade_params: TradeParams,
+    },
+    OpenPosition {
+        trade_params: TradeParams,
+    },
+    ResizePosition {
+        trade_params: TradeParams,
+    },
+    Rollover {
+        trader: PublicKey,
+    },
+    Settle {
+        trade_params: TradeParams,
+    },
+    Close {
+        trader: PublicKey,
+    },
+    ForceClose {
+        trader: PublicKey,
+    },
 }
 
 impl DlcProtocolType {
-    pub fn open(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::Open {
+    pub fn open_channel(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
+        Self::OpenChannel {
             trade_params: TradeParams::new(trade_params, protocol_id, None),
         }
     }
 
-    pub fn renew(
+    pub fn open_position(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
+        Self::OpenPosition {
+            trade_params: TradeParams::new(trade_params, protocol_id, None),
+        }
+    }
+
+    pub fn resize_position(
         trade_params: &commons::TradeParams,
         protocol_id: ProtocolId,
         trader_pnl: Option<SignedAmount>,
     ) -> Self {
-        Self::Renew {
+        Self::ResizePosition {
             trade_params: TradeParams::new(trade_params, protocol_id, trader_pnl),
         }
     }
@@ -188,10 +210,13 @@ impl DlcProtocolType {
 impl DlcProtocolType {
     pub fn get_trader_pubkey(&self) -> &PublicKey {
         match self {
-            DlcProtocolType::Open {
+            DlcProtocolType::OpenChannel {
                 trade_params: TradeParams { trader, .. },
             } => trader,
-            DlcProtocolType::Renew {
+            DlcProtocolType::OpenPosition {
+                trade_params: TradeParams { trader, .. },
+            } => trader,
+            DlcProtocolType::ResizePosition {
                 trade_params: TradeParams { trader, .. },
             } => trader,
             DlcProtocolType::Settle {
@@ -238,8 +263,9 @@ impl DlcProtocolExecutor {
             )?;
 
             match protocol_type {
-                DlcProtocolType::Open { trade_params }
-                | DlcProtocolType::Renew { trade_params }
+                DlcProtocolType::OpenChannel { trade_params }
+                | DlcProtocolType::OpenPosition { trade_params }
+                | DlcProtocolType::ResizePosition { trade_params }
                 | DlcProtocolType::Settle { trade_params } => {
                     db::trade_params::insert(conn, protocol_id, &trade_params)?;
                 }
@@ -272,12 +298,24 @@ impl DlcProtocolExecutor {
         let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
         conn.transaction(|conn| {
             match &dlc_protocol.protocol_type {
-                DlcProtocolType::Open { trade_params }
-                | DlcProtocolType::Renew { trade_params } => {
+                DlcProtocolType::OpenChannel { trade_params }
+                | DlcProtocolType::OpenPosition { trade_params } => {
                     let contract_id = contract_id
                         .context("missing contract id")
                         .map_err(|_| RollbackTransaction)?;
-                    self.finish_open_or_resize_trade_dlc_protocol(
+                    self.finish_open_position_dlc_protocol(
+                        conn,
+                        trade_params,
+                        protocol_id,
+                        &contract_id,
+                        channel_id,
+                    )
+                }
+                DlcProtocolType::ResizePosition { trade_params } => {
+                    let contract_id = contract_id
+                        .context("missing contract id")
+                        .map_err(|_| RollbackTransaction)?;
+                    self.finish_resize_position_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
@@ -318,8 +356,9 @@ impl DlcProtocolExecutor {
         })?;
 
         match &dlc_protocol.protocol_type {
-            DlcProtocolType::Open { trade_params }
-            | DlcProtocolType::Renew { trade_params }
+            DlcProtocolType::OpenChannel { trade_params }
+            | DlcProtocolType::OpenPosition { trade_params }
+            | DlcProtocolType::ResizePosition { trade_params }
             | DlcProtocolType::Settle { trade_params } => {
                 if let Err(e) = {
                     tx_position_feed.send(InternalPositionUpdateMessage::NewTrade {
@@ -336,7 +375,8 @@ impl DlcProtocolExecutor {
                 }
             }
             _ => {
-                // a trade only happens in Open, Renew and Settle
+                // A trade only happens in `OpenChannel`, `OpenPosition`, `ResizePosition` and
+                // `Settle`.
             }
         }
 
@@ -441,14 +481,15 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Complete an open or resize trade DLC protocol as successful and update the 10101 metadata
-    /// accordingly, in a single database transaction.
+    /// Complete a DLC protocol that opens a position, by updating several database tables in a
+    /// single transaction.
+    ///
+    /// Specifically, we:
     ///
     /// - Set DLC protocol to success.
-    /// - Update the [`PositionState::Proposed`] or [`PositionState::Resizing`] position state to
-    ///   [`PositionState::Open`].
+    /// - Update the position state to [`PositionState::Open`].
     /// - Create and insert the new trade.
-    fn finish_open_or_resize_trade_dlc_protocol(
+    fn finish_open_position_dlc_protocol(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
@@ -469,7 +510,53 @@ impl DlcProtocolExecutor {
         let position = db::positions::Position::update_position_state(
             conn,
             trade_params.trader.to_string(),
-            vec![PositionState::Proposed, PositionState::Resizing],
+            vec![PositionState::Proposed],
+            PositionState::Open,
+        )?;
+
+        let order_matching_fee = trade_params.matching_fee;
+
+        let new_trade = NewTrade {
+            position_id: position.id,
+            contract_symbol: position.contract_symbol,
+            trader_pubkey: trade_params.trader,
+            quantity: trade_params.quantity,
+            trader_leverage: trade_params.leverage,
+            trader_direction: trade_params.direction,
+            average_price: trade_params.average_price,
+            order_matching_fee,
+            trader_realized_pnl_sat: None,
+        };
+
+        db::trades::insert(conn, new_trade)?;
+
+        Ok(())
+    }
+
+    /// Complete a DLC protocol that resizes a position, by updating several database tables in a
+    /// single transaction.
+    fn finish_resize_position_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trade_params: &TradeParams,
+        protocol_id: ProtocolId,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        db::dlc_protocols::set_dlc_protocol_state_to_success(
+            conn,
+            protocol_id,
+            contract_id,
+            channel_id,
+        )?;
+
+        // TODO(holzeis): We are still updating the position based on the position state. This
+        // will change once we only have a single position per user and representing
+        // the position only as view on multiple trades.
+        let position = db::positions::Position::update_position_state(
+            conn,
+            trade_params.trader.to_string(),
+            vec![PositionState::Resizing],
             PositionState::Open,
         )?;
 

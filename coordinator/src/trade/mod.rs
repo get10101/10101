@@ -374,7 +374,7 @@ impl TradeExecutor {
             None,
             &temporary_contract_id,
             &temporary_channel_id,
-            DlcProtocolType::open(trade_params, protocol_id),
+            DlcProtocolType::open_channel(trade_params, protocol_id),
         )?;
 
         // After the DLC channel has been proposed the position can be created. This fixes
@@ -548,7 +548,7 @@ impl TradeExecutor {
             previous_id,
             &temporary_contract_id,
             &channel.get_id(),
-            DlcProtocolType::renew(trade_params, protocol_id, None),
+            DlcProtocolType::open_position(trade_params, protocol_id),
         )?;
 
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
@@ -716,7 +716,7 @@ impl TradeExecutor {
             previous_id,
             &temporary_contract_id,
             &channel.get_id(),
-            DlcProtocolType::renew(trade_params, protocol_id, realized_pnl),
+            DlcProtocolType::resize_position(trade_params, protocol_id, realized_pnl),
         )?;
 
         db::positions::Position::set_position_to_resizing(

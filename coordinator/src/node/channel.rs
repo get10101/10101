@@ -135,7 +135,7 @@ impl Node {
                 let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
 
                 match dlc_protocol.protocol_type {
-                    DlcProtocolType::Open { .. } => {
+                    DlcProtocolType::OpenChannel { .. } => {
                         db::dlc_channels::set_dlc_channel_open(
                             &mut conn,
                             &protocol_id,
@@ -147,10 +147,11 @@ impl Node {
                             trader_funding,
                         )?;
                     }
-                    DlcProtocolType::Renew { .. }
+                    DlcProtocolType::OpenPosition { .. }
                     | DlcProtocolType::Settle { .. }
-                    | DlcProtocolType::Rollover { .. } => {
-                        db::dlc_channels::update_channel_on_renew(
+                    | DlcProtocolType::Rollover { .. }
+                    | DlcProtocolType::ResizePosition { .. } => {
+                        db::dlc_channels::update_channel(
                             &mut conn,
                             &channel.get_id(),
                             coordinator_reserve,
