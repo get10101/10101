@@ -113,7 +113,7 @@ pub(crate) fn set_dlc_channel_open(
         .execute(conn)
 }
 
-pub(crate) fn update_channel_on_renew(
+pub(crate) fn update_channel(
     conn: &mut PgConnection,
     channel_id: &DlcChannelId,
     coordinator_reserve: Amount,

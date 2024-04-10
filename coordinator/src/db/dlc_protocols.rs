@@ -42,12 +42,13 @@ impl QueryId for ProtocolStateType {
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression, Eq, Hash)]
 #[diesel(sql_type = ProtocolTypeType)]
 pub(crate) enum DlcProtocolType {
-    Open,
-    Renew,
+    OpenChannel,
+    OpenPosition,
     Settle,
     Close,
     ForceClose,
     Rollover,
+    ResizePosition,
 }
 
 impl QueryId for ProtocolTypeType {
@@ -83,13 +84,13 @@ pub(crate) fn get_dlc_protocol(
         .first(conn)?;
 
     let protocol_type = match dlc_protocol.protocol_type {
-        DlcProtocolType::Open => {
+        DlcProtocolType::OpenChannel => {
             let trade_params = db::trade_params::get(conn, protocol_id)?;
-            dlc_protocol::DlcProtocolType::Open { trade_params }
+            dlc_protocol::DlcProtocolType::OpenChannel { trade_params }
         }
-        DlcProtocolType::Renew => {
+        DlcProtocolType::OpenPosition => {
             let trade_params = db::trade_params::get(conn, protocol_id)?;
-            dlc_protocol::DlcProtocolType::Renew { trade_params }
+            dlc_protocol::DlcProtocolType::OpenPosition { trade_params }
         }
         DlcProtocolType::Settle => {
             let trade_params = db::trade_params::get(conn, protocol_id)?;
@@ -104,6 +105,10 @@ pub(crate) fn get_dlc_protocol(
         DlcProtocolType::Rollover => dlc_protocol::DlcProtocolType::Rollover {
             trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
         },
+        DlcProtocolType::ResizePosition => {
+            let trade_params = db::trade_params::get(conn, protocol_id)?;
+            dlc_protocol::DlcProtocolType::ResizePosition { trade_params }
+        }
     };
 
     let protocol = dlc_protocol::DlcProtocol {
@@ -209,12 +214,13 @@ impl From<DlcProtocolState> for dlc_protocol::DlcProtocolState {
 impl From<dlc_protocol::DlcProtocolType> for DlcProtocolType {
     fn from(value: dlc_protocol::DlcProtocolType) -> Self {
         match value {
-            dlc_protocol::DlcProtocolType::Open { .. } => DlcProtocolType::Open,
-            dlc_protocol::DlcProtocolType::Renew { .. } => DlcProtocolType::Renew,
+            dlc_protocol::DlcProtocolType::OpenChannel { .. } => DlcProtocolType::OpenChannel,
+            dlc_protocol::DlcProtocolType::OpenPosition { .. } => DlcProtocolType::OpenPosition,
             dlc_protocol::DlcProtocolType::Settle { .. } => DlcProtocolType::Settle,
             dlc_protocol::DlcProtocolType::Close { .. } => DlcProtocolType::Close,
             dlc_protocol::DlcProtocolType::ForceClose { .. } => DlcProtocolType::ForceClose,
             dlc_protocol::DlcProtocolType::Rollover { .. } => DlcProtocolType::Rollover,
+            dlc_protocol::DlcProtocolType::ResizePosition { .. } => DlcProtocolType::ResizePosition,
         }
     }
 }
