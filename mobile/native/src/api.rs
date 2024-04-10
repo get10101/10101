@@ -882,3 +882,8 @@ pub async fn referral_status() -> Result<ReferralStatus> {
     };
     Ok(referral.into())
 }
+
+/// Returns true if the user has at least a single trade in his db
+pub fn has_traded_once() -> Result<SyncReturn<bool>> {
+    Ok(SyncReturn(!db::get_all_trades()?.is_empty()))
+}

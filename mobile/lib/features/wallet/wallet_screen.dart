@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 class WalletScreen extends StatefulWidget {
   static const route = "/wallet";
@@ -31,9 +32,12 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _afterLoaded();
-    });
+
+    if (rust.api.hasTradedOnce()) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _afterLoaded();
+      });
+    }
   }
 
   _afterLoaded() async {
