@@ -121,7 +121,13 @@ async fn main() -> Result<()> {
     )
     .build();
 
-    let app = api::router(Arc::new(rx))
+    let app_state = AppState {
+        whitelist_withdrawal_addresses: opts.whitelist_withdrawal_addresses,
+        withdrawal_addresses: opts.withdrawal_address,
+        subscribers: Arc::new(rx),
+    };
+
+    let app = api::router(app_state)
         .route_layer(login_required!(Backend))
         .merge(auth::router())
         .merge(router(network))
@@ -190,6 +196,12 @@ async fn main() -> Result<()> {
     deletion_task.await??;
 
     Ok(())
+}
+
+pub struct AppState {
+    pub whitelist_withdrawal_addresses: bool,
+    pub withdrawal_addresses: Vec<String>,
+    pub subscribers: Arc<AppSubscribers>,
 }
 
 fn router(network: Network) -> Router {
