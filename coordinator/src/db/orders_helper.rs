@@ -8,12 +8,12 @@ use diesel::QueryResult;
 
 pub fn get_all_matched_market_orders_by_order_reason(
     conn: &mut PgConnection,
-    order_reason: OrderReason,
+    order_reasons: Vec<OrderReason>,
 ) -> QueryResult<Vec<(commons::Order, FcmToken)>> {
     let result = conn.transaction(|conn| {
         let orders = orderbook::db::orders::get_all_matched_market_orders_by_order_reason(
             conn,
-            order_reason,
+            order_reasons,
         )?;
         join_with_fcm_token(conn, orders)
     })?;

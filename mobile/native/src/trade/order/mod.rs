@@ -162,7 +162,8 @@ impl OrderState {
 pub enum OrderReason {
     Manual,
     Expired,
-    Liquidated,
+    CoordinatorLiquidated,
+    TraderLiquidated,
 }
 
 impl From<OrderReason> for commons::OrderReason {
@@ -170,7 +171,8 @@ impl From<OrderReason> for commons::OrderReason {
         match value {
             OrderReason::Manual => commons::OrderReason::Manual,
             OrderReason::Expired => commons::OrderReason::Expired,
-            OrderReason::Liquidated => commons::OrderReason::Liquidated,
+            OrderReason::CoordinatorLiquidated => commons::OrderReason::CoordinatorLiquidated,
+            OrderReason::TraderLiquidated => commons::OrderReason::TraderLiquidated,
         }
     }
 }
@@ -180,7 +182,8 @@ impl From<commons::OrderReason> for OrderReason {
         match value {
             commons::OrderReason::Manual => OrderReason::Manual,
             commons::OrderReason::Expired => OrderReason::Expired,
-            commons::OrderReason::Liquidated => OrderReason::Liquidated,
+            commons::OrderReason::CoordinatorLiquidated => OrderReason::CoordinatorLiquidated,
+            commons::OrderReason::TraderLiquidated => OrderReason::TraderLiquidated,
         }
     }
 }

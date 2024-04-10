@@ -135,10 +135,15 @@ async fn check_if_positions_need_to_get_liquidated(
                 stable: position.stable,
             };
 
+            let order_reason = match trader_liquidation {
+                true => OrderReason::TraderLiquidated,
+                false => OrderReason::CoordinatorLiquidated,
+            };
+
             let order = match orders::insert_market_order(
                 &mut conn,
                 new_order.clone(),
-                OrderReason::Liquidated,
+                order_reason.clone(),
             ) {
                 Ok(order) => order,
                 Err(e) => {
@@ -150,7 +155,7 @@ async fn check_if_positions_need_to_get_liquidated(
             let message = NewOrderMessage {
                 order,
                 channel_opening_params: None,
-                order_reason: OrderReason::Liquidated,
+                order_reason,
             };
 
             if let Err(e) = trading_sender.send(message).await {

@@ -134,7 +134,8 @@ impl From<OrderReason> for OrderBookOrderReason {
         match value {
             OrderReason::Manual => OrderBookOrderReason::Manual,
             OrderReason::Expired => OrderBookOrderReason::Expired,
-            OrderReason::Liquidated => OrderBookOrderReason::Liquidated,
+            OrderReason::TraderLiquidated => OrderBookOrderReason::TraderLiquidated,
+            OrderReason::CoordinatorLiquidated => OrderBookOrderReason::CoordinatorLiquidated,
         }
     }
 }
@@ -144,7 +145,8 @@ impl From<OrderBookOrderReason> for OrderReason {
         match value {
             OrderBookOrderReason::Manual => OrderReason::Manual,
             OrderBookOrderReason::Expired => OrderReason::Expired,
-            OrderBookOrderReason::Liquidated => OrderReason::Liquidated,
+            OrderBookOrderReason::TraderLiquidated => OrderReason::TraderLiquidated,
+            OrderBookOrderReason::CoordinatorLiquidated => OrderReason::CoordinatorLiquidated,
         }
     }
 }
@@ -321,11 +323,18 @@ pub fn get_all_orders(
 
 pub fn get_all_matched_market_orders_by_order_reason(
     conn: &mut PgConnection,
-    order_reason: commons::OrderReason,
+    order_reasons: Vec<commons::OrderReason>,
 ) -> QueryResult<Vec<OrderbookOrder>> {
     let orders: Vec<Order> = orders::table
         .filter(orders::order_state.eq(OrderState::Matched))
-        .filter(orders::order_reason.eq(OrderReason::from(order_reason)))
+        .filter(
+            orders::order_reason.eq_any(
+                order_reasons
+                    .into_iter()
+                    .map(OrderReason::from)
+                    .collect::<Vec<_>>(),
+            ),
+        )
         .filter(orders::order_type.eq(OrderType::Market))
         .load::<Order>(conn)?;
 
