@@ -120,7 +120,7 @@ class CreateOrderConfirmationDialog extends StatelessWidget {
                             ElevatedButton(
                               onPressed: () async {
                                 await NewOrderService.postNewOrder(
-                                        leverage, quantity, direction == Direction.long.opposite())
+                                        leverage, quantity, direction == Direction.long)
                                     .then((orderId) {
                                   showSnackBar(
                                       messenger, "Market order created. Order id: $orderId.");
