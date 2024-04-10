@@ -46,7 +46,8 @@ impl ToSql<Text, Sqlite> for OrderReason {
         let text = match *self {
             OrderReason::Manual => "Manual".to_string(),
             OrderReason::Expired => "Expired".to_string(),
-            OrderReason::Liquidated => "Liquidated".to_string(),
+            OrderReason::CoordinatorLiquidated => "CoordinatorLiquidated".to_string(),
+            OrderReason::TraderLiquidated => "TraderLiquidated".to_string(),
         };
         out.set_value(text);
         Ok(IsNull::No)
@@ -60,7 +61,8 @@ impl FromSql<Text, Sqlite> for OrderReason {
         return match string.as_str() {
             "Manual" => Ok(OrderReason::Manual),
             "Expired" => Ok(OrderReason::Expired),
-            "Liquidated" => Ok(OrderReason::Liquidated),
+            "CoordinatorLiquidated" => Ok(OrderReason::CoordinatorLiquidated),
+            "TraderLiquidated" => Ok(OrderReason::TraderLiquidated),
             _ => Err("Unrecognized enum variant".into()),
         };
     }

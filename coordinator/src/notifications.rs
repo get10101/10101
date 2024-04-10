@@ -11,9 +11,8 @@ pub enum NotificationKind {
     RolloverWindowOpen,
     PositionSoonToExpire,
     PositionExpired,
-    PositionLiquidated,
     CollaborativeRevert,
-    Campaign { title: String, message: String },
+    Custom { title: String, message: String },
 }
 
 impl Display for NotificationKind {
@@ -21,10 +20,9 @@ impl Display for NotificationKind {
         match self {
             NotificationKind::PositionSoonToExpire => write!(f, "PositionSoonToExpire"),
             NotificationKind::PositionExpired => write!(f, "PositionExpired"),
-            NotificationKind::PositionLiquidated => write!(f, "PositionLiquidated"),
             NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
             NotificationKind::CollaborativeRevert => write!(f, "CollaborativeRevertPending"),
-            NotificationKind::Campaign { .. } => write!(f, "Campaign"),
+            NotificationKind::Custom { .. } => write!(f, "Custom"),
         }
     }
 }
@@ -115,26 +113,24 @@ fn build_notification(kind: &NotificationKind) -> fcm::Notification<'_> {
     let mut notification_builder = fcm::NotificationBuilder::new();
     match kind {
         NotificationKind::PositionSoonToExpire => {
-            notification_builder.title("Your position is about to expire");
-            notification_builder.body("Rollover your position for the next cycle.");
+            notification_builder.title("Your position is about to expire ⏳");
+            notification_builder
+                .body("Open your app to roll over your position for the next cycle.");
         }
         NotificationKind::PositionExpired => {
-            notification_builder.title("Your position has expired");
-            notification_builder.body("Close your position.");
-        }
-        NotificationKind::PositionLiquidated => {
-            notification_builder.title("Your position has been liquidated");
-            notification_builder.body("Close your position.");
+            notification_builder.title("Your position has expired 🥴");
+            notification_builder.body("Open your app to execute the expiration.");
         }
         NotificationKind::RolloverWindowOpen => {
-            notification_builder.title("Rollover window is open");
-            notification_builder.body("Rollover your position for the next cycle.");
+            notification_builder.title("Rollover window is open 🪟");
+            notification_builder
+                .body("Open your app to roll over your position for the next cycle.");
         }
         NotificationKind::CollaborativeRevert => {
             notification_builder.title("Error detected");
             notification_builder.body("Please open your app to recover your funds.");
         }
-        NotificationKind::Campaign { title, message } => {
+        NotificationKind::Custom { title, message } => {
             notification_builder.title(title);
             notification_builder.body(message);
         }

@@ -120,22 +120,13 @@ impl From<order::Order> for Order {
     }
 }
 
-impl From<OrderReason> for order::OrderReason {
-    fn from(value: OrderReason) -> Self {
-        match value {
-            OrderReason::Manual => order::OrderReason::Manual,
-            OrderReason::Expired => order::OrderReason::Expired,
-            OrderReason::Liquidated => order::OrderReason::Liquidated,
-        }
-    }
-}
-
 impl From<order::OrderReason> for OrderReason {
     fn from(value: order::OrderReason) -> Self {
         match value {
             order::OrderReason::Manual => OrderReason::Manual,
             order::OrderReason::Expired => OrderReason::Expired,
-            order::OrderReason::Liquidated => OrderReason::Liquidated,
+            order::OrderReason::CoordinatorLiquidated => OrderReason::Liquidated,
+            order::OrderReason::TraderLiquidated => OrderReason::Liquidated,
         }
     }
 }

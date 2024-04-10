@@ -106,7 +106,9 @@ async fn process_pending_match(
 
         let message = match order.order_reason {
             OrderReason::Manual => Message::Match(filled_with.clone()),
-            OrderReason::Expired | OrderReason::Liquidated => Message::AsyncMatch {
+            OrderReason::Expired
+            | OrderReason::CoordinatorLiquidated
+            | OrderReason::TraderLiquidated => Message::AsyncMatch {
                 order: order.clone(),
                 filled_with: filled_with.clone(),
             },

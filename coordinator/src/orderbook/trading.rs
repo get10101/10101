@@ -268,7 +268,9 @@ pub async fn process_new_market_order(
 
         let message = match &order.order_reason {
             OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
-            OrderReason::Expired | OrderReason::Liquidated => Message::AsyncMatch {
+            OrderReason::Expired
+            | OrderReason::TraderLiquidated
+            | OrderReason::CoordinatorLiquidated => Message::AsyncMatch {
                 order: order.clone(),
                 filled_with: match_param.filled_with.clone(),
             },
@@ -276,7 +278,14 @@ pub async fn process_new_market_order(
 
         let notification = match &order.order_reason {
             OrderReason::Expired => Some(NotificationKind::PositionExpired),
-            OrderReason::Liquidated => Some(NotificationKind::PositionLiquidated),
+            OrderReason::TraderLiquidated => Some(NotificationKind::Custom {
+                title: "Woops, you got liquidated 💸".to_string(),
+                message: "Open your app to execute the liquidation".to_string(),
+            }),
+            OrderReason::CoordinatorLiquidated => Some(NotificationKind::Custom {
+                title: "Your counterparty got liquidated 💸".to_string(),
+                message: "Open your app to execute the liquidation".to_string(),
+            }),
             OrderReason::Manual => None,
         };
 
@@ -342,7 +351,9 @@ pub async fn process_new_market_order(
             OrderReason::Manual => {
                 tracing::warn!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
             }
-            OrderReason::Expired | OrderReason::Liquidated => {
+            OrderReason::Expired
+            | OrderReason::TraderLiquidated
+            | OrderReason::CoordinatorLiquidated => {
                 tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Skipping trade execution as trader is not connected")
             }
         }
