@@ -13,7 +13,7 @@ pub enum NotificationKind {
     PositionExpired,
     PositionLiquidated,
     CollaborativeRevert,
-    Campaign { title: String, message: String },
+    Custom { title: String, message: String },
 }
 
 impl Display for NotificationKind {
@@ -24,7 +24,7 @@ impl Display for NotificationKind {
             NotificationKind::PositionLiquidated => write!(f, "PositionLiquidated"),
             NotificationKind::RolloverWindowOpen => write!(f, "RolloverWindowOpen"),
             NotificationKind::CollaborativeRevert => write!(f, "CollaborativeRevertPending"),
-            NotificationKind::Campaign { .. } => write!(f, "Campaign"),
+            NotificationKind::Custom { .. } => write!(f, "Custom"),
         }
     }
 }
@@ -136,7 +136,7 @@ fn build_notification(kind: &NotificationKind) -> fcm::Notification<'_> {
             notification_builder.title("Error detected");
             notification_builder.body("Please open your app to recover your funds.");
         }
-        NotificationKind::Campaign { title, message } => {
+        NotificationKind::Custom { title, message } => {
             notification_builder.title(title);
             notification_builder.body(message);
         }

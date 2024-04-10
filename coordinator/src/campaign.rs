@@ -44,7 +44,7 @@ pub async fn post_push_campaign(
         .filter_map(Result::ok)
         .collect::<Vec<_>>();
 
-    let notification_kind = NotificationKind::Campaign {
+    let notification_kind = NotificationKind::Custom {
         title: params.title.clone(),
         message: params.message.clone(),
     };
