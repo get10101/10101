@@ -54,11 +54,13 @@ class _LeverageSliderState extends State<LeverageSlider> {
             children: [
               RoundedIconButton(
                 icon: FontAwesomeIcons.minus,
-                onTap: () {
-                  setState(() {
-                    updateLeverage(_leverage > 1 ? _leverage - 1.0 : _leverage);
-                  });
-                },
+                onTap: widget.isActive
+                    ? () {
+                        setState(() {
+                          updateLeverage(_leverage > 1 ? _leverage - 1.0 : _leverage);
+                        });
+                      }
+                    : null,
               ),
               Expanded(
                 child: Padding(
@@ -95,9 +97,11 @@ class _LeverageSliderState extends State<LeverageSlider> {
               ),
               RoundedIconButton(
                 icon: FontAwesomeIcons.plus,
-                onTap: () {
-                  updateLeverage(_leverage < maxLeverage ? _leverage + 1.0 : maxLeverage);
-                },
+                onTap: widget.isActive
+                    ? () {
+                        updateLeverage(_leverage < maxLeverage ? _leverage + 1.0 : maxLeverage);
+                      }
+                    : null,
               ),
             ],
           ),
@@ -144,7 +148,7 @@ class LeverageButton extends StatelessWidget {
 
 class RoundedIconButton extends StatelessWidget {
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const RoundedIconButton({
     Key? key,
@@ -161,7 +165,7 @@ class RoundedIconButton extends StatelessWidget {
         height: 20,
         decoration: BoxDecoration(
           shape: BoxShape.rectangle,
-          color: tenTenOnePurple,
+          color: onTap == null ? Colors.grey : tenTenOnePurple,
           borderRadius: BorderRadius.circular(3),
         ),
         child: Icon(
