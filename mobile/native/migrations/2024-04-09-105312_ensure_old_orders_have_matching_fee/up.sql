@@ -1,6 +1,6 @@
 -- Your SQL goes here
 update orders
-set matching_fee_sats = quantity / (execution_price * leverage) * 100000000
+set matching_fee_sats = quantity / (execution_price * leverage) * 100000000 * 0.003
 where matching_fee_sats IS NOT NULL
     and execution_price IS NOT NULL
     and matching_fee_sats IS NULL
