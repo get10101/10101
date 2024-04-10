@@ -75,7 +75,8 @@ class _UserSettingsState extends State<UserSettings> {
                   final referralTier = snapshot.data!.referralTier;
                   final numberOfActivatedReferrals = snapshot.data!.numberOfActivatedReferrals;
                   final numberOfTotalReferrals = snapshot.data!.numberOfTotalReferrals;
-                  final referralFeeBonus = snapshot.data!.referralFeeBonus.toStringAsFixed(2);
+                  final referralFeeBonus =
+                      (snapshot.data!.referralFeeBonus * 100.0).toStringAsFixed(0);
 
                   String referralTierName = "None";
                   switch (bonusStatusType) {
