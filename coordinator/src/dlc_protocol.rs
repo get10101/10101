@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
+use bitcoin::SignedAmount;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::result::Error::RollbackTransaction;
@@ -119,10 +120,15 @@ pub struct TradeParams {
     pub average_price: f32,
     pub direction: Direction,
     pub matching_fee: Amount,
+    pub trader_pnl: Option<SignedAmount>,
 }
 
-impl From<(ProtocolId, &commons::TradeParams)> for TradeParams {
-    fn from((protocol_id, trade_params): (ProtocolId, &commons::TradeParams)) -> Self {
+impl TradeParams {
+    fn new(
+        trade_params: &commons::TradeParams,
+        protocol_id: ProtocolId,
+        trader_pnl: Option<SignedAmount>,
+    ) -> Self {
         Self {
             protocol_id,
             trader: trade_params.pubkey,
@@ -131,9 +137,10 @@ impl From<(ProtocolId, &commons::TradeParams)> for TradeParams {
             average_price: trade_params
                 .average_execution_price()
                 .to_f32()
-                .expect("to fit into f32"),
+                .expect("to fit"),
             direction: trade_params.direction,
             matching_fee: trade_params.order_matching_fee(),
+            trader_pnl,
         }
     }
 }
@@ -152,6 +159,30 @@ pub enum DlcProtocolType {
     Close { trader: PublicKey },
     ForceClose { trader: PublicKey },
     Rollover { trader: PublicKey },
+}
+
+impl DlcProtocolType {
+    pub fn open(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
+        Self::Open {
+            trade_params: TradeParams::new(trade_params, protocol_id, None),
+        }
+    }
+
+    pub fn renew(
+        trade_params: &commons::TradeParams,
+        protocol_id: ProtocolId,
+        trader_pnl: Option<SignedAmount>,
+    ) -> Self {
+        Self::Renew {
+            trade_params: TradeParams::new(trade_params, protocol_id, trader_pnl),
+        }
+    }
+
+    pub fn settle(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
+        Self::Settle {
+            trade_params: TradeParams::new(trade_params, protocol_id, None),
+        }
+    }
 }
 
 impl DlcProtocolType {
@@ -403,7 +434,6 @@ impl DlcProtocolExecutor {
             average_price: trade_params.average_price,
             order_matching_fee,
             trader_realized_pnl_sat: Some(trader_realized_pnl_sat),
-            is_complete: true,
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -433,14 +463,6 @@ impl DlcProtocolExecutor {
             channel_id,
         )?;
 
-        let original = db::positions::Position::get_position_by_trader(
-            conn,
-            trade_params.trader,
-            vec![PositionState::Proposed, PositionState::Resizing],
-        )?
-        .context("Can't finish open or resize protocol without position")
-        .map_err(|_| RollbackTransaction)?;
-
         // TODO(holzeis): We are still updating the position based on the position state. This
         // will change once we only have a single position per user and representing
         // the position only as view on multiple trades.
@@ -453,28 +475,19 @@ impl DlcProtocolExecutor {
 
         let order_matching_fee = trade_params.matching_fee;
 
-        if matches!(original.position_state, PositionState::Resizing) {
-            // A resizing protocol may generate PNL, but here we are not able to calculate it, so
-            // the `Trade` has to be inserted before it is complete. So here we just have to mark
-            // the `Trade` as complete.
-
-            db::trades::mark_as_completed(conn, position.id)?;
-        } else {
-            let new_trade = NewTrade {
-                position_id: position.id,
-                contract_symbol: position.contract_symbol,
-                trader_pubkey: trade_params.trader,
-                quantity: trade_params.quantity,
-                trader_leverage: trade_params.leverage,
-                trader_direction: trade_params.direction,
-                average_price: trade_params.average_price,
-                order_matching_fee,
-                trader_realized_pnl_sat: None,
-                is_complete: true,
-            };
-
-            db::trades::insert(conn, new_trade)?;
+        let new_trade = NewTrade {
+            position_id: position.id,
+            contract_symbol: position.contract_symbol,
+            trader_pubkey: trade_params.trader,
+            quantity: trade_params.quantity,
+            trader_leverage: trade_params.leverage,
+            trader_direction: trade_params.direction,
+            average_price: trade_params.average_price,
+            order_matching_fee,
+            trader_realized_pnl_sat: trade_params.trader_pnl.map(|pnl| pnl.to_sat()),
         };
+
+        db::trades::insert(conn, new_trade)?;
 
         Ok(())
     }

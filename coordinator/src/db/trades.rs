@@ -22,7 +22,6 @@ struct Trade {
     timestamp: OffsetDateTime,
     order_matching_fee_sat: i64,
     trader_realized_pnl_sat: Option<i64>,
-    is_complete: bool,
 }
 
 #[derive(Insertable, Debug, Clone)]
@@ -37,7 +36,6 @@ struct NewTrade {
     average_price: f32,
     order_matching_fee_sat: i64,
     trader_realized_pnl_sat: Option<i64>,
-    is_complete: bool,
 }
 
 pub fn insert(
@@ -49,26 +47,6 @@ pub fn insert(
         .get_result(conn)?;
 
     Ok(trade.into())
-}
-
-pub fn mark_as_completed(conn: &mut PgConnection, position_id: i32) -> QueryResult<()> {
-    let trade = trades::table
-        .filter(trades::position_id.eq(position_id))
-        .order_by(trades::id.desc())
-        .first::<Trade>(conn)
-        .optional()?
-        .ok_or(diesel::result::Error::NotFound)?;
-
-    let affected_rows = diesel::update(trades::table)
-        .filter(trades::id.eq(trade.id))
-        .set(trades::is_complete.eq(true))
-        .execute(conn)?;
-
-    if affected_rows == 0 {
-        return Err(diesel::result::Error::NotFound);
-    }
-
-    Ok(())
 }
 
 pub fn get_latest_for_position(
@@ -112,7 +90,6 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             average_price: value.average_price,
             order_matching_fee_sat: value.order_matching_fee.to_sat() as i64,
             trader_realized_pnl_sat: value.trader_realized_pnl_sat,
-            is_complete: value.is_complete,
         }
     }
 }
@@ -132,7 +109,6 @@ impl From<Trade> for crate::trade::models::Trade {
             timestamp: value.timestamp,
             order_matching_fee: Amount::from_sat(value.order_matching_fee_sat as u64),
             trader_realized_pnl_sat: value.trader_realized_pnl_sat,
-            is_complete: value.is_complete,
         }
     }
 }
