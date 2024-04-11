@@ -89,6 +89,11 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
   }
 
+  void updateMaxQuantity() {
+    _sellTradeValues.recalculateMaxQuantity();
+    _buyTradeValues.recalculateMaxQuantity();
+  }
+
   // Orderbook price updates both directions
   void updatePrice(double price, Direction direction) {
     bool update = false;

@@ -54,6 +54,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   @override
   void initState() {
     provider = context.read<TradeValuesChangeNotifier>();
+    provider.updateMaxQuantity();
+
     tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
 
