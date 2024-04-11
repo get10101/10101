@@ -295,30 +295,26 @@ impl Position {
                         compute_relative_contracts(order.quantity, order.direction);
 
                     let (new_collateral, closed_collateral) = {
-                        let original_collateral_btc = starting_contracts
-                            / (starting_leverage * starting_average_execution_price);
-
-                        let original_before_btc = original_collateral_btc
+                        let contract_diff = Decimal::try_from(contract_diff).expect("to fit");
+                        let new_collateral_btc =
+                            contract_diff / (starting_leverage * starting_average_execution_price);
+                        let new_collateral_btc = new_collateral_btc
                             .round_dp_with_strategy(8, RoundingStrategy::MidpointAwayFromZero)
                             .to_f64()
-                            .expect("margin to fit into f64");
+                            .expect("to fit");
+                        let new_collateral = Amount::from_btc(new_collateral_btc).expect("to fit");
 
-                        let original_collateral = Amount::from_btc(original_before_btc)
-                            .expect("margin diff to fit into SignedAmount");
-
-                        let closed_collateral_btc =
-                            order_contracts / (starting_leverage * order_execution_price);
-
+                        let closed_collateral_btc = order_contracts
+                            / (starting_leverage * starting_average_execution_price);
                         let closed_collateral_btc = closed_collateral_btc
                             .abs()
                             .round_dp_with_strategy(8, RoundingStrategy::MidpointAwayFromZero)
                             .to_f64()
                             .expect("collateral to fit into f64");
-
                         let closed_collateral = Amount::from_btc(closed_collateral_btc)
                             .expect("collateral to fit into Amount");
 
-                        (original_collateral - closed_collateral, closed_collateral)
+                        (new_collateral, closed_collateral)
                     };
 
                     let position = Position {
@@ -396,8 +392,8 @@ impl Position {
                     };
 
                     let closed_collateral = {
-                        let closed_collateral_btc =
-                            starting_contracts / (starting_leverage * order_execution_price);
+                        let closed_collateral_btc = starting_contracts
+                            / (starting_leverage * starting_average_execution_price);
 
                         let closed_collateral_btc = closed_collateral_btc
                             .abs()
@@ -825,7 +821,7 @@ mod tests {
             position.liquidation_price
         );
         assert_eq!(updated_position.position_state, PositionState::Open);
-        assert_eq!(updated_position.collateral, 6_842);
+        assert_eq!(updated_position.collateral, 6_855);
         assert!(!updated_position.stable);
 
         let trade = match trades.as_slice() {
@@ -837,7 +833,7 @@ mod tests {
         assert_eq!(trade.contract_symbol, order.contract_symbol);
         assert_eq!(trade.contracts, dec!(5));
         assert_eq!(trade.direction, order.direction);
-        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-5_842));
+        assert_eq!(trade.trade_cost, SignedAmount::from_sat(-5_829));
         assert_eq!(trade.fee, Amount::from_sat(1_000));
         assert_eq!(trade.pnl, Some(SignedAmount::from_sat(-26)));
         assert_eq!(
@@ -905,7 +901,7 @@ mod tests {
         assert_eq!(closing_trade.contract_symbol, order.contract_symbol);
         assert_eq!(closing_trade.contracts, Decimal::TEN);
         assert_eq!(closing_trade.direction, order.direction);
-        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_185));
+        assert_eq!(closing_trade.trade_cost, SignedAmount::from_sat(-13_159));
         assert_eq!(closing_trade.fee, Amount::from_sat(500));
         assert_eq!(closing_trade.pnl, Some(SignedAmount::from_sat(-51)));
         assert_eq!(

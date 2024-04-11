@@ -1207,29 +1207,17 @@ fn apply_resize_to_position(
             let coordinator_liquidation_price =
                 Decimal::try_from(position.coordinator_liquidation_price).expect("to fit");
 
-            let margin_coordinator = {
-                let margin_reduction = Amount::from_sat(calculate_margin(
-                    order_average_execution_price,
-                    order_contracts.to_f32().expect("to fit"),
-                    position.coordinator_leverage,
-                ));
+            let margin_coordinator = Amount::from_sat(calculate_margin(
+                position_average_execution_price,
+                total_contracts.to_f32().expect("to fit"),
+                position.coordinator_leverage,
+            ));
 
-                Amount::from_sat(position.coordinator_margin as u64)
-                    .checked_sub(margin_reduction)
-                    .context("Coordinator margin below zero after resize")?
-            };
-
-            let margin_trader = {
-                let margin_reduction = Amount::from_sat(calculate_margin(
-                    order_average_execution_price,
-                    order_contracts.to_f32().expect("to fit"),
-                    position.trader_leverage,
-                ));
-
-                Amount::from_sat(position.trader_margin as u64)
-                    .checked_sub(margin_reduction)
-                    .context("Trader margin below zero after resize")?
-            };
+            let margin_trader = Amount::from_sat(calculate_margin(
+                position_average_execution_price,
+                total_contracts.to_f32().expect("to fit"),
+                position.trader_leverage,
+            ));
 
             let (original_margin_long, original_margin_short) = match position.trader_direction {
                 Direction::Long => (
@@ -1390,7 +1378,7 @@ fn apply_resize_to_position(
                     .expect("to fit");
 
                 let closed_margin = SignedAmount::from_sat(calculate_margin(
-                    order_average_execution_price,
+                    position_average_execution_price,
                     position.quantity,
                     position.trader_leverage,
                 ) as i64);

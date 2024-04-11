@@ -10,8 +10,8 @@ ResizedPosition {
     trader_liquidation_price: 33333.333333333333333333333333,
     margin_coordinator: Amount(0.00250000 BTC),
     margin_trader: Amount(0.00250000 BTC),
-    collateral_reserve_coordinator: Amount(0.00321214 BTC),
-    collateral_reserve_trader: Amount(0.00180968 BTC),
+    collateral_reserve_coordinator: Amount(0.00389336 BTC),
+    collateral_reserve_trader: Amount(0.00112846 BTC),
     realized_pnl: Some(
         SignedAmount(-0.00136245 BTC),
     ),
