@@ -12,7 +12,6 @@ use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
-use crate::trade::models::NewTrade;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -733,26 +732,6 @@ impl TradeExecutor {
             trader_liquidation_price,
             realized_pnl,
             order_matching_fee,
-        )?;
-
-        // We add the trade before it is complete so that we can insert the PNL now. Otherwise the
-        // information is lost.
-        db::trades::insert(
-            conn,
-            NewTrade {
-                position_id: position.id,
-                contract_symbol: position.contract_symbol,
-                trader_pubkey: position.trader,
-                quantity: trade_params.quantity,
-                trader_leverage: position.trader_leverage,
-                trader_direction: trade_params.direction,
-                average_price: trade_params
-                    .average_execution_price()
-                    .to_f32()
-                    .expect("to fit"),
-                order_matching_fee,
-                trader_realized_pnl_sat: realized_pnl.map(SignedAmount::to_sat),
-            },
         )?;
 
         Ok(())
