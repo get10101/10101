@@ -41,6 +41,15 @@ class Amount {
     return Amount(sats - other.sats);
   }
 
+  // Overloading the + operator
+  Amount operator +(Amount other) {
+    return Amount(sats + other.sats);
+  }
+
+  Amount operator *(Amount other) {
+    return Amount(sats * other.sats);
+  }
+
   Amount.parseAmount(String? value) {
     if (value == null || value.isEmpty) {
       _sats = Decimal.zero;
@@ -86,6 +95,7 @@ class Usd {
   double asDouble() => _usd.toDouble();
 
   Usd.fromDouble(double value) : _usd = Decimal.parse(value.toString());
+
   Usd.parse(dynamic value) : _usd = Decimal.parse(value);
 
   Usd.parseString(String? value) {
