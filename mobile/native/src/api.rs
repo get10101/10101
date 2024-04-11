@@ -62,6 +62,7 @@ pub struct TenTenOneConfig {
     pub liquidity_options: Vec<LiquidityOption>,
     pub min_quantity: u64,
     pub maintenance_margin_rate: f32,
+    pub referral_status: ReferralStatus,
 }
 
 impl From<commons::TenTenOneConfig> for TenTenOneConfig {
@@ -74,6 +75,7 @@ impl From<commons::TenTenOneConfig> for TenTenOneConfig {
                 .collect(),
             min_quantity: value.min_quantity,
             maintenance_margin_rate: value.maintenance_margin_rate,
+            referral_status: value.referral_status.into(),
         }
     }
 }
@@ -829,6 +831,7 @@ pub fn roll_back_channel_state() -> Result<()> {
     ln_dlc::roll_back_channel_state()
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct ReferralStatus {
     pub referral_code: String,
     pub number_of_activated_referrals: usize,
@@ -872,15 +875,6 @@ impl From<commons::ReferralStatus> for ReferralStatus {
                 .unwrap_or_default(),
         }
     }
-}
-
-#[tokio::main(flavor = "current_thread")]
-pub async fn referral_status() -> Result<ReferralStatus> {
-    let referral = match crate::state::try_get_tentenone_config() {
-        Some(config) => config.referral_status,
-        None => commons::ReferralStatus::new(ln_dlc::get_node_pubkey()),
-    };
-    Ok(referral.into())
 }
 
 /// Returns true if the user has at least a single trade in his db
