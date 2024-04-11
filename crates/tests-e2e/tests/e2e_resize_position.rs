@@ -57,7 +57,7 @@ async fn can_resize_position() {
     //
     // 250_005 [extra margin] = 250 [order contracts] / (49_999 [price] * 2 [leverage])
     //
-    // 1_500 [fee] = 250 [order contracts] * (/ 1 49_999 [price]) * 0.0030 [fee coefficient]
+    // 1_500 [fee] = 250 [order contracts] * (1 / 49_999 [price]) * 0.0030 [fee coefficient]
     //
     // 748_495 [new reserve] = 1_000_000 [reserve] - 250_005 [extra margin] - 1_500 [fee]
     let expected_off_chain_balance = 748_495;
@@ -93,19 +93,19 @@ async fn can_resize_position() {
 
     // To decrease the position, we must decrease the margin (and increase the reserve).
     //
-    // 399_992 [margin reduction] = 400 [order contracts] / (50_001 [closing price] * 2 [leverage])
+    // 400_008 [margin reduction] = 400 [order contracts] / (49_999 [opening price] * 2 [leverage])
     //
-    // 2_400 [fee] = 400 [order contracts] * (/ 1 50_001 [closing price]) * 0.0030 [fee coefficient]
+    // 2_400 [fee] = 400 [order contracts] * (1 / 50_001 [closing price]) * 0.0030 [fee coefficient]
     //
     // -32 [pnl] = (400 [order contracts] / 50_001 [closing price]) - (400 [order contracts] /
     // 49_999 [opening price])
     //
-    // 1_146_055 [new reserve] = 748_495 [reserve] + 399_992 [margin reduction] - 2_400 [fee] - 32
+    // 1_146_071 [new reserve] = 748_495 [reserve] + 400_008 [margin reduction] - 2_400 [fee] - 32
     // [pnl]
-    let expected_off_chain_balance = 1_146_055;
+    let expected_off_chain_balance = 1_146_071;
     wait_until_balance_equals(&test, expected_off_chain_balance).await;
 
-    // 397_560 [trade amount] = 399_992 [margin reduction] - 2_400 [fee] - 32 [pnl]
+    // 397_576 [trade amount] = 400_008 [margin reduction] - 2_400 [fee] - 32 [pnl]
     check_trade(
         &test,
         &order_id,
@@ -113,7 +113,7 @@ async fn can_resize_position() {
         400,
         Some(-32),
         2_400,
-        397_560,
+        397_576,
     );
 
     tracing::info!(
@@ -136,19 +136,19 @@ async fn can_resize_position() {
     // To change direction, we must decrease the margin to 0 and then increase it. The total effect
     // depends on the specific order executed.
     //
-    // 99_998 [closed margin] = 100 [close contracts] / (50_001 [closing price] * 2 [leverage])
+    // 100_002 [closed margin] = 100 [close contracts] / (49_999 [opening price] * 2 [leverage])
     //
-    // -8 [pnl] = (100 [close contracts] / 50_001 [closing price]) - (100 [order contracts] / 49_999
+    // -8 [pnl] = (100 [close contracts] / 50_001 [closing price]) - (100 [close contracts] / 49_999
     // [opening price])
     //
     // 199_996 [new margin] = 200 [remaining contracts] / (50_001 [price] * 2 [leverage])
     //
-    // 1_800 [fee] = 300 [total contracts] * (/ 1 50_001 [closing price]) * 0.0030 [fee
+    // 1_800 [fee] = 300 [total contracts] * (1 / 50_001 [closing price]) * 0.0030 [fee
     // coefficient]
     //
-    // 1_044_249 [new reserve] = 1_146_055 [reserve] + 99_998 [closed margin] - 199_996 [new margin]
-    // - 1_800 [fee] - 8 [pnl]
-    let expected_off_chain_balance = 1_044_249;
+    // 1_044_269 [new reserve] = 1_146_071 [reserve] + 100_002 [closed margin] - 199_996 [new
+    // margin] - 1_800 [fee] - 8 [pnl]
+    let expected_off_chain_balance = 1_044_269;
     wait_until_balance_equals(&test, expected_off_chain_balance).await;
 
     // The direction changing order is split into two trades: one to close the short position and
@@ -156,7 +156,7 @@ async fn can_resize_position() {
 
     // Close short position.
     //
-    // 99_390 [1st trade amount] = 99_998 [closed margin] - 600 [fee] - 8 [pnl]
+    // 99_394 [1st trade amount] = 100_002 [closed margin] - 600 [fee] - 8 [pnl]
     check_trade(
         &test,
         &order_id,
@@ -164,7 +164,7 @@ async fn can_resize_position() {
         100,
         Some(-8),
         600,
-        99_390,
+        99_394,
     );
 
     // Open long position, threfore no PNL.
