@@ -26,7 +26,7 @@ class FeeText extends StatelessWidget {
         Wrap(children: [
           Text("~", style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
           FiatText(
-              amount: fee.total.btc / price,
+              amount: (fee.total.btc / price).toDouble(),
               textStyle: TextStyle(color: Colors.grey.shade700, fontSize: 15))
         ])
       ]),

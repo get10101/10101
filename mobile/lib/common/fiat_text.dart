@@ -9,7 +9,7 @@ class FiatText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatter = NumberFormat("#,###,##0.00", "en");
+    final formatter = NumberFormat("#,###,##0", "en");
     return Text("\$${formatter.format(amount)}", style: textStyle);
   }
 }
