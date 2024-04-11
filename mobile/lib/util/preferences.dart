@@ -12,6 +12,7 @@ class Preferences {
   static const openPosition = "openPosition";
   static const fullBackup = "fullBackup";
   static const logLevelTrace = "logLevelTrace";
+  static const _hasSeenReferralDialogTimePassed = "hasSeenReferralDialogTimePassed";
 
   Future<bool> setLogLevelTrace(bool trace) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
@@ -61,6 +62,27 @@ class Preferences {
   Future<String> getContactDetails() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     return preferences.getString(contactDetails) ?? "";
+  }
+
+  Future<bool> hasReferralDialogTimePassedMoreThan7days() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    int? storedTimestamp = preferences.getInt(_hasSeenReferralDialogTimePassed);
+
+    if (storedTimestamp != null) {
+      // Calculate the difference to today
+      DateTime now = DateTime.now();
+      int differenceInDays =
+          now.difference(DateTime.fromMillisecondsSinceEpoch(storedTimestamp)).inDays;
+      return differenceInDays > 7;
+    } else {
+      // If no timestamp is stored, it is considered older than 7 days
+      return true;
+    }
+  }
+
+  Future<void> storeDontShowReferralDialogFor7Days() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    preferences.setInt(_hasSeenReferralDialogTimePassed, DateTime.now().millisecondsSinceEpoch);
   }
 
   Future<bool> hasContactDetails() async {
