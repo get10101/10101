@@ -16,8 +16,6 @@ const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 #[derive(Debug, Clone, Serialize)]
 pub struct Settings {
     pub new_positions_enabled: bool,
-    /// Defines the sats/vbyte to be used for all transactions within the sub-channel
-    pub contract_tx_fee_rate: u64,
 
     pub ln_dlc: LnDlcNodeSettings,
 
@@ -130,7 +128,6 @@ impl Settings {
     fn from_file(file: SettingsFile, path: PathBuf) -> Self {
         Self {
             new_positions_enabled: file.new_positions_enabled,
-            contract_tx_fee_rate: file.contract_tx_fee_rate,
             ln_dlc: file.ln_dlc,
             rollover_window_open_scheduler: file.rollover_window_open_scheduler,
             rollover_window_close_scheduler: file.rollover_window_close_scheduler,
@@ -150,8 +147,6 @@ impl Settings {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct SettingsFile {
     new_positions_enabled: bool,
-
-    contract_tx_fee_rate: u64,
 
     ln_dlc: LnDlcNodeSettings,
 
@@ -174,7 +169,6 @@ impl From<Settings> for SettingsFile {
     fn from(value: Settings) -> Self {
         Self {
             new_positions_enabled: value.new_positions_enabled,
-            contract_tx_fee_rate: value.contract_tx_fee_rate,
             ln_dlc: value.ln_dlc,
             rollover_window_open_scheduler: value.rollover_window_open_scheduler,
             rollover_window_close_scheduler: value.rollover_window_close_scheduler,
@@ -199,7 +193,6 @@ mod tests {
     fn toml_serde_roundtrip() {
         let original = SettingsFile {
             new_positions_enabled: true,
-            contract_tx_fee_rate: 1,
             ln_dlc: LnDlcNodeSettings {
                 off_chain_sync_interval: std::time::Duration::from_secs(1),
                 on_chain_sync_interval: std::time::Duration::from_secs(1),

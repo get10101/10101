@@ -8,7 +8,6 @@ class TenTenOneConfigChangeNotifier extends ChangeNotifier implements Subscriber
   ChannelInfoService channelInfoService;
 
   List<LiquidityOption> _liquidityOptions = [];
-  int contractTxFeeRate = 0;
 
   TenTenOneConfigChangeNotifier(this.channelInfoService);
 

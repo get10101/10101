@@ -1,5 +1,4 @@
 new_positions_enabled = true
-contract_tx_fee_rate = 9
 rollover_window_open_scheduler = "0 5 16 * * *"
 rollover_window_close_scheduler = "0 5 22 * * *"
 close_expired_position_scheduler = "0 0 12 * * *"
