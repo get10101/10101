@@ -1,3 +1,4 @@
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
@@ -149,6 +150,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     TradeValues tradeValues =
         Provider.of<TradeValuesChangeNotifier>(context).fromDirection(direction);
 
+    final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
+
     bool isClose = tradeAction == TradeAction.closePosition;
     bool isChannelOpen = tradeAction == TradeAction.openChannel;
 
@@ -172,6 +175,12 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     }
 
     TextStyle dataRowStyle = const TextStyle(fontSize: 14);
+
+    final orderMatchingFee = tradeValues.fee ?? Amount.zero();
+    final feeRebate = referralStatus != null
+        ? Amount((referralStatus.referralFeeBonus * orderMatchingFee.sats).ceil())
+        : Amount.zero();
+    final feeBeforeRebate = orderMatchingFee + feeRebate;
 
     return Container(
         padding: EdgeInsets.only(left: 20, right: 20, top: (isClose ? 20 : 10), bottom: 10),
@@ -215,9 +224,22 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                               ),
                         ValueDataRow(
                           type: ValueType.amount,
-                          value: tradeValues.fee ?? Amount.zero(),
+                          value: feeBeforeRebate,
                           label: "Order-matching fee",
                         ),
+                        if (referralStatus != null && referralStatus.referralFeeBonus > 0)
+                          Row(
+                              mainAxisSize: MainAxisSize.max,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                    "Fee rebate (${(referralStatus.referralFeeBonus * 100.0).toStringAsFixed(0)}%)",
+                                    style: const TextStyle(color: Colors.green)),
+                                Text(
+                                  "-$feeRebate",
+                                  style: const TextStyle(color: Colors.green),
+                                )
+                              ]),
                         isChannelOpen
                             ? ValueDataRow(
                                 type: ValueType.amount,
