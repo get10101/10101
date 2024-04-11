@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 
 /// The order-matching fee per cent for the taker.
-const TAKER_FEE: (i64, u32) = (30, 4);
+const TAKER_FEE: (i64, u32) = (0, 4);
 
 pub fn order_matching_fee_taker(quantity: f32, price: Decimal) -> bitcoin::Amount {
     order_matching_fee(quantity, price, Decimal::new(TAKER_FEE.0, TAKER_FEE.1))
