@@ -184,6 +184,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,
       BuildContext context, ChannelInfoService channelInfoService, GlobalKey<FormState> formKey) {
     final tradeValues = context.watch<TradeValuesChangeNotifier>().fromDirection(direction);
+    final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
 
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
@@ -304,23 +305,53 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               context.read<TradeValuesChangeNotifier>().updateLeverage(direction, Leverage(value));
               formKey.currentState?.validate();
             }),
-        Row(
+        Column(
           children: [
-            Selector<TradeValuesChangeNotifier, double>(
-                selector: (_, provider) =>
-                    provider.fromDirection(direction).liquidationPrice ?? 0.0,
-                builder: (context, liquidationPrice, child) {
-                  return ValueDataRow(
-                      type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
-                }),
-            const SizedBox(width: 55),
-            Selector<TradeValuesChangeNotifier, Amount>(
-                selector: (_, provider) => provider.orderMatchingFee(direction) ?? Amount.zero(),
-                builder: (context, fee, child) {
-                  return ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:");
-                }),
+            Row(
+              children: [
+                Selector<TradeValuesChangeNotifier, double>(
+                    selector: (_, provider) =>
+                        provider.fromDirection(direction).liquidationPrice ?? 0.0,
+                    builder: (context, liquidationPrice, child) {
+                      return ValueDataRow(
+                          type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
+                    }),
+                const SizedBox(width: 55),
+                Selector<TradeValuesChangeNotifier, Amount>(
+                    selector: (_, provider) =>
+                        provider.orderMatchingFee(direction) ?? Amount.zero(),
+                    builder: (context, fee, child) {
+                      final feeRebate = referralStatus != null
+                          ? Amount((referralStatus.referralFeeBonus * fee.sats).ceil())
+                          : Amount.zero();
+                      final feeBeforeRebate = fee + feeRebate;
+                      return Flexible(
+                          child: ValueDataRow(
+                              type: ValueType.amount, value: feeBeforeRebate, label: "Fee:"));
+                    }),
+              ],
+            ),
+            if (referralStatus != null && referralStatus.referralFeeBonus > 0)
+              Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                      "Fee rebate (${(referralStatus.referralFeeBonus * 100.0).toStringAsFixed(0)}%):",
+                      style: const TextStyle(color: Colors.green)),
+                  Selector<TradeValuesChangeNotifier, Amount>(
+                      selector: (_, provider) =>
+                          provider.orderMatchingFee(direction) ?? Amount.zero(),
+                      builder: (context, fee, child) {
+                        return Text(
+                          "-${Amount((referralStatus.referralFeeBonus * fee.sats).ceil())}",
+                          style: const TextStyle(color: Colors.green),
+                        );
+                      }),
+                ],
+              ),
           ],
-        )
+        ),
       ],
     );
   }

@@ -14,6 +14,15 @@ class TenTenOneConfig {
 
   static bridge.TenTenOneConfig apiDummy() {
     return const bridge.TenTenOneConfig(
-        liquidityOptions: [], minQuantity: 1, maintenanceMarginRate: 0.1);
+        liquidityOptions: [],
+        minQuantity: 1,
+        maintenanceMarginRate: 0.1,
+        referralStatus: bridge.ReferralStatus(
+            referralCode: '',
+            numberOfActivatedReferrals: 0,
+            numberOfTotalReferrals: 0,
+            referralTier: 0,
+            referralFeeBonus: 0,
+            bonusStatusType: bridge.BonusStatusType.None));
   }
 }

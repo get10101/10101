@@ -143,7 +143,7 @@ void main() {
 
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
 
-    TenTenOneConfigChangeNotifier lspChangeNotifier =
+    TenTenOneConfigChangeNotifier configChangeNotifier =
         TenTenOneConfigChangeNotifier(channelConstraintsService);
 
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
@@ -167,7 +167,7 @@ void main() {
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
-      ChangeNotifierProvider(create: (context) => lspChangeNotifier),
+      ChangeNotifierProvider(create: (context) => configChangeNotifier),
       ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 
@@ -272,7 +272,7 @@ void main() {
 
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
 
-    TenTenOneConfigChangeNotifier lspChangeNotifier =
+    TenTenOneConfigChangeNotifier configChangeNotifier =
         TenTenOneConfigChangeNotifier(channelConstraintsService);
 
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
@@ -297,7 +297,7 @@ void main() {
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
       ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
-      ChangeNotifierProvider(create: (context) => lspChangeNotifier),
+      ChangeNotifierProvider(create: (context) => configChangeNotifier),
       ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
 

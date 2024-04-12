@@ -4,6 +4,7 @@ import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:card_swiper/card_swiper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/brag/github_service.dart';
@@ -12,7 +13,6 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:get_10101/ffi.dart' as rust;
 import 'package:screenshot/screenshot.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -208,6 +208,7 @@ class MemeWidget extends StatelessWidget {
           onIndexChange(index);
         },
         itemBuilder: (BuildContext context, int index) {
+          final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
           return Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(5.0),
@@ -306,28 +307,20 @@ class MemeWidget extends StatelessWidget {
                                   color: tenTenOnePurple,
                                 ),
                                 borderRadius: const BorderRadius.all(Radius.circular(5))),
-                            child: FutureBuilder(
-                                future: rust.api.referralStatus(),
-                                builder: (BuildContext context,
-                                    AsyncSnapshot<rust.ReferralStatus> snapshot) {
-                                  if (!snapshot.hasData) {
-                                    return const CircularProgressIndicator();
-                                  }
-                                  return QrImageView(
-                                    data:
-                                        "https://referral.10101.finance?referral=${snapshot.data!.referralCode}",
-                                    eyeStyle: const QrEyeStyle(
-                                      eyeShape: QrEyeShape.square,
-                                      color: Colors.black,
-                                    ),
-                                    dataModuleStyle: const QrDataModuleStyle(
-                                      dataModuleShape: QrDataModuleShape.square,
-                                      color: Colors.black,
-                                    ),
-                                    version: QrVersions.auto,
-                                    padding: const EdgeInsets.all(1),
-                                  );
-                                })),
+                            child: QrImageView(
+                              data:
+                                  "https://referral.10101.finance?referral=${referralStatus!.referralCode}",
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Colors.black,
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Colors.black,
+                              ),
+                              version: QrVersions.auto,
+                              padding: const EdgeInsets.all(1),
+                            )),
                       )),
                 ),
                 Column(

@@ -77,7 +77,7 @@ impl From<EventInternal> for Event {
             EventInternal::SpendableOutputs => {
                 unreachable!("This internal event is not exposed to the UI")
             }
-            EventInternal::Authenticated(lsp_config) => Event::Authenticated(lsp_config.into()),
+            EventInternal::Authenticated(config) => Event::Authenticated(config.into()),
             EventInternal::DlcChannelEvent(channel) => {
                 Event::DlcChannelEvent(dlc_channel::DlcChannel::from(channel))
             }
