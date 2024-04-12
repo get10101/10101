@@ -107,7 +107,7 @@ class _UserSettingsState extends State<UserSettings> {
                           GestureDetector(
                             child: const Icon(Icons.share, size: 18),
                             onTap: () => Share.share(
-                                "Join me and trade without counter-party risk. Use this referral to get a fee discount: ${referralStatus.referralCode}"),
+                                "Join me and trade without counter-party risk. https://referral.10101.finance?referral=${referralStatus.referralCode}"),
                           )
                         ],
                       )

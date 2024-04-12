@@ -108,10 +108,8 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       IconButton(
-                          onPressed: () {
-                            Share.share(
-                                "Join me and trade without counter-party risk. Use this referral to get a fee discount: ${referralStatus.referralCode}");
-                          },
+                          onPressed: () => Share.share(
+                              "Join me and trade without counter-party risk. https://referral.10101.finance?referral=${referralStatus.referralCode}"),
                           icon: const Icon(Icons.share, size: 18))
                     ],
                   ),
