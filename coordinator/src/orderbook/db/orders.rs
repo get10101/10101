@@ -345,6 +345,7 @@ pub fn get_all_matched_market_orders_by_order_reason(
 pub fn insert_limit_order(
     conn: &mut PgConnection,
     order: NewLimitOrder,
+    // TODO: All limit orders are "manual".
     order_reason: OrderBookOrderReason,
 ) -> QueryResult<OrderbookOrder> {
     let new_order = NewOrder {
@@ -388,7 +389,22 @@ pub fn set_is_taken(
     }
 }
 
-/// Updates the order state to `Deleted`
+/// Mark an order as [`OrderState::Deleted`], if it belongs to the given `trader_id`.
+pub fn delete_trader_order(
+    conn: &mut PgConnection,
+    id: Uuid,
+    trader_id: PublicKey,
+) -> QueryResult<OrderbookOrder> {
+    let order: Order = diesel::update(orders::table)
+        .filter(orders::trader_order_id.eq(id))
+        .filter(orders::trader_id.eq(trader_id.to_string()))
+        .set(orders::order_state.eq(OrderState::Deleted))
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
+/// Mark an order as [`OrderState::Deleted`].
 pub fn delete(conn: &mut PgConnection, id: Uuid) -> QueryResult<OrderbookOrder> {
     set_order_state(conn, id, commons::OrderState::Deleted)
 }

@@ -2,6 +2,7 @@ use crate::order::Order;
 use crate::signature::Signature;
 use crate::trade::FilledWith;
 use crate::LiquidityOption;
+use crate::NewLimitOrder;
 use crate::ReferralStatus;
 use anyhow::Result;
 use bitcoin::address::NetworkUnchecked;
@@ -82,6 +83,8 @@ pub enum OrderbookRequest {
         version: Option<String>,
         signature: Signature,
     },
+    InsertOrder(NewLimitOrder),
+    DeleteOrder(Uuid),
 }
 
 impl TryFrom<OrderbookRequest> for tungstenite::Message {
