@@ -90,7 +90,7 @@ pub fn update_referral_status_for_user(
     // one
     let existing_status = get_referral_status(trader_pubkey, connection)?;
 
-    // next we need to calculate if he qualifier for a referral program
+    // next we need to calculate if he qualifies for a referral program
     let user = db::user::get_user(connection, &trader_pubkey)?.context("User not found")?;
     let referrals = db::bonus_tiers::all_referrals_by_referring_user(connection, &trader_pubkey)?;
     let bonus_tiers = db::bonus_tiers::all_active_by_type(connection, vec![BonusType::Referral])?;
