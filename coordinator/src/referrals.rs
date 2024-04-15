@@ -89,16 +89,16 @@ pub fn update_referral_status_for_user(
 
     // first we check his existing status. If he currently has an active referent status we return
     // here
-    let status = get_referral_status(trader_pubkey, connection)?;
-    if let Some(bonus_level) = &status.bonus_status_type {
+    let existing_status = get_referral_status(trader_pubkey, connection)?;
+    if let Some(bonus_level) = &existing_status.bonus_status_type {
         if BonusStatusType::Referent == *bonus_level {
             tracing::debug!(
                 trader_pubkey = trader_pubkey_str,
-                bonus_tier = status.referral_tier,
+                bonus_tier = existing_status.referral_tier,
                 bonus_level = ?bonus_level,
                 "User has active bonus status"
             );
-            return Ok(status);
+            return Ok(existing_status);
         }
     }
 
@@ -143,13 +143,23 @@ pub fn update_referral_status_for_user(
             total_referrals,
             "Trader has referral status"
         );
+        let referral_fee_bonus = Decimal::from_f32(maybe_bonus_tier.fee_rebate).expect("to fit");
+        if existing_status.referral_fee_bonus > referral_fee_bonus {
+            tracing::debug!(
+                trader_pubkey = trader_pubkey_str,
+                bonus_tier = existing_status.referral_tier,
+                bonus_level = ?existing_status.bonus_status_type,
+                "User has active bonus status"
+            );
+            return Ok(existing_status);
+        }
 
         return Ok(ReferralStatus {
             referral_code,
             number_of_activated_referrals: activated_referrals,
             number_of_total_referrals: total_referrals,
             referral_tier: maybe_bonus_tier.tier_level as usize,
-            referral_fee_bonus: Decimal::from_f32(maybe_bonus_tier.fee_rebate).expect("to fit"),
+            referral_fee_bonus,
             bonus_status_type: Some(maybe_bonus_tier.bonus_tier_type.into()),
         });
     }
@@ -160,7 +170,7 @@ pub fn update_referral_status_for_user(
     );
 
     // User doesn't have any new referral status yet
-    Ok(status)
+    Ok(ReferralStatus::new(trader_pubkey))
 }
 
 /// Returns the tier_level of the calculated tier.
