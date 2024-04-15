@@ -4,7 +4,6 @@ use crate::db::bonus_tiers::BonusTier;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::BonusStatusType;
 use commons::ReferralStatus;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
@@ -87,20 +86,9 @@ pub fn update_referral_status_for_user(
         "Updating referral status"
     );
 
-    // first we check his existing status. If he currently has an active referent status we return
-    // here
-    let status = get_referral_status(trader_pubkey, connection)?;
-    if let Some(bonus_level) = &status.bonus_status_type {
-        if BonusStatusType::Referent == *bonus_level {
-            tracing::debug!(
-                trader_pubkey = trader_pubkey_str,
-                bonus_tier = status.referral_tier,
-                bonus_level = ?bonus_level,
-                "User has active bonus status"
-            );
-            return Ok(status);
-        }
-    }
+    // first we check his existing status. If we need to compare it later against the newly computed
+    // one
+    let existing_status = get_referral_status(trader_pubkey, connection)?;
 
     // next we need to calculate if he qualifier for a referral program
     let user = db::user::get_user(connection, &trader_pubkey)?.context("User not found")?;
@@ -138,6 +126,16 @@ pub fn update_referral_status_for_user(
             total_referrals = total_referrals,
             "Trader has referral status"
         );
+        let referral_fee_bonus = Decimal::from_f32(maybe_bonus_tier.fee_rebate).expect("to fit");
+        if existing_status.referral_fee_bonus > referral_fee_bonus {
+            tracing::debug!(
+                trader_pubkey = trader_pubkey_str,
+                bonus_tier = existing_status.referral_tier,
+                bonus_level = ?existing_status.bonus_status_type,
+                "User has active bonus status"
+            );
+            return Ok(existing_status);
+        }
 
         return Ok(ReferralStatus {
             referral_code,
@@ -147,18 +145,18 @@ pub fn update_referral_status_for_user(
                 .count(),
             number_of_total_referrals: total_referrals,
             referral_tier: maybe_bonus_tier.tier_level as usize,
-            referral_fee_bonus: Decimal::from_f32(maybe_bonus_tier.fee_rebate).expect("to fit"),
+            referral_fee_bonus,
             bonus_status_type: Some(maybe_bonus_tier.bonus_tier_type.into()),
         });
     }
 
     tracing::debug!(
-        trader_pubkey = trader_pubkey.to_string(),
-        "Trader doesn't have any new referral status yet"
+        trader_pubkey = trader_pubkey_str,
+        bonus_tier = existing_status.referral_tier,
+        bonus_status_type = ?existing_status.bonus_status_type,
+        "User's bonus status"
     );
-
-    // User doesn't have any new referral status yet
-    Ok(status)
+    Ok(existing_status)
 }
 
 /// Returns the tier_level of the calculated tier.
