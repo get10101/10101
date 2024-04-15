@@ -114,9 +114,7 @@ pub async fn post_order(
             NewOrder::Market(o) => {
                 orders::insert_market_order(&mut conn, o.clone(), OrderReason::Manual)
             }
-            NewOrder::Limit(o) => {
-                orders::insert_limit_order(&mut conn, o.clone(), OrderReason::Manual)
-            }
+            NewOrder::Limit(o) => orders::insert_limit_order(&mut conn, o, OrderReason::Manual),
         }
         .map_err(|e| anyhow!(e))
         .context("Failed to insert new order into DB")?;

@@ -2,12 +2,18 @@ use crate::db;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
+use crate::orderbook::trading::NewOrderMessage;
 use crate::referrals;
 use crate::routes::AppState;
+use anyhow::bail;
+use anyhow::Result;
 use axum::extract::ws::Message as WebsocketMessage;
 use axum::extract::ws::WebSocket;
+use bitcoin::secp256k1::PublicKey;
 use commons::create_sign_message;
 use commons::Message;
+use commons::NewLimitOrder;
+use commons::OrderReason;
 use commons::OrderbookRequest;
 use commons::ReferralStatus;
 use commons::TenTenOneConfig;
@@ -18,8 +24,65 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
+use uuid::Uuid;
 
 const WEBSOCKET_SEND_TIMEOUT: Duration = Duration::from_secs(5);
+
+async fn handle_insert_order(
+    state: Arc<AppState>,
+    trader_id: PublicKey,
+    order: NewLimitOrder,
+) -> Result<()> {
+    if order.trader_id != trader_id {
+        bail!("Maker {trader_id} tried to trade on behalf of someone else: {order:?}");
+    }
+
+    tracing::trace!(?order, "Inserting order");
+
+    let order = spawn_blocking({
+        let mut conn = state.pool.clone().get()?;
+        move || {
+            let order = orders::insert_limit_order(&mut conn, order, OrderReason::Manual)?;
+
+            anyhow::Ok(order)
+        }
+    })
+    .await??;
+
+    let _ = state
+        .trading_sender
+        .send(NewOrderMessage {
+            order,
+            channel_opening_params: None,
+            order_reason: OrderReason::Manual,
+        })
+        .await;
+
+    Ok(())
+}
+
+async fn handle_delete_order(
+    state: Arc<AppState>,
+    trader_id: PublicKey,
+    order_id: Uuid,
+) -> Result<()> {
+    tracing::trace!(%order_id, "Deleting order");
+
+    spawn_blocking({
+        let mut conn = state.pool.clone().get()?;
+        move || {
+            orders::delete_trader_order(&mut conn, order_id, trader_id)?;
+
+            anyhow::Ok(())
+        }
+    })
+    .await??;
+
+    let _ = state.tx_orderbook_feed.send(Message::DeleteOrder(order_id));
+
+    Ok(())
+}
 
 // This function deals with a single websocket connection, i.e., a single
 // connected client / user, for which we will spawn two independent tasks (for
@@ -83,8 +146,53 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
     // Spawn a task that takes messages from the websocket
     let local_sender = local_sender.clone();
     let mut recv_task = tokio::spawn(async move {
+        let mut whitelisted_maker = Option::<PublicKey>::None;
+
         while let Some(Ok(WebsocketMessage::Text(text))) = receiver.next().await {
             match serde_json::from_str(text.as_str()) {
+                Ok(OrderbookRequest::InsertOrder(order)) => {
+                    let order_id = order.id;
+
+                    match whitelisted_maker {
+                        Some(authenticated_trader_id) => {
+                            if let Err(e) =
+                                handle_insert_order(state.clone(), authenticated_trader_id, order)
+                                    .await
+                            {
+                                tracing::error!(%order_id, "Failed to insert order: {e:#}");
+                                // TODO: Send error to peer.
+                            }
+                        }
+                        None => {
+                            tracing::error!(
+                                ?order,
+                                "Failed to insert order: maker not yet authenticated"
+                            );
+                        }
+                    }
+                }
+                Ok(OrderbookRequest::DeleteOrder(order_id)) => {
+                    match whitelisted_maker {
+                        Some(authenticated_trader_id) => {
+                            if let Err(e) = handle_delete_order(
+                                state.clone(),
+                                authenticated_trader_id,
+                                order_id,
+                            )
+                            .await
+                            {
+                                tracing::error!(%order_id, "Failed to delete order: {e:#}");
+                                // TODO: Send error to peer.
+                            }
+                        }
+                        None => {
+                            tracing::error!(
+                                %order_id,
+                                "Failed to delete order: maker not yet authenticated"
+                            );
+                        }
+                    }
+                }
                 Ok(OrderbookRequest::Authenticate {
                     fcm_token,
                     version,
@@ -149,7 +257,20 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 new_user: trader_id,
                                 sender: local_sender.clone(),
                             };
+
                             tracing::debug!(%trader_id, "New login");
+
+                            // Check if the trader is a whitelisted maker.
+                            {
+                                let settings = state.settings.read().await;
+
+                                if !settings.whitelist_enabled
+                                    || settings.whitelisted_makers.contains(&trader_id)
+                                {
+                                    whitelisted_maker = Some(trader_id);
+                                }
+                            }
+
                             if let Err(e) = state.tx_user_feed.send(message) {
                                 tracing::error!(%trader_id, "Could not send new user message. Error: {e:#}");
                             }

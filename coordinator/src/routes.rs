@@ -497,6 +497,7 @@ pub async fn get_polls(
     })?;
     Ok(Json(polls))
 }
+
 pub async fn post_poll_answer(
     State(state): State<Arc<AppState>>,
     poll_answer: Json<PollAnswers>,
