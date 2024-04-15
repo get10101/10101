@@ -108,10 +108,14 @@ pub fn update_referral_status_for_user(
     let bonus_tiers = db::bonus_tiers::all_active_by_type(connection, vec![BonusType::Referral])?;
 
     let total_referrals = referrals.len();
+    let active_referrals = referrals
+        .iter()
+        .filter(|referrals| referrals.referred_user_total_quantity > 0.0)
+        .count();
 
     let referral_code = user.referral_code;
-    if total_referrals > 0 {
-        let referral_tier = calculate_bonus_status_inner(bonus_tiers.clone(), total_referrals)?;
+    if active_referrals > 0 {
+        let referral_tier = calculate_bonus_status_inner(bonus_tiers.clone(), active_referrals)?;
         let status = db::bonus_status::insert(
             connection,
             &trader_pubkey,
@@ -135,16 +139,14 @@ pub fn update_referral_status_for_user(
             trader_pubkey = trader_pubkey.to_string(),
             tier_level = maybe_bonus_tier.tier_level,
             bonus_tier_type = ?maybe_bonus_tier.bonus_tier_type,
-            total_referrals = total_referrals,
+            total_referrals,
+            active_referrals,
             "Trader has referral status"
         );
 
         return Ok(ReferralStatus {
             referral_code,
-            number_of_activated_referrals: referrals
-                .iter()
-                .filter(|referral| referral.referred_user_total_quantity.floor() > 0.0)
-                .count(),
+            number_of_activated_referrals: active_referrals,
             number_of_total_referrals: total_referrals,
             referral_tier: maybe_bonus_tier.tier_level as usize,
             referral_fee_bonus: Decimal::from_f32(maybe_bonus_tier.fee_rebate).expect("to fit"),

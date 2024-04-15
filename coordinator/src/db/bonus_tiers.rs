@@ -65,7 +65,7 @@ pub struct UserReferralSummaryView {
     pub referred_user_total_quantity: f32,
 }
 
-/// Returns all referred users for by referrer with trading volume > 0
+/// Returns all referred users for by referrer
 pub(crate) fn all_referrals_by_referring_user(
     conn: &mut PgConnection,
     trader_pubkey: &PublicKey,
@@ -77,8 +77,7 @@ pub(crate) fn all_referrals_by_referring_user(
                 referred_user_referral_code, \
                 timestamp, \
                 referred_user_total_quantity \
-                    FROM user_referral_summary_view where referring_user = $1 \
-                    and referred_user_total_quantity > 0";
+                    FROM user_referral_summary_view where referring_user = $1";
     let summaries: Vec<UserReferralSummaryView> = sql_query(query)
         .bind::<Text, _>(trader_pubkey.to_string())
         .load(conn)?;
