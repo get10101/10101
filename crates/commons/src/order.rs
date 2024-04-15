@@ -31,7 +31,7 @@ impl NewOrderRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum NewOrder {
     Market(NewMarketOrder),
     Limit(NewLimitOrder),
@@ -82,7 +82,7 @@ impl NewOrder {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NewMarketOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
@@ -97,7 +97,7 @@ pub struct NewMarketOrder {
     pub stable: bool,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct NewLimitOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
