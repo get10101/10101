@@ -471,7 +471,7 @@ impl Position {
                 let updated_liquidation_price = calculate_liquidation_price(
                     f32_from_decimal(updated_average_execution_price),
                     f32_from_decimal(starting_leverage),
-                    self.direction,
+                    order.direction,
                     maintenance_margin_rate,
                 );
 
@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(updated_position.contract_symbol, position.contract_symbol);
         assert_eq!(updated_position.direction, order.direction);
         assert_eq!(updated_position.average_entry_price, 36_401.5);
-        assert_eq!(updated_position.liquidation_price, 26001.072);
+        assert_eq!(updated_position.liquidation_price, 60669.168);
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 13_736);
         assert!(!updated_position.stable);
