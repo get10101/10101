@@ -101,7 +101,7 @@ pub mod post {
         path = "/api/login",
         request_body = Credentials,
         responses(
-        (status = 200, description = "If login was successfully", body = ())
+        (status = 200, description = "If login was successful", body = ())
         )
     )]
     pub async fn login(
@@ -133,7 +133,7 @@ pub mod get {
         get,
         path = "/api/logout",
         responses(
-        (status = 200, description = "If logout was successfully", body = ())
+        (status = 200, description = "If logout was successful", body = ())
         )
     )]
     pub async fn logout(mut auth_session: AuthSession<Backend>) -> Result<(), AppError> {

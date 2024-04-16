@@ -102,7 +102,7 @@ pub async fn version() -> Json<Version> {
     path = "/api/newaddress",
     responses(
        (status = 200, description = "Returns an unused on-chain address", body = String)
-)
+    )
 )]
 pub async fn get_unused_address() -> Result<impl IntoResponse, AppError> {
     let address = ln_dlc::get_unused_address()?;
@@ -120,7 +120,7 @@ pub struct Balance {
 get,
 path = "/api/balance",
 responses(
-(status = 200, description = "Returned on- and off-chain balance", body = Balance)
+(status = 200, description = "Returns on-chain and off-chain balance", body = Balance)
 )
 )]
 pub async fn get_balance(
@@ -149,7 +149,7 @@ pub struct OnChainPayment {
 get,
 path = "/api/history",
 responses(
-(status = 200, description = "Retrieved on-chain payment history", body = [OnChainPayment])
+(status = 200, description = "Retrieves on-chain payment history", body = [OnChainPayment])
 )
 )]
 pub async fn get_onchain_payment_history(
