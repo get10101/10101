@@ -2,13 +2,16 @@ use crate::collaborative_revert;
 use crate::db;
 use crate::dlc_protocol::ProtocolId;
 use crate::parse_dlc_channel_id;
+use crate::referrals;
 use crate::routes::empty_string_as_none;
 use crate::routes::AppState;
+use crate::settings::SettingsFile;
 use crate::AppError;
 use anyhow::Context;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::response::IntoResponse;
 use axum::Json;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -655,6 +658,94 @@ pub async fn resend_renew_revoke_message(
         })?;
 
     Ok(())
+}
+
+/// Internal API for syncing the on-chain wallet and the DLC channels.
+#[instrument(skip_all, err(Debug))]
+pub async fn post_sync(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SyncParams>,
+) -> Result<(), AppError> {
+    if params.full.unwrap_or(false) {
+        let stop_gap = params.gap.unwrap_or(20);
+
+        state.node.inner.full_sync(stop_gap).await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not full-sync on-chain wallet: {e:#}"))
+        })?;
+    } else {
+        state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
+        })?;
+    }
+
+    spawn_blocking(move || {
+        if let Err(e) = state.node.inner.dlc_manager.periodic_check() {
+            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+        };
+    })
+    .await
+    .expect("task to complete");
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    full: Option<bool>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    gap: Option<usize>,
+}
+
+pub async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let settings = state.settings.read().await;
+    serde_json::to_string(&*settings).expect("to be able to serialise settings")
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn update_settings(
+    State(state): State<Arc<AppState>>,
+    Json(updated_settings): Json<SettingsFile>,
+) -> Result<(), AppError> {
+    let mut settings = state.settings.write().await;
+
+    settings.update(updated_settings.clone());
+
+    settings
+        .write_to_file()
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
+
+    // Forward relevant settings down to the LN-DLC node.
+    state
+        .node
+        .inner
+        .update_settings(settings.ln_dlc.clone())
+        .await;
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn get_user_referral_status(
+    State(state): State<Arc<AppState>>,
+    Path(trader_pubkey): Path<String>,
+) -> Result<Json<commons::ReferralStatus>, AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let trader_pubkey = trader_pubkey
+        .as_str()
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
+
+    let referral_status =
+        referrals::get_referral_status(trader_pubkey, &mut conn).map_err(|err| {
+            AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
+        })?;
+    Ok(Json(referral_status))
 }
 
 impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {

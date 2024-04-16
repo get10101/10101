@@ -4,16 +4,20 @@ use crate::admin::connect_to_peer;
 use crate::admin::delete_dlc_channel;
 use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
+use crate::admin::get_settings;
+use crate::admin::get_user_referral_status;
 use crate::admin::get_utxos;
 use crate::admin::is_connected;
 use crate::admin::list_dlc_channels;
 use crate::admin::list_on_chain_transactions;
 use crate::admin::list_peers;
 use crate::admin::migrate_dlc_channels;
+use crate::admin::post_sync;
 use crate::admin::resend_renew_revoke_message;
 use crate::admin::roll_back_dlc_channel;
 use crate::admin::rollover;
 use crate::admin::sign_message;
+use crate::admin::update_settings;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
 use crate::collaborative_revert::confirm_collaborative_revert;
@@ -35,9 +39,7 @@ use crate::orderbook::routes::post_order;
 use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
-use crate::referrals;
 use crate::settings::Settings;
-use crate::settings::SettingsFile;
 use crate::trade::websocket::InternalPositionUpdateMessage;
 use crate::AppError;
 use axum::extract::ConnectInfo;
@@ -90,7 +92,6 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
-use tokio::task::spawn_blocking;
 use tracing::instrument;
 
 pub struct AppState {
@@ -269,43 +270,6 @@ pub async fn get_node_info(
     Ok(Json(node_info))
 }
 
-#[derive(Debug, Deserialize)]
-pub struct SyncParams {
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    full: Option<bool>,
-    #[serde(default, deserialize_with = "empty_string_as_none")]
-    gap: Option<usize>,
-}
-
-/// Internal API for syncing the on-chain wallet and the DLC channels.
-#[instrument(skip_all, err(Debug))]
-pub async fn post_sync(
-    State(state): State<Arc<AppState>>,
-    Query(params): Query<SyncParams>,
-) -> Result<(), AppError> {
-    if params.full.unwrap_or(false) {
-        let stop_gap = params.gap.unwrap_or(20);
-
-        state.node.inner.full_sync(stop_gap).await.map_err(|e| {
-            AppError::InternalServerError(format!("Could not full-sync on-chain wallet: {e:#}"))
-        })?;
-    } else {
-        state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
-            AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
-        })?;
-    }
-
-    spawn_blocking(move || {
-        if let Err(e) = state.node.inner.dlc_manager.periodic_check() {
-            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
-        };
-    })
-    .await
-    .expect("task to complete");
-
-    Ok(())
-}
-
 #[instrument(skip_all, err(Debug))]
 pub async fn post_register(
     State(state): State<Arc<AppState>>,
@@ -385,55 +349,6 @@ pub async fn get_user(
         None => Err(AppError::BadRequest("No user found".to_string())),
         Some(user) => Ok(Json(user.try_into()?)),
     }
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn get_user_referral_status(
-    State(state): State<Arc<AppState>>,
-    Path(trader_pubkey): Path<String>,
-) -> Result<Json<commons::ReferralStatus>, AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
-        .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
-
-    let referral_status =
-        referrals::get_referral_status(trader_pubkey, &mut conn).map_err(|err| {
-            AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
-        })?;
-    Ok(Json(referral_status))
-}
-
-async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let settings = state.settings.read().await;
-    serde_json::to_string(&*settings).expect("to be able to serialise settings")
-}
-
-#[instrument(skip_all, err(Debug))]
-async fn update_settings(
-    State(state): State<Arc<AppState>>,
-    Json(updated_settings): Json<SettingsFile>,
-) -> Result<(), AppError> {
-    let mut settings = state.settings.write().await;
-
-    settings.update(updated_settings.clone());
-
-    settings
-        .write_to_file()
-        .await
-        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
-
-    // Forward relevant settings down to the LN-DLC node.
-    state
-        .node
-        .inner
-        .update_settings(settings.ln_dlc.clone())
-        .await;
-
-    Ok(())
 }
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
