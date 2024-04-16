@@ -587,10 +587,16 @@ pub async fn get_leaderboard(
 }
 
 async fn post_error(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     app_error: Json<ReportedError>,
 ) -> Result<(), AppError> {
-    tracing::info!(error = app_error.msg, trader_pk = %app_error.trader_pk, "User reported error");
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e}")))?;
+
+    db::reported_errors::insert(&mut conn, app_error.0)
+        .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
 
     Ok(())
 }

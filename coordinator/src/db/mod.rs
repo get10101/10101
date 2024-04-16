@@ -12,6 +12,7 @@ pub mod liquidity_options;
 pub mod orders_helper;
 pub mod polls;
 pub mod positions;
+pub mod reported_errors;
 pub mod spendable_outputs;
 pub mod trade_params;
 pub mod trades;

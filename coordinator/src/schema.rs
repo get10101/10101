@@ -385,6 +385,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    reported_errors (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        error -> Text,
+    }
+}
+
+diesel::table! {
     routing_fees (id) {
         id -> Int4,
         amount_msats -> Int8,
@@ -493,6 +501,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     polls,
     polls_whitelist,
     positions,
+    reported_errors,
     routing_fees,
     spendable_outputs,
     trade_params,
