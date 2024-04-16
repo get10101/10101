@@ -489,19 +489,6 @@ pub async fn roll_back_dlc_channel(
 }
 
 #[instrument(skip_all, err(Debug))]
-pub async fn sign_message(
-    Path(msg): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<String>, AppError> {
-    let signature =
-        state.node.inner.sign_message(msg).map_err(|err| {
-            AppError::InternalServerError(format!("Could not sign message {err}"))
-        })?;
-
-    Ok(Json(signature))
-}
-
-#[instrument(skip_all, err(Debug))]
 pub async fn connect_to_peer(
     State(state): State<Arc<AppState>>,
     target: Json<NodeInfo>,

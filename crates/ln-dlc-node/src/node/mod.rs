@@ -514,12 +514,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             .map(|(peer, _)| to_secp_pk_30(peer))
             .collect()
     }
-
-    pub fn sign_message(&self, data: String) -> Result<String> {
-        let secret = self.keys_manager.get_node_secret_key();
-        let signature = lightning::util::message_signing::sign(data.as_bytes(), &secret)?;
-        Ok(signature)
-    }
 }
 
 async fn update_fee_rate_estimates(

@@ -16,7 +16,6 @@ use crate::admin::post_sync;
 use crate::admin::resend_renew_revoke_message;
 use crate::admin::roll_back_dlc_channel;
 use crate::admin::rollover;
-use crate::admin::sign_message;
 use crate::admin::update_settings;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
@@ -187,7 +186,6 @@ pub fn router(
             post(roll_back_dlc_channel),
         )
         .route("/api/admin/transactions", get(list_on_chain_transactions))
-        .route("/api/admin/sign/:msg", get(sign_message))
         .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
         .route(
