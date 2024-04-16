@@ -48,6 +48,15 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::level_filters::LevelFilter;
 use tracing::Span;
+use utoipa::openapi::security::HttpAuthScheme;
+use utoipa::openapi::security::HttpBuilder;
+use utoipa::openapi::security::SecurityScheme;
+use utoipa::Modify;
+use utoipa::OpenApi;
+use utoipa_rapidoc::RapiDoc;
+use utoipa_redoc::Redoc;
+use utoipa_redoc::Servable;
+use utoipa_swagger_ui::SwaggerUi;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -205,6 +214,71 @@ pub struct AppState {
 }
 
 fn router(network: Network) -> Router {
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(
+            auth::post::login,
+            auth::get::logout,
+            api::version,
+            api::get_balance,
+            api::get_unused_address,
+            api::send_payment,
+            api::get_onchain_payment_history,
+            api::get_orders,
+            api::post_new_order,
+            api::get_positions,
+            api::get_best_quote,
+            api::get_node_id,
+            api::post_sync,
+            api::get_seed_phrase,
+            api::get_channels,
+            api::close_channel,
+            api::get_trade_constraints,
+        ),
+    components(
+        schemas(
+            auth::Credentials,
+            api::AppError,
+            api::Version,
+            api::Balance,
+            api::OnChainPayment,
+            api::Payment,
+            api::Seed,
+            api::OrderId,
+            api::NewOrderParams,
+            api::Position,
+            api::Order,
+            api::BestQuote,
+            api::DlcChannel,
+            api::DeleteChannel,
+            api::TradeConstraints,
+            api::Price,
+            api::ContractSymbol,
+            api::Direction,
+            api::PositionState,
+            api::OrderType,
+            api::OrderState,
+            api::ChannelState,
+            api::SignedChannelState,
+        )
+    ),
+    modifiers(& SecurityAddon),
+    )]
+    struct ApiDoc;
+
+    struct SecurityAddon;
+
+    impl Modify for SecurityAddon {
+        fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+            if let Some(components) = openapi.components.as_mut() {
+                let http = HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Basic)
+                    .description(Some("Use the api password to login under /api/login. The returned cookie needs to be sent on every request.")).build();
+                components.add_security_scheme("authentication", SecurityScheme::Http(http))
+            }
+        }
+    }
+
     let router = Router::new()
         .route("/", get(index_handler))
         .route("/main.dart.js", get(main_dart_handler))
@@ -212,6 +286,9 @@ fn router(network: Network) -> Router {
         .route("/index.html", get(index_handler))
         .route("/assets/*file", get(static_handler))
         .route("/api/version", get(version))
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
+        .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         .fallback_service(get(not_found))
         .layer(
             TraceLayer::new_for_http()
