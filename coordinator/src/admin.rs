@@ -27,7 +27,6 @@ use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::bitcoin_conversion::to_txid_30;
-use ln_dlc_node::node::NodeInfo;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -485,18 +484,6 @@ pub async fn roll_back_dlc_channel(
 
     tracing::info!(channel_id = %channel_id_string, "Rolled back dlc channel");
 
-    Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn connect_to_peer(
-    State(state): State<Arc<AppState>>,
-    target: Json<NodeInfo>,
-) -> Result<(), AppError> {
-    let target = target.0;
-    state.node.inner.connect_once(target).await.map_err(|err| {
-        AppError::InternalServerError(format!("Could not connect to {target}. Error: {err}"))
-    })?;
     Ok(())
 }
 

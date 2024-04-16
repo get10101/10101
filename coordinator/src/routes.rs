@@ -1,6 +1,5 @@
 use crate::admin::close_channel;
 use crate::admin::collaborative_revert;
-use crate::admin::connect_to_peer;
 use crate::admin::delete_dlc_channel;
 use crate::admin::get_balance;
 use crate::admin::get_fee_rate_estimation;
@@ -186,7 +185,6 @@ pub fn router(
             post(roll_back_dlc_channel),
         )
         .route("/api/admin/transactions", get(list_on_chain_transactions))
-        .route("/api/admin/connect", post(connect_to_peer))
         .route("/api/admin/channels/revert", post(collaborative_revert))
         .route(
             "/api/channels/confirm-collab-revert",
