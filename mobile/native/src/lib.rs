@@ -5,6 +5,7 @@ pub mod trade;
 
 pub mod api;
 pub mod calculations;
+pub mod channel_trade_constraints;
 pub mod commons;
 pub mod config;
 pub mod dlc;
@@ -15,7 +16,6 @@ pub mod schema;
 pub mod state;
 
 mod backup;
-pub mod channel_trade_constraints;
 mod cipher;
 mod destination;
 mod dlc_channel;
@@ -24,9 +24,11 @@ mod max_quantity;
 mod names;
 mod orderbook;
 mod polls;
+mod report_error;
 mod storage;
 
 pub use ln_dlc::get_maintenance_margin_rate;
+pub use report_error::report_error_to_coordinator;
 
 #[allow(
     clippy::all,
