@@ -61,6 +61,7 @@ use commons::Message;
 use commons::Poll;
 use commons::PollAnswers;
 use commons::RegisterParams;
+use commons::ReportedError;
 use commons::Restore;
 use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
@@ -164,6 +165,7 @@ pub fn router(
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
+        .route("/api/report-error", post(post_error))
         // TODO: we should move this back into public once we add signing to this function
         .route(
             "/api/admin/orderbook/orders/:order_id",
@@ -582,4 +584,13 @@ pub async fn get_leaderboard(
     Ok(Json(LeaderBoard {
         entries: leader_board,
     }))
+}
+
+async fn post_error(
+    State(_state): State<Arc<AppState>>,
+    app_error: Json<ReportedError>,
+) -> Result<(), AppError> {
+    tracing::info!(error = app_error.msg, trader_pk = %app_error.trader_pk, "User reported error");
+
+    Ok(())
 }

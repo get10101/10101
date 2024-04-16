@@ -11,6 +11,7 @@ mod order;
 mod order_matching_fee;
 mod polls;
 mod price;
+mod reported_error;
 mod rollover;
 mod signature;
 mod trade;
@@ -28,6 +29,7 @@ pub use price::best_bid_price;
 pub use price::best_current_price;
 pub use price::Price;
 pub use price::Prices;
+pub use reported_error::ReportedError;
 pub use rollover::*;
 pub use signature::*;
 
