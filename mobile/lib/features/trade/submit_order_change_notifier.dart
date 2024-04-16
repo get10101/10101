@@ -121,21 +121,18 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Future<void> closePosition(Position position, double? closingPrice, Amount? fee,
       {bool stable = false}) async {
-    await submitPendingOrder(
-        TradeValues(
-            direction: position.direction.opposite(),
-            margin: position.collateral,
-            quantity: position.quantity,
-            leverage: position.leverage,
-            price: closingPrice,
-            liquidationPrice: position.liquidationPrice,
-            fee: fee,
-            fundingRate: 0,
-            expiry: position.expiry,
-            tradeValuesService: const TradeValuesService()),
-        PositionAction.close,
-        pnl: position.unrealizedPnl,
-        stable: stable);
+    final tradeValues = TradeValues(
+        direction: position.direction.opposite(),
+        margin: position.collateral,
+        quantity: position.quantity,
+        leverage: position.leverage,
+        price: closingPrice,
+        liquidationPrice: position.liquidationPrice,
+        fee: fee,
+        expiry: position.expiry,
+        tradeValuesService: const TradeValuesService());
+    await submitPendingOrder(tradeValues, PositionAction.close,
+        pnl: position.unrealizedPnl, stable: stable);
   }
 
   PendingOrder? get pendingOrder => _pendingOrder;

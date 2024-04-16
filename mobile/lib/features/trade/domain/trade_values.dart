@@ -15,7 +15,6 @@ class TradeValues {
   Amount? fee; // This fee is an estimate of the order-matching fee.
   Usd? maxQuantity;
 
-  double fundingRate;
   DateTime expiry;
 
   // no final so it can be mocked in tests
@@ -29,7 +28,6 @@ class TradeValues {
     required this.price,
     required this.liquidationPrice,
     required this.fee,
-    required this.fundingRate,
     required this.expiry,
     required this.tradeValuesService,
   });
@@ -38,7 +36,6 @@ class TradeValues {
     required Usd quantity,
     required Leverage leverage,
     required double? price,
-    required double fundingRate,
     required Direction direction,
     required TradeValuesService tradeValuesService,
   }) {
@@ -59,39 +56,6 @@ class TradeValues {
         quantity: quantity,
         leverage: leverage,
         price: price,
-        fundingRate: fundingRate,
-        liquidationPrice: liquidationPrice,
-        fee: fee,
-        expiry: expiry,
-        tradeValuesService: tradeValuesService);
-  }
-
-  factory TradeValues.fromMargin({
-    required Amount? margin,
-    required Leverage leverage,
-    required double? price,
-    required double fundingRate,
-    required Direction direction,
-    required TradeValuesService tradeValuesService,
-  }) {
-    Usd? quantity =
-        tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
-    double? liquidationPrice = price != null
-        ? tradeValuesService.calculateLiquidationPrice(
-            price: price, leverage: leverage, direction: direction)
-        : null;
-
-    Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
-
-    DateTime expiry = tradeValuesService.getExpiryTimestamp();
-
-    return TradeValues(
-        direction: direction,
-        margin: margin,
-        quantity: quantity,
-        leverage: leverage,
-        price: price,
-        fundingRate: fundingRate,
         liquidationPrice: liquidationPrice,
         fee: fee,
         expiry: expiry,

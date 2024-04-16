@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/dummy_values.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -35,7 +34,6 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
-            fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
       case Direction.short:
@@ -43,7 +41,6 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
-            fundingRate: fundingRateSell,
             direction: direction,
             tradeValuesService: tradeValuesService);
     }
