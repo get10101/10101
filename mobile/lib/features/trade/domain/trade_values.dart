@@ -163,9 +163,10 @@ class TradeValues {
   }
 
   recalculateMaxQuantity() {
-    final quantity = tradeValuesService.calculateMaxQuantity(price: price, leverage: leverage);
+    final quantity = tradeValuesService.calculateMaxQuantity(
+        price: price, leverage: leverage, direction: direction);
     if (quantity != null) {
-      maxQuantity = quantity;
+      _maxQuantity = quantity;
     }
   }
 }

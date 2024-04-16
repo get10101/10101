@@ -1,9 +1,11 @@
 use crate::calculations;
 use crate::channel_trade_constraints::channel_trade_constraints;
 use crate::ln_dlc;
+use crate::trade::position;
 use bitcoin::Amount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use trade::Direction;
 
 /// Calculates the max quantity a user can trade using the following input parameters
 /// - if no channel exists the on-chain fees (channel fee reserve and funding tx fee) is substracted
@@ -12,7 +14,11 @@ use rust_decimal::Decimal;
 /// - The max coordinator margin which is restricted to a certain max amount.
 /// - The max trader margin which is either the on-chain balance or the off-chain balance if a
 ///   channel already exists.
-pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Decimal> {
+pub fn max_quantity(
+    price: Decimal,
+    trader_leverage: f32,
+    trader_direction: Direction,
+) -> anyhow::Result<Decimal> {
     let channel_trade_constraints = channel_trade_constraints()?;
 
     let on_chain_fee_estimate = match channel_trade_constraints.is_channel_balance {
@@ -34,6 +40,11 @@ pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Deci
     let order_matching_fee_rate =
         Decimal::try_from(order_matching_fee_rate).expect("to fit into decimal");
 
+    let accumulated_order_matching_fees = match position::handler::get_positions()?.first() {
+        Some(position) => position.order_matching_fees,
+        _ => Amount::ZERO,
+    };
+
     let max_quantity = calculate_max_quantity(
         price,
         max_coordinator_margin,
@@ -42,6 +53,7 @@ pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Deci
         channel_trade_constraints.coordinator_leverage,
         trader_leverage,
         order_matching_fee_rate,
+        accumulated_order_matching_fees,
     );
 
     Ok(max_quantity)
@@ -57,6 +69,7 @@ pub fn max_quantity(price: Decimal, trader_leverage: f32) -> anyhow::Result<Deci
 ///
 /// Note, this function will not exactly find the max quantity possible, but a very close
 /// approximation.
+#[allow(clippy::too_many_arguments)]
 fn calculate_max_quantity(
     price: Decimal,
     max_coordinator_margin: Amount,
@@ -65,10 +78,13 @@ fn calculate_max_quantity(
     coordinator_leverage: f32,
     trader_leverage: f32,
     order_matching_fee_rate: Decimal,
+    accumulated_order_matching_fees: Amount,
 ) -> Decimal {
     // subtract required on-chain fees with buffer if the trade is opening a channel.
     let max_coordinator_margin = max_coordinator_margin
         .checked_sub(on_chain_fee_estimate.unwrap_or(Amount::ZERO))
+        .unwrap_or(Amount::ZERO)
+        .checked_sub(accumulated_order_matching_fees)
         .unwrap_or(Amount::ZERO);
     let max_trader_margin = max_trader_margin
         .checked_sub(on_chain_fee_estimate.unwrap_or(Amount::ZERO))
@@ -116,6 +132,31 @@ mod tests {
     use rust_decimal_macros::dec;
 
     #[test]
+    fn test_calculate_max_quantity_with_accumulated_order_matching_fee() {
+        let price = Decimal::new(14999, 0);
+
+        let max_coordinator_margin = Amount::from_sat(7464);
+        let max_trader_margin = Amount::from_sat(1_048_951);
+
+        let trader_leverage = 2.0;
+        let coordinator_levarage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
+
+        let max_quantity = calculate_max_quantity(
+            price,
+            max_coordinator_margin,
+            max_trader_margin,
+            None,
+            coordinator_levarage,
+            trader_leverage,
+            order_matching_fee_rate,
+            Amount::from_sat(4500),
+        );
+
+        assert_eq!(Decimal::ZERO, max_quantity);
+    }
+
+    #[test]
     fn test_calculate_max_quantity() {
         let price = Decimal::new(30209, 0);
 
@@ -136,6 +177,7 @@ mod tests {
             coordinator_levarage,
             trader_leverage,
             order_matching_fee_rate,
+            Amount::ZERO,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -198,6 +240,7 @@ mod tests {
             coordinator_levarage,
             trader_leverage,
             order_matching_fee_rate,
+            Amount::ZERO,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -254,6 +297,7 @@ mod tests {
             coordinator_levarage,
             trader_leverage,
             order_matching_fee_rate,
+            Amount::ZERO,
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -312,6 +356,7 @@ mod tests {
             coordinator_levarage,
             trader_leverage,
             order_matching_fee_rate,
+            Amount::ZERO,
         );
 
         assert_eq!(max_quantity, Decimal::ZERO)
@@ -338,6 +383,7 @@ mod tests {
             coordinator_levarage,
             trader_leverage,
             order_matching_fee_rate,
+            Amount::ZERO,
         );
 
         let trader_margin = calculations::calculate_margin(

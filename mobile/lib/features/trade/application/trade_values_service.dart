@@ -27,12 +27,13 @@ class TradeValuesService {
     }
   }
 
-  Usd? calculateMaxQuantity({required double? price, required Leverage leverage}) {
+  Usd? calculateMaxQuantity(
+      {required double? price, required Leverage leverage, required Direction direction}) {
     if (price == null) {
       return null;
     } else {
-      final quantity =
-          rust.api.calculateMaxQuantity(price: price, traderLeverage: leverage.leverage);
+      final quantity = rust.api.calculateMaxQuantity(
+          price: price, traderLeverage: leverage.leverage, traderDirection: direction.toApi());
 
       return Usd(quantity);
     }

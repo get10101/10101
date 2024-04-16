@@ -75,6 +75,8 @@ pub struct Position {
     #[serde(with = "time::serde::rfc3339")]
     pub created: OffsetDateTime,
     pub stable: bool,
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub order_matching_fees: Amount,
 }
 
 impl Position {
@@ -121,6 +123,7 @@ impl Position {
             updated: now_timestamp,
             created: now_timestamp,
             stable: order.stable,
+            order_matching_fees: matching_fee,
         };
 
         let average_entry_price = decimal_from_f32(average_entry_price);
@@ -279,6 +282,7 @@ impl Position {
 
                     let position = Position {
                         quantity: 0.0,
+                        order_matching_fees: self.order_matching_fees + matching_fee,
                         ..self
                     };
 
@@ -330,6 +334,7 @@ impl Position {
                         updated: now_timestamp,
                         created: self.created,
                         stable: self.stable,
+                        order_matching_fees: self.order_matching_fees + matching_fee,
                     };
 
                     let pnl = {
@@ -441,6 +446,7 @@ impl Position {
 
                     let position = Position {
                         quantity: 0.0,
+                        order_matching_fees: self.order_matching_fees + matching_fee_this_trade,
                         ..self
                     };
 
@@ -505,6 +511,7 @@ impl Position {
                     updated: now_timestamp,
                     created: self.created,
                     stable,
+                    order_matching_fees: self.order_matching_fees + matching_fee,
                 };
 
                 let margin_diff = {
@@ -627,6 +634,7 @@ mod tests {
         assert_eq!(position.position_state, PositionState::Open);
         assert_eq!(position.collateral, 78_125);
         assert!(position.stable);
+        assert_eq!(position.order_matching_fees, Amount::from_sat(1000));
 
         assert_eq!(opening_trade.order_id, order.id);
         assert_eq!(opening_trade.contract_symbol, order.contract_symbol);
@@ -658,6 +666,7 @@ mod tests {
             updated: now,
             created: now,
             stable: false,
+            order_matching_fees: Amount::from_sat(1000),
         };
 
         let order = Order {
@@ -717,6 +726,7 @@ mod tests {
             updated: now,
             created: now,
             stable: false,
+            order_matching_fees: Amount::from_sat(1000),
         };
 
         let order = Order {
@@ -749,6 +759,7 @@ mod tests {
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 20_578);
         assert!(!updated_position.stable);
+        assert_eq!(updated_position.order_matching_fees, Amount::from_sat(2000));
 
         let trade = match trades.as_slice() {
             [trade] => trade,
@@ -785,6 +796,7 @@ mod tests {
             updated: now,
             created: now,
             stable: false,
+            order_matching_fees: Amount::from_sat(1000),
         };
 
         let order = Order {
@@ -823,6 +835,7 @@ mod tests {
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 6_855);
         assert!(!updated_position.stable);
+        assert_eq!(updated_position.order_matching_fees, Amount::from_sat(2000));
 
         let trade = match trades.as_slice() {
             [trade] => trade,
@@ -859,6 +872,7 @@ mod tests {
             updated: now,
             created: now,
             stable: false,
+            order_matching_fees: Amount::from_sat(1000),
         };
 
         let order = Order {
@@ -891,6 +905,7 @@ mod tests {
         assert_eq!(updated_position.position_state, PositionState::Open);
         assert_eq!(updated_position.collateral, 13_736);
         assert!(!updated_position.stable);
+        assert_eq!(updated_position.order_matching_fees, Amount::from_sat(2000));
 
         let (closing_trade, opening_trade) = match trades.as_slice() {
             [closing_trade, opening_trade] => (closing_trade, opening_trade),
