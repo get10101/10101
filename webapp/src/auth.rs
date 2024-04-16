@@ -12,6 +12,7 @@ use sha2::Sha256;
 use std::error::Error;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use utoipa::ToSchema;
 
 #[derive(Clone)]
 pub struct Backend {
@@ -23,7 +24,7 @@ pub struct User {
     password: String,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, ToSchema)]
 pub struct Credentials {
     pub password: String,
 }
@@ -88,13 +89,21 @@ pub fn router() -> Router {
         .route("/api/logout", get(get::logout))
 }
 
-mod post {
+pub mod post {
     use super::*;
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
     use axum::Json;
     use axum_login::AuthSession;
 
+    #[utoipa::path(
+        post,
+        path = "/api/login",
+        request_body = Credentials,
+        responses(
+        (status = 200, description = "If login was successfully", body = ())
+        )
+    )]
     pub async fn login(
         mut auth_session: AuthSession<Backend>,
         creds: Json<Credentials>,
@@ -115,11 +124,18 @@ mod post {
     }
 }
 
-mod get {
+pub mod get {
     use crate::api::AppError;
     use crate::auth::Backend;
     use axum_login::AuthSession;
 
+    #[utoipa::path(
+        get,
+        path = "/api/logout",
+        responses(
+        (status = 200, description = "If logout was successfully", body = ())
+        )
+    )]
     pub async fn logout(mut auth_session: AuthSession<Backend>) -> Result<(), AppError> {
         auth_session.logout().await?;
         Ok(())

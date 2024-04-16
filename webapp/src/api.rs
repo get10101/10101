@@ -15,9 +15,6 @@ use axum::Router;
 use bitcoin::Amount;
 use commons::order_matching_fee;
 use commons::ChannelOpeningParams;
-use commons::Price;
-use native::api::ContractSymbol;
-use native::api::Direction;
 use native::api::Fee;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
@@ -26,8 +23,6 @@ use native::ln_dlc;
 use native::ln_dlc::is_dlc_channel_confirmed;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
-use native::trade::order::OrderType;
-use native::trade::position::PositionState;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::de;
@@ -38,6 +33,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 pub fn router(app_state: AppState) -> Router {
@@ -57,6 +53,7 @@ pub fn router(app_state: AppState) -> Router {
         .with_state(Arc::new(app_state))
 }
 
+#[derive(ToSchema)]
 pub struct AppError(anyhow::Error);
 
 impl IntoResponse for AppError {
@@ -78,13 +75,20 @@ where
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct Version {
     version: String,
     commit_hash: String,
     branch: String,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/version",
+    responses(
+        (status = 200, description = "Returns the current build version", body = Version)
+    )
+)]
 pub async fn version() -> Json<Version> {
     Json(Version {
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -93,18 +97,32 @@ pub async fn version() -> Json<Version> {
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/newaddress",
+    responses(
+       (status = 200, description = "Returns an unused on-chain address", body = String)
+)
+)]
 pub async fn get_unused_address() -> Result<impl IntoResponse, AppError> {
     let address = ln_dlc::get_unused_address()?;
 
     Ok(address)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct Balance {
     on_chain: u64,
     off_chain: Option<u64>,
 }
 
+#[utoipa::path(
+get,
+path = "/api/balance",
+responses(
+(status = 200, description = "Returned on- and off-chain balance", body = Balance)
+)
+)]
 pub async fn get_balance(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Option<Balance>>, AppError> {
@@ -117,7 +135,7 @@ pub async fn get_balance(
     Ok(Json(balance))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct OnChainPayment {
     flow: String,
     amount: u64,
@@ -127,6 +145,13 @@ pub struct OnChainPayment {
     fee: Option<u64>,
 }
 
+#[utoipa::path(
+get,
+path = "/api/history",
+responses(
+(status = 200, description = "Retrieved on-chain payment history", body = [OnChainPayment])
+)
+)]
 pub async fn get_onchain_payment_history(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<OnChainPayment>>, AppError> {
@@ -157,13 +182,21 @@ pub async fn get_onchain_payment_history(
     Ok(Json(history))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ToSchema)]
 pub struct Payment {
     address: String,
     amount: u64,
     fee: u64,
 }
 
+#[utoipa::path(
+post,
+path = "/api/sendpayment",
+request_body = Payment,
+responses(
+(status = 200, description = "On-chain payment sent successfully", body = ())
+)
+)]
 pub async fn send_payment(
     State(state): State<Arc<AppState>>,
     Json(params): Json<Payment>,
@@ -188,37 +221,95 @@ pub async fn send_payment(
     Ok(())
 }
 
+#[utoipa::path(
+get,
+path = "/api/node",
+responses(
+(status = 200, description = "Get node id", body = String)
+)
+)]
 pub async fn get_node_id() -> impl IntoResponse {
     ln_dlc::get_node_pubkey().to_string()
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct Seed {
     seed: Vec<String>,
 }
 
+#[utoipa::path(
+get,
+path = "/api/seed",
+responses(
+(status = 200, description = "Return seed phrase", body = Seed)
+)
+)]
 pub async fn get_seed_phrase() -> Json<Seed> {
     Json(Seed {
         seed: ln_dlc::get_seed_phrase(),
     })
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct OrderId {
     id: Uuid,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Copy, Debug)]
+pub enum Direction {
+    Long,
+    Short,
+}
+
+impl From<trade::Direction> for Direction {
+    fn from(value: trade::Direction) -> Self {
+        match value {
+            trade::Direction::Long => Direction::Long,
+            trade::Direction::Short => Direction::Short,
+        }
+    }
+}
+
+impl From<Direction> for trade::Direction {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::Long => trade::Direction::Long,
+            Direction::Short => trade::Direction::Short,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, ToSchema)]
 pub struct NewOrderParams {
     #[serde(with = "rust_decimal::serde::float")]
     pub leverage: Decimal,
     #[serde(with = "rust_decimal::serde::float")]
     pub quantity: Decimal,
     pub direction: Direction,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub coordinator_reserve: Option<Amount>,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub trader_reserve: Option<Amount>,
+    /// Coordinator reserve in sats
+    pub coordinator_reserve: Option<u64>,
+    /// Trader reserve in sats
+    pub trader_reserve: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, ToSchema)]
+pub enum ContractSymbol {
+    BtcUsd,
+}
+
+impl From<ContractSymbol> for trade::ContractSymbol {
+    fn from(value: ContractSymbol) -> Self {
+        match value {
+            ContractSymbol::BtcUsd => trade::ContractSymbol::BtcUsd,
+        }
+    }
+}
+impl From<trade::ContractSymbol> for ContractSymbol {
+    fn from(value: trade::ContractSymbol) -> Self {
+        match value {
+            trade::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
+        }
+    }
 }
 
 impl TryFrom<NewOrderParams> for native::trade::order::Order {
@@ -234,10 +325,10 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
                 .quantity
                 .to_f32()
                 .context("To be able to parse leverage into f32")?,
-            contract_symbol: ContractSymbol::BtcUsd,
-            direction: value.direction,
+            contract_symbol: ContractSymbol::BtcUsd.into(),
+            direction: value.direction.into(),
             // We only support market orders for now
-            order_type: OrderType::Market,
+            order_type: OrderType::Market.into(),
             state: native::trade::order::OrderState::Initial,
             creation_timestamp: OffsetDateTime::now_utc(),
             // We do not support setting order expiry from the frontend for now
@@ -249,6 +340,14 @@ impl TryFrom<NewOrderParams> for native::trade::order::Order {
     }
 }
 
+#[utoipa::path(
+post,
+path = "/api/orders",
+request_body = NewOrderParams,
+responses(
+(status = 200, description = "Returns order id of successfully created order", body = OrderId)
+)
+)]
 pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId>, AppError> {
     let order: native::trade::order::Order = params
         .clone()
@@ -262,8 +361,8 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
         None
     } else {
         Some(ChannelOpeningParams {
-            coordinator_reserve: params.coordinator_reserve.unwrap_or_default(),
-            trader_reserve: params.trader_reserve.unwrap_or_default(),
+            coordinator_reserve: Amount::from_sat(params.coordinator_reserve.unwrap_or_default()),
+            trader_reserve: Amount::from_sat(params.trader_reserve.unwrap_or_default()),
         })
     };
 
@@ -273,7 +372,7 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
     Ok(Json(OrderId { id: order_id }))
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Position {
     pub leverage: f32,
     pub quantity: f32,
@@ -291,8 +390,8 @@ pub struct Position {
     pub created: OffsetDateTime,
     pub stable: bool,
     pub pnl_sats: Option<i64>,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub closing_fee: Option<Amount>,
+    /// Closing fee in sats
+    pub closing_fee: Option<u64>,
 }
 
 impl From<(native::trade::position::Position, Option<Price>)> for Position {
@@ -300,8 +399,8 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
         let res = price.map(|price| match (price.ask, price.bid) {
             (Some(ask), Some(bid)) => {
                 let price = match position.direction {
-                    Direction::Long => price.bid,
-                    Direction::Short => price.ask,
+                    trade::Direction::Long => price.bid,
+                    trade::Direction::Short => price.ask,
                 };
 
                 // FIXME: A from implementation should not contain this kind of logic.
@@ -332,22 +431,29 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
         Position {
             leverage: position.leverage,
             quantity: position.quantity,
-            contract_symbol: position.contract_symbol,
-            direction: position.direction,
+            contract_symbol: position.contract_symbol.into(),
+            direction: position.direction.into(),
             average_entry_price: position.average_entry_price,
             liquidation_price: position.liquidation_price,
-            position_state: position.position_state,
+            position_state: position.position_state.into(),
             collateral: position.collateral,
             expiry: position.expiry,
             updated: position.updated,
             created: position.created,
             stable: position.stable,
             pnl_sats,
-            closing_fee,
+            closing_fee: closing_fee.map(|amount| amount.to_sat()),
         }
     }
 }
 
+#[utoipa::path(
+get,
+path = "/api/positions",
+responses(
+(status = 200, description = "Returns open positions (if any)", body = [Position])
+)
+)]
 pub async fn get_positions(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<Position>>, AppError> {
@@ -374,7 +480,31 @@ pub async fn get_positions(
     Ok(Json(positions))
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, ToSchema)]
+pub enum OrderType {
+    Market,
+    Limit { price: f32 },
+}
+
+impl From<native::trade::order::OrderType> for OrderType {
+    fn from(value: native::trade::order::OrderType) -> Self {
+        match value {
+            native::trade::order::OrderType::Market => OrderType::Market,
+            native::trade::order::OrderType::Limit { price } => OrderType::Limit { price },
+        }
+    }
+}
+
+impl From<OrderType> for native::trade::order::OrderType {
+    fn from(value: OrderType) -> Self {
+        match value {
+            OrderType::Market => native::trade::order::OrderType::Market,
+            OrderType::Limit { price } => native::trade::order::OrderType::Limit { price },
+        }
+    }
+}
+
+#[derive(Serialize, Debug, ToSchema)]
 pub struct Order {
     pub id: Uuid,
     pub leverage: f32,
@@ -393,7 +523,7 @@ pub struct Order {
     pub failure_reason: Option<String>,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Debug, Clone, ToSchema)]
 pub enum OrderState {
     /// Not submitted to orderbook yet
     Initial,
@@ -455,7 +585,7 @@ impl From<&native::trade::order::Order> for Order {
 
         let mut price = None;
 
-        if let OrderType::Limit { price: limit_price } = value.order_type {
+        if let native::trade::order::OrderType::Limit { price: limit_price } = value.order_type {
             price.replace(limit_price);
         }
 
@@ -473,9 +603,9 @@ impl From<&native::trade::order::Order> for Order {
             leverage: value.leverage,
             quantity: value.quantity,
             price,
-            contract_symbol: value.contract_symbol,
-            direction: value.direction,
-            order_type: value.order_type,
+            contract_symbol: value.contract_symbol.into(),
+            direction: value.direction.into(),
+            order_type: value.order_type.into(),
             state: value.state.clone().into(),
             creation_timestamp: value.creation_timestamp,
             order_expiry_timestamp: value.order_expiry_timestamp,
@@ -484,12 +614,26 @@ impl From<&native::trade::order::Order> for Order {
     }
 }
 
+#[utoipa::path(
+post,
+path = "/api/sync",
+responses(
+(status = 200, description = "On-chain sync triggered", body = ())
+)
+)]
 pub async fn post_sync() -> Result<(), AppError> {
     ln_dlc::refresh_wallet_info().await?;
 
     Ok(())
 }
 
+#[utoipa::path(
+get,
+path = "/api/orders",
+responses(
+(status = 200, description = "Returns personal orders", body = [Order])
+)
+)]
 pub async fn get_orders() -> Result<Json<Vec<Order>>, AppError> {
     let orders = native::trade::order::handler::get_orders_for_ui()
         .await?
@@ -500,7 +644,7 @@ pub async fn get_orders() -> Result<Json<Vec<Order>>, AppError> {
     Ok(Json(orders))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct BestQuote {
     #[serde(flatten)]
     price: Price,
@@ -508,6 +652,22 @@ pub struct BestQuote {
     fee: Decimal,
 }
 
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, ToSchema)]
+pub struct Price {
+    pub bid: Option<Decimal>,
+    pub ask: Option<Decimal>,
+}
+
+#[utoipa::path(
+get,
+path = "/api/quotes/{contract_symbol}",
+params(
+    ("contract_symbol" = String, Path, description = "Contract symbol, e.g. BtcUsd")
+),
+responses(
+    (status = 200, description = "Returns the best quotes for both bids and asks", body = BestQuote)
+)
+)]
 pub async fn get_best_quote(
     State(state): State<Arc<AppState>>,
     // todo: once we support multiple pairs we should use this
@@ -528,7 +688,7 @@ pub async fn get_best_quote(
     Ok(Json(Some(quotes)))
 }
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, ToSchema)]
 pub struct DlcChannel {
     pub dlc_channel_id: Option<String>,
     pub contract_id: Option<String>,
@@ -544,7 +704,7 @@ pub struct DlcChannel {
     pub signed_channel_state: Option<SignedChannelState>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub enum ChannelState {
     Offered,
     Accepted,
@@ -560,7 +720,7 @@ pub enum ChannelState {
     Cancelled,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub enum SignedChannelState {
     Established,
     SettledOffered,
@@ -576,6 +736,13 @@ pub enum SignedChannelState {
     CollaborativeCloseOffered,
 }
 
+#[utoipa::path(
+get,
+path = "/api/channels",
+responses(
+(status = 200, description = "A list of your dlc channels and their states", body = [DlcChannel])
+)
+)]
 pub async fn get_channels() -> Result<Json<Vec<DlcChannel>>, AppError> {
     let channels = ln_dlc::list_dlc_channels()?
         .iter()
@@ -753,12 +920,20 @@ impl From<&dlc_manager::channel::Channel> for DlcChannel {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct DeleteChannel {
     #[serde(default, deserialize_with = "empty_string_as_none")]
     force: Option<bool>,
 }
 
+#[utoipa::path(
+delete,
+path = "/api/channels",
+request_body = DeleteChannel,
+responses(
+(status = 200, description = "Channel successfully closed", body = ())
+)
+)]
 pub async fn close_channel(Query(params): Query<DeleteChannel>) -> Result<(), AppError> {
     ln_dlc::close_channel(params.force.unwrap_or_default()).await?;
     Ok(())
@@ -777,7 +952,7 @@ where
     }
 }
 
-#[derive(Serialize, Copy, Clone, Debug)]
+#[derive(Serialize, Copy, Clone, Debug, ToSchema)]
 pub struct TradeConstraints {
     pub max_local_margin_sats: u64,
     pub max_counterparty_margin_sats: u64,
@@ -789,6 +964,13 @@ pub struct TradeConstraints {
     pub channel_fee_reserve_sats: u64,
 }
 
+#[utoipa::path(
+get,
+path = "/api/tradeconstraints",
+responses(
+(status = 200, description = "Returns trade constraints", body = TradeConstraints)
+)
+)]
 pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
     let fee = ln_dlc::estimated_funding_tx_fee()?;
@@ -803,4 +985,34 @@ pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError>
         estimated_funding_tx_fee_sats: fee.to_sat(),
         channel_fee_reserve_sats: channel_fee_reserve.to_sat(),
     }))
+}
+
+#[derive(Debug, Clone, PartialEq, Copy, Serialize, ToSchema)]
+pub enum PositionState {
+    Open,
+    Closing,
+    Rollover,
+    Resizing,
+}
+
+impl From<native::trade::position::PositionState> for PositionState {
+    fn from(value: native::trade::position::PositionState) -> Self {
+        match value {
+            native::trade::position::PositionState::Open => PositionState::Open,
+            native::trade::position::PositionState::Closing => PositionState::Closing,
+            native::trade::position::PositionState::Rollover => PositionState::Rollover,
+            native::trade::position::PositionState::Resizing => PositionState::Resizing,
+        }
+    }
+}
+
+impl From<PositionState> for native::trade::position::PositionState {
+    fn from(value: PositionState) -> Self {
+        match value {
+            PositionState::Open => native::trade::position::PositionState::Open,
+            PositionState::Closing => native::trade::position::PositionState::Closing,
+            PositionState::Rollover => native::trade::position::PositionState::Rollover,
+            PositionState::Resizing => native::trade::position::PositionState::Resizing,
+        }
+    }
 }
