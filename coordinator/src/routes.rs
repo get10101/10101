@@ -164,9 +164,6 @@ pub fn router(
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route("/api/orderbook/orders/:order_id", get(get_order))
         .route("/api/orderbook/websocket", get(websocket_handler))
-        // Deprecated: we just keep it for backwards compatbility as otherwise old apps won't
-        // pass registration
-        .route("/api/register", post(post_register))
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
