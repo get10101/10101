@@ -2,13 +2,15 @@ use crate::collaborative_revert;
 use crate::db;
 use crate::dlc_protocol::ProtocolId;
 use crate::parse_dlc_channel_id;
-use crate::routes::empty_string_as_none;
+use crate::referrals;
 use crate::routes::AppState;
+use crate::settings::SettingsFile;
 use crate::AppError;
 use anyhow::Context;
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
+use axum::response::IntoResponse;
 use axum::Json;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
@@ -24,14 +26,17 @@ use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::bitcoin_conversion::to_txid_30;
-use ln_dlc_node::node::NodeInfo;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use serde::de;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use std::cmp::Ordering;
+use std::fmt;
 use std::num::NonZeroU32;
+use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
@@ -135,104 +140,6 @@ pub async fn get_fee_rate_estimation(
         .context("failed to convert to u32")
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
     Ok(Json(FeeRateEstimation(fee_rate)))
-}
-
-#[derive(Serialize)]
-pub enum ChannelBalance {
-    /// The channel is not yet closed (or the commitment or closing transaction has not yet
-    /// appeared in a block). The given balance is claimable (less on-chain fees) if the channel is
-    /// force-closed now.
-    NotYetClosedClaimableOnChannelClose { amount_satoshis: u64 },
-    /// The channel has been closed, and the given balance is ours but awaiting confirmations until
-    /// we consider it spendable.
-    ClaimableAwaitingConfirmations {
-        amount_satoshis: u64,
-        confirmation_height: u32,
-    },
-    /// The channel has been closed, and the given balance should be ours but awaiting spending
-    /// transaction confirmation. If the spending transaction does not confirm in time, it is
-    /// possible our counterparty can take the funds by broadcasting an HTLC timeout on-chain.
-    ///
-    /// Once the spending transaction confirms, before it has reached enough confirmations to be
-    /// considered safe from chain reorganizations, the balance will instead be provided via
-    /// [`Balance::ClaimableAwaitingConfirmations`].
-    ContentiousClaimable {
-        amount_satoshis: u64,
-        timeout_height: u32,
-        payment_hash: String,
-        payment_preimage: String,
-    },
-    /// HTLCs which we sent to our counterparty which are claimable after a timeout (less on-chain
-    /// fees) if the counterparty does not know the preimage for the HTLCs. These are somewhat
-    /// likely to be claimed by our counterparty before we do.
-    MaybeTimeoutClaimableHTLC {
-        amount_satoshis: u64,
-        claimable_height: u32,
-        payment_hash: String,
-    },
-    /// HTLCs which we received from our counterparty which are claimable with a preimage which we
-    /// do not currently have. This will only be claimable if we receive the preimage from the node
-    /// to which we forwarded this HTLC before the timeout.
-    MaybePreimageClaimableHTLC {
-        amount_satoshis: u64,
-        expiry_height: u32,
-        payment_hash: String,
-    },
-    /// The channel has been closed, and our counterparty broadcasted a revoked commitment
-    /// transaction.
-    ///
-    /// Thus, we're able to claim all outputs in the commitment transaction, one of which has the
-    /// following amount.
-    CounterpartyRevokedOutputClaimable { amount_satoshis: u64 },
-}
-
-impl From<lightning::chain::channelmonitor::Balance> for ChannelBalance {
-    fn from(value: lightning::chain::channelmonitor::Balance) -> Self {
-        match value {
-            lightning::chain::channelmonitor::Balance::ClaimableOnChannelClose {
-                amount_satoshis,
-            } => ChannelBalance::NotYetClosedClaimableOnChannelClose { amount_satoshis },
-            lightning::chain::channelmonitor::Balance::ClaimableAwaitingConfirmations {
-                amount_satoshis,
-                confirmation_height,
-            } => ChannelBalance::ClaimableAwaitingConfirmations {
-                amount_satoshis,
-                confirmation_height,
-            },
-            lightning::chain::channelmonitor::Balance::ContentiousClaimable {
-                amount_satoshis,
-                timeout_height,
-                payment_hash,
-                payment_preimage,
-            } => ChannelBalance::ContentiousClaimable {
-                payment_hash: payment_hash.to_string(),
-                payment_preimage: payment_preimage.to_string(),
-                amount_satoshis,
-                timeout_height,
-            },
-            lightning::chain::channelmonitor::Balance::MaybeTimeoutClaimableHTLC {
-                amount_satoshis,
-                claimable_height,
-                payment_hash,
-            } => ChannelBalance::MaybeTimeoutClaimableHTLC {
-                amount_satoshis,
-                claimable_height,
-                payment_hash: payment_hash.to_string(),
-            },
-            lightning::chain::channelmonitor::Balance::MaybePreimageClaimableHTLC {
-                amount_satoshis,
-                expiry_height,
-                payment_hash,
-            } => ChannelBalance::MaybePreimageClaimableHTLC {
-                amount_satoshis,
-                expiry_height,
-                payment_hash: payment_hash.to_string(),
-            },
-            lightning::chain::channelmonitor::Balance::CounterpartyRevokedOutputClaimable {
-                amount_satoshis,
-            } => ChannelBalance::CounterpartyRevokedOutputClaimable { amount_satoshis },
-        }
-    }
 }
 
 #[derive(Serialize)]
@@ -486,31 +393,6 @@ pub async fn roll_back_dlc_channel(
 }
 
 #[instrument(skip_all, err(Debug))]
-pub async fn sign_message(
-    Path(msg): Path<String>,
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<String>, AppError> {
-    let signature =
-        state.node.inner.sign_message(msg).map_err(|err| {
-            AppError::InternalServerError(format!("Could not sign message {err}"))
-        })?;
-
-    Ok(Json(signature))
-}
-
-#[instrument(skip_all, err(Debug))]
-pub async fn connect_to_peer(
-    State(state): State<Arc<AppState>>,
-    target: Json<NodeInfo>,
-) -> Result<(), AppError> {
-    let target = target.0;
-    state.node.inner.connect_once(target).await.map_err(|err| {
-        AppError::InternalServerError(format!("Could not connect to {target}. Error: {err}"))
-    })?;
-    Ok(())
-}
-
-#[instrument(skip_all, err(Debug))]
 pub async fn is_connected(
     State(state): State<Arc<AppState>>,
     Path(target_pubkey): Path<String>,
@@ -657,6 +539,94 @@ pub async fn resend_renew_revoke_message(
     Ok(())
 }
 
+/// Internal API for syncing the on-chain wallet and the DLC channels.
+#[instrument(skip_all, err(Debug))]
+pub async fn post_sync(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<SyncParams>,
+) -> Result<(), AppError> {
+    if params.full.unwrap_or(false) {
+        let stop_gap = params.gap.unwrap_or(20);
+
+        state.node.inner.full_sync(stop_gap).await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not full-sync on-chain wallet: {e:#}"))
+        })?;
+    } else {
+        state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
+            AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
+        })?;
+    }
+
+    spawn_blocking(move || {
+        if let Err(e) = state.node.inner.dlc_manager.periodic_check() {
+            tracing::error!("Failed to run DLC manager periodic check: {e:#}");
+        };
+    })
+    .await
+    .expect("task to complete");
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SyncParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    full: Option<bool>,
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    gap: Option<usize>,
+}
+
+pub async fn get_settings(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let settings = state.settings.read().await;
+    serde_json::to_string(&*settings).expect("to be able to serialise settings")
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn update_settings(
+    State(state): State<Arc<AppState>>,
+    Json(updated_settings): Json<SettingsFile>,
+) -> Result<(), AppError> {
+    let mut settings = state.settings.write().await;
+
+    settings.update(updated_settings.clone());
+
+    settings
+        .write_to_file()
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
+
+    // Forward relevant settings down to the LN-DLC node.
+    state
+        .node
+        .inner
+        .update_settings(settings.ln_dlc.clone())
+        .await;
+
+    Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn get_user_referral_status(
+    State(state): State<Arc<AppState>>,
+    Path(trader_pubkey): Path<String>,
+) -> Result<Json<commons::ReferralStatus>, AppError> {
+    let mut conn = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+
+    let trader_pubkey = trader_pubkey
+        .as_str()
+        .parse()
+        .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
+
+    let referral_status =
+        referrals::get_referral_status(trader_pubkey, &mut conn).map_err(|err| {
+            AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
+        })?;
+    Ok(Json(referral_status))
+}
+
 impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {
     fn from(value: ln_dlc_node::TransactionDetails) -> Self {
         Self {
@@ -682,5 +652,18 @@ impl From<ln_dlc_node::ConfirmationStatus> for ConfirmationStatus {
                 timestamp,
             },
         }
+    }
+}
+
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
     }
 }
