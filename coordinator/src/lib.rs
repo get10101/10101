@@ -17,9 +17,10 @@ use rust_decimal::Decimal;
 use serde_json::json;
 
 mod collaborative_revert;
+mod emergency_kit;
+mod leaderboard;
 mod payout_curve;
 
-pub mod admin;
 pub mod backup;
 pub mod campaign;
 pub mod check_version;
@@ -27,8 +28,6 @@ pub mod cli;
 pub mod db;
 pub mod dlc_handler;
 pub mod dlc_protocol;
-mod emergency_kit;
-mod leaderboard;
 pub mod logger;
 pub mod message;
 pub mod metrics;

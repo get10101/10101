@@ -1,21 +1,3 @@
-use crate::admin::close_channel;
-use crate::admin::collaborative_revert;
-use crate::admin::delete_dlc_channel;
-use crate::admin::get_balance;
-use crate::admin::get_fee_rate_estimation;
-use crate::admin::get_settings;
-use crate::admin::get_user_referral_status;
-use crate::admin::get_utxos;
-use crate::admin::is_connected;
-use crate::admin::list_dlc_channels;
-use crate::admin::list_on_chain_transactions;
-use crate::admin::list_peers;
-use crate::admin::migrate_dlc_channels;
-use crate::admin::post_sync;
-use crate::admin::resend_renew_revoke_message;
-use crate::admin::roll_back_dlc_channel;
-use crate::admin::rollover;
-use crate::admin::update_settings;
 use crate::backup::SledBackup;
 use crate::campaign::post_push_campaign;
 use crate::collaborative_revert::confirm_collaborative_revert;
@@ -40,6 +22,24 @@ use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
 use crate::trade::websocket::InternalPositionUpdateMessage;
 use crate::AppError;
+use admin::close_channel;
+use admin::collaborative_revert;
+use admin::delete_dlc_channel;
+use admin::get_balance;
+use admin::get_fee_rate_estimation;
+use admin::get_settings;
+use admin::get_user_referral_status;
+use admin::get_utxos;
+use admin::is_connected;
+use admin::list_dlc_channels;
+use admin::list_on_chain_transactions;
+use admin::list_peers;
+use admin::migrate_dlc_channels;
+use admin::post_sync;
+use admin::resend_renew_revoke_message;
+use admin::roll_back_dlc_channel;
+use admin::rollover;
+use admin::update_settings;
 use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::Path;
@@ -87,6 +87,8 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use tracing::instrument;
+
+mod admin;
 
 pub struct AppState {
     pub node: Node,
