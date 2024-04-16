@@ -12,11 +12,6 @@ use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
-use crate::orderbook::routes::delete_order;
-use crate::orderbook::routes::get_order;
-use crate::orderbook::routes::get_orders;
-use crate::orderbook::routes::post_order;
-use crate::orderbook::routes::websocket_handler;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
 use crate::settings::Settings;
@@ -74,6 +69,11 @@ use diesel::PgConnection;
 use lightning::ln::msgs::SocketAddress;
 use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
+use orderbook::delete_order;
+use orderbook::get_order;
+use orderbook::get_orders;
+use orderbook::post_order;
+use orderbook::websocket_handler;
 use prometheus::Encoder;
 use prometheus::TextEncoder;
 use serde::Serialize;
@@ -89,6 +89,7 @@ use tokio::sync::RwLock;
 use tracing::instrument;
 
 mod admin;
+mod orderbook;
 
 pub struct AppState {
     pub node: Node,
