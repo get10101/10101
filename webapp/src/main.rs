@@ -48,10 +48,6 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::level_filters::LevelFilter;
 use tracing::Span;
-use utoipa::openapi::security::HttpAuthScheme;
-use utoipa::openapi::security::HttpBuilder;
-use utoipa::openapi::security::SecurityScheme;
-use utoipa::Modify;
 use utoipa::OpenApi;
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::Redoc;
@@ -235,8 +231,7 @@ fn router(network: Network) -> Router {
             api::close_channel,
             api::get_trade_constraints,
         ),
-    components(
-        schemas(
+        components(schemas(
             auth::Credentials,
             api::AppError,
             api::Version,
@@ -260,24 +255,9 @@ fn router(network: Network) -> Router {
             api::OrderState,
             api::ChannelState,
             api::SignedChannelState,
-        )
-    ),
-    modifiers(& SecurityAddon),
+        ))
     )]
     struct ApiDoc;
-
-    struct SecurityAddon;
-
-    impl Modify for SecurityAddon {
-        fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-            if let Some(components) = openapi.components.as_mut() {
-                let http = HttpBuilder::new()
-                    .scheme(HttpAuthScheme::Basic)
-                    .description(Some("Use the api password to login under /api/login. The returned cookie needs to be sent on every request.")).build();
-                components.add_security_scheme("authentication", SecurityScheme::Http(http))
-            }
-        }
-    }
 
     let router = Router::new()
         .route("/", get(index_handler))
