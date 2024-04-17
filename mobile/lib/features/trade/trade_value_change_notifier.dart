@@ -25,7 +25,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    Usd defaultQuantity = Usd(500);
+    // the default quantity will be calculated when the trade bottom sheet tab is initialized.
+    Usd defaultQuantity = Usd.zero();
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
@@ -71,7 +72,16 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   void updateQuantity(Direction direction, Usd quantity) {
-    fromDirection(direction).updateQuantity(quantity);
+    if (fromDirection(direction).openQuantity < quantity) {
+      // the user is changing direction of his position
+      fromDirection(direction).updateQuantity(quantity - fromDirection(direction).openQuantity);
+    } else {
+      // the user is only selling existing contracts
+      fromDirection(direction).updateQuantity(Usd.zero());
+    }
+
+    fromDirection(direction).updateContracts(quantity);
+
     notifyListeners();
   }
 
@@ -101,6 +111,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         if (price != _sellTradeValues.price) {
           if (maxQuantityLock) {
             _sellTradeValues.updatePriceAndQuantity(price);
+            _sellTradeValues.contracts = _sellTradeValues.maxQuantity;
           } else {
             _sellTradeValues.updatePriceAndMargin(price);
           }
@@ -111,6 +122,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         if (price != _buyTradeValues.price) {
           if (maxQuantityLock) {
             _buyTradeValues.updatePriceAndQuantity(price);
+            _buyTradeValues.contracts = _buyTradeValues.maxQuantity;
           } else {
             _buyTradeValues.updatePriceAndMargin(price);
           }

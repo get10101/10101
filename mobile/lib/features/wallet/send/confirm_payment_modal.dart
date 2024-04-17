@@ -113,7 +113,7 @@ class ConfirmPayment extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("~ \$ ${formatter.format(tradeValues.quantity?.toInt ?? 0)}",
+                              Text("~ \$ ${formatter.format(tradeValues.quantity.toInt)}",
                                   style: const TextStyle(fontSize: 16)),
                               Text(amt.toString(),
                                   style: const TextStyle(fontSize: 16, color: Colors.grey))

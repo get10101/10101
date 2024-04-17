@@ -57,8 +57,6 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
 
     try {
-      assert(tradeValues.quantity != null, 'Quantity cannot be null when submitting order');
-
       if (channelOpeningParams != null) {
         // TODO(holzeis): The coordinator leverage should not be hard coded here.
         final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
@@ -70,7 +68,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
         _pendingOrder!.id = await orderService.submitChannelOpeningMarketOrder(
             tradeValues.leverage,
-            tradeValues.quantity!,
+            tradeValues.contracts,
             ContractSymbol.btcusd,
             tradeValues.direction,
             stable,
@@ -78,7 +76,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             Amount(traderReserve));
       } else {
         _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
-            tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
+            tradeValues.contracts, ContractSymbol.btcusd, tradeValues.direction, stable);
       }
 
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
@@ -131,6 +129,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
         fee: fee,
         expiry: position.expiry,
         tradeValuesService: const TradeValuesService());
+    tradeValues.contracts = position.quantity;
     await submitPendingOrder(tradeValues, PositionAction.close,
         pnl: position.unrealizedPnl, stable: stable);
   }

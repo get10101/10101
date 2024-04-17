@@ -1,11 +1,15 @@
 use crate::calculations;
+use crate::calculations::calculate_pnl;
 use crate::channel_trade_constraints::channel_trade_constraints;
 use crate::ln_dlc;
 use crate::trade::position;
 use bitcoin::Amount;
+use bitcoin::SignedAmount;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use std::cmp::max;
 use trade::Direction;
+use trade::Price;
 
 /// Calculates the max quantity a user can trade using the following input parameters
 /// - if no channel exists the on-chain fees (channel fee reserve and funding tx fee) is substracted
@@ -17,7 +21,7 @@ use trade::Direction;
 pub fn max_quantity(
     price: Decimal,
     trader_leverage: f32,
-    trader_direction: Direction,
+    trader_trade_direction: Direction,
 ) -> anyhow::Result<Decimal> {
     let channel_trade_constraints = channel_trade_constraints()?;
 
@@ -33,16 +37,77 @@ pub fn max_quantity(
         }
     };
 
-    let max_coordinator_margin =
+    let max_coordinator_balance =
         Amount::from_sat(channel_trade_constraints.max_counterparty_balance_sats);
-    let max_trader_margin = Amount::from_sat(channel_trade_constraints.max_local_balance_sats);
+    let max_trader_balance = Amount::from_sat(channel_trade_constraints.max_local_balance_sats);
     let order_matching_fee_rate = channel_trade_constraints.order_matching_fee_rate;
-    let order_matching_fee_rate =
-        Decimal::try_from(order_matching_fee_rate).expect("to fit into decimal");
+    let order_matching_fee_rate = Decimal::try_from(order_matching_fee_rate).expect("to fit");
 
-    let accumulated_order_matching_fees = match position::handler::get_positions()?.first() {
-        Some(position) => position.order_matching_fees,
-        _ => Amount::ZERO,
+    let positions = position::handler::get_positions()?;
+    let position = positions.first();
+    let accumulated_order_matching_fees = position
+        .map(|p| p.order_matching_fees)
+        .unwrap_or(Amount::ZERO);
+
+    let (max_coordinator_margin, max_trader_margin) = match position {
+        Some(position) if trader_trade_direction != position.direction => {
+            let total_collateral = channel_trade_constraints.total_collateral.unwrap_or(0);
+
+            let total_balance = channel_trade_constraints.max_counterparty_balance_sats
+                + channel_trade_constraints.max_local_balance_sats;
+            let total_balance = Amount::from_sat(total_balance);
+
+            let trader_margin = Amount::from_sat(position.collateral);
+            let coordinator_margin = Amount::from_sat(total_collateral)
+                .checked_sub(total_balance + trader_margin)
+                .unwrap_or(Amount::ZERO);
+
+            let trader_pnl = calculate_pnl(
+                position.average_entry_price,
+                Price {
+                    ask: price,
+                    bid: price,
+                },
+                position.quantity,
+                position.leverage,
+                position.direction,
+            )?;
+
+            let max_coordinator_margin =
+                max_coordinator_balance.to_signed()? + coordinator_margin.to_signed()?;
+            let max_trader_margin = max_trader_balance.to_signed()? + trader_margin.to_signed()?;
+            let trader_pnl = SignedAmount::from_sat(trader_pnl);
+
+            let max_coordinator_margin = max_coordinator_margin
+                .checked_sub(trader_pnl)
+                .unwrap_or(SignedAmount::ZERO);
+            let max_trader_margin = max_trader_margin
+                .checked_add(trader_pnl)
+                .unwrap_or(SignedAmount::ZERO);
+
+            debug_assert!(
+                max_coordinator_margin.is_positive(),
+                "max coordinator margin must be positive after subtracting the trader pnl"
+            );
+            debug_assert!(
+                max_trader_margin.is_positive(),
+                "max trader margin must be positive after adding the trader pnl"
+            );
+
+            (
+                Amount::from_sat(max(0, max_coordinator_margin.to_sat()) as u64),
+                Amount::from_sat(max(0, max_trader_margin.to_sat()) as u64),
+            )
+        }
+
+        _ => (max_coordinator_balance, max_trader_balance),
+    };
+
+    let open_quantity = match position {
+        Some(position) if position.direction != trader_trade_direction => {
+            Decimal::try_from(position.quantity).expect("to fit")
+        }
+        _ => Decimal::ZERO,
     };
 
     let max_quantity = calculate_max_quantity(
@@ -54,6 +119,7 @@ pub fn max_quantity(
         trader_leverage,
         order_matching_fee_rate,
         accumulated_order_matching_fees,
+        open_quantity,
     );
 
     Ok(max_quantity)
@@ -79,6 +145,7 @@ fn calculate_max_quantity(
     trader_leverage: f32,
     order_matching_fee_rate: Decimal,
     accumulated_order_matching_fees: Amount,
+    open_quantity: Decimal,
 ) -> Decimal {
     // subtract required on-chain fees with buffer if the trade is opening a channel.
     let max_coordinator_margin = max_coordinator_margin
@@ -110,10 +177,13 @@ fn calculate_max_quantity(
         false => (max_trader_quantity, max_trader_margin, trader_leverage),
     };
 
-    // calculate the fee from this quantity
-    let order_matching_fee = commons::order_matching_fee(quantity, price, order_matching_fee_rate);
+    // calculate the fee from this quantity + any open quantity to ensure there is enough space for
+    // the fees.
+    let open_quantity = open_quantity.to_f32().expect("to fit");
+    let order_matching_fee =
+        commons::order_matching_fee(quantity + open_quantity, price, order_matching_fee_rate);
 
-    // subtract the fee from the max local margin and recalculate the quantity. That
+    // subtract the fee from the max margin and recalculate the quantity. That
     // might not be perfect but the closest we can get with a relatively simple logic.
     let max_margin_without_order_matching_fees = max_margin - order_matching_fee;
 
@@ -123,13 +193,55 @@ fn calculate_max_quantity(
         leverage,
     );
 
-    Decimal::try_from(max_quantity.floor()).expect("to fit into decimal")
+    Decimal::try_from((max_quantity + open_quantity).floor()).expect("to fit")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
+
+    #[test]
+    fn test_calculate_max_quantity_with_open_quantity() {
+        let price = Decimal::new(22001, 0);
+
+        let max_coordinator_margin = Amount::from_sat(765_763);
+        let max_trader_margin = Amount::from_sat(747_499);
+
+        let trader_leverage = 2.0;
+        let coordinator_leverage = 2.0;
+        let order_matching_fee_rate = dec!(0.003);
+        let open_quantity = dec!(323);
+        let accumulated_order_matching_fee = Amount::from_sat(4459);
+
+        let max_quantity = calculate_max_quantity(
+            price,
+            max_coordinator_margin,
+            max_trader_margin,
+            None,
+            coordinator_leverage,
+            trader_leverage,
+            order_matching_fee_rate,
+            accumulated_order_matching_fee,
+            open_quantity,
+        );
+
+        // max trader quantity: 0.00,747,499 * 22,001 * 2.0 = 328,91450998
+        // order matching fee: (328,91450998 + 323) * (1/22,001) * 0.003 = 0.00,008,889 BTC
+        // max trader margin without order matching fee: 747,499 - 8,889 = 738,610
+        // max quantity without order matching fee: 0.00,738,610 * 22,001 * 2.0 = 325,0031722
+        // 325 + 323 = 648
+        assert_eq!(dec!(648), max_quantity);
+
+        // Ensure that the coordinator has enough funds for the trade
+        let coordinator_margin = calculations::calculate_margin(
+            price.to_f32().unwrap(),
+            (max_quantity - open_quantity).to_f32().unwrap(),
+            coordinator_leverage,
+        );
+
+        assert!(coordinator_margin < max_coordinator_margin.to_sat());
+    }
 
     #[test]
     fn test_calculate_max_quantity_with_accumulated_order_matching_fee() {
@@ -151,6 +263,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::from_sat(4500),
+            dec!(0),
         );
 
         assert_eq!(Decimal::ZERO, max_quantity);
@@ -178,6 +291,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
+            dec!(0),
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -218,7 +332,7 @@ mod tests {
             max_quantity.to_f32().unwrap(),
             coordinator_leverage,
         );
-        assert!(Amount::from_sat(coordinator_margin) < max_coordinator_margin);
+        assert!(coordinator_margin < max_coordinator_margin.to_sat());
     }
 
     #[test]
@@ -241,6 +355,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
+            dec!(0),
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -257,7 +372,7 @@ mod tests {
 
         // Note this is not exactly the max margin of the coordinator, but its the closest we can
         // get.
-        assert_eq!(Amount::from_sat(trader_margin), Amount::from_sat(278_063));
+        assert_eq!(trader_margin, 278_063);
 
         // Ensure that the trader still has enough for the order matching fee
         assert!(Amount::from_sat(trader_margin) + order_matching_fee < max_trader_margin,
@@ -298,6 +413,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
+            dec!(0),
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -329,10 +445,7 @@ mod tests {
         );
 
         // Note this is not the max coordinator balance, but the closest we can get.
-        assert_eq!(
-            Amount::from_sat(coordinator_margin),
-            Amount::from_sat(446_887)
-        );
+        assert_eq!(coordinator_margin, 446_887);
     }
 
     #[test]
@@ -357,6 +470,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
+            dec!(0),
         );
 
         assert_eq!(max_quantity, Decimal::ZERO)
@@ -384,6 +498,7 @@ mod tests {
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
+            dec!(0),
         );
 
         let trader_margin = calculations::calculate_margin(
@@ -400,7 +515,7 @@ mod tests {
 
         // Note we can not max out the users balance, because the counterparty does not have enough
         // funds to match that trade on a leverage 2.0
-        assert_eq!(Amount::from_sat(trader_margin), Amount::from_sat(2_979_690));
+        assert_eq!(trader_margin, 2_979_690);
 
         // Ensure that the trader still has enough for the order matching fee
         assert!(Amount::from_sat(trader_margin) + order_matching_fee < max_trader_margin,

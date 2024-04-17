@@ -59,6 +59,39 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
     positionChangeNotifier = context.read<PositionChangeNotifier>();
 
+    // init the short trade values
+    final shortTradeValues = provider.fromDirection(Direction.short);
+    shortTradeValues.updateQuantity(shortTradeValues.maxQuantity);
+    // overwrite any potential pre-existing state
+    shortTradeValues.openQuantity = Usd.zero();
+
+    // by default we set the amount to the max quantity.
+    shortTradeValues.updateContracts(shortTradeValues.maxQuantity);
+
+    // init the long trade values
+    final longTradeValues = provider.fromDirection(Direction.long);
+    longTradeValues.updateQuantity(longTradeValues.maxQuantity);
+    // overwrite any potential pre-existing state
+    longTradeValues.openQuantity = Usd.zero();
+
+    // by default we set the amount to the max quantity.
+    longTradeValues.updateContracts(longTradeValues.maxQuantity);
+
+    if (positionChangeNotifier.positions.containsKey(contractSymbol)) {
+      // in case there is an open position we have to set the open quantity for the trade values of
+      // the opposite direction
+      final position = positionChangeNotifier.positions[contractSymbol]!;
+      final tradeValues = provider.fromDirection(position.direction.opposite());
+
+      tradeValues.openQuantity = position.quantity;
+      tradeValues.updateQuantity(tradeValues.maxQuantity - tradeValues.openQuantity);
+
+      // by default the contracts are set to the amount of open contracts of the current position.
+      tradeValues.updateContracts(tradeValues.openQuantity);
+    }
+
+    provider.maxQuantityLock = false;
+
     super.initState();
   }
 
@@ -189,14 +222,16 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
     bool hasPosition = positionChangeNotifier.positions.containsKey(contractSymbol);
 
     double? positionLeverage;
+    int usableBalance = channelTradeConstraints.maxLocalBalanceSats;
     if (hasPosition) {
       final position = context.read<PositionChangeNotifier>().positions[contractSymbol];
       positionLeverage = position!.leverage.leverage;
+      if (direction == position.direction.opposite()) {
+        usableBalance += ((position.unrealizedPnl ?? Amount.zero()) + position.collateral).sats;
+      }
     }
 
-    int usableBalance = channelTradeConstraints.maxLocalMarginSats;
-
-    quantityController.text = Amount(tradeValues.quantity?.toInt ?? 0).formatted();
+    quantityController.text = Amount(tradeValues.contracts.usd).formatted();
 
     return Wrap(
       runSpacing: 12,
@@ -227,8 +262,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
               controller: quantityController,
               suffixIcon: TextButton(
                 onPressed: () {
-                  final quantity = tradeValues.maxQuantity ?? Usd.zero();
-                  quantityController.text = quantity.formatted();
+                  final quantity = tradeValues.maxQuantity;
                   setState(() {
                     provider.maxQuantityLock = !provider.maxQuantityLock;
                     context.read<TradeValuesChangeNotifier>().updateQuantity(direction, quantity);
@@ -264,15 +298,15 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                 _formKey.currentState?.validate();
               },
               validator: (value) {
-                Amount quantity = Amount.parseAmount(value);
+                Usd quantity = Usd.parseString(value);
 
                 if (quantity.toInt < channelTradeConstraints.minQuantity) {
                   return "Min quantity is ${channelTradeConstraints.minQuantity}";
                 }
 
-                final maxQuantity = tradeValues.maxQuantity?.toInt ?? 0;
-                if (quantity.toInt > maxQuantity) {
-                  return "Max quantity is ${maxQuantity.toInt()}";
+                final maxQuantity = tradeValues.maxQuantity + tradeValues.openQuantity;
+                if (quantity > maxQuantity) {
+                  return "Max quantity is $maxQuantity";
                 }
 
                 return null;

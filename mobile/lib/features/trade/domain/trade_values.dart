@@ -4,16 +4,32 @@ import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 
 class TradeValues {
+  /// Potential quantity already in an open position
+  Usd _openQuantity = Usd.zero();
+
+  get openQuantity => _openQuantity;
+
+  set openQuantity(quantity) => _openQuantity = quantity;
+
+  /// The difference between open quantity and quantity if contracts is bigger than the open quantity.
+  /// This value is used to calculate the required margin.
+  Usd quantity = Usd.zero();
+
+  /// The actual contracts entered. Any value between 0 and maxQuantity.
+  Usd contracts = Usd.zero();
+
   Amount? margin;
   Leverage leverage;
   Direction direction;
 
-  // These values  can be null if coordinator is down
-  Usd? quantity;
   double? price;
   double? liquidationPrice;
   Amount? fee; // This fee is an estimate of the order-matching fee.
-  Usd? maxQuantity;
+
+  Usd? _maxQuantity;
+
+  /// The max quantity of the contracts not part of the open quantity.
+  Usd get maxQuantity => _maxQuantity ?? Usd.zero();
 
   DateTime expiry;
 
@@ -41,6 +57,7 @@ class TradeValues {
   }) {
     Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
+
     double? liquidationPrice = price != null
         ? tradeValuesService.calculateLiquidationPrice(
             price: price, leverage: leverage, direction: direction)
@@ -64,6 +81,11 @@ class TradeValues {
 
   updateQuantity(Usd quantity) {
     this.quantity = quantity;
+    _recalculateMargin();
+  }
+
+  updateContracts(Usd contracts) {
+    this.contracts = contracts;
     _recalculateMargin();
     _recalculateFee();
   }
@@ -113,7 +135,7 @@ class TradeValues {
   _recalculateQuantity() {
     Usd? quantity =
         tradeValuesService.calculateQuantity(price: price, margin: margin, leverage: leverage);
-    this.quantity = quantity;
+    this.quantity = quantity ?? Usd.zero();
   }
 
   _recalculateLiquidationPrice() {
@@ -123,7 +145,7 @@ class TradeValues {
   }
 
   _recalculateFee() {
-    fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
+    fee = tradeValuesService.orderMatchingFee(quantity: contracts, price: price);
   }
 
   recalculateMaxQuantity() {
