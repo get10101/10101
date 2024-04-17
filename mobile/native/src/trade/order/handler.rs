@@ -6,6 +6,7 @@ use crate::event;
 use crate::event::EventInternal;
 use crate::ln_dlc;
 use crate::ln_dlc::is_dlc_channel_confirmed;
+use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
@@ -63,6 +64,15 @@ pub enum SubmitOrderError {
 }
 
 pub async fn submit_order(
+    order: Order,
+    channel_opening_params: Option<ChannelOpeningParams>,
+) -> Result<Uuid, SubmitOrderError> {
+    submit_order_internal(order, channel_opening_params)
+        .await
+        .inspect_err(report_error_to_coordinator)
+}
+
+pub async fn submit_order_internal(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
 ) -> Result<Uuid, SubmitOrderError> {

@@ -347,7 +347,11 @@ run-coordinator-detached:
 
     just wait-for-electrs-to-be-ready
 
-    echo "Starting (and building) coordinator"
+    echo "Building coordinator first"
+    cargo build --bin coordinator
+
+    echo "Starting coordinator"
+
     just coordinator &> {{coordinator_log_file}} &
     just wait-for-coordinator-to-be-ready
     echo "Coordinator successfully started. You can inspect the logs at {{coordinator_log_file}}"
@@ -359,7 +363,8 @@ run-maker-detached:
 
     echo "Building maker first"
     cargo build --bin dev-maker
-    echo "Starting (and building) maker"
+
+    echo "Starting maker"
 
     just maker &> {{maker_log_file}} &
     just wait-for-maker-to-be-ready

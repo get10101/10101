@@ -72,7 +72,7 @@ static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) enum SelectorOutput {
     A(Option<()>),
-    B(Option<()>),
+    B,
     C(tokio::io::Result<usize>),
 }
 
@@ -96,8 +96,8 @@ impl<A: Future<Output = Option<()>> + Unpin, B: Future<Output = Option<()>> + Un
             Poll::Pending => {}
         }
         match Pin::new(&mut self.b).poll(ctx) {
-            Poll::Ready(res) => {
-                return Poll::Ready(SelectorOutput::B(res));
+            Poll::Ready(_) => {
+                return Poll::Ready(SelectorOutput::B);
             }
             Poll::Pending => {}
         }
@@ -130,8 +130,8 @@ impl<
             Poll::Pending => {}
         }
         match Pin::new(&mut self.b).poll(ctx) {
-            Poll::Ready(res) => {
-                return Poll::Ready(SelectorOutput::B(res));
+            Poll::Ready(_) => {
+                return Poll::Ready(SelectorOutput::B);
             }
             Poll::Pending => {}
         }
@@ -253,7 +253,7 @@ impl Connection {
                         break Disconnect::CloseConnection;
                     }
                 }
-                SelectorOutput::B(_) => {}
+                SelectorOutput::B => {}
                 SelectorOutput::C(read) => match read {
                     Ok(0) => break Disconnect::PeerDisconnected,
                     Ok(len) => {
