@@ -96,6 +96,9 @@ build-web-release:
 run-web:
     cd webapp/frontend && fvm flutter run -d chrome --web-browser-flag "--disable-web-security"
 
+run-web-backend:
+    cargo run --bin web
+
 # Build Rust library for iOS (debug mode)
 ios:
     cd mobile/native && CARGO_TARGET_DIR=../../target/ios_debug cargo lipo
