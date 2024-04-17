@@ -23,20 +23,20 @@ class TradeConstraintsService {
 
 @JsonSerializable()
 class TradeConstraints {
-  /// Max margin the local party can use
+  /// Max balance the local party can use
   ///
   /// This depends on whether the user has a channel or not. If he has a channel, then his
   /// channel balance is the max amount, otherwise his on-chain balance dictates the max amount
-  @JsonKey(name: 'max_local_margin_sats')
-  final int maxLocalMarginSats;
+  @JsonKey(name: 'max_local_balance_sats')
+  final int maxLocalBalanceSats;
 
   /// Max amount the counterparty is willing to put.
   ///
   /// This depends whether the user has a channel or not, i.e. if he has a channel then the max
   /// amount is what the counterparty has in the channel, otherwise, it's a fixed amount what
   /// the counterparty is willing to provide.
-  @JsonKey(name: 'max_counterparty_margin_sats')
-  final int maxCounterpartyMarginSats;
+  @JsonKey(name: 'max_counterparty_balance_sats')
+  final int maxCounterpartyBalanceSats;
 
   /// The leverage the coordinator will take
   @JsonKey(name: 'coordinator_leverage')
@@ -65,8 +65,8 @@ class TradeConstraints {
   final int channelFeeReserveSats;
 
   const TradeConstraints({
-    required this.maxLocalMarginSats,
-    required this.maxCounterpartyMarginSats,
+    required this.maxLocalBalanceSats,
+    required this.maxCounterpartyBalanceSats,
     required this.coordinatorLeverage,
     required this.minQuantity,
     required this.isChannelBalance,
@@ -76,5 +76,6 @@ class TradeConstraints {
   });
 
   factory TradeConstraints.fromJson(Map<String, dynamic> json) => _$TradeConstraintsFromJson(json);
+
   Map<String, dynamic> toJson() => _$TradeConstraintsToJson(this);
 }

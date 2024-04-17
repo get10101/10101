@@ -102,9 +102,9 @@ class _CreateChannelConfirmationDialogState extends State<CreateChannelConfirmat
     Amount counterpartyMargin = calculateMargin(widget.quantity, widget.bestQuote,
         Leverage(coordinatorLeverage), widget.direction == Direction.short);
 
-    final maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyMarginSats);
+    final maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyBalanceSats);
 
-    final maxOnChainSpending = Amount(tradeConstraints.maxLocalMarginSats);
+    final maxOnChainSpending = Amount(tradeConstraints.maxLocalBalanceSats);
     final counterpartyLeverage = tradeConstraints.coordinatorLeverage;
 
     final minMargin = Amount(max(tradeConstraints.minMarginSats, widget.margin.sats));

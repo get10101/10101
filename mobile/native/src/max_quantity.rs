@@ -34,8 +34,8 @@ pub fn max_quantity(
     };
 
     let max_coordinator_margin =
-        Amount::from_sat(channel_trade_constraints.max_counterparty_margin_sats);
-    let max_trader_margin = Amount::from_sat(channel_trade_constraints.max_local_margin_sats);
+        Amount::from_sat(channel_trade_constraints.max_counterparty_balance_sats);
+    let max_trader_margin = Amount::from_sat(channel_trade_constraints.max_local_balance_sats);
     let order_matching_fee_rate = channel_trade_constraints.order_matching_fee_rate;
     let order_matching_fee_rate =
         Decimal::try_from(order_matching_fee_rate).expect("to fit into decimal");

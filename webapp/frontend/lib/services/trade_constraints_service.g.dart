@@ -7,8 +7,8 @@ part of 'trade_constraints_service.dart';
 // **************************************************************************
 
 TradeConstraints _$TradeConstraintsFromJson(Map<String, dynamic> json) => TradeConstraints(
-      maxLocalMarginSats: json['max_local_margin_sats'] as int,
-      maxCounterpartyMarginSats: json['max_counterparty_margin_sats'] as int,
+      maxLocalBalanceSats: json['max_local_balance_sats'] as int,
+      maxCounterpartyBalanceSats: json['max_counterparty_balance_sats'] as int,
       coordinatorLeverage: (json['coordinator_leverage'] as num).toDouble(),
       minQuantity: json['min_quantity'] as int,
       isChannelBalance: json['is_channel_balance'] as bool,
@@ -18,8 +18,8 @@ TradeConstraints _$TradeConstraintsFromJson(Map<String, dynamic> json) => TradeC
     );
 
 Map<String, dynamic> _$TradeConstraintsToJson(TradeConstraints instance) => <String, dynamic>{
-      'max_local_margin_sats': instance.maxLocalMarginSats,
-      'max_counterparty_margin_sats': instance.maxCounterpartyMarginSats,
+      'max_local_balance_sats': instance.maxLocalBalanceSats,
+      'max_counterparty_balance_sats': instance.maxCounterpartyBalanceSats,
       'coordinator_leverage': instance.coordinatorLeverage,
       'min_quantity': instance.minQuantity,
       'is_channel_balance': instance.isChannelBalance,
