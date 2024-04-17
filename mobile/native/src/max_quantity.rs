@@ -139,7 +139,7 @@ mod tests {
         let max_trader_margin = Amount::from_sat(1_048_951);
 
         let trader_leverage = 2.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
@@ -147,7 +147,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             None,
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::from_sat(4500),
@@ -166,7 +166,7 @@ mod tests {
         let on_chain_fee_estimate = Amount::from_sat(13_500);
 
         let trader_leverage = 2.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
@@ -174,7 +174,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             Some(on_chain_fee_estimate),
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
@@ -216,7 +216,7 @@ mod tests {
         let coordinator_margin = calculations::calculate_margin(
             price.to_f32().unwrap(),
             max_quantity.to_f32().unwrap(),
-            coordinator_levarage,
+            coordinator_leverage,
         );
         assert!(Amount::from_sat(coordinator_margin) < max_coordinator_margin);
     }
@@ -229,7 +229,7 @@ mod tests {
         let max_trader_margin = Amount::from_sat(280_001);
 
         let trader_leverage = 2.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
@@ -237,7 +237,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             None,
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
@@ -268,7 +268,7 @@ mod tests {
         let coordinator_margin = calculations::calculate_margin(
             price.to_f32().unwrap(),
             max_quantity.to_f32().unwrap(),
-            coordinator_levarage,
+            coordinator_leverage,
         );
         assert!(
             Amount::from_sat(coordinator_margin) < max_coordinator_margin,
@@ -286,7 +286,7 @@ mod tests {
         let max_trader_margin = Amount::from_sat(280_000);
 
         let trader_leverage = 5.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let max_quantity = calculate_max_quantity(
@@ -294,7 +294,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             None,
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
@@ -325,7 +325,7 @@ mod tests {
         let coordinator_margin = calculations::calculate_margin(
             price.to_f32().unwrap(),
             max_quantity.to_f32().unwrap(),
-            coordinator_levarage,
+            coordinator_leverage,
         );
 
         // Note this is not the max coordinator balance, but the closest we can get.
@@ -343,7 +343,7 @@ mod tests {
         let max_trader_margin = Amount::from_sat(0);
 
         let trader_leverage = 2.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let on_chain_fee_estimate = Amount::from_sat(1515);
@@ -353,7 +353,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             Some(on_chain_fee_estimate),
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
@@ -370,7 +370,7 @@ mod tests {
         let max_trader_margin = Amount::from_btc(1.0).unwrap();
 
         let trader_leverage = 2.0;
-        let coordinator_levarage = 2.0;
+        let coordinator_leverage = 2.0;
         let order_matching_fee_rate = dec!(0.003);
 
         let on_chain_fee_estimate = Amount::from_sat(1515);
@@ -380,7 +380,7 @@ mod tests {
             max_coordinator_margin,
             max_trader_margin,
             Some(on_chain_fee_estimate),
-            coordinator_levarage,
+            coordinator_leverage,
             trader_leverage,
             order_matching_fee_rate,
             Amount::ZERO,
@@ -411,7 +411,7 @@ mod tests {
         let coordinator_margin = calculations::calculate_margin(
             price.to_f32().unwrap(),
             max_quantity.to_f32().unwrap(),
-            coordinator_levarage,
+            coordinator_leverage,
         );
 
         // Note this is not the max coordinator balance, but the closest we can get.
