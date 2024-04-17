@@ -37,7 +37,8 @@ class TradeBottomSheetTab extends StatefulWidget {
   State<TradeBottomSheetTab> createState() => _TradeBottomSheetTabState();
 }
 
-class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
+class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
+    with AutomaticKeepAliveClientMixin<TradeBottomSheetTab> {
   late final TradeValuesChangeNotifier provider;
   late final TenTenOneConfigChangeNotifier tentenoneConfigChangeNotifier;
   late final PositionChangeNotifier positionChangeNotifier;
@@ -106,6 +107,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     TradeTheme tradeTheme = Theme.of(context).extension<TradeTheme>()!;
     DlcChannelChangeNotifier dlcChannelChangeNotifier = context.watch<DlcChannelChangeNotifier>();
 
@@ -384,4 +387,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
       ],
     );
   }
+
+  @override
+  bool get wantKeepAlive => true;
 }
