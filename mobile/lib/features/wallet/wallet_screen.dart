@@ -8,6 +8,7 @@ import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/referral_widget.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/poll_change_notified.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
@@ -33,10 +34,14 @@ class _WalletScreenState extends State<WalletScreen> {
   void initState() {
     super.initState();
 
-    if (rust.api.hasTradedOnce()) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        _afterLoaded();
-      });
+    try {
+      if (rust.api.hasTradedOnce()) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          _afterLoaded();
+        });
+      }
+    } catch (error) {
+      logger.e("Failed to check if user has traded once: Error: $error");
     }
   }
 
