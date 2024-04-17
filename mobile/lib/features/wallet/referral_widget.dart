@@ -3,16 +3,14 @@ import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/common/domain/referral_status.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:get_10101/ffi.dart' as rust;
 
 class ShareReferralWidget extends StatefulWidget {
   const ShareReferralWidget({
@@ -31,7 +29,8 @@ class ShareReferralWidget extends StatefulWidget {
 class _ShareReferralWidgetState extends State<ShareReferralWidget> {
   @override
   Widget build(BuildContext context) {
-    final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
+    final nodeId = rust.api.getNodeId();
+    final referralCode = nodeId.substring(nodeId.length - 6).toUpperCase();
 
     return AlertDialog(
       title: const Text(
@@ -81,7 +80,7 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
                     children: [
                       RichText(
                         text: TextSpan(
-                            text: referralStatus!.referralCode,
+                            text: referralCode,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               color: tenTenOnePurple,
@@ -89,7 +88,7 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
                             ),
                             recognizer: TapGestureRecognizer()
                               ..onTap = () {
-                                Clipboard.setData(ClipboardData(text: referralStatus.referralCode));
+                                Clipboard.setData(ClipboardData(text: referralCode));
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text('Copied to clipboard'),
@@ -109,7 +108,7 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
                     children: [
                       IconButton(
                           onPressed: () => Share.share(
-                              "Join me and trade without counter-party risk. https://referral.10101.finance?referral=${referralStatus.referralCode}"),
+                              "Join me and trade without counter-party risk. https://referral.10101.finance?referral=$referralCode"),
                           icon: const Icon(Icons.share, size: 18))
                     ],
                   ),
@@ -125,7 +124,7 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
                   width: 600,
                   height: 800,
                   child: ReferralWidget(
-                    referralStatus: referralStatus,
+                    referralCode: referralCode,
                   ),
                 ),
               ))
@@ -171,11 +170,11 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
 }
 
 class ReferralWidget extends StatelessWidget {
-  final ReferralStatus referralStatus;
+  final String referralCode;
 
   const ReferralWidget({
     Key? key,
-    required this.referralStatus,
+    required this.referralCode,
   }) : super(key: key);
 
   @override
@@ -204,8 +203,7 @@ class ReferralWidget extends StatelessWidget {
                         color: Colors.white,
                       ),
                       child: QrImageView(
-                        data:
-                            "https://referral.10101.finance?referral=${referralStatus.referralCode}",
+                        data: "https://referral.10101.finance?referral=$referralCode",
                         eyeStyle: const QrEyeStyle(
                           eyeShape: QrEyeShape.square,
                           color: Colors.black,
@@ -250,7 +248,7 @@ class ReferralWidget extends StatelessWidget {
                       height: 20,
                     ),
                     Text(
-                      referralStatus.referralCode,
+                      referralCode,
                       style: const TextStyle(
                           fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
