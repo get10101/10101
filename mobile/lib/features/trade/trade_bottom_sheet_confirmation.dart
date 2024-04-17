@@ -178,9 +178,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
 
     final orderMatchingFee = tradeValues.fee ?? Amount.zero();
     final feeRebate = referralStatus != null
-        ? Amount((referralStatus.referralFeeBonus * orderMatchingFee.sats).ceil())
+        ? Amount((referralStatus.referralFeeBonus * orderMatchingFee.sats).floor())
         : Amount.zero();
-    final feeBeforeRebate = orderMatchingFee + feeRebate;
 
     return Container(
         padding: EdgeInsets.only(left: 20, right: 20, top: (isClose ? 20 : 10), bottom: 10),
@@ -224,7 +223,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                               ),
                         ValueDataRow(
                           type: ValueType.amount,
-                          value: feeBeforeRebate,
+                          value: orderMatchingFee,
                           label: "Order-matching fee",
                         ),
                         if (referralStatus != null && referralStatus.referralFeeBonus > 0)

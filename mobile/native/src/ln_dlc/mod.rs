@@ -185,13 +185,17 @@ pub fn get_maintenance_margin_rate() -> Decimal {
     }
 }
 
-pub fn get_order_matching_fee_rate() -> Decimal {
+pub fn get_order_matching_fee_rate(deduct_rebate: bool) -> Decimal {
     match state::try_get_tentenone_config() {
         Some(config) => {
             let fee_percent =
                 Decimal::try_from(config.order_matching_fee_rate).expect("to fit into decimal");
-            let fee_discount = config.referral_status.referral_fee_bonus;
-            fee_percent - (fee_percent * fee_discount)
+            if deduct_rebate {
+                let fee_discount = config.referral_status.referral_fee_bonus;
+                fee_percent - (fee_percent * fee_discount)
+            } else {
+                fee_percent
+            }
         }
         None => dec!(0.003),
     }
