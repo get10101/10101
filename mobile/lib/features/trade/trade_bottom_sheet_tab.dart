@@ -321,13 +321,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                     selector: (_, provider) =>
                         provider.orderMatchingFee(direction) ?? Amount.zero(),
                     builder: (context, fee, child) {
-                      final feeRebate = referralStatus != null
-                          ? Amount((referralStatus.referralFeeBonus * fee.sats).ceil())
-                          : Amount.zero();
-                      final feeBeforeRebate = fee + feeRebate;
                       return Flexible(
-                          child: ValueDataRow(
-                              type: ValueType.amount, value: feeBeforeRebate, label: "Fee:"));
+                          child: ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:"));
                     }),
               ],
             ),
@@ -344,7 +339,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab> {
                           provider.orderMatchingFee(direction) ?? Amount.zero(),
                       builder: (context, fee, child) {
                         return Text(
-                          "-${Amount((referralStatus.referralFeeBonus * fee.sats).ceil())}",
+                          "-${Amount((referralStatus.referralFeeBonus * fee.sats).floor())}",
                           style: const TextStyle(color: Colors.green),
                         );
                       }),

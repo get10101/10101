@@ -404,7 +404,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                 };
 
                 // FIXME: A from implementation should not contain this kind of logic.
-                let fee_rate = ln_dlc::get_order_matching_fee_rate();
+                let fee_rate = ln_dlc::get_order_matching_fee_rate(true);
 
                 (
                     calculate_pnl(
@@ -682,7 +682,7 @@ pub async fn get_best_quote(
             bid: bid_price,
             ask: ask_price,
         },
-        fee: ln_dlc::get_order_matching_fee_rate(),
+        fee: ln_dlc::get_order_matching_fee_rate(true),
     };
 
     Ok(Json(Some(quotes)))

@@ -332,7 +332,7 @@ pub fn calculate_pnl(
 pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
-    let fee_rate = ln_dlc::get_order_matching_fee_rate();
+    let fee_rate = ln_dlc::get_order_matching_fee_rate(false);
     let order_matching_fee = commons::order_matching_fee(quantity, price, fee_rate).to_sat();
 
     SyncReturn(order_matching_fee)
