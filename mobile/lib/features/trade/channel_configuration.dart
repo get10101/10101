@@ -106,9 +106,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     DlcChannelService dlcChannelService =
         context.read<DlcChannelChangeNotifier>().dlcChannelService;
 
-    maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyMarginSats);
+    maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyBalanceSats);
 
-    maxOnChainSpending = Amount(tradeConstraints.maxLocalMarginSats);
+    maxOnChainSpending = Amount(tradeConstraints.maxLocalBalanceSats);
     counterpartyLeverage = tradeConstraints.coordinatorLeverage;
 
     counterpartyMargin = widget.tradeValues.calculateMargin(Leverage(counterpartyLeverage));

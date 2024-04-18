@@ -104,6 +104,7 @@ diesel::table! {
         expiry_timestamp -> BigInt,
         updated_timestamp -> BigInt,
         stable -> Bool,
+        order_matching_fees -> BigInt,
     }
 }
 

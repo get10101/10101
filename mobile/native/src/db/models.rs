@@ -414,6 +414,7 @@ pub(crate) struct Position {
     pub expiry_timestamp: i64,
     pub updated_timestamp: i64,
     pub stable: bool,
+    pub order_matching_fees: i64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
@@ -499,6 +500,7 @@ impl Position {
             creation_timestamp: _,
             expiry_timestamp,
             updated_timestamp,
+            order_matching_fees,
             ..
         } = position;
 
@@ -513,6 +515,7 @@ impl Position {
                 positions::state.eq(state),
                 positions::collateral.eq(collateral),
                 positions::expiry_timestamp.eq(expiry_timestamp),
+                positions::order_matching_fees.eq(order_matching_fees),
                 positions::updated_timestamp.eq(updated_timestamp),
             ))
             .execute(conn)?;
@@ -549,6 +552,7 @@ impl From<Position> for crate::trade::position::Position {
             created: OffsetDateTime::from_unix_timestamp(value.creation_timestamp)
                 .expect("to fit into unix timestamp"),
             stable: value.stable,
+            order_matching_fees: Amount::from_sat(value.order_matching_fees as u64),
         }
     }
 }
@@ -568,6 +572,7 @@ impl From<crate::trade::position::Position> for Position {
             updated_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
             expiry_timestamp: value.expiry.unix_timestamp(),
             stable: value.stable,
+            order_matching_fees: value.order_matching_fees.to_sat() as i64,
         }
     }
 }

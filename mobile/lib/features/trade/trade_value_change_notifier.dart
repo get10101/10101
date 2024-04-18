@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/common/dummy_values.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
@@ -26,7 +25,8 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   TradeValues _initOrder(Direction direction) {
-    Usd defaultQuantity = Usd(500);
+    // the default quantity will be calculated when the trade bottom sheet tab is initialized.
+    Usd defaultQuantity = Usd.zero();
     Leverage defaultLeverage = Leverage(2);
 
     switch (direction) {
@@ -35,7 +35,6 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
-            fundingRate: fundingRateBuy,
             direction: direction,
             tradeValuesService: tradeValuesService);
       case Direction.short:
@@ -43,7 +42,6 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
             quantity: defaultQuantity,
             leverage: defaultLeverage,
             price: null,
-            fundingRate: fundingRateSell,
             direction: direction,
             tradeValuesService: tradeValuesService);
     }
@@ -74,7 +72,16 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
   }
 
   void updateQuantity(Direction direction, Usd quantity) {
-    fromDirection(direction).updateQuantity(quantity);
+    if (fromDirection(direction).openQuantity < quantity) {
+      // the user is changing direction of his position
+      fromDirection(direction).updateQuantity(quantity - fromDirection(direction).openQuantity);
+    } else {
+      // the user is only selling existing contracts
+      fromDirection(direction).updateQuantity(Usd.zero());
+    }
+
+    fromDirection(direction).updateContracts(quantity);
+
     notifyListeners();
   }
 
@@ -104,6 +111,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         if (price != _sellTradeValues.price) {
           if (maxQuantityLock) {
             _sellTradeValues.updatePriceAndQuantity(price);
+            _sellTradeValues.contracts = _sellTradeValues.maxQuantity;
           } else {
             _sellTradeValues.updatePriceAndMargin(price);
           }
@@ -114,6 +122,7 @@ class TradeValuesChangeNotifier extends ChangeNotifier implements Subscriber {
         if (price != _buyTradeValues.price) {
           if (maxQuantityLock) {
             _buyTradeValues.updatePriceAndQuantity(price);
+            _buyTradeValues.contracts = _buyTradeValues.maxQuantity;
           } else {
             _buyTradeValues.updatePriceAndMargin(price);
           }

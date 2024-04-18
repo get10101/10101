@@ -340,11 +340,16 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
 
 /// Calculates the max quantity the user is able to trade considering the trader and the coordinator
 /// balances and constraints. Note, this is not an exact maximum, but a very close approximation.
-pub fn calculate_max_quantity(price: f32, trader_leverage: f32) -> SyncReturn<u64> {
-    let price = Decimal::from_f32(price).expect("price to fit in Decimal");
+pub fn calculate_max_quantity(
+    price: f32,
+    trader_leverage: f32,
+    trader_direction: Direction,
+) -> SyncReturn<u64> {
+    let price = Decimal::from_f32(price).expect("to fit");
 
-    let max_quantity = max_quantity(price, trader_leverage).unwrap_or(Decimal::ZERO);
-    let max_quantity = max_quantity.floor().to_u64().expect("to fit into u64");
+    let max_quantity =
+        max_quantity(price, trader_leverage, trader_direction).unwrap_or(Decimal::ZERO);
+    let max_quantity = max_quantity.floor().to_u64().expect("to fit");
 
     SyncReturn(max_quantity)
 }

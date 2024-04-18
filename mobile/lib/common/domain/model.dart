@@ -50,6 +50,10 @@ class Amount {
     return Amount(sats * other.sats);
   }
 
+  bool operator >(Amount other) {
+    return sats > other.sats;
+  }
+
   Amount.parseAmount(String? value) {
     if (value == null || value.isEmpty) {
       _sats = Decimal.zero;
@@ -97,6 +101,26 @@ class Usd {
   Usd.fromDouble(double value) : _usd = Decimal.parse(value.toString());
 
   Usd.parse(dynamic value) : _usd = Decimal.parse(value);
+
+  Usd operator +(Usd other) {
+    return Usd(usd + other.usd);
+  }
+
+  Usd operator -(Usd other) {
+    return Usd(usd - other.usd);
+  }
+
+  bool operator >(Usd other) {
+    return usd > other.usd;
+  }
+
+  bool operator >=(Usd other) {
+    return usd >= other.usd;
+  }
+
+  bool operator <(Usd other) {
+    return usd < other.usd;
+  }
 
   Usd.parseString(String? value) {
     if (value == null || value.isEmpty) {

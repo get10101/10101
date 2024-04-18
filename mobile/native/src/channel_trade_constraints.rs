@@ -3,17 +3,17 @@ use anyhow::Context;
 use anyhow::Result;
 
 pub struct TradeConstraints {
-    /// Max margin the local party can use
+    /// Max balance the local party can use
     ///
     /// This depends on whether the user has a channel or not. If he has a channel, then his
     /// channel balance is the max amount, otherwise his on-chain balance dictates the max amount
-    pub max_local_margin_sats: u64,
+    pub max_local_balance_sats: u64,
     /// Max amount the counterparty is willing to put.
     ///
     /// This depends whether the user has a channel or not, i.e. if he has a channel then the max
     /// amount is what the counterparty has in the channel, otherwise, it's a fixed amount what
     /// the counterparty is willing to provide.
-    pub max_counterparty_margin_sats: u64,
+    pub max_counterparty_balance_sats: u64,
     /// The leverage the coordinator will take
     pub coordinator_leverage: f32,
     /// Smallest allowed amount of contracts
@@ -29,6 +29,8 @@ pub struct TradeConstraints {
     pub maintenance_margin_rate: f32,
     /// The fee rate for order matching.
     pub order_matching_fee_rate: f32,
+    /// Total collateral in the dlc channel, none if [`is_channel_balance`] is false.
+    pub total_collateral: Option<u64>,
 }
 
 pub fn channel_trade_constraints() -> Result<TradeConstraints> {
@@ -37,7 +39,11 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
 
     let signed_channel = ln_dlc::get_signed_dlc_channel()?;
 
-    let min_margin = signed_channel.map(|_| 1).unwrap_or(250_000);
+    let min_margin = match &signed_channel {
+        Some(_) => 1,
+        // TODO(holzeis): https://github.com/get10101/10101/issues/1905
+        None => 250_000,
+    };
 
     let min_quantity = config.min_quantity;
     let maintenance_margin_rate = config.maintenance_margin_rate;
@@ -53,42 +59,42 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
         .context("we need at least one liquidity option")?;
     let coordinator_leverage = option.coordinator_leverage;
 
-    let dlc_channels = ln_dlc::get_signed_dlc_channels()?;
-
     // FIXME: This doesn't work if the channel is in `Closing` and related states.
-    let maybe_channel = dlc_channels.first();
-
-    let trade_constraints = match maybe_channel {
+    let trade_constraints = match signed_channel {
         None => {
             let balance = ln_dlc::get_onchain_balance();
-            let counterparty_margin_sats = option.trade_up_to_sats;
+            let counterparty_balance_sats = option.trade_up_to_sats;
             TradeConstraints {
-                max_local_margin_sats: balance.confirmed
+                max_local_balance_sats: balance.confirmed
                     + balance.trusted_pending
                     + balance.untrusted_pending,
-
-                max_counterparty_margin_sats: counterparty_margin_sats,
+                max_counterparty_balance_sats: counterparty_balance_sats,
                 coordinator_leverage,
                 min_quantity,
                 is_channel_balance: false,
                 min_margin,
                 maintenance_margin_rate,
                 order_matching_fee_rate,
+                total_collateral: None,
             }
         }
-        Some(_) => {
+        Some(channel) => {
             let local_balance = ln_dlc::get_usable_dlc_channel_balance()?.to_sat();
             let counterparty_balance =
                 ln_dlc::get_usable_dlc_channel_balance_counterparty()?.to_sat();
+
             TradeConstraints {
-                max_local_margin_sats: local_balance,
-                max_counterparty_margin_sats: counterparty_balance,
+                max_local_balance_sats: local_balance,
+                max_counterparty_balance_sats: counterparty_balance,
                 coordinator_leverage,
                 min_quantity,
                 is_channel_balance: true,
                 min_margin,
                 maintenance_margin_rate,
                 order_matching_fee_rate,
+                total_collateral: Some(
+                    channel.own_params.collateral + channel.counter_params.collateral,
+                ),
             }
         }
     };

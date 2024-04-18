@@ -14,6 +14,7 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
+use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::contract::Contract;
 use dlc_manager::DlcChannelId;
@@ -134,6 +135,7 @@ pub fn recreate_position() -> Result<()> {
         updated: OffsetDateTime::now_utc(),
         created: OffsetDateTime::now_utc(),
         stable: false,
+        order_matching_fees: order.matching_fee().unwrap_or(Amount::ZERO),
     };
     db::insert_position(position.clone())?;
 

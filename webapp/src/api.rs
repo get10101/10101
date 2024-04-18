@@ -954,8 +954,8 @@ where
 
 #[derive(Serialize, Copy, Clone, Debug, ToSchema)]
 pub struct TradeConstraints {
-    pub max_local_margin_sats: u64,
-    pub max_counterparty_margin_sats: u64,
+    pub max_local_balance_sats: u64,
+    pub max_counterparty_balance_sats: u64,
     pub coordinator_leverage: f32,
     pub min_quantity: u64,
     pub is_channel_balance: bool,
@@ -976,8 +976,8 @@ pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError>
     let fee = ln_dlc::estimated_funding_tx_fee()?;
     let channel_fee_reserve = ln_dlc::estimated_fee_reserve()?;
     Ok(Json(TradeConstraints {
-        max_local_margin_sats: trade_constraints.max_local_margin_sats,
-        max_counterparty_margin_sats: trade_constraints.max_counterparty_margin_sats,
+        max_local_balance_sats: trade_constraints.max_local_balance_sats,
+        max_counterparty_balance_sats: trade_constraints.max_counterparty_balance_sats,
         coordinator_leverage: trade_constraints.coordinator_leverage,
         min_quantity: trade_constraints.min_quantity,
         is_channel_balance: trade_constraints.is_channel_balance,

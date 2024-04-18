@@ -108,7 +108,9 @@ void main() {
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
     when(tradeValueService.calculateMaxQuantity(
-            price: anyNamed('price'), leverage: anyNamed('leverage')))
+            price: anyNamed('price'),
+            leverage: anyNamed('leverage'),
+            direction: anyNamed('direction')))
         .thenReturn(Usd(2500));
 
     when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
@@ -117,8 +119,8 @@ void main() {
 
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(
-            maxLocalMarginSats: 20000000000,
-            maxCounterpartyMarginSats: 200000000000,
+            maxLocalBalanceSats: 20000000000,
+            maxCounterpartyBalanceSats: 200000000000,
             coordinatorLeverage: 2,
             minQuantity: 1,
             isChannelBalance: true,
@@ -233,13 +235,15 @@ void main() {
             quantity: anyNamed('quantity'), price: anyNamed('price')))
         .thenReturn(Amount(42));
     when(tradeValueService.calculateMaxQuantity(
-            price: anyNamed('price'), leverage: anyNamed('leverage')))
+            price: anyNamed('price'),
+            leverage: anyNamed('leverage'),
+            direction: anyNamed('direction')))
         .thenReturn(Usd(2500));
 
     when(channelConstraintsService.getTradeConstraints()).thenAnswer((_) =>
         const bridge.TradeConstraints(
-            maxLocalMarginSats: 20000000000,
-            maxCounterpartyMarginSats: 200000000000,
+            maxLocalBalanceSats: 20000000000,
+            maxCounterpartyBalanceSats: 200000000000,
             coordinatorLeverage: 2,
             minQuantity: 1,
             isChannelBalance: true,

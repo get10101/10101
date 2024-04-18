@@ -57,8 +57,6 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
     notifyListeners();
 
     try {
-      assert(tradeValues.quantity != null, 'Quantity cannot be null when submitting order');
-
       if (channelOpeningParams != null) {
         // TODO(holzeis): The coordinator leverage should not be hard coded here.
         final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
@@ -70,7 +68,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
         _pendingOrder!.id = await orderService.submitChannelOpeningMarketOrder(
             tradeValues.leverage,
-            tradeValues.quantity!,
+            tradeValues.contracts,
             ContractSymbol.btcusd,
             tradeValues.direction,
             stable,
@@ -78,7 +76,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
             Amount(traderReserve));
       } else {
         _pendingOrder!.id = await orderService.submitMarketOrder(tradeValues.leverage,
-            tradeValues.quantity!, ContractSymbol.btcusd, tradeValues.direction, stable);
+            tradeValues.contracts, ContractSymbol.btcusd, tradeValues.direction, stable);
       }
 
       _pendingOrder!.state = PendingOrderState.submittedSuccessfully;
@@ -121,21 +119,19 @@ class SubmitOrderChangeNotifier extends ChangeNotifier implements Subscriber {
 
   Future<void> closePosition(Position position, double? closingPrice, Amount? fee,
       {bool stable = false}) async {
-    await submitPendingOrder(
-        TradeValues(
-            direction: position.direction.opposite(),
-            margin: position.collateral,
-            quantity: position.quantity,
-            leverage: position.leverage,
-            price: closingPrice,
-            liquidationPrice: position.liquidationPrice,
-            fee: fee,
-            fundingRate: 0,
-            expiry: position.expiry,
-            tradeValuesService: const TradeValuesService()),
-        PositionAction.close,
-        pnl: position.unrealizedPnl,
-        stable: stable);
+    final tradeValues = TradeValues(
+        direction: position.direction.opposite(),
+        margin: position.collateral,
+        quantity: position.quantity,
+        leverage: position.leverage,
+        price: closingPrice,
+        liquidationPrice: position.liquidationPrice,
+        fee: fee,
+        expiry: position.expiry,
+        tradeValuesService: const TradeValuesService());
+    tradeValues.contracts = position.quantity;
+    await submitPendingOrder(tradeValues, PositionAction.close,
+        pnl: position.unrealizedPnl, stable: stable);
   }
 
   PendingOrder? get pendingOrder => _pendingOrder;
