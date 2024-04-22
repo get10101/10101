@@ -141,6 +141,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
 
     bool isClose = tradeAction == TradeAction.closePosition;
     bool isChannelOpen = tradeAction == TradeAction.openChannel;
+    bool isReduce = tradeAction == TradeAction.reducePosition;
+    bool isChangedDirection = tradeAction == TradeAction.changeDirection;
 
     final traderCollateral1 = traderCollateral ?? Amount.zero();
 
@@ -244,19 +246,20 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                                 label: 'Market Price')
                             : ValueDataRow(
                                 type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
-                        isClose
-                            ? ValueDataRow(
-                                type: ValueType.amount,
-                                value: pnl,
-                                label: 'Unrealized P/L',
-                                valueTextStyle: dataRowStyle.apply(
-                                    color:
-                                        pnl.sats.isNegative ? tradeTheme.loss : tradeTheme.profit))
-                            : ValueDataRow(
-                                type: ValueType.fiat,
-                                value: tradeValues.liquidationPrice ?? 0.0,
-                                label: 'Liquidation Price',
-                              ),
+                        if (isReduce || isClose || isChangedDirection)
+                          ValueDataRow(
+                              type: ValueType.amount,
+                              value: pnl,
+                              label: 'Unrealized P/L',
+                              valueTextStyle: dataRowStyle.apply(
+                                  color:
+                                      pnl.sats.isNegative ? tradeTheme.loss : tradeTheme.profit)),
+                        if (!isClose)
+                          ValueDataRow(
+                            type: ValueType.fiat,
+                            value: tradeValues.liquidationPrice ?? 0.0,
+                            label: 'Liquidation Price',
+                          ),
                         ValueDataRow(
                           type: ValueType.amount,
                           value: orderMatchingFee,
