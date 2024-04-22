@@ -195,6 +195,10 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                     Wrap(
                       runSpacing: 5,
                       children: [
+                        ValueDataRow(
+                            type: ValueType.fiat,
+                            value: tradeValues.contracts.asDouble(),
+                            label: "Quantity"),
                         if (!isClose)
                           ValueDataRow(
                               type: ValueType.date,
