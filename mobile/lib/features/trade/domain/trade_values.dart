@@ -58,10 +58,8 @@ class TradeValues {
     Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
 
-    double? liquidationPrice = price != null
-        ? tradeValuesService.calculateLiquidationPrice(
-            price: price, leverage: leverage, direction: direction)
-        : null;
+    double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+        price: price, leverage: leverage, direction: direction);
 
     Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
 
