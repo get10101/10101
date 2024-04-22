@@ -7,6 +7,7 @@ import 'package:get_10101/common/application/tentenone_config_change_notifier.da
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
+import 'package:get_10101/common/usd_text_field.dart';
 import 'package:get_10101/features/trade/channel_configuration.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
@@ -252,8 +253,8 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
         Selector<TradeValuesChangeNotifier, double>(
             selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
             builder: (context, price, child) {
-              return AmountTextField(
-                value: Amount(price.ceil()),
+              return UsdTextField(
+                value: Usd.fromDouble(price),
                 label: "Market Price (USD)",
               );
             }),
