@@ -86,6 +86,7 @@ class TradeValues {
     this.contracts = contracts;
     _recalculateMargin();
     _recalculateFee();
+    _recalculateLiquidationPrice();
   }
 
   updateMargin(Amount margin) {
@@ -137,9 +138,16 @@ class TradeValues {
   }
 
   _recalculateLiquidationPrice() {
-    double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
-        price: price, leverage: leverage, direction: direction);
-    this.liquidationPrice = liquidationPrice;
+    if (quantity.usd == 0) {
+      // the user is only reducing his position hence we need to calculate the liquidation price based on the opposite direction.
+      double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+          price: price, leverage: leverage, direction: direction.opposite());
+      this.liquidationPrice = liquidationPrice;
+    } else {
+      double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+          price: price, leverage: leverage, direction: direction);
+      this.liquidationPrice = liquidationPrice;
+    }
   }
 
   _recalculateFee() {
