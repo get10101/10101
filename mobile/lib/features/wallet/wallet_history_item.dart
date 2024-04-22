@@ -274,7 +274,7 @@ class TransactionIdText extends StatelessWidget {
           pathSegments: ['testnet', 'tx', txId],
         ),
       "regtest" => Uri.parse(
-          "${const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.0.52:8080")}/tx/$txId"),
+          "${const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.62.120:8080")}/tx/$txId"),
       _ => Uri(
           scheme: 'https',
           host: 'mempool.space',
