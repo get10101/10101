@@ -239,13 +239,14 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                               type: ValueType.date,
                               value: tradeValues.expiry.toLocal(),
                               label: 'Expiry'),
-                        isClose
-                            ? ValueDataRow(
-                                type: ValueType.fiat,
-                                value: tradeValues.price ?? 0.0,
-                                label: 'Market Price')
-                            : ValueDataRow(
-                                type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
+                        if (isClose)
+                          ValueDataRow(
+                              type: ValueType.fiat,
+                              value: tradeValues.price ?? 0.0,
+                              label: 'Market Price'),
+                        if (!isReduce)
+                          ValueDataRow(
+                              type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
                         if (isReduce || isClose || isChangedDirection)
                           ValueDataRow(
                               type: ValueType.amount,
