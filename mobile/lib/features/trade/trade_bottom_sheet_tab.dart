@@ -351,8 +351,13 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                     selector: (_, provider) =>
                         provider.fromDirection(direction).liquidationPrice ?? 0.0,
                     builder: (context, liquidationPrice, child) {
-                      return ValueDataRow(
-                          type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
+                      if (tradeValues.openQuantity == tradeValues.contracts) {
+                        // the position would be closed at this quantity. It does not make sense to show the liquidation price.
+                        return const SizedBox(width: 135, child: Text('Liquidation: n/a'));
+                      } else {
+                        return ValueDataRow(
+                            type: ValueType.fiat, value: liquidationPrice, label: "Liquidation:");
+                      }
                     }),
                 const SizedBox(width: 55),
                 Selector<TradeValuesChangeNotifier, Amount>(
