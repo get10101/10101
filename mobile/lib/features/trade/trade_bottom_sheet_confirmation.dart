@@ -307,8 +307,8 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                             : const SizedBox(height: 0),
                       ],
                     ),
-                    !isClose ? const Divider() : const SizedBox(height: 0),
-                    !isClose
+                    !isClose && !isReduce ? const Divider() : const SizedBox(height: 0),
+                    !isClose && !isReduce
                         ? ValueDataRow(type: ValueType.amount, value: total, label: "Total")
                         : const SizedBox(height: 0),
                   ],
