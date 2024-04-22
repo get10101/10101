@@ -122,6 +122,13 @@ class Usd {
     return usd < other.usd;
   }
 
+  @override
+  bool operator ==(Object other) =>
+      other is Usd && other.runtimeType == runtimeType && other._usd == _usd;
+
+  @override
+  int get hashCode => _usd.hashCode;
+
   Usd.parseString(String? value) {
     if (value == null || value.isEmpty) {
       _usd = Decimal.zero;

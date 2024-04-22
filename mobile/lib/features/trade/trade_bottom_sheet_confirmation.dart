@@ -19,8 +19,19 @@ import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
 enum TradeAction {
+  /// No channel exists.
   openChannel,
+
+  /// Open quantity is bigger than the contracts. The user is partially closing their position.
+  reducePosition,
+
+  /// The open quantity is smaller than the contracts. The user is changing directions.
+  changeDirection,
+
+  /// The user is either extending or opening a new position. (or changing direction)
   trade,
+
+  /// Open quantity is exactly the amount of contracts. The user is closing their position.
   closePosition,
 }
 
@@ -95,30 +106,6 @@ tradeBottomSheetConfirmation(
   );
 }
 
-// TODO: Include slider/button too.
-RichText confirmationText(BuildContext context, TradeAction tradeAction, Amount total) {
-  switch (tradeAction) {
-    case TradeAction.closePosition:
-      return RichText(
-          text: TextSpan(
-              text:
-                  '\nBy confirming, a closing market order will be created. Once the order is matched, your position will be closed.',
-              style: DefaultTextStyle.of(context).style));
-    case TradeAction.openChannel:
-    case TradeAction.trade:
-      return RichText(
-        text: TextSpan(
-          text: '\nBy confirming, a new order will be created. Once the order is matched, ',
-          style: DefaultTextStyle.of(context).style,
-          children: <TextSpan>[
-            TextSpan(text: formatSats(total), style: const TextStyle(fontWeight: FontWeight.bold)),
-            const TextSpan(text: ' will be locked up in a DLC channel!'),
-          ],
-        ),
-      );
-  }
-}
-
 class TradeBottomSheetConfirmation extends StatelessWidget {
   final Direction direction;
   final Key sliderKey;
@@ -179,6 +166,52 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
     final feeRebate = referralStatus != null
         ? Amount((referralStatus.referralFeeBonus * orderMatchingFee.sats).floor())
         : Amount.zero();
+
+    final description = switch (tradeAction) {
+      TradeAction.closePosition => RichText(
+          text: TextSpan(
+              text:
+                  '\nBy confirming, a market order will be created. Once the order is matched, your position will be closed.',
+              style: DefaultTextStyle.of(context).style)),
+      TradeAction.openChannel || TradeAction.trade => RichText(
+          text: TextSpan(
+            text: '\nBy confirming, a market order will be created. Once the order is matched, ',
+            style: DefaultTextStyle.of(context).style,
+            children: <TextSpan>[
+              TextSpan(
+                  text: formatSats(total), style: const TextStyle(fontWeight: FontWeight.bold)),
+              const TextSpan(text: ' will be locked up in a DLC channel!'),
+            ],
+          ),
+        ),
+      TradeAction.reducePosition => RichText(
+          text: TextSpan(
+            text: '\nBy confirming, a market order will be created reducing your position to ',
+            style: DefaultTextStyle.of(context).style,
+            children: <TextSpan>[
+              TextSpan(
+                  text: formatUsd(tradeValues.openQuantity - tradeValues.contracts),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      TradeAction.changeDirection => RichText(
+          text: TextSpan(
+            text:
+                '\nBy confirming, a market order will be created changing the direction of your position to ',
+            style: DefaultTextStyle.of(context).style,
+            children: <TextSpan>[
+              TextSpan(
+                  text: formatUsd(tradeValues.contracts - tradeValues.openQuantity),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              TextSpan(text: ' ${tradeValues.direction.nameU}.\n\nOnce the order is matched, '),
+              TextSpan(
+                  text: formatSats(total), style: const TextStyle(fontWeight: FontWeight.bold)),
+              const TextSpan(text: ' will be locked up in a DLC channel!')
+            ],
+          ),
+        ),
+    };
 
     return Container(
         padding: EdgeInsets.only(left: 20, right: 20, top: (isClose ? 20 : 10), bottom: 10),
@@ -278,7 +311,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                 ),
               ),
             ),
-            confirmationText(context, tradeAction, total),
+            description,
             const Spacer(),
             ConfirmationSlider(
               key: sliderKey,

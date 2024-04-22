@@ -149,7 +149,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                     if (_formKey.currentState!.validate()) {
                       final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
 
-                      final tradeAction = hasChannel ? TradeAction.trade : TradeAction.openChannel;
+                      final tradeAction = getTradeAction(tradeValues, hasChannel);
 
                       switch (tradeAction) {
                         case TradeAction.openChannel:
@@ -173,7 +173,9 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                             break;
                           }
                         case TradeAction.trade:
+                        case TradeAction.reducePosition:
                         case TradeAction.closePosition:
+                        case TradeAction.changeDirection:
                           tradeBottomSheetConfirmation(
                             context: context,
                             direction: direction,
@@ -396,4 +398,26 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
 
   @override
   bool get wantKeepAlive => true;
+
+  /// Returns the trade action depending on the trade values and if a channel exists
+  TradeAction getTradeAction(TradeValues tradeValues, bool hasChannel) {
+    if (!hasChannel) {
+      return TradeAction.openChannel;
+    }
+
+    if (tradeValues.openQuantity == tradeValues.contracts) {
+      return TradeAction.closePosition;
+    }
+
+    if (tradeValues.openQuantity > tradeValues.contracts) {
+      return TradeAction.reducePosition;
+    }
+
+    if (tradeValues.openQuantity != Usd.zero() &&
+        tradeValues.openQuantity < tradeValues.contracts) {
+      return TradeAction.changeDirection;
+    }
+
+    return TradeAction.trade;
+  }
 }
