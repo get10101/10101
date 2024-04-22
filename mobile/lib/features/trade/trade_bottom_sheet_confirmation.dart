@@ -76,7 +76,7 @@ tradeBottomSheetConfirmation(
             },
             child: SingleChildScrollView(
               child: SizedBox(
-                  height: TradeAction.closePosition == tradeAction ? 330 : 500,
+                  height: TradeAction.closePosition == tradeAction ? 380 : 500,
                   child: TradeBottomSheetConfirmation(
                     direction: direction,
                     sliderButtonKey: sliderButtonKey,
