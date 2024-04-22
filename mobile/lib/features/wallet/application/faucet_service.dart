@@ -18,7 +18,7 @@ class FaucetService {
     // locally if needed for dev testing
     // It's not populated in Config struct, as it's not used in production
     String faucet =
-        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.0.52:8080");
+        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.62.120:8080");
 
     final data = {
       'jsonrpc': '1.0',
@@ -69,7 +69,7 @@ class FaucetService {
     // locally if needed for dev testing
     // It's not populated in Config struct, as it's not used in production
     String faucet = const String.fromEnvironment("REGTEST_MAKER_FAUCET",
-        defaultValue: "http://34.32.0.52:80/maker/faucet");
+        defaultValue: "http://34.32.62.120:80/maker/faucet");
 
     final response = await http.post(
       Uri.parse('$faucet/$invoice'),

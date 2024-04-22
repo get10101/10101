@@ -8,10 +8,10 @@ maker_log_file := "$PWD/data/maker/regtest.log"
 pubspec := "$PWD/mobile/pubspec.yaml"
 
 # public regtest constants
-public_regtest_coordinator := "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.0.52:9045"
-public_regtest_electrs := "http://34.32.0.52:3000"
+public_regtest_coordinator := "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.62.120:9045"
+public_regtest_electrs := "http://34.32.62.120:3000"
 public_coordinator_http_port := "80"
-public_regtest_oracle_endpoint := "http://34.32.0.52:8081"
+public_regtest_oracle_endpoint := "http://34.32.62.120:8081"
 public_regtest_oracle_pk := "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859"
 
 # command to get the local IP of this machine
@@ -182,7 +182,7 @@ fund args="":
 
 # Fund remote regtest instance
 fund-regtest:
-    cargo run -p tests-e2e --example fund -- --faucet=http://34.32.0.52:8080 --coordinator=http://34.32.0.52:80
+    cargo run -p tests-e2e --example fund -- --faucet=http://34.32.62.120:8080 --coordinator=http://34.32.62.120:80
 
 clean:
     #!/usr/bin/env bash
