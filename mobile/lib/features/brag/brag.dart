@@ -7,7 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/brag/github_service.dart';
+import 'package:get_10101/features/brag/meme_service.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -43,86 +43,78 @@ class BragWidget extends StatefulWidget {
 class _BragWidgetState extends State<BragWidget> {
   ScreenshotController screenShotController = ScreenshotController();
   int selectedIndex = 0;
-  var images = [
-    "https://github.com/bonomat/memes/blob/main/images/laser_eyes_portrait.png?raw=true",
-    "https://github.com/bonomat/memes/blob/main/images/leoardo_cheers_portrait.png?raw=true",
-    "https://github.com/bonomat/memes/blob/main/images/do_something_portrait.png?raw=true",
-    "https://github.com/bonomat/memes/blob/main/images/got_some_sats_portrait.png?raw=true",
-    "https://github.com/bonomat/memes/blob/main/images/are_you_winning_son_always_have_been_portrait.png?raw=true"
-  ];
 
   @override
   Widget build(BuildContext context) {
-    final githubService = context.read<GitHubService>();
+    final memeService = context.read<MemeService>();
     double height = 337.5 * 0.9 + 30;
     double width = 270.0 * 0.9 + 30;
     return AlertDialog(
       title: Text(widget.title),
-      content: SizedBox(
-        height: height,
-        width: width,
-        child: Column(
-          children: [
-            SizedBox(
-              width: width - 30,
-              height: height - 30,
-              child: Screenshot(
-                controller: screenShotController,
-                child: FutureBuilder(
-                  future: githubService.fetchMemeImages(),
-                  builder: (BuildContext context, AsyncSnapshot<List<Meme>> snapshot) {
-                    if (!snapshot.hasData) {
-                      return const SizedBox(
-                          width: 50, height: 50, child: Center(child: CircularProgressIndicator()));
-                    } else {
-                      return MemeWidget(
-                        images: snapshot.data!.map((item) => item.downloadUrl).toList(),
-                        pnl: widget.pnl ?? Amount.zero(),
-                        leverage: widget.leverage,
-                        direction: widget.direction,
-                        entryPrice: widget.entryPrice,
-                        onIndexChange: (index) {
-                          setState(() {
-                            selectedIndex = index;
-                          });
-                        },
-                        pnlPercent: widget.pnlPercent ?? 0,
-                      );
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(
-              height: 10,
-            ),
-            Container(
-              color: Colors.transparent,
-              child: SizedBox(
-                height: 20,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: images.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: index == selectedIndex ? tenTenOnePurple : Colors.white,
-                          borderRadius: BorderRadius.circular(50),
-                          border: Border.all(color: tenTenOnePurple, width: 1),
+      content: FutureBuilder(
+          future: memeService.fetchMemeImages(),
+          builder: (BuildContext context, AsyncSnapshot<List<Meme>> snapshot) {
+            if (!snapshot.hasData) {
+              return const SizedBox(
+                  width: 50, height: 50, child: Center(child: CircularProgressIndicator()));
+            } else {
+              return SizedBox(
+                height: height,
+                width: width,
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: width - 30,
+                      height: height - 30,
+                      child: Screenshot(
+                        controller: screenShotController,
+                        child: MemeWidget(
+                          images: snapshot.data!.map((item) => item.downloadUrl).toList(),
+                          pnl: widget.pnl ?? Amount.zero(),
+                          leverage: widget.leverage,
+                          direction: widget.direction,
+                          entryPrice: widget.entryPrice,
+                          onIndexChange: (index) {
+                            setState(() {
+                              selectedIndex = index;
+                            });
+                          },
+                          pnlPercent: widget.pnlPercent ?? 0,
                         ),
-                        width: 10,
-                        height: 10,
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    const SizedBox(
+                      height: 10,
+                    ),
+                    Container(
+                      color: Colors.transparent,
+                      child: SizedBox(
+                        height: 20,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: snapshot.data!.asMap().entries.map((entry) {
+                            final index = entry.key;
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 8.0, right: 8.0),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: index == selectedIndex ? tenTenOnePurple : Colors.white,
+                                  borderRadius: BorderRadius.circular(50),
+                                  border: Border.all(color: tenTenOnePurple, width: 1),
+                                ),
+                                width: 10,
+                                height: 10,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    )
+                  ],
                 ),
-              ),
-            )
-          ],
-        ),
-      ),
+              );
+            }
+          }),
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.pop(context, 'Cancel'),

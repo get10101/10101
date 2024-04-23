@@ -100,6 +100,7 @@ services:
       - ./services/faucet/open_channel.html:/usr/share/nginx/html/channel/index.html
       - ./services/faucet/default.conf:/etc/nginx/conf.d/default.conf
       - ./services/faucet/btc-fee-estimates.json:/usr/share/nginx/html/fee/btc-fee-estimates.json
+      - ./services/faucet/memes:/usr/share/nginx/memes/
     depends_on:
       - bitcoin
     restart: unless-stopped

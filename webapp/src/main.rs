@@ -82,6 +82,7 @@ async fn main() -> Result<()> {
     let coordinator_http_port = opts.coordinator_http_port;
     let electrs_endpoint = opts.electrs;
     let secure = opts.secure;
+    let meme_endpoint = opts.meme_endpoint;
 
     let config = native::config::api::Config {
         coordinator_pubkey,
@@ -93,6 +94,7 @@ async fn main() -> Result<()> {
         oracle_endpoint,
         oracle_pubkey,
         health_check_interval_secs: 60,
+        meme_endpoint,
     };
 
     let seed_dir = data_dir.clone();

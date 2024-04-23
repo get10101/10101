@@ -14,6 +14,8 @@ public_coordinator_http_port := "80"
 public_regtest_oracle_endpoint := "http://34.32.62.120:8081"
 public_regtest_oracle_pk := "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859"
 
+mainnet_meme_endoint := "http://api.10101.finance/memes/"
+
 # command to get the local IP of this machine
 get_local_ip := if os() == "linux" {
  "ip -o route get to 1 | sed -n 's/.*src \\([0-9.]\\+\\).*/\\1/p'"
@@ -131,7 +133,8 @@ run-regtest args="":
         --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}"
+        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="MEME_ENDPOINT=${mainnet_meme_endpoint}"
 
 # Run against our public mainnet server
 run-mainnet args="":
@@ -146,6 +149,7 @@ run-mainnet args="":
         --dart-define="ORACLE_ENDPOINT=http://oracle.10101.finance" \
         --dart-define="NETWORK=mainnet" \
         --dart-define="ORACLE_PUBKEY=93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0" \
+        --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/"
 
 # Specify correct Android flavor to run against our public regtest server
 run-regtest-android args="":
@@ -159,6 +163,7 @@ run-regtest-android args="":
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/"
         --flavor test
 
 [unix]
@@ -175,6 +180,7 @@ run-local-android args="":
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
         --dart-define="ORACLE_PUBKEY=16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0" \
+        --dart-define="MEME_ENDPOINT=http://${LOCAL_IP}:8080/memes/"
         --flavor local
 
 fund args="":
@@ -499,6 +505,7 @@ build-ipa args="":
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
            --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
            --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+           --dart-define="MEME_ENDPOINT=${MEME_ENDPOINT}"
            --build-number=${BUILD_NUMBER} \
            {{args}}
 
@@ -532,6 +539,7 @@ build-apk-regtest:
       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
       --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
       --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+      --dart-define="MEME_ENDPOINT={{mainnet_meme_endoint}}" \
       --flavor demo
 
 release-apk-regtest: gen android-release build-apk-regtest
@@ -553,6 +561,7 @@ build-app-bundle-regtest:
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="MEME_ENDPOINT={{mainnet_meme_endoint}}" \
         --flavor demo
 
 
@@ -586,6 +595,7 @@ build-android-app-bundle:
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+      --dart-define="MEME_ENDPOINT=${MEME_ENDPOINT}" \
        "${flavor_arg[@]}"
 
 build-android-app-apk args="":
@@ -618,6 +628,7 @@ build-android-app-apk args="":
       --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
       --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
       --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
+      --dart-define="MEME_ENDPOINT=${MEME_ENDPOINT}" \
        "${flavor_arg[@]}"
 
 upload-app-bundle:
