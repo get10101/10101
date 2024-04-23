@@ -133,7 +133,6 @@ class _BragWidgetState extends State<BragWidget> {
             await screenShotController
                 .capture(delay: const Duration(milliseconds: 10))
                 .then((image) async {
-              logger.i("taking foto");
               if (image != null) {
                 final directory = await getApplicationDocumentsDirectory();
                 final imagePath = await File('${directory.path}/image.png').create();
@@ -297,7 +296,7 @@ class MemeWidget extends StatelessWidget {
                   alignment: Alignment.topRight,
                   child: SizedBox(
                       width: 55,
-                      height: 55,
+                      height: 68,
                       child: Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: Container(
@@ -307,19 +306,31 @@ class MemeWidget extends StatelessWidget {
                                   color: tenTenOnePurple,
                                 ),
                                 borderRadius: const BorderRadius.all(Radius.circular(5))),
-                            child: QrImageView(
-                              data:
-                                  "https://referral.10101.finance?referral=${referralStatus!.referralCode}",
-                              eyeStyle: const QrEyeStyle(
-                                eyeShape: QrEyeShape.square,
-                                color: Colors.black,
-                              ),
-                              dataModuleStyle: const QrDataModuleStyle(
-                                dataModuleShape: QrDataModuleShape.square,
-                                color: Colors.black,
-                              ),
-                              version: QrVersions.auto,
-                              padding: const EdgeInsets.all(1),
+                            child: Column(
+                              children: [
+                                QrImageView(
+                                  data:
+                                      "https://referral.10101.finance?referral=${referralStatus!.referralCode}",
+                                  eyeStyle: const QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: Colors.black,
+                                  ),
+                                  dataModuleStyle: const QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: Colors.black,
+                                  ),
+                                  version: QrVersions.auto,
+                                  padding: const EdgeInsets.only(left: 1, right: 1, top: 1),
+                                ),
+                                FittedBox(
+                                    child: Padding(
+                                  padding: const EdgeInsets.only(left: 4, right: 4),
+                                  child: Text(
+                                    referralStatus.referralCode,
+                                    style: const TextStyle(fontSize: 8),
+                                  ),
+                                ))
+                              ],
                             )),
                       )),
                 ),
