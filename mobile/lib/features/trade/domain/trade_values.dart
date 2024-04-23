@@ -5,6 +5,10 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 
 class TradeValues {
   /// Potential quantity already in an open position
+  ///
+  /// Note the open quantity is only set for the opposite direction.
+  /// So if you'd go 100 long the open quantity would be 0 for the long direction and 100 for the
+  /// short direction.
   Usd _openQuantity = Usd.zero();
 
   get openQuantity => _openQuantity;
@@ -58,10 +62,8 @@ class TradeValues {
     Amount? margin =
         tradeValuesService.calculateMargin(price: price, quantity: quantity, leverage: leverage);
 
-    double? liquidationPrice = price != null
-        ? tradeValuesService.calculateLiquidationPrice(
-            price: price, leverage: leverage, direction: direction)
-        : null;
+    double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+        price: price, leverage: leverage, direction: direction);
 
     Amount? fee = tradeValuesService.orderMatchingFee(quantity: quantity, price: price);
 
@@ -88,6 +90,7 @@ class TradeValues {
     this.contracts = contracts;
     _recalculateMargin();
     _recalculateFee();
+    _recalculateLiquidationPrice();
   }
 
   updateMargin(Amount margin) {
@@ -139,9 +142,16 @@ class TradeValues {
   }
 
   _recalculateLiquidationPrice() {
-    double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
-        price: price, leverage: leverage, direction: direction);
-    this.liquidationPrice = liquidationPrice;
+    if (quantity.usd == 0) {
+      // the user is only reducing his position hence we need to calculate the liquidation price based on the opposite direction.
+      double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+          price: price, leverage: leverage, direction: direction.opposite());
+      this.liquidationPrice = liquidationPrice;
+    } else {
+      double? liquidationPrice = tradeValuesService.calculateLiquidationPrice(
+          price: price, leverage: leverage, direction: direction);
+      this.liquidationPrice = liquidationPrice;
+    }
   }
 
   _recalculateFee() {
