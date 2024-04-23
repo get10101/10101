@@ -16,6 +16,7 @@ pub struct Config {
     pub oracle_endpoint: String,
     pub oracle_pubkey: String,
     pub health_check_interval_secs: u64,
+    pub meme_endpoint: String,
 }
 
 pub struct Directories {

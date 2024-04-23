@@ -73,6 +73,10 @@ on:
         required: true
         description: "For regtest enter 'test' or mainnet enter 'Runner'"
         type: string
+      meme_endpoint:
+        required: true
+        description: "The url where our memes are being hosted"
+        type: string
 
 jobs:
   build:
@@ -148,6 +152,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          MEME_ENDPOINT: ${{ inputs.meme_endpoint }}
 
       - name: Check for COCOAPODS bug
         run: cat  mobile/ios/Pods/Target\ Support\ Files/Pods-Runner/Pods-Runner-frameworks.sh

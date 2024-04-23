@@ -5,7 +5,7 @@ import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/tentenone_config.dart';
 import 'package:get_10101/common/full_sync_change_notifier.dart';
-import 'package:get_10101/features/brag/github_service.dart';
+import 'package:get_10101/features/brag/meme_service.dart';
 import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -46,7 +46,7 @@ List<SingleChildWidget> createProviders() {
   const channelInfoService = ChannelInfoService();
   const dlcChannelService = DlcChannelService();
   const pollService = PollService();
-  const githubService = GitHubService();
+  final memeService = MemeService();
 
   var providers = [
     ChangeNotifierProvider(create: (context) {
@@ -71,7 +71,7 @@ List<SingleChildWidget> createProviders() {
     Provider(create: (context) => config),
     Provider(create: (context) => channelInfoService),
     Provider(create: (context) => pollService),
-    Provider(create: (context) => githubService)
+    Provider(create: (context) => memeService)
   ];
   if (config.network == "regtest") {
     providers.add(Provider(create: (context) => FaucetService()));

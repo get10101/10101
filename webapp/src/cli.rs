@@ -55,6 +55,10 @@ pub struct Opts {
     #[arg(num_args(0..))]
     #[clap(long)]
     pub withdrawal_address: Vec<String>,
+
+    /// The location where our memes are hosted
+    #[clap(long, default_value = "https://localhost:8080/memes/")]
+    pub meme_endpoint: String,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

@@ -27,6 +27,10 @@ on:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
         type: string
+      meme_endpoint:
+        required: true
+        description: "The url where our memes are being hosted"
+        type: string
   workflow_dispatch:
     inputs:
       coordinator_port_http:
@@ -56,6 +60,10 @@ on:
       oracle_pubkey:
         required: true
         description: "The public key of the oracle. Must match with the public key returned at http://${oracle_endpoint}/oracle/publickey"
+        type: string
+      meme_endpoint:
+        required: true
+        description: "The url where our memes are being hosted"
         type: string
 
 jobs:
@@ -154,6 +162,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          MEME_ENDPOINT: ${{ inputs.meme_endpoint }}
 
       - name: Build Android APK for each platform
         run: |
@@ -165,6 +174,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          MEME_ENDPOINT: ${{ inputs.meme_endpoint }}
 
       - name: Build Android APK fat bundle
         run: |
@@ -176,6 +186,7 @@ jobs:
           COORDINATOR_PORT_HTTP: ${{ inputs.coordinator_port_http }}
           ORACLE_ENDPOINT: ${{ inputs.oracle_endpoint }}
           ORACLE_PUBKEY: ${{ inputs.oracle_pubkey }}
+          MEME_ENDPOINT: ${{ inputs.meme_endpoint }}
 
       - name: Attach android apks to release
         uses: softprops/action-gh-release@v1

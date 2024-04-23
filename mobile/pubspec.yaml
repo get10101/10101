@@ -49,6 +49,7 @@ dependencies:
   screenshot: ^2.1.0
   syncfusion_flutter_sliders: ^24.2.9
   syncfusion_flutter_core: ^24.2.9
+  html: ^0.15.4
 dev_dependencies:
   analyzer: ^6.4.1
   flutter_launcher_icons: ^0.13.1
