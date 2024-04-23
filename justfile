@@ -175,7 +175,7 @@ run-local-android args="":
       fvm flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ELECTRS_ENDPOINT=http://${LOCAL_IP}:5050" \
+        --dart-define="ELECTRS_ENDPOINT=http://${LOCAL_IP}:3000" \
         --dart-define="COORDINATOR_P2P_ENDPOINT=02dd6abec97f9a748bf76ad502b004ce05d1b2d1f43a9e76bd7d85e767ffb022c9@${LOCAL_IP}:9045" \
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
