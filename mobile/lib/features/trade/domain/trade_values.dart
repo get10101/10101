@@ -5,6 +5,10 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 
 class TradeValues {
   /// Potential quantity already in an open position
+  ///
+  /// Note the open quantity is only set for the opposite direction.
+  /// So if you'd go 100 long the open quantity would be 0 for the long direction and 100 for the
+  /// short direction.
   Usd _openQuantity = Usd.zero();
 
   get openQuantity => _openQuantity;
