@@ -1,7 +1,5 @@
-import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
-import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
@@ -15,6 +13,7 @@ import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/features/trade/tradingview_candlestick.dart';
 import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -39,8 +38,6 @@ class TradeScreen extends StatelessWidget {
 
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
-    CandlestickChangeNotifier candlestickChangeNotifier =
-        context.watch<CandlestickChangeNotifier>();
     TradeValuesChangeNotifier tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
     SubmitOrderChangeNotifier submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
 
@@ -79,14 +76,12 @@ class TradeScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 5),
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SizedBox(
                     height: 250,
-                    child: Candlesticks(
-                      candles: candlestickChangeNotifier.candles,
-                    ),
+                    child: TradingViewCandlestick(),
                   )
                 ],
               ),
