@@ -260,11 +260,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
         let dlc_manager = self.dlc_manager.clone();
-        let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
+        let (settle_accept, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counterparty_pk),
-            msg: Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
+            msg: Message::Channel(ChannelMessage::SettleAccept(settle_accept)),
         });
 
         Ok(())

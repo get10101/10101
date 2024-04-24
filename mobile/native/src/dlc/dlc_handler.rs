@@ -11,6 +11,7 @@ use dlc_messages::Message;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use ln_dlc_node::node::dlc_channel::send_dlc_message;
+use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
 use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
@@ -79,7 +80,13 @@ pub async fn handle_outbound_dlc_messages(
 
 impl DlcHandler {
     pub fn send_dlc_message(&self, peer: PublicKey, msg: Message) -> Result<()> {
+        let msg_name = dlc_message_name(&msg);
+
+        tracing::info!(msg = msg_name, "Storing message before sending");
+
         self.store_dlc_message(peer, msg.clone())?;
+
+        tracing::info!(msg = msg_name, "Sending message");
 
         send_dlc_message(
             &self.node.inner.dlc_message_handler,
@@ -87,6 +94,8 @@ impl DlcHandler {
             peer,
             msg,
         );
+
+        tracing::info!(msg = msg_name, "Sent message");
 
         Ok(())
     }
