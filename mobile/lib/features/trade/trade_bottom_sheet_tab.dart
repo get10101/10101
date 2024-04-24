@@ -86,7 +86,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
       final tradeValues = provider.fromDirection(position.direction.opposite());
 
       tradeValues.openQuantity = position.quantity;
-      tradeValues.updateQuantity(tradeValues.maxQuantity - tradeValues.openQuantity);
+      tradeValues.updateQuantity(Usd.zero());
 
       // by default the contracts are set to the amount of open contracts of the current position.
       tradeValues.updateContracts(tradeValues.openQuantity);
