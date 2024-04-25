@@ -197,6 +197,27 @@ jobs:
             mobile/build/app/outputs/flutter-apk/*.apk
             mobile/build/app/outputs/flutter-apk/*.apk.sha1
 
+      - name: Compute the release tag for continues ci build
+        if: ${{ inputs.tag  == 'main' }}
+        run: |
+          echo "release_tag=v`date '+%Y-%m-%d %H:%M:%S'`" >> $GITHUB_ENV
+
+      - name: Attach android apks to release
+        uses: softprops/action-gh-release@v2
+        if: ${{ inputs.tag  == 'main' }}
+        with:
+          prerelease: true
+          name: ${{ env.release_tag }}
+          tag_name: ${{ env.release_tag }}
+          target_commitish: main
+          make_latest: false
+          repository: get10101/10101-test-apks
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            mobile/build/app/outputs/flutter-apk/*.apk
+            mobile/build/app/outputs/flutter-apk/*.apk.sha1
+
+
       - name: Release to Google Play Store
         env:
           # secrets
