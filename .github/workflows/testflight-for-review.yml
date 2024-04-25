@@ -1,0 +1,69 @@
+name: Daily Task
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # This will run the task every day at midnight UTC
+
+jobs:
+  run_task:
+    name: Run Task
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: List installations Xcode version
+        run: sudo ls -1 /Applications | grep "Xcode"
+      - name: List used Xcode version
+        run: /usr/bin/xcodebuild -version
+      - name: Select different xcode version
+        run: sudo xcode-select -s '/Applications/Xcode_15.2.app/Contents/Developer'
+      - name: List used Xcode version
+        run: /usr/bin/xcodebuild -version
+
+      - uses: ./.github/actions/setup-fvm
+        with:
+          fvm_config: ./mobile/.fvmrc
+          working_dir: ./mobile
+
+      - name: Check cocoapods version
+        run: /usr/local/bin/pod --version
+      - name: Re-install cocoapods
+        run: sudo gem install cocoapods
+      - name: Check cocoapods version
+        run: /usr/local/bin/pod --version
+
+      - name: Install just
+        run: cargo install just --force
+
+      - name: Install fastlane
+        run: |
+          cd mobile/ios/fastlane
+          gem install bundler
+          bundle install
+          bundle info fastlane
+
+      - name: Put for beta testing app for review
+        env:
+          # secrets
+          FASTLANE_APPLE_ID: ${{ secrets.FASTLANE_APPLE_ID }}
+          FASTLANE_APP_STORE_CONNECT_TEAM_ID: ${{ secrets.FASTLANE_APP_STORE_CONNECT_TEAM_ID }}
+          FASTLANE_DEVELOPER_PORTAL_TEAM_ID: ${{ secrets.FASTLANE_DEVELOPER_PORTAL_TEAM_ID }}
+          FASTLANE_TEMP_KEYCHAIN_USER: ${{ secrets.FASTLANE_TEMP_KEYCHAIN_USER }}
+          FASTLANE_TEMP_KEYCHAIN_PASSWORD: ${{ secrets.FASTLANE_TEMP_KEYCHAIN_PASSWORD }}
+          FASTLANE_APPLE_ISSUER_ID: ${{ secrets.FASTLANE_APPLE_ISSUER_ID }}
+          FASTLANE_APPLE_KEY_ID: ${{ secrets.FASTLANE_APPLE_KEY_ID }}
+          FASTLANE_APPLE_KEY_CONTENT: ${{ secrets.FASTLANE_APPLE_KEY_CONTENT }}
+          FASTLANE_GIT_AUTHORIZATION: ${{ secrets.FASTLANE_GIT_AUTHORIZATION }}
+          MATCH_PASSWORD: ${{ secrets.FASTLANE_MATCH_PASSWORD }}
+          # regtest specific settings
+          FASTLANE_DEVELOPER_APP_ID: ${{ secrets.FASTLANE_DEVELOPER_REGTEST_APP_ID }}
+          FASTLANE_DEVELOPER_APP_IDENTIFIER: finance.get10101.app.test
+          FASTLANE_PROVISIONING_PROFILE_SPECIFIER: match AppStore finance.get10101.app.test
+          FASTLANE_APP_SCHEME: test
+        run: |
+          just publish-ios-to-group
+
+      - name: Print fastlane gym logs
+        if: always()
+        run: cat /Users/runner/Library/Logs/gym/10101*.log
+

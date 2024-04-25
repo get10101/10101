@@ -514,6 +514,9 @@ publish-testflight:
 
 build-ipa-no-codesign: (build-ipa "--no-codesign")
 
+publish-ios-to-group:
+    cd mobile/ios/fastlane && bundle exec fastlane add_build_to_review --verbose
+
 publish-testflight-fastlane:
     cd mobile/ios/fastlane && bundle exec fastlane closed_beta --verbose
 
