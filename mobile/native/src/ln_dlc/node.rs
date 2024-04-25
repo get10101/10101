@@ -16,24 +16,30 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use dlc_manager::ReferenceId;
+use dlc_messages::channel::CollaborativeCloseOffer;
 use dlc_messages::channel::OfferChannel;
 use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewOffer;
 use dlc_messages::channel::SettleOffer;
-use dlc_messages::ChannelMessage;
-use dlc_messages::Message;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
+use ln_dlc_node::message_handler::TenTenOneAcceptChannel;
+use ln_dlc_node::message_handler::TenTenOneCollaborativeCloseOffer;
+use ln_dlc_node::message_handler::TenTenOneMessage;
+use ln_dlc_node::message_handler::TenTenOneOfferChannel;
+use ln_dlc_node::message_handler::TenTenOneReject;
+use ln_dlc_node::message_handler::TenTenOneRenewAccept;
+use ln_dlc_node::message_handler::TenTenOneRenewOffer;
+use ln_dlc_node::message_handler::TenTenOneSettleOffer;
 use ln_dlc_node::node;
-use ln_dlc_node::node::dlc_message_name;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
+use ln_dlc_node::node::tentenone_message_name;
 use ln_dlc_node::node::NodeInfo;
 use ln_dlc_node::node::RunningNode;
 use ln_dlc_node::transaction::Transaction;
@@ -140,7 +146,7 @@ impl Node {
             .get_and_clear_received_messages();
 
         for (node_id, msg) in messages {
-            let msg_name = dlc_message_name(&msg);
+            let msg_name = tentenone_message_name(&msg);
             if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg) {
                 tracing::error!(
                     from = %node_id,
@@ -151,13 +157,13 @@ impl Node {
         }
     }
 
-    /// [`process_dlc_message`] processes incoming dlc channel messages and updates the 10101
+    /// [`process_dlc_message`] processes incoming dlc messages and updates the 10101
     /// position accordingly.
     /// - Any other message will be ignored.
-    /// - Any dlc channel message that has already been processed will be skipped.
+    /// - Any dlc message that has already been processed will be skipped.
     ///
-    /// If an offer is received [`ChannelMessage::Offer`], [`ChannelMessage::SettleOffer`],
-    /// [`ChannelMessage::CollaborativeCloseOffer`], [`ChannelMessage::RenewOffer`] will get
+    /// If an offer is received [`TenTenOneMessage::Offer`], [`TenTenOneMessage::SettleOffer`],
+    /// [`TenTenOneMessage::CollaborativeCloseOffer`], [`TenTenOneMessage::RenewOffer`] will get
     /// automatically accepted. Unless the maturity date of the offer is already outdated.
     ///
     /// FIXME(holzeis): This function manipulates different data objects in different data sources
@@ -166,171 +172,135 @@ impl Node {
     /// (1) use a single data source for the 10101 data and the rust-dlc data.
     /// (2) wrap the function into a db transaction which can be atomically rolled back on error or
     /// committed on success.
-    fn process_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+    fn process_dlc_message(&self, node_id: PublicKey, msg: TenTenOneMessage) -> Result<()> {
         tracing::info!(
             from = %node_id,
-            kind = %dlc_message_name(&msg),
+            kind = %tentenone_message_name(&msg),
             "Processing message"
         );
 
-        let resp = match &msg {
-            Message::OnChain(_) | Message::SubChannel(_) => {
-                tracing::warn!("Ignoring unexpected dlc message.");
-                None
+        tracing::debug!(
+            from = %node_id,
+            "Received message"
+        );
+
+        let inbound_msg = {
+            let mut conn = db::connection()?;
+            let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
+            let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
+            match db::dlc_messages::DlcMessage::get(&mut conn, &inbound_msg.message_hash)? {
+                Some(_) => {
+                    tracing::debug!(%node_id, kind=%tentenone_message_name(&msg), "Received message that has already been processed, skipping.");
+                    return Ok(());
+                }
+                None => inbound_msg,
             }
-            Message::Channel(channel_msg) => {
-                tracing::debug!(
-                    from = %node_id,
-                    "Received channel message"
-                );
+        };
 
-                let inbound_msg = {
-                    let mut conn = db::connection()?;
-                    let serialized_inbound_message = SerializedDlcMessage::try_from(&msg)?;
-                    let inbound_msg = DlcMessage::new(node_id, serialized_inbound_message, true)?;
-                    match db::dlc_messages::DlcMessage::get(&mut conn, &inbound_msg.message_hash)? {
-                        Some(_) => {
-                            tracing::debug!(%node_id, kind=%dlc_message_name(&msg), "Received message that has already been processed, skipping.");
-                            return Ok(());
-                        }
-                        None => inbound_msg,
-                    }
-                };
-
-                let resp = match self
-                    .inner
-                    .dlc_manager
-                    .on_dlc_message(&msg, to_secp_pk_29(node_id))
-                    .with_context(|| {
-                        format!(
-                            "Failed to handle {} message from {node_id}",
-                            dlc_message_name(&msg)
-                        )
-                    }) {
-                    Ok(resp) => resp,
-                    Err(e) => {
-                        match &channel_msg {
-                            ChannelMessage::Offer(OfferChannel {
+        let resp = match self
+            .inner
+            .process_tentenone_message(msg.clone(), node_id)
+            .with_context(|| {
+                format!(
+                    "Failed to handle {} message from {node_id}",
+                    tentenone_message_name(&msg)
+                )
+            }) {
+            Ok(resp) => resp,
+            Err(e) => {
+                match &msg {
+                    TenTenOneMessage::Offer(TenTenOneOfferChannel {
+                        offer_channel:
+                            OfferChannel {
                                 temporary_channel_id: channel_id,
                                 reference_id,
                                 ..
-                            })
-                            | ChannelMessage::SettleOffer(SettleOffer {
+                            },
+                    })
+                    | TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
+                        settle_offer:
+                            SettleOffer {
                                 channel_id,
                                 reference_id,
                                 ..
-                            })
-                            | ChannelMessage::RenewOffer(RenewOffer {
+                            },
+                    })
+                    | TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
+                        renew_offer:
+                            RenewOffer {
                                 channel_id,
                                 reference_id,
                                 ..
-                            }) => {
-                                if let Err(e) =
-                                    self.force_reject_offer(node_id, *channel_id, *reference_id)
-                                {
-                                    tracing::error!(
-                                        channel_id = hex::encode(channel_id),
-                                        "Failed to reject offer. Error: {e:#}"
-                                    );
-                                }
-                            }
-                            _ => {}
+                            },
+                    }) => {
+                        if let Err(e) = self.force_reject_offer(node_id, *channel_id, *reference_id)
+                        {
+                            tracing::error!(
+                                channel_id = hex::encode(channel_id),
+                                "Failed to reject offer. Error: {e:#}"
+                            );
                         }
-
-                        return Err(e);
                     }
-                };
-
-                if let Some(resp) = resp.clone() {
-                    // store dlc message immediately so we do not lose the response if something
-                    // goes wrong afterwards.
-                    self.inner
-                        .event_handler
-                        .publish(NodeEvent::StoreDlcMessage {
-                            peer: node_id,
-                            msg: resp,
-                        });
+                    _ => {}
                 }
 
-                {
-                    let mut conn = db::connection()?;
-                    db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
-                }
+                return Err(e);
+            }
+        };
 
-                match channel_msg {
-                    ChannelMessage::Offer(offer) => {
-                        tracing::info!(
-                            channel_id = hex::encode(offer.temporary_channel_id),
-                            "Automatically accepting dlc channel offer"
-                        );
-                        self.process_dlc_channel_offer(&offer.temporary_channel_id)?;
-                    }
-                    ChannelMessage::SettleOffer(offer) => {
-                        tracing::info!(
-                            channel_id = hex::encode(offer.channel_id),
-                            "Automatically accepting settle offer"
-                        );
-                        self.process_settle_offer(&offer.channel_id)?;
-                    }
-                    ChannelMessage::RenewOffer(r) => {
-                        tracing::info!(
-                            channel_id = hex::encode(r.channel_id),
-                            "Automatically accepting renew offer"
-                        );
+        if let Some(msg) = resp.clone() {
+            // store dlc message immediately so we do not lose the response if something
+            // goes wrong afterwards.
+            self.inner
+                .event_handler
+                .publish(NodeEvent::StoreDlcMessage { peer: node_id, msg });
+        }
 
-                        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-                            r.contract_info.get_closest_maturity_date() as i64,
-                        )?;
-                        self.process_renew_offer(&r.channel_id, expiry_timestamp)?;
-                    }
-                    ChannelMessage::RenewRevoke(r) => {
-                        let channel_id_hex = hex::encode(r.channel_id);
+        {
+            let mut conn = db::connection()?;
+            db::dlc_messages::DlcMessage::insert(&mut conn, inbound_msg)?;
+        }
 
-                        tracing::info!(
-                            channel_id = %channel_id_hex,
-                            "Finished renew protocol"
-                        );
+        match msg {
+            TenTenOneMessage::Offer(offer) => {
+                tracing::info!(
+                    channel_id = hex::encode(offer.offer_channel.temporary_channel_id),
+                    "Automatically accepting dlc channel offer"
+                );
+                self.process_dlc_channel_offer(&offer.offer_channel.temporary_channel_id)?;
+            }
+            TenTenOneMessage::SettleOffer(offer) => {
+                tracing::info!(
+                    channel_id = hex::encode(offer.settle_offer.channel_id),
+                    "Automatically accepting settle offer"
+                );
+                self.process_settle_offer(&offer.settle_offer.channel_id)?;
+            }
+            TenTenOneMessage::RenewOffer(offer) => {
+                tracing::info!(
+                    channel_id = hex::encode(offer.renew_offer.channel_id),
+                    "Automatically accepting renew offer"
+                );
 
-                        let expiry_timestamp = self
-                            .inner
-                            .get_expiry_for_confirmed_dlc_channel(&r.channel_id)?;
+                let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
+                    offer.renew_offer.contract_info.get_closest_maturity_date() as i64,
+                )?;
+                self.process_renew_offer(&offer.renew_offer.channel_id, expiry_timestamp)?;
+            }
+            TenTenOneMessage::RenewRevoke(revoke) => {
+                let channel_id_hex = hex::encode(revoke.renew_revoke.channel_id);
 
-                        match db::get_order_in_filling()? {
-                            Some(_) => {
-                                let filled_order = order::handler::order_filled()
-                                    .context("Cannot mark order as filled for confirmed DLC")?;
+                tracing::info!(
+                    channel_id = %channel_id_hex,
+                    "Finished renew protocol"
+                );
 
-                                update_position_after_dlc_channel_creation_or_update(
-                                    filled_order,
-                                    expiry_timestamp,
-                                )
-                                .context("Failed to update position after DLC creation")?;
+                let expiry_timestamp = self
+                    .inner
+                    .get_expiry_for_confirmed_dlc_channel(&revoke.renew_revoke.channel_id)?;
 
-                                // In case of a restart.
-                                event::publish(&EventInternal::BackgroundNotification(
-                                    BackgroundTask::RecoverDlc(TaskStatus::Success),
-                                ));
-                            }
-                            // If there is no order in `Filling` we must be rolling over.
-                            None => {
-                                tracing::info!(
-                                    channel_id = %channel_id_hex,
-                                    "Finished rolling over position"
-                                );
-
-                                position::handler::set_position_state(PositionState::Open)?;
-
-                                event::publish(&EventInternal::BackgroundNotification(
-                                    BackgroundTask::Rollover(TaskStatus::Success),
-                                ));
-                            }
-                        };
-                    }
-                    ChannelMessage::Sign(signed) => {
-                        let expiry_timestamp = self
-                            .inner
-                            .get_expiry_for_confirmed_dlc_channel(&signed.channel_id)?;
-
+                match db::get_order_in_filling()? {
+                    Some(_) => {
                         let filled_order = order::handler::order_filled()
                             .context("Cannot mark order as filled for confirmed DLC")?;
 
@@ -340,59 +310,91 @@ impl Node {
                         )
                         .context("Failed to update position after DLC creation")?;
 
-                        // Sending always a recover dlc background notification success message here
-                        // as we do not know if we might have reached this state after a restart.
-                        // This event is only received by the UI at the moment indicating that the
-                        // dialog can be closed. If the dialog is not open, this event would be
-                        // simply ignored by the UI.
-                        //
-                        // FIXME(holzeis): We should not require that event and align the UI
-                        // handling with waiting for an order execution in the happy case with
-                        // waiting for an order execution after an in between restart. For now it
-                        // was the easiest to go parallel to that implementation so that we don't
-                        // have to touch it.
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::RecoverDlc(TaskStatus::Success),
-                        ));
-                    }
-                    ChannelMessage::SettleConfirm(_) => {
-                        tracing::debug!("Position based on DLC channel is being closed");
-
-                        let filled_order = order::handler::order_filled()?;
-
-                        update_position_after_dlc_closure(Some(filled_order))
-                            .context("Failed to update position after DLC closure")?;
-
                         // In case of a restart.
                         event::publish(&EventInternal::BackgroundNotification(
                             BackgroundTask::RecoverDlc(TaskStatus::Success),
                         ));
                     }
-                    ChannelMessage::CollaborativeCloseOffer(close_offer) => {
-                        let channel_id_hex_string = hex::encode(close_offer.channel_id);
+                    // If there is no order in `Filling` we must be rolling over.
+                    None => {
                         tracing::info!(
-                            channel_id = channel_id_hex_string,
-                            node_id = node_id.to_string(),
-                            "Received an offer to collaboratively close a channel"
+                            channel_id = %channel_id_hex,
+                            "Finished rolling over position"
                         );
 
-                        // TODO(bonomat): we should verify that the proposed amount is acceptable
-                        self.inner
-                            .accept_dlc_channel_collaborative_close(&close_offer.channel_id)?;
-                    }
-                    _ => (),
-                }
+                        position::handler::set_position_state(PositionState::Open)?;
 
-                resp
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::Rollover(TaskStatus::Success),
+                        ));
+                    }
+                };
             }
-        };
+            TenTenOneMessage::Sign(signed) => {
+                let expiry_timestamp = self
+                    .inner
+                    .get_expiry_for_confirmed_dlc_channel(&signed.sign_channel.channel_id)?;
+
+                let filled_order = order::handler::order_filled()
+                    .context("Cannot mark order as filled for confirmed DLC")?;
+
+                update_position_after_dlc_channel_creation_or_update(
+                    filled_order,
+                    expiry_timestamp,
+                )
+                .context("Failed to update position after DLC creation")?;
+
+                // Sending always a recover dlc background notification success message here
+                // as we do not know if we might have reached this state after a restart.
+                // This event is only received by the UI at the moment indicating that the
+                // dialog can be closed. If the dialog is not open, this event would be
+                // simply ignored by the UI.
+                //
+                // FIXME(holzeis): We should not require that event and align the UI
+                // handling with waiting for an order execution in the happy case with
+                // waiting for an order execution after an in between restart. For now it
+                // was the easiest to go parallel to that implementation so that we don't
+                // have to touch it.
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::RecoverDlc(TaskStatus::Success),
+                ));
+            }
+            TenTenOneMessage::SettleConfirm(_) => {
+                tracing::debug!("Position based on DLC channel is being closed");
+
+                let filled_order = order::handler::order_filled()?;
+
+                update_position_after_dlc_closure(Some(filled_order))
+                    .context("Failed to update position after DLC closure")?;
+
+                // In case of a restart.
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::RecoverDlc(TaskStatus::Success),
+                ));
+            }
+            TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
+                collaborative_close_offer: CollaborativeCloseOffer { channel_id, .. },
+            }) => {
+                let channel_id_hex_string = hex::encode(channel_id);
+                tracing::info!(
+                    channel_id = channel_id_hex_string,
+                    node_id = node_id.to_string(),
+                    "Received an offer to collaboratively close a channel"
+                );
+
+                // TODO(bonomat): we should verify that the proposed amount is acceptable
+                self.inner
+                    .accept_dlc_channel_collaborative_close(&channel_id)?;
+            }
+            _ => (),
+        }
 
         if let Some(msg) = resp {
             // Everything has been processed successfully, we can safely send the last dlc message,
             // that has been stored before.
             tracing::info!(
                 to = %node_id,
-                kind = %dlc_message_name(&msg),
+                kind = %tentenone_message_name(&msg),
                 "Sending message"
             );
 
@@ -441,7 +443,7 @@ impl Node {
 
         self.send_dlc_message(
             counterparty,
-            Message::Channel(ChannelMessage::Reject(reject)),
+            TenTenOneMessage::Reject(TenTenOneReject { reject }),
         )
     }
 
@@ -469,7 +471,7 @@ impl Node {
 
         self.send_dlc_message(
             to_secp_pk_30(counterparty),
-            Message::Channel(ChannelMessage::Reject(reject)),
+            TenTenOneMessage::Reject(TenTenOneReject { reject }),
         )
     }
 
@@ -486,7 +488,7 @@ impl Node {
             Ok((accept_channel, _, _, node_id)) => {
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
-                    Message::Channel(ChannelMessage::Accept(accept_channel)),
+                    TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }),
                 )?;
             }
             Err(e) => {
@@ -511,7 +513,7 @@ impl Node {
 
         self.send_dlc_message(
             to_secp_pk_30(counterparty),
-            Message::Channel(ChannelMessage::Reject(reject)),
+            TenTenOneMessage::Reject(TenTenOneReject { reject }),
         )
     }
 
@@ -544,7 +546,7 @@ impl Node {
 
         self.send_dlc_message(
             to_secp_pk_30(counterparty),
-            Message::Channel(ChannelMessage::Reject(reject)),
+            TenTenOneMessage::Reject(TenTenOneReject { reject }),
         )
     }
 
@@ -562,7 +564,7 @@ impl Node {
 
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
-                    Message::Channel(ChannelMessage::RenewAccept(renew_accept)),
+                    TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }),
                 )?;
             }
             Err(e) => {
@@ -575,10 +577,10 @@ impl Node {
         Ok(())
     }
 
-    pub fn send_dlc_message(&self, node_id: PublicKey, msg: Message) -> Result<()> {
+    pub fn send_dlc_message(&self, node_id: PublicKey, msg: TenTenOneMessage) -> Result<()> {
         tracing::info!(
             to = %node_id,
-            kind = %dlc_message_name(&msg),
+            kind = %tentenone_message_name(&msg),
             "Sending message"
         );
 

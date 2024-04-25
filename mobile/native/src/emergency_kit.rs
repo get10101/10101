@@ -20,11 +20,11 @@ use dlc_manager::contract::Contract;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Signer;
 use dlc_messages::channel::SettleFinalize;
-use dlc_messages::ChannelMessage;
-use dlc_messages::Message;
 use hex::FromHex;
 use lightning::ln::chan_utils::build_commitment_secret;
 use ln_dlc_node::bitcoin_conversion::to_secp_sk_29;
+use ln_dlc_node::message_handler::TenTenOneMessage;
+use ln_dlc_node::message_handler::TenTenOneSettleFinalize;
 use ln_dlc_node::node::event::NodeEvent;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
@@ -171,11 +171,13 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         signed_channel.update_idx + 1,
     ))?;
 
-    let msg = Message::Channel(ChannelMessage::SettleFinalize(SettleFinalize {
-        channel_id: signed_channel.channel_id,
-        prev_per_update_secret: to_secp_sk_29(prev_per_update_secret),
-        reference_id: signed_channel.reference_id,
-    }));
+    let msg = TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
+        settle_finalize: SettleFinalize {
+            channel_id: signed_channel.channel_id,
+            prev_per_update_secret: to_secp_sk_29(prev_per_update_secret),
+            reference_id: signed_channel.reference_id,
+        },
+    });
 
     node.inner.event_handler.publish(NodeEvent::SendDlcMessage {
         peer: coordinator_pubkey,

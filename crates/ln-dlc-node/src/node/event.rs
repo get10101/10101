@@ -1,5 +1,5 @@
+use crate::message_handler::TenTenOneMessage;
 use bitcoin::secp256k1::PublicKey;
-use dlc_messages::Message;
 use ln_dlc_storage::DlcChannelEvent;
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -9,11 +9,23 @@ use tokio::task::spawn_blocking;
 
 #[derive(Clone, Debug)]
 pub enum NodeEvent {
-    Connected { peer: PublicKey },
-    SendDlcMessage { peer: PublicKey, msg: Message },
-    StoreDlcMessage { peer: PublicKey, msg: Message },
-    SendLastDlcMessage { peer: PublicKey },
-    DlcChannelEvent { dlc_channel_event: DlcChannelEvent },
+    Connected {
+        peer: PublicKey,
+    },
+    SendDlcMessage {
+        peer: PublicKey,
+        msg: TenTenOneMessage,
+    },
+    StoreDlcMessage {
+        peer: PublicKey,
+        msg: TenTenOneMessage,
+    },
+    SendLastDlcMessage {
+        peer: PublicKey,
+    },
+    DlcChannelEvent {
+        dlc_channel_event: DlcChannelEvent,
+    },
 }
 
 #[derive(Clone)]

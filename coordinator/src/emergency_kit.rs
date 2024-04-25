@@ -4,9 +4,9 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin_old::secp256k1::SecretKey;
 use dlc_manager::Signer;
 use dlc_messages::channel::RenewRevoke;
-use dlc_messages::ChannelMessage;
-use dlc_messages::Message;
 use lightning::ln::chan_utils::build_commitment_secret;
+use ln_dlc_node::message_handler::TenTenOneMessage;
+use ln_dlc_node::message_handler::TenTenOneRenewRevoke;
 use ln_dlc_node::node::event::NodeEvent;
 
 impl Node {
@@ -25,11 +25,13 @@ impl Node {
             signed_channel.update_idx + 1,
         ))?;
 
-        let msg = Message::Channel(ChannelMessage::RenewRevoke(RenewRevoke {
-            channel_id: signed_channel.channel_id,
-            per_update_secret: prev_per_update_secret,
-            reference_id: signed_channel.reference_id,
-        }));
+        let msg = TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke {
+            renew_revoke: RenewRevoke {
+                channel_id: signed_channel.channel_id,
+                per_update_secret: prev_per_update_secret,
+                reference_id: signed_channel.reference_id,
+            },
+        });
 
         self.inner.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: trader,

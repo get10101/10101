@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
+use crate::message_handler::TenTenOneMessage;
 use crate::node::Node;
 use crate::node::Storage;
 use crate::on_chain_wallet::BdkStorage;
@@ -61,6 +62,27 @@ pub fn build<D: BdkStorage, S: TenTenOneStorage, N: Storage>(
         fee_rate_estimator,
     )
     .context("Failed to initialise DlcManager")
+}
+
+impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
+    Node<D, S, N>
+{
+    pub fn process_tentenone_message(
+        &self,
+        message: TenTenOneMessage,
+        node_id: PublicKey,
+    ) -> Result<Option<TenTenOneMessage>> {
+        let response = self
+            .dlc_manager
+            .on_dlc_message(&message.into(), to_secp_pk_29(node_id))?;
+
+        let response = match response {
+            Some(response) => Some(TenTenOneMessage::try_from(response)?),
+            None => None,
+        };
+
+        Ok(response)
+    }
 }
 
 pub fn signed_channel_state_name(signed_channel: &SignedChannel) -> String {

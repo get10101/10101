@@ -1,11 +1,17 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
+use crate::message_handler::TenTenOneCollaborativeCloseOffer;
+use crate::message_handler::TenTenOneMessage;
+use crate::message_handler::TenTenOneMessageHandler;
+use crate::message_handler::TenTenOneOfferChannel;
+use crate::message_handler::TenTenOneRenewOffer;
+use crate::message_handler::TenTenOneSettleAccept;
+use crate::message_handler::TenTenOneSettleOffer;
 use crate::node::event::NodeEvent;
 use crate::node::Node;
 use crate::node::Storage as LnDlcStorage;
 use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
-use crate::DlcMessageHandler;
 use crate::PeerManager;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -25,8 +31,6 @@ use dlc_manager::DlcChannelId;
 use dlc_manager::Oracle;
 use dlc_manager::ReferenceId;
 use dlc_manager::Storage;
-use dlc_messages::ChannelMessage;
-use dlc_messages::Message;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 
@@ -89,7 +93,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: counterparty,
-                    msg: Message::Channel(ChannelMessage::Offer(offer_channel)),
+                    msg: TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel }),
                 });
 
                 Ok((temporary_contract_id, temporary_channel_id))
@@ -100,16 +104,18 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
     #[cfg(test)]
     pub fn accept_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        use crate::message_handler::TenTenOneAcceptChannel;
+
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
 
-        let (msg, _channel_id, _contract_id, counter_party) =
+        let (accept_channel, _channel_id, _contract_id, counter_party) =
             self.dlc_manager.accept_channel(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counter_party),
-            msg: Message::Channel(ChannelMessage::Accept(msg)),
+            msg: TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }),
         });
 
         Ok(())
@@ -184,9 +190,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
                         event_handler.publish(NodeEvent::SendDlcMessage {
                             peer: to_secp_pk_30(counterparty),
-                            msg: Message::Channel(ChannelMessage::CollaborativeCloseOffer(
-                                settle_offer,
-                            )),
+                            msg: TenTenOneMessage::CollaborativeCloseOffer(
+                                TenTenOneCollaborativeCloseOffer {
+                                    collaborative_close_offer: settle_offer,
+                                },
+                            ),
                         });
 
                         anyhow::Ok(())
@@ -231,7 +239,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: to_secp_pk_30(counterparty),
-                    msg: Message::Channel(ChannelMessage::SettleOffer(settle_offer)),
+                    msg: TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer }),
                 });
 
                 Ok(())
@@ -260,11 +268,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel collaborative settlement");
 
         let dlc_manager = self.dlc_manager.clone();
-        let (settle_offer, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
+        let (settle_accept, counterparty_pk) = dlc_manager.accept_settle_offer(channel_id)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counterparty_pk),
-            msg: Message::Channel(ChannelMessage::SettleAccept(settle_offer)),
+            msg: TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept }),
         });
 
         Ok(())
@@ -295,7 +303,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 )?;
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
-                    msg: Message::Channel(ChannelMessage::RenewOffer(renew_offer)),
+                    msg: TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer }),
                     peer: to_secp_pk_30(counterparty_pubkey),
                 });
 
@@ -326,17 +334,19 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     // The accept code has diverged on the app side (hence the #[cfg(test)]). Another hint that we
     // should delete most of this crate soon.
     pub fn accept_dlc_channel_update(&self, channel_id: &DlcChannelId) -> Result<()> {
+        use crate::message_handler::TenTenOneRenewAccept;
+
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel update offer");
 
-        let (msg, counter_party) = self.dlc_manager.accept_renew_offer(channel_id)?;
+        let (renew_accept, counter_party) = self.dlc_manager.accept_renew_offer(channel_id)?;
 
         send_dlc_message(
             &self.dlc_message_handler,
             &self.peer_manager,
             to_secp_pk_30(counter_party),
-            Message::Channel(ChannelMessage::RenewAccept(msg)),
+            TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }),
         );
 
         Ok(())
@@ -740,10 +750,9 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
     #[cfg(test)]
     pub fn process_incoming_messages(&self) -> Result<()> {
-        use crate::node::dlc_message_name;
+        use crate::node::tentenone_message_name;
 
         let dlc_message_handler = &self.dlc_message_handler;
-        let dlc_manager = &self.dlc_manager;
         let peer_manager = &self.peer_manager;
         let messages = dlc_message_handler.get_and_clear_received_messages();
         tracing::debug!("Received and cleared {} messages", messages.len());
@@ -751,27 +760,20 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         for (node_id, msg) in messages {
             tracing::info!(
                 from = %to_secp_pk_30(node_id),
-                msg = %dlc_message_name(&msg),
+                msg = %tentenone_message_name(&msg),
                 "Processing rust-dlc message"
             );
 
-            match msg {
-                Message::OnChain(_) | Message::Channel(_) => {
-                    let resp = dlc_manager.on_dlc_message(&msg, node_id)?;
+            let resp = self.process_tentenone_message(msg, to_secp_pk_30(node_id))?;
 
-                    if let Some(msg) = resp {
-                        tracing::debug!(to = %to_secp_pk_30(node_id), msg = dlc_message_name(&msg), "Sending DLC-manager message");
-                        send_dlc_message(
-                            dlc_message_handler,
-                            peer_manager,
-                            to_secp_pk_30(node_id),
-                            msg,
-                        );
-                    }
-                }
-                Message::SubChannel(_) => {
-                    tracing::error!("Not sending subchannel message");
-                }
+            if let Some(msg) = resp {
+                tracing::debug!(to = %to_secp_pk_30(node_id), msg = tentenone_message_name(&msg), "Sending DLC-manager message");
+                send_dlc_message(
+                    dlc_message_handler,
+                    peer_manager,
+                    to_secp_pk_30(node_id),
+                    msg,
+                );
             }
         }
 
@@ -804,10 +806,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 ///
 /// [`MessageHandler`]: dlc_messages::message_handler::MessageHandler
 pub fn send_dlc_message<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage>(
-    dlc_message_handler: &DlcMessageHandler,
+    dlc_message_handler: &TenTenOneMessageHandler,
     peer_manager: &PeerManager<D, S, N>,
     node_id: PublicKey,
-    msg: Message,
+    msg: TenTenOneMessage,
 ) {
     // Enqueue the message.
     dlc_message_handler.send_message(to_secp_pk_29(node_id), msg);
