@@ -163,7 +163,7 @@ run-regtest-android args="":
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
         --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
         --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
-        --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/"
+        --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/" \
         --flavor test
 
 [unix]
@@ -180,7 +180,7 @@ run-local-android args="":
         --dart-define="COORDINATOR_PORT_HTTP=8000" \
         --dart-define="ORACLE_ENDPOINT=http://${LOCAL_IP}:8081" \
         --dart-define="ORACLE_PUBKEY=16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0" \
-        --dart-define="MEME_ENDPOINT=http://${LOCAL_IP}:8080/memes/"
+        --dart-define="MEME_ENDPOINT=http://${LOCAL_IP}:8080/memes/" \
         --flavor local
 
 fund args="":
@@ -505,7 +505,7 @@ build-ipa args="":
            --dart-define="COORDINATOR_PORT_HTTP=${COORDINATOR_PORT_HTTP}" \
            --dart-define="ORACLE_ENDPOINT=${ORACLE_ENDPOINT}" \
            --dart-define="ORACLE_PUBKEY=${ORACLE_PUBKEY}" \
-           --dart-define="MEME_ENDPOINT=${MEME_ENDPOINT}"
+           --dart-define="MEME_ENDPOINT=${MEME_ENDPOINT}" \
            --build-number=${BUILD_NUMBER} \
            {{args}}
 
