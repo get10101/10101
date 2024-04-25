@@ -189,7 +189,7 @@ jobs:
           MEME_ENDPOINT: ${{ inputs.meme_endpoint }}
 
       - name: Attach android apks to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: ${{ inputs.tag  != 'main' }}
         with:
           tag_name: ${{ inputs.tag }}
