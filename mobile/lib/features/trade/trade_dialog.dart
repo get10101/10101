@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/clickable_help_text.dart';
+import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
@@ -72,6 +73,13 @@ Widget createSubmitWidget(
       ),
     );
   } else {
+    Amount fee = pendingOrderValues?.fee ?? Amount.zero();
+    final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
+    if (referralStatus != null) {
+      final feeRebate = fee.sats * referralStatus.referralFeeBonus;
+      fee -= Amount(feeRebate.floor());
+    }
+
     children.addAll(
       [
         SizedBox(
@@ -83,8 +91,7 @@ Widget createSubmitWidget(
                   ? ValueDataRow(type: ValueType.amount, value: pendingOrder.pnl, label: pnlText)
                   : ValueDataRow(
                       type: ValueType.amount, value: pendingOrderValues?.margin, label: "Margin"),
-              ValueDataRow(
-                  type: ValueType.amount, value: pendingOrderValues?.fee ?? Amount(0), label: "Fee")
+              ValueDataRow(type: ValueType.amount, value: fee, label: "Fee")
             ],
           ),
         ),
