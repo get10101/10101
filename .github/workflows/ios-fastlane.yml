@@ -39,6 +39,10 @@ on:
         required: true
         description: "For regtest enter 'finance.get10101.app.test' or mainnet enter 'finance.get10101.app'"
         type: string
+      meme_endpoint:
+        required: true
+        description: "The url where our memes are being hosted"
+        type: string
   workflow_dispatch:
     inputs:
       electrs_endpoint:
