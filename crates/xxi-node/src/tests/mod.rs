@@ -15,10 +15,6 @@ use crate::on_chain_wallet;
 use crate::seed::Bip39Seed;
 use crate::storage::DlcChannelEvent;
 use crate::storage::TenTenOneInMemoryStorage;
-use crate::AppEventHandler;
-use crate::CoordinatorEventHandler;
-use crate::EventHandlerTrait;
-use crate::EventSender;
 use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
@@ -38,7 +34,6 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::ReferenceId;
 use futures::Future;
-use lightning::events::Event;
 use lightning::util::config::UserConfig;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
@@ -55,8 +50,6 @@ use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::watch;
-use tokio::task::block_in_place;
 use uuid::Uuid;
 
 mod bitcoind;
@@ -91,12 +84,7 @@ fn init_tracing() {
 
 impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore> {
     fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
-        let app_event_handler = |node, event_sender| {
-            Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
-
         Self::start_test(
-            app_event_handler,
             name,
             app_config(),
             ELECTRS_ORIGIN.to_string(),
@@ -106,7 +94,6 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             },
             Arc::new(InMemoryStore::default()),
             xxi_node_settings_app(),
-            None,
         )
     }
 
@@ -115,7 +102,6 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             name,
             Arc::new(InMemoryStore::default()),
             xxi_node_settings_coordinator(),
-            None,
         )
     }
 
@@ -123,14 +109,8 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         name: &str,
         storage: Arc<InMemoryStore>,
         settings: XXINodeSettings,
-        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
-        let coordinator_event_handler = |node, event_sender| {
-            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
-
         Self::start_test(
-            coordinator_event_handler,
             name,
             coordinator_config(),
             ELECTRS_ORIGIN.to_string(),
@@ -140,27 +120,18 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             },
             storage,
             settings,
-            ldk_event_sender,
         )
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn start_test<EH>(
-        event_handler_factory: EH,
+    fn start_test(
         name: &str,
         ldk_config: UserConfig,
         electrs_origin: String,
         oracle: OracleInfo,
         node_storage: Arc<InMemoryStore>,
         settings: XXINodeSettings,
-        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Arc<Self>, RunningNode)>
-    where
-        EH: Fn(
-            Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
-            Option<EventSender>,
-        ) -> Arc<dyn EventHandlerTrait>,
-    {
+    ) -> Result<(Arc<Self>, RunningNode)> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -243,8 +214,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             }
         });
 
-        let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
-        let running = node.start(event_handler, dlc_event_receiver, false)?;
+        let running = node.start(dlc_event_receiver)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 
@@ -259,13 +229,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
     async fn sync_wallets(&self) -> Result<()> {
-        self.sync_on_chain_wallet().await?;
-
-        block_in_place(|| {
-            self.sync_lightning_wallet()?;
-
-            Ok(())
-        })
+        self.sync_on_chain_wallet().await
     }
 
     async fn fund(&self, amount: Amount, n_utxos: u64) -> Result<()> {

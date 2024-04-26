@@ -47,7 +47,6 @@ use dlc_manager::channel::Channel as DlcChannel;
 use itertools::chain;
 use itertools::Itertools;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::events::Event;
 use lightning::ln::ChannelId;
 use lightning::sign::KeysManager;
 use rust_decimal::prelude::ToPrimitive;
@@ -67,7 +66,6 @@ use time::OffsetDateTime;
 use tokio::runtime;
 use tokio::runtime::Runtime;
 use tokio::sync::broadcast;
-use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_ecdsa_signature_30;
@@ -91,7 +89,6 @@ use xxi_node::node::rust_dlc_manager::Storage as DlcStorage;
 use xxi_node::node::XXINodeSettings;
 use xxi_node::seed::Bip39Seed;
 use xxi_node::storage::DlcChannelEvent;
-use xxi_node::AppEventHandler;
 use xxi_node::ConfirmationStatus;
 
 pub mod node;
@@ -311,8 +308,6 @@ pub fn run(
             listener.local_addr().expect("To get a free local address")
         };
 
-        let (event_sender, event_receiver) = watch::channel::<Option<Event>>(None);
-
         let node_storage = Arc::new(NodeStorage);
 
         let storage = get_storage();
@@ -349,8 +344,7 @@ pub fn run(
         )?;
         let node = Arc::new(node);
 
-        let event_handler = AppEventHandler::new(node.clone(), Some(event_sender));
-        let _running = node.start(event_handler, dlc_event_receiver, true)?;
+        let _running = node.start(dlc_event_receiver)?;
 
         let node = Arc::new(Node::new(node, _running));
         state::set_node(node.clone());
@@ -408,11 +402,6 @@ pub fn run(
                     tokio::time::sleep(NODE_SYNC_INTERVAL).await;
                 }
             }
-        });
-
-        runtime.spawn({
-            let node = node.clone();
-            async move { node.listen_for_lightning_events(event_receiver).await }
         });
 
         let coordinator_info = config::get_coordinator_info();
