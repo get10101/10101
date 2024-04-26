@@ -200,14 +200,16 @@ jobs:
       - name: Compute the release tag for continues ci build
         if: ${{ inputs.tag  == 'main' }}
         run: |
-          echo "release_tag=v`date '+%Y-%m-%d %H:%M:%S'`" >> $GITHUB_ENV
+          echo "release_name=v`date_'+%Y-%m-%d %H:%M:%S'`" >> $GITHUB_ENV
+          release_tag=$(git describe --tags)
+          echo "release_tag=$release_tag" >> $GITHUB_ENV
 
       - name: Attach android apks to release
         uses: softprops/action-gh-release@v2
         if: ${{ inputs.tag  == 'main' }}
         with:
           prerelease: true
-          name: ${{ env.release_tag }}
+          name: ${{ env.release_name }}
           tag_name: ${{ env.release_tag }}
           target_commitish: main
           make_latest: false
