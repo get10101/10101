@@ -28,8 +28,6 @@ itertools = "0.10"
 lightning = { version = "0.0.117" }
 lightning-invoice = { version = "0.25" }
 lightning-persister = { version = "0.0.117" }
-ln-dlc-node = { path = "../../crates/ln-dlc-node", default-features = false }
-ln-dlc-storage = { path = "../../crates/ln-dlc-storage" }
 openssl = { version = "0.10.60", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 parking_lot = { version = "0.12.1" }
@@ -51,6 +49,7 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "time", "json"] }
 trade = { path = "../../crates/trade" }
 uuid = { version = "1.3.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
+xxi-node = { path = "../../crates/xxi-node", default-features = false }
 
 [dev-dependencies]
 dlc = { version = "0.4.0" }
@@ -59,5 +58,5 @@ secp256k1-zkp = { version = "0.7.0", features = ["bitcoin_hashes", "rand", "rand
 
 [features]
 default = ["native_tcp"]
-ws = ["ln-dlc-node/ln_net_ws"]
-native_tcp = ["ln-dlc-node/ln_net_tcp"]
+ws = ["xxi-node/ln_net_ws"]
+native_tcp = ["xxi-node/ln_net_tcp"]

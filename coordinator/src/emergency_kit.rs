@@ -5,9 +5,9 @@ use bitcoin_old::secp256k1::SecretKey;
 use dlc_manager::Signer;
 use dlc_messages::channel::RenewRevoke;
 use lightning::ln::chan_utils::build_commitment_secret;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::message_handler::TenTenOneRenewRevoke;
-use ln_dlc_node::node::event::NodeEvent;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneRenewRevoke;
+use xxi_node::node::event::NodeEvent;
 
 impl Node {
     pub fn resend_renew_revoke_message_internal(&self, trader: PublicKey) -> Result<()> {

@@ -38,7 +38,6 @@ use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
-use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -51,6 +50,7 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::channel;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
+use xxi_node::seed::Bip39Seed;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -619,12 +619,12 @@ pub enum Fee {
     FeeRate { sats: u64 },
 }
 
-impl From<Fee> for ln_dlc_node::node::Fee {
+impl From<Fee> for xxi_node::node::Fee {
     fn from(value: Fee) -> Self {
         match value {
-            Fee::Priority(target) => ln_dlc_node::node::Fee::Priority(target.into()),
+            Fee::Priority(target) => xxi_node::node::Fee::Priority(target.into()),
             Fee::FeeRate { sats } => {
-                ln_dlc_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
+                xxi_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
             }
         }
     }

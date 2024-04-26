@@ -26,10 +26,6 @@ use dlc_manager::contract::ContractDescriptor;
 use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
-use ln_dlc_node::bitcoin_conversion::to_xonly_pk_30;
-use ln_dlc_node::node::event::NodeEvent;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -37,6 +33,10 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::bitcoin_conversion::to_xonly_pk_29;
+use xxi_node::bitcoin_conversion::to_xonly_pk_30;
+use xxi_node::node::event::NodeEvent;
 
 #[derive(Debug, Clone)]
 struct Rollover {
@@ -336,10 +336,10 @@ mod tests {
     use dlc_messages::oracle_msgs::OracleAnnouncement;
     use dlc_messages::oracle_msgs::OracleEvent;
     use dlc_messages::FundingSignatures;
-    use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
-    use ln_dlc_node::bitcoin_conversion::to_tx_29;
-    use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
     use rand::Rng;
+    use xxi_node::bitcoin_conversion::to_secp_pk_29;
+    use xxi_node::bitcoin_conversion::to_tx_29;
+    use xxi_node::bitcoin_conversion::to_xonly_pk_29;
 
     #[test]
     fn test_new_rollover_from_signed_contract() {

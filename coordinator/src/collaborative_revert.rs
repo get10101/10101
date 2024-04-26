@@ -22,16 +22,16 @@ use dlc_manager::channel::ClosedChannel;
 use dlc_manager::DlcChannelId;
 use dlc_manager::Signer;
 use dlc_manager::Storage;
-use ln_dlc_node::bitcoin_conversion::to_ecdsa_signature_29;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::bitcoin_conversion::to_tx_29;
-use ln_dlc_node::bitcoin_conversion::to_tx_30;
-use ln_dlc_node::bitcoin_conversion::to_txid_29;
-use ln_dlc_node::node::Node;
 use rust_decimal::Decimal;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
+use xxi_node::bitcoin_conversion::to_ecdsa_signature_29;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::bitcoin_conversion::to_tx_29;
+use xxi_node::bitcoin_conversion::to_tx_30;
+use xxi_node::bitcoin_conversion::to_txid_29;
+use xxi_node::node::Node;
 
 /// The weight for the collaborative revert transaction. The transaction is expected to have 1 input
 /// (the funding TXO) and 2 outputs, one for each party.

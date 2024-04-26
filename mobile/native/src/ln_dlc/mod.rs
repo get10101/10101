@@ -53,27 +53,6 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use lightning::events::Event;
 use lightning::ln::ChannelId;
 use lightning::sign::KeysManager;
-use ln_dlc_node::bitcoin_conversion::to_ecdsa_signature_30;
-use ln_dlc_node::bitcoin_conversion::to_script_29;
-use ln_dlc_node::bitcoin_conversion::to_secp_sk_30;
-use ln_dlc_node::bitcoin_conversion::to_tx_30;
-use ln_dlc_node::bitcoin_conversion::to_txid_29;
-use ln_dlc_node::bitcoin_conversion::to_txid_30;
-use ln_dlc_node::config::app_config;
-use ln_dlc_node::node::dlc_channel::estimated_dlc_channel_fee_reserve;
-use ln_dlc_node::node::dlc_channel::estimated_funding_transaction_fee;
-use ln_dlc_node::node::event::NodeEventHandler;
-use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
-use ln_dlc_node::node::rust_dlc_manager::channel::ClosedChannel;
-use ln_dlc_node::node::rust_dlc_manager::subchannel::LNChannelManager;
-use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
-use ln_dlc_node::node::rust_dlc_manager::Signer;
-use ln_dlc_node::node::rust_dlc_manager::Storage as DlcStorage;
-use ln_dlc_node::node::LnDlcNodeSettings;
-use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::AppEventHandler;
-use ln_dlc_node::ConfirmationStatus;
-use ln_dlc_storage::DlcChannelEvent;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -94,6 +73,27 @@ use tokio::sync::broadcast;
 use tokio::sync::watch;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
+use xxi_node::bitcoin_conversion::to_ecdsa_signature_30;
+use xxi_node::bitcoin_conversion::to_script_29;
+use xxi_node::bitcoin_conversion::to_secp_sk_30;
+use xxi_node::bitcoin_conversion::to_tx_30;
+use xxi_node::bitcoin_conversion::to_txid_29;
+use xxi_node::bitcoin_conversion::to_txid_30;
+use xxi_node::config::app_config;
+use xxi_node::node::dlc_channel::estimated_dlc_channel_fee_reserve;
+use xxi_node::node::dlc_channel::estimated_funding_transaction_fee;
+use xxi_node::node::event::NodeEventHandler;
+use xxi_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
+use xxi_node::node::rust_dlc_manager::channel::ClosedChannel;
+use xxi_node::node::rust_dlc_manager::subchannel::LNChannelManager;
+use xxi_node::node::rust_dlc_manager::DlcChannelId;
+use xxi_node::node::rust_dlc_manager::Signer;
+use xxi_node::node::rust_dlc_manager::Storage as DlcStorage;
+use xxi_node::node::LnDlcNodeSettings;
+use xxi_node::seed::Bip39Seed;
+use xxi_node::storage::DlcChannelEvent;
+use xxi_node::AppEventHandler;
+use xxi_node::ConfirmationStatus;
 
 pub mod node;
 
@@ -329,7 +329,7 @@ pub fn run(
         };
 
         let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
-        let node = ln_dlc_node::node::Node::new(
+        let node = xxi_node::node::Node::new(
             app_config(),
             "10101",
             config::get_network(),
@@ -1038,7 +1038,7 @@ pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Resul
             {
                 Ok(fee) => Some(fee),
                 // It's not sensible to calculate the fee for an amount below dust.
-                Err(ln_dlc_node::EstimateFeeError::SendAmountBelowDust) => None,
+                Err(xxi_node::EstimateFeeError::SendAmountBelowDust) => None,
                 Err(e) => {
                     bail!("Failed to estimate payment fee: {e:#}")
                 }

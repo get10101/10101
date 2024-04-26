@@ -24,8 +24,6 @@ use dlc_manager::DlcChannelId;
 use dlc_manager::Storage;
 use hex::FromHex;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::bitcoin_conversion::to_txid_30;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -41,6 +39,8 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::bitcoin_conversion::to_txid_30;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
@@ -145,9 +145,9 @@ pub async fn get_fee_rate_estimation(
 #[derive(Serialize)]
 pub struct DlcChannelDetails {
     #[serde(flatten)]
-    pub channel_details: ln_dlc_node::DlcChannelDetails,
+    pub channel_details: xxi_node::DlcChannelDetails,
     #[serde(flatten)]
-    pub contract_details: Option<ln_dlc_node::ContractDetails>,
+    pub contract_details: Option<xxi_node::ContractDetails>,
     pub user_email: String,
     #[serde(with = "time::serde::rfc3339::option")]
     pub user_registration_timestamp: Option<OffsetDateTime>,
@@ -203,8 +203,8 @@ pub async fn list_dlc_channels(
                 .ok();
 
             DlcChannelDetails {
-                channel_details: ln_dlc_node::DlcChannelDetails::from(dlc_channel),
-                contract_details: contract.map(ln_dlc_node::ContractDetails::from),
+                channel_details: xxi_node::DlcChannelDetails::from(dlc_channel),
+                contract_details: contract.map(xxi_node::ContractDetails::from),
                 user_email: email,
                 user_registration_timestamp: registration_timestamp,
                 coordinator_reserve_sats,
@@ -627,8 +627,8 @@ pub async fn get_user_referral_status(
     Ok(Json(referral_status))
 }
 
-impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {
-    fn from(value: ln_dlc_node::TransactionDetails) -> Self {
+impl From<xxi_node::TransactionDetails> for TransactionDetails {
+    fn from(value: xxi_node::TransactionDetails) -> Self {
         Self {
             transaction: value.transaction,
             sent: value.sent,
@@ -639,12 +639,12 @@ impl From<ln_dlc_node::TransactionDetails> for TransactionDetails {
     }
 }
 
-impl From<ln_dlc_node::ConfirmationStatus> for ConfirmationStatus {
-    fn from(value: ln_dlc_node::ConfirmationStatus) -> Self {
+impl From<xxi_node::ConfirmationStatus> for ConfirmationStatus {
+    fn from(value: xxi_node::ConfirmationStatus) -> Self {
         match value {
-            ln_dlc_node::ConfirmationStatus::Unknown => Self::Unknown,
-            ln_dlc_node::ConfirmationStatus::Mempool { last_seen } => Self::Mempool { last_seen },
-            ln_dlc_node::ConfirmationStatus::Confirmed {
+            xxi_node::ConfirmationStatus::Unknown => Self::Unknown,
+            xxi_node::ConfirmationStatus::Mempool { last_seen } => Self::Mempool { last_seen },
+            xxi_node::ConfirmationStatus::Confirmed {
                 n_confirmations,
                 timestamp,
             } => Self::Confirmed {

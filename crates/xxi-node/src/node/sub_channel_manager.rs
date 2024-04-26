@@ -5,13 +5,13 @@ use crate::node::channel_manager::ChannelManager;
 use crate::node::dlc_manager::DlcManager;
 use crate::node::Storage;
 use crate::on_chain_wallet::BdkStorage;
+use crate::storage::DlcStorageProvider;
 use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::CustomSigner;
 use anyhow::Result;
 use dlc_manager::sub_channel_manager;
 use dlc_manager::SystemTimeProvider;
-use ln_dlc_storage::DlcStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
 use std::sync::Arc;
 

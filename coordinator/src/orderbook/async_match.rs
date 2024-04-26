@@ -20,7 +20,6 @@ use commons::TradeAndChannelParams;
 use commons::TradeParams;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use ln_dlc_node::node::event::NodeEvent;
 use rust_decimal::prelude::ToPrimitive;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -28,6 +27,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
+use xxi_node::node::event::NodeEvent;
 
 pub fn monitor(
     node: Node,

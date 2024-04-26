@@ -24,13 +24,13 @@ use commons::ChannelOpeningParams;
 use commons::FilledWith;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
-use ln_dlc_node::node::signed_channel_state_name;
 use reqwest::Url;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
+use xxi_node::node::signed_channel_state_name;
 
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 

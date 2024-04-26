@@ -2,13 +2,13 @@ use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use xxi_node::node::LnDlcNodeSettings;
 
 const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 

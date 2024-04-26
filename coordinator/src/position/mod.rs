@@ -14,11 +14,11 @@ use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::PreClosedContract;
 use dlc_manager::DlcChannelId;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_storage::DlcChannelEvent;
 use rust_decimal::Decimal;
 use tokio::sync::broadcast::error::RecvError;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::storage::DlcChannelEvent;
 
 pub mod models;
 

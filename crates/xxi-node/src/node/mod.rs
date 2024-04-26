@@ -13,6 +13,8 @@ use crate::on_chain_wallet::BdkStorage;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::seed::Bip39Seed;
 use crate::shadow::Shadow;
+use crate::storage::DlcChannelEvent;
+use crate::storage::DlcStorageProvider;
 use crate::storage::TenTenOneStorage;
 use crate::ChainMonitor;
 use crate::EventHandlerTrait;
@@ -47,8 +49,6 @@ use lightning::util::config::UserConfig;
 use lightning_background_processor::process_events_async;
 use lightning_background_processor::GossipSync;
 use lightning_transaction_sync::EsploraSyncClient;
-use ln_dlc_storage::DlcChannelEvent;
-use ln_dlc_storage::DlcStorageProvider;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
@@ -100,7 +100,7 @@ type NodeGossipSync =
 
 type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
 
-/// An LN-DLC node.
+/// A node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     pub settings: Arc<RwLock<LnDlcNodeSettings>>,
     pub network: Network,

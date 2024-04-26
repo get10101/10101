@@ -1,11 +1,7 @@
-use crate::DlcStoreProvider;
-use crate::KeyValue;
-use anyhow::Context;
+use crate::storage::DlcStoreProvider;
+use crate::storage::KeyValue;
 use anyhow::Result;
-use parking_lot::RwLock;
 use sled::Db;
-use std::collections::HashMap;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct SledStorageProvider {
@@ -101,87 +97,10 @@ impl DlcStoreProvider for SledStorageProvider {
     }
 }
 
-type InMemoryStore = Arc<RwLock<HashMap<u8, HashMap<Vec<u8>, Vec<u8>>>>>;
-
-#[derive(Clone)]
-pub struct InMemoryDlcStoreProvider {
-    memory: InMemoryStore,
-}
-
-impl Default for InMemoryDlcStoreProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl InMemoryDlcStoreProvider {
-    pub fn new() -> Self {
-        InMemoryDlcStoreProvider {
-            memory: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-}
-
-impl DlcStoreProvider for InMemoryDlcStoreProvider {
-    fn read(&self, kind: u8, key: Option<Vec<u8>>) -> Result<Vec<KeyValue>> {
-        let store = self.memory.read();
-        let store = match store.get(&kind) {
-            Some(store) => store,
-            None => return Ok(vec![]),
-        };
-
-        if let Some(key) = key {
-            let result = match store.get(&key) {
-                Some(value) => vec![KeyValue {
-                    key,
-                    value: value.clone(),
-                }],
-                None => vec![],
-            };
-            Ok(result)
-        } else {
-            Ok(store
-                .clone()
-                .into_iter()
-                .map(|e| KeyValue {
-                    key: e.0,
-                    value: e.1,
-                })
-                .collect())
-        }
-    }
-
-    fn write(&self, kind: u8, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
-        self.memory
-            .write()
-            .entry(kind)
-            .and_modify(|v| {
-                v.insert(key.clone(), value.clone());
-            })
-            .or_insert(HashMap::from([(key, value)]));
-
-        Ok(())
-    }
-
-    fn delete(&self, kind: u8, key: Option<Vec<u8>>) -> Result<()> {
-        if let Some(key) = key {
-            self.memory
-                .write()
-                .get_mut(&kind)
-                .context("couldn't find map")?
-                .remove(&key);
-        } else {
-            self.memory.write().remove(&kind);
-        }
-
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::sled::SledStorageProvider;
-    use crate::DlcStoreProvider;
+    use crate::storage::sled::SledStorageProvider;
+    use crate::storage::DlcStoreProvider;
 
     macro_rules! sled_test {
         ($name: ident, $body: expr) => {

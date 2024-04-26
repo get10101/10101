@@ -1,6 +1,6 @@
 use crate::message_handler::TenTenOneMessage;
+use crate::storage::DlcChannelEvent;
 use bitcoin::secp256k1::PublicKey;
-use ln_dlc_storage::DlcChannelEvent;
 use std::sync::mpsc;
 use std::sync::Arc;
 use tokio::sync::broadcast;

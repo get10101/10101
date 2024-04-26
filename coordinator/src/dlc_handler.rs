@@ -10,16 +10,16 @@ use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
-use ln_dlc_node::dlc_message::DlcMessage;
-use ln_dlc_node::dlc_message::SerializedDlcMessage;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::node::dlc_channel::send_dlc_message;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_node::node::Node;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
+use xxi_node::bitcoin_conversion::to_secp_pk_29;
+use xxi_node::dlc_message::DlcMessage;
+use xxi_node::dlc_message::SerializedDlcMessage;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::node::dlc_channel::send_dlc_message;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::node::Node;
 
 /// The DlcHandler is responsible for sending dlc messages and marking received ones as
 /// processed. It's main purpose is to ensure the following.

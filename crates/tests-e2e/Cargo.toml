@@ -11,7 +11,6 @@ bitcoin = "0.30"
 commons = { path = "../commons" }
 coordinator = { path = "../../coordinator" }
 flutter_rust_bridge = "1.78.0"
-ln-dlc-node = { path = "../ln-dlc-node" }
 native = { path = "../../mobile/native" }
 parking_lot = { version = "0.12.1" }
 quote = "1.0.28"
@@ -26,6 +25,7 @@ time = { version = "0.3", features = ["serde", "serde-well-known"] }
 tokio = { version = "1", default-features = false, features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time", "tracing"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+xxi-node = { path = "../xxi-node" }
 
 [dev-dependencies]
 assertables = "7.0.1"

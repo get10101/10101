@@ -195,7 +195,7 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
 fn node_metrics(
     cx: &Context,
     inner_node: Arc<
-        ln_dlc_node::node::Node<
+        xxi_node::node::Node<
             bdk_file_store::Store<bdk::wallet::ChangeSet>,
             CoordinatorTenTenOneStorage,
             NodeStorage,

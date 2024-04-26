@@ -453,13 +453,13 @@ pub fn get_spendable_outputs() -> Result<Vec<lightning::sign::SpendableOutputDes
 
 // Transaction
 
-pub fn upsert_transaction(transaction: ln_dlc_node::transaction::Transaction) -> Result<()> {
+pub fn upsert_transaction(transaction: xxi_node::transaction::Transaction) -> Result<()> {
     tracing::debug!(?transaction, "Upserting transaction");
     let mut db = connection()?;
     Transaction::upsert(transaction.into(), &mut db)
 }
 
-pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Transaction>> {
+pub fn get_transaction(txid: &str) -> Result<Option<xxi_node::transaction::Transaction>> {
     tracing::debug!(%txid, "Getting transaction");
     let mut db = connection()?;
     let transaction = Transaction::get(txid, &mut db)
@@ -469,7 +469,7 @@ pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Tr
     Ok(transaction)
 }
 
-pub fn get_all_transactions_without_fees() -> Result<Vec<ln_dlc_node::transaction::Transaction>> {
+pub fn get_all_transactions_without_fees() -> Result<Vec<xxi_node::transaction::Transaction>> {
     let mut db = connection()?;
     let transactions = Transaction::get_all_without_fees(&mut db)?
         .into_iter()

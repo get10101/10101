@@ -1017,8 +1017,6 @@ dependencies = [
  "lightning",
  "lightning-invoice",
  "lightning-persister",
- "ln-dlc-node",
- "ln-dlc-storage",
  "local-ip-address",
  "openssl",
  "opentelemetry",
@@ -1048,6 +1046,7 @@ dependencies = [
  "trade",
  "url",
  "uuid",
+ "xxi-node",
 ]
 
 [[package]]
@@ -2404,75 +2403,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef53942eb7bf7ff43a617b3e2c1c4a5ecf5944a7c1bc12d7ee39bbb15e5c1519"
 
 [[package]]
-name = "ln-dlc-node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum 0.6.20",
- "bdk",
- "bdk_coin_select",
- "bdk_esplora",
- "bip39",
- "bitcoin 0.29.2",
- "bitcoin 0.30.2",
- "cfg-if",
- "dlc",
- "dlc-manager",
- "dlc-messages",
- "dlc-trie",
- "futures",
- "getrandom",
- "hex",
- "hkdf",
- "lightning",
- "lightning-background-processor",
- "lightning-invoice",
- "lightning-persister",
- "lightning-transaction-sync",
- "ln-dlc-storage",
- "log",
- "mempool",
- "p2pd-oracle-client",
- "parking_lot 0.12.1",
- "rand",
- "reqwest",
- "rust-bitcoin-coin-selection",
- "rust_decimal",
- "secp256k1-zkp",
- "serde",
- "serde_with 3.2.0",
- "sha2",
- "thiserror",
- "time",
- "tokio",
- "tokio-tungstenite-wasm",
- "tracing",
- "tracing-log 0.1.3",
- "tracing-subscriber",
- "ureq",
- "uuid",
-]
-
-[[package]]
-name = "ln-dlc-storage"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bitcoin 0.30.2",
- "dlc-manager",
- "hex",
- "lightning",
- "log",
- "parking_lot 0.12.1",
- "secp256k1-zkp",
- "serde",
- "serde_json",
- "sled",
- "tracing",
-]
-
-[[package]]
 name = "local-ip-address"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2701,8 +2631,6 @@ dependencies = [
  "lightning",
  "lightning-invoice",
  "lightning-persister",
- "ln-dlc-node",
- "ln-dlc-storage",
  "openssl",
  "orderbook-client",
  "parking_lot 0.12.1",
@@ -2725,6 +2653,7 @@ dependencies = [
  "tracing-subscriber",
  "trade",
  "uuid",
+ "xxi-node",
 ]
 
 [[package]]
@@ -4215,7 +4144,6 @@ dependencies = [
  "commons",
  "coordinator",
  "flutter_rust_bridge",
- "ln-dlc-node",
  "local-ip-address",
  "native",
  "parking_lot 0.12.1",
@@ -4231,6 +4159,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "xxi-node",
 ]
 
 [[package]]
@@ -5504,6 +5433,58 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "xxi-node"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.6.20",
+ "bdk",
+ "bdk_coin_select",
+ "bdk_esplora",
+ "bip39",
+ "bitcoin 0.29.2",
+ "bitcoin 0.30.2",
+ "cfg-if",
+ "dlc",
+ "dlc-manager",
+ "dlc-messages",
+ "dlc-trie",
+ "futures",
+ "getrandom",
+ "hex",
+ "hkdf",
+ "lightning",
+ "lightning-background-processor",
+ "lightning-invoice",
+ "lightning-persister",
+ "lightning-transaction-sync",
+ "log",
+ "mempool",
+ "p2pd-oracle-client",
+ "parking_lot 0.12.1",
+ "rand",
+ "reqwest",
+ "rust-bitcoin-coin-selection",
+ "rust_decimal",
+ "secp256k1-zkp",
+ "serde",
+ "serde_json",
+ "serde_with 3.2.0",
+ "sha2",
+ "sled",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-tungstenite-wasm",
+ "tracing",
+ "tracing-log 0.1.3",
+ "tracing-subscriber",
+ "ureq",
+ "uuid",
 ]
 
 [[package]]

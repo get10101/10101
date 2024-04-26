@@ -15,7 +15,9 @@ use crate::blockchain::Blockchain;
 use crate::node::Storage;
 use crate::on_chain_wallet::BdkStorage;
 use crate::on_chain_wallet::OnChainWallet;
+use crate::storage::DlcStorageProvider;
 use crate::storage::TenTenOneStorage;
+use crate::storage::WalletStorage;
 use anyhow::Result;
 use bdk::LocalOutput;
 use bdk::SignOptions;
@@ -28,8 +30,6 @@ use bdk_coin_select::Target;
 use bitcoin::secp256k1::KeyPair;
 use bitcoin::Network;
 use bitcoin::TxIn;
-use ln_dlc_storage::DlcStorageProvider;
-use ln_dlc_storage::WalletStorage;
 use std::sync::Arc;
 
 const COIN_SELECTION_MAX_ROUNDS: usize = 100_000;

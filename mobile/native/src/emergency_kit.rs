@@ -22,12 +22,12 @@ use dlc_manager::Signer;
 use dlc_messages::channel::SettleFinalize;
 use hex::FromHex;
 use lightning::ln::chan_utils::build_commitment_secret;
-use ln_dlc_node::bitcoin_conversion::to_secp_sk_29;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::message_handler::TenTenOneSettleFinalize;
-use ln_dlc_node::node::event::NodeEvent;
 use time::OffsetDateTime;
 use trade::ContractSymbol;
+use xxi_node::bitcoin_conversion::to_secp_sk_29;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneSettleFinalize;
+use xxi_node::node::event::NodeEvent;
 
 pub fn set_filling_orders_to_failed() -> Result<()> {
     tracing::warn!("Executing emergency kit! Setting orders in state Filling to Failed!");

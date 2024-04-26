@@ -837,16 +837,16 @@ pub enum Flow {
     Outbound,
 }
 
-impl From<ln_dlc_node::PaymentFlow> for Flow {
-    fn from(value: ln_dlc_node::PaymentFlow) -> Self {
+impl From<xxi_node::PaymentFlow> for Flow {
+    fn from(value: xxi_node::PaymentFlow) -> Self {
         match value {
-            ln_dlc_node::PaymentFlow::Inbound => Self::Inbound,
-            ln_dlc_node::PaymentFlow::Outbound => Self::Outbound,
+            xxi_node::PaymentFlow::Inbound => Self::Inbound,
+            xxi_node::PaymentFlow::Outbound => Self::Outbound,
         }
     }
 }
 
-impl From<Flow> for ln_dlc_node::PaymentFlow {
+impl From<Flow> for xxi_node::PaymentFlow {
     fn from(value: Flow) -> Self {
         match value {
             Flow::Inbound => Self::Inbound,
@@ -1088,8 +1088,8 @@ impl Transaction {
     }
 }
 
-impl From<ln_dlc_node::transaction::Transaction> for Transaction {
-    fn from(value: ln_dlc_node::transaction::Transaction) -> Self {
+impl From<xxi_node::transaction::Transaction> for Transaction {
+    fn from(value: xxi_node::transaction::Transaction) -> Self {
         Transaction {
             txid: value.txid().to_string(),
             fee: value.fee() as i64,
@@ -1100,9 +1100,9 @@ impl From<ln_dlc_node::transaction::Transaction> for Transaction {
     }
 }
 
-impl From<Transaction> for ln_dlc_node::transaction::Transaction {
+impl From<Transaction> for xxi_node::transaction::Transaction {
     fn from(value: Transaction) -> Self {
-        ln_dlc_node::transaction::Transaction::new(
+        xxi_node::transaction::Transaction::new(
             Txid::from_str(&value.txid).expect("valid txid"),
             value.fee as u64,
             OffsetDateTime::from_unix_timestamp(value.created_at).expect("valid timestamp"),
@@ -1496,7 +1496,7 @@ pub mod test {
         let mut connection = SqliteConnection::establish(":memory:").unwrap();
         connection.run_pending_migrations(MIGRATIONS).unwrap();
 
-        let transaction = ln_dlc_node::transaction::Transaction::new(
+        let transaction = xxi_node::transaction::Transaction::new(
             Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0")
                 .unwrap(),
             0,
@@ -1509,7 +1509,7 @@ pub mod test {
         Transaction::upsert(transaction.clone().into(), &mut connection).unwrap();
 
         // Verify that we can load the right transaction by the `txid`
-        let loaded: ln_dlc_node::transaction::Transaction = Transaction::get(
+        let loaded: xxi_node::transaction::Transaction = Transaction::get(
             "44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a0",
             &mut connection,
         )
@@ -1519,7 +1519,7 @@ pub mod test {
 
         assert_eq!(transaction, loaded);
 
-        let second_tx = ln_dlc_node::transaction::Transaction::new(
+        let second_tx = xxi_node::transaction::Transaction::new(
             Txid::from_str("44fe3d70a3058eb1bef62e24379b4865ada8332f9ee30752cf606f37343461a1")
                 .unwrap(),
             1,

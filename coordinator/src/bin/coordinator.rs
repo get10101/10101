@@ -29,10 +29,6 @@ use coordinator::trade::websocket::InternalPositionUpdateMessage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use ln_dlc_node::node::event::NodeEventHandler;
-use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::CoordinatorEventHandler;
-use ln_dlc_storage::DlcChannelEvent;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -46,6 +42,10 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
+use xxi_node::node::event::NodeEventHandler;
+use xxi_node::seed::Bip39Seed;
+use xxi_node::storage::DlcChannelEvent;
+use xxi_node::CoordinatorEventHandler;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -124,8 +124,8 @@ async fn main() -> Result<()> {
     )?;
 
     let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
-    let node = Arc::new(ln_dlc_node::node::Node::new(
-        ln_dlc_node::config::coordinator_config(),
+    let node = Arc::new(xxi_node::node::Node::new(
+        xxi_node::config::coordinator_config(),
         NODE_ALIAS,
         network,
         data_dir.as_path(),

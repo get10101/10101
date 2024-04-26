@@ -30,6 +30,7 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_manager::ReferenceId;
 use lightning::ln::ChannelId;
+use lightning::util::persist::KVStore;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use std::convert::TryInto;
@@ -40,7 +41,10 @@ use std::io::SeekFrom;
 use std::string::ToString;
 use std::sync::mpsc;
 
+pub mod memory;
 pub mod sled;
+
+pub use memory::TenTenOneInMemoryStorage;
 
 // Kinds.
 
@@ -71,6 +75,10 @@ pub trait DlcStoreProvider {
 
     fn delete(&self, kind: u8, key: Option<Vec<u8>>) -> Result<()>;
 }
+
+pub trait TenTenOneStorage: KVStore + DlcStoreProvider + Sync + Send + Clone {}
+
+impl<T> TenTenOneStorage for T where T: KVStore + DlcStoreProvider + Sync + Send + Clone {}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DlcChannelEvent {
@@ -922,7 +930,7 @@ impl From<Channel> for DlcChannelEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sled::InMemoryDlcStoreProvider;
+    use crate::storage::memory::InMemoryDlcStoreProvider;
     use dlc_manager::channel::signed_channel::SignedChannelState;
     use dlc_manager::Storage;
 
@@ -936,7 +944,7 @@ mod tests {
 
     #[test]
     fn create_contract_can_be_retrieved() {
-        let serialized = include_bytes!("../test_files/Offered");
+        let serialized = include_bytes!("../../test_files/Offered");
         let contract = deserialize_object(serialized);
 
         let (sender, _) = mpsc::channel::<DlcChannelEvent>();
@@ -958,9 +966,9 @@ mod tests {
 
     #[test]
     fn update_contract_is_updated() {
-        let serialized = include_bytes!("../test_files/Offered");
+        let serialized = include_bytes!("../../test_files/Offered");
         let offered_contract = deserialize_object(serialized);
-        let serialized = include_bytes!("../test_files/Accepted");
+        let serialized = include_bytes!("../../test_files/Accepted");
         let accepted_contract = deserialize_object(serialized);
         let accepted_contract = Contract::Accepted(accepted_contract);
 
@@ -985,7 +993,7 @@ mod tests {
 
     #[test]
     fn delete_contract_is_deleted() {
-        let serialized = include_bytes!("../test_files/Offered");
+        let serialized = include_bytes!("../../test_files/Offered");
         let contract = deserialize_object(serialized);
 
         let (sender, _) = mpsc::channel::<DlcChannelEvent>();
@@ -1007,35 +1015,35 @@ mod tests {
     fn insert_offered_signed_and_confirmed(
         storage: &mut DlcStorageProvider<InMemoryDlcStoreProvider>,
     ) {
-        let serialized = include_bytes!("../test_files/Offered");
+        let serialized = include_bytes!("../../test_files/Offered");
         let offered_contract = deserialize_object(serialized);
         storage
             .create_contract(&offered_contract)
             .expect("Error creating contract");
 
-        let serialized = include_bytes!("../test_files/Signed");
+        let serialized = include_bytes!("../../test_files/Signed");
         let signed_contract = Contract::Signed(deserialize_object(serialized));
         storage
             .update_contract(&signed_contract)
             .expect("Error creating contract");
-        let serialized = include_bytes!("../test_files/Signed1");
+        let serialized = include_bytes!("../../test_files/Signed1");
         let signed_contract = Contract::Signed(deserialize_object(serialized));
         storage
             .update_contract(&signed_contract)
             .expect("Error creating contract");
 
-        let serialized = include_bytes!("../test_files/Confirmed");
+        let serialized = include_bytes!("../../test_files/Confirmed");
         let confirmed_contract = Contract::Confirmed(deserialize_object(serialized));
         storage
             .update_contract(&confirmed_contract)
             .expect("Error creating contract");
-        let serialized = include_bytes!("../test_files/Confirmed1");
+        let serialized = include_bytes!("../../test_files/Confirmed1");
         let confirmed_contract = Contract::Confirmed(deserialize_object(serialized));
         storage
             .update_contract(&confirmed_contract)
             .expect("Error creating contract");
 
-        let serialized = include_bytes!("../test_files/PreClosed");
+        let serialized = include_bytes!("../../test_files/PreClosed");
         let preclosed_contract = Contract::PreClosed(deserialize_object(serialized));
         storage
             .update_contract(&preclosed_contract)
@@ -1045,9 +1053,9 @@ mod tests {
     fn insert_offered_and_signed_channels(
         storage: &mut DlcStorageProvider<InMemoryDlcStoreProvider>,
     ) {
-        let serialized = include_bytes!("../test_files/Offered");
+        let serialized = include_bytes!("../../test_files/Offered");
         let offered_contract = deserialize_object(serialized);
-        let serialized = include_bytes!("../test_files/OfferedChannel");
+        let serialized = include_bytes!("../../test_files/OfferedChannel");
         let offered_channel = deserialize_object(serialized);
         storage
             .upsert_channel(
@@ -1056,13 +1064,13 @@ mod tests {
             )
             .expect("Error creating contract");
 
-        let serialized = include_bytes!("../test_files/SignedChannelEstablished");
+        let serialized = include_bytes!("../../test_files/SignedChannelEstablished");
         let signed_channel = Channel::Signed(deserialize_object(serialized));
         storage
             .upsert_channel(signed_channel, None)
             .expect("Error creating contract");
 
-        let serialized = include_bytes!("../test_files/SignedChannelSettled");
+        let serialized = include_bytes!("../../test_files/SignedChannelSettled");
         let signed_channel = Channel::Signed(deserialize_object(serialized));
         storage
             .upsert_channel(signed_channel, None)
@@ -1070,24 +1078,24 @@ mod tests {
     }
 
     fn insert_sub_channels(storage: &mut DlcStorageProvider<InMemoryDlcStoreProvider>) {
-        let serialized = include_bytes!("../test_files/OfferedSubChannel");
+        let serialized = include_bytes!("../../test_files/OfferedSubChannel");
         let offered_sub_channel = deserialize_object(serialized);
         storage
             .upsert_sub_channel(&offered_sub_channel)
             .expect("Error inserting sub channel");
-        let serialized = include_bytes!("../test_files/OfferedSubChannel1");
+        let serialized = include_bytes!("../../test_files/OfferedSubChannel1");
         let offered_sub_channel = deserialize_object(serialized);
         storage
             .upsert_sub_channel(&offered_sub_channel)
             .expect("Error inserting sub channel");
 
-        let serialized = include_bytes!("../test_files/SignedSubChannel");
+        let serialized = include_bytes!("../../test_files/SignedSubChannel");
         let signed_sub_channel = deserialize_object(serialized);
         storage
             .upsert_sub_channel(&signed_sub_channel)
             .expect("Error inserting sub channel");
 
-        let serialized = include_bytes!("../test_files/AcceptedSubChannel");
+        let serialized = include_bytes!("../../test_files/AcceptedSubChannel");
         let accepted_sub_channel = deserialize_object(serialized);
         storage
             .upsert_sub_channel(&accepted_sub_channel)
@@ -1208,7 +1216,7 @@ mod tests {
         assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
         assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
-        let serialized = include_bytes!("../test_files/AcceptedChannel");
+        let serialized = include_bytes!("../../test_files/AcceptedChannel");
         let accepted_channel: AcceptedChannel = deserialize_object(serialized);
         let channel_id = accepted_channel.channel_id;
         storage
@@ -1234,7 +1242,7 @@ mod tests {
         assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Established(None));
         assert_eq!(receiver.recv().unwrap(), DlcChannelEvent::Settled(None));
 
-        let serialized = include_bytes!("../test_files/AcceptedChannel");
+        let serialized = include_bytes!("../../test_files/AcceptedChannel");
         let accepted_channel: AcceptedChannel = deserialize_object(serialized);
         let channel_id = accepted_channel.channel_id;
         storage
@@ -1321,7 +1329,8 @@ mod tests {
         let (sender, _) = mpsc::channel::<DlcChannelEvent>();
         let storage = DlcStorageProvider::new(InMemoryDlcStoreProvider::new(), sender);
         let actions: Vec<_> =
-            serde_json::from_str(include_str!("../test_files/sub_channel_actions.json")).unwrap();
+            serde_json::from_str(include_str!("../../test_files/sub_channel_actions.json"))
+                .unwrap();
         storage
             .save_sub_channel_actions(&actions)
             .expect("Error saving sub channel actions");
