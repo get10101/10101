@@ -212,7 +212,7 @@ jobs:
           target_commitish: main
           make_latest: false
           repository: get10101/10101-test-apks
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_ACTION_TOKEN }}
           files: |
             mobile/build/app/outputs/flutter-apk/*.apk
             mobile/build/app/outputs/flutter-apk/*.apk.sha1
