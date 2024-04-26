@@ -42,6 +42,8 @@ pub(crate) fn insert(
             trade_params::trader_pubkey.eq(params.trader.to_string()),
             trade_params::direction.eq(Direction::from(params.direction)),
             trade_params::average_price.eq(params.average_price),
+            trade_params::matching_fee.eq(params.matching_fee.to_sat() as i64),
+            trade_params::trader_pnl_sat.eq(params.trader_pnl.map(|pnl| pnl.to_sat())),
         ))
         .execute(conn)?;
 
