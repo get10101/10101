@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "coordinator"
-version = "2.2.2"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "atty",
@@ -2677,7 +2677,7 @@ dependencies = [
 
 [[package]]
 name = "native"
-version = "2.2.2"
+version = "2.2.3"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -5187,7 +5187,7 @@ dependencies = [
 
 [[package]]
 name = "webapp"
-version = "2.2.2"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "atty",
