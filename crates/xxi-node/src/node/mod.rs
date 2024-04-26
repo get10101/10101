@@ -700,7 +700,7 @@ async fn manage_spendable_outputs_task<D: BdkStorage, N: Storage + Sync + Send +
         if let Err(e) = spawn_blocking({
             let client = client.clone();
             let node_storage = node_storage.clone();
-            let ln_dlc_wallet = wallet.clone();
+            let xxi_wallet = wallet.clone();
             let blockchain = blockchain.clone();
             let fee_rate_estimator = fee_rate_estimator.clone();
             let keys_manager = keys_manager.clone();
@@ -708,7 +708,7 @@ async fn manage_spendable_outputs_task<D: BdkStorage, N: Storage + Sync + Send +
                 manage_spendable_outputs(
                     node_storage,
                     client,
-                    ln_dlc_wallet,
+                    xxi_wallet,
                     blockchain,
                     fee_rate_estimator,
                     keys_manager,
