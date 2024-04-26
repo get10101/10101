@@ -2,9 +2,9 @@ use bitcoin::Amount;
 use bitcoin::SignedAmount;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 pub mod order;
 pub mod position;

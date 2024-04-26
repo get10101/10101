@@ -46,9 +46,9 @@ use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::channel;
-pub use trade::ContractSymbol;
-pub use trade::Direction;
 use xxi_node::commons::ChannelOpeningParams;
+pub use xxi_node::commons::ContractSymbol;
+pub use xxi_node::commons::Direction;
 use xxi_node::commons::OrderbookRequest;
 use xxi_node::seed::Bip39Seed;
 
@@ -272,21 +272,6 @@ pub fn calculate_margin(price: f32, quantity: f32, leverage: f32) -> SyncReturn<
 
 pub fn calculate_quantity(price: f32, margin: u64, leverage: f32) -> SyncReturn<f32> {
     SyncReturn(calculations::calculate_quantity(price, margin, leverage))
-}
-
-#[allow(dead_code)]
-#[frb(mirror(ContractSymbol))]
-#[derive(Debug, Clone, Copy)]
-pub enum _ContractSymbol {
-    BtcUsd,
-}
-
-#[allow(dead_code)]
-#[frb(mirror(Direction))]
-#[derive(Debug, Clone, Copy)]
-pub enum _Direction {
-    Long,
-    Short,
 }
 
 pub fn calculate_liquidation_price(

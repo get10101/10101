@@ -33,7 +33,6 @@ tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["fs", "trace", "cors"] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-trade = { path = "../crates/trade" }
 utoipa = { version = "4.2.0", features = ["axum_extras", "decimal_float", "time", "uuid"] }
 utoipa-rapidoc = { version = "3.0.0", features = ["axum"] }
 utoipa-redoc = { version = "3.0.0", features = ["axum"] }

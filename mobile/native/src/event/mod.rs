@@ -9,7 +9,7 @@ use crate::trade::position::Position;
 use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
-use trade::ContractSymbol;
+use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::TenTenOneConfig;
 use xxi_node::commons::TradeParams;
 

@@ -36,14 +36,14 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use trade::cfd::calculate_long_liquidation_price;
-use trade::cfd::calculate_margin;
-use trade::cfd::calculate_pnl;
-use trade::cfd::calculate_short_liquidation_price;
-use trade::Direction;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_29;
 use xxi_node::bitcoin_conversion::to_xonly_pk_29;
+use xxi_node::cfd::calculate_long_liquidation_price;
+use xxi_node::cfd::calculate_margin;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::calculate_short_liquidation_price;
+use xxi_node::commons::Direction;
 use xxi_node::commons::MatchState;
 use xxi_node::commons::Message;
 use xxi_node::commons::OrderState;
@@ -1478,7 +1478,7 @@ mod tests {
     use insta::assert_debug_snapshot;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
-    use trade::ContractSymbol;
+    use xxi_node::commons::ContractSymbol;
 
     #[test]
     fn apply_resize() {

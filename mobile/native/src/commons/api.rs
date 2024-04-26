@@ -1,6 +1,7 @@
 use flutter_rust_bridge::frb;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
+use xxi_node::commons;
 
 #[frb]
 #[derive(Clone, Debug, Default)]
@@ -9,8 +10,8 @@ pub struct Price {
     pub ask: f64,
 }
 
-impl From<trade::Price> for Price {
-    fn from(value: trade::Price) -> Self {
+impl From<commons::Price> for Price {
+    fn from(value: commons::Price) -> Self {
         Price {
             bid: value.bid.to_f64().expect("price bid to fit into f64"),
             ask: value.ask.to_f64().expect("price ask to fit into f64"),
@@ -18,9 +19,9 @@ impl From<trade::Price> for Price {
     }
 }
 
-impl From<Price> for trade::Price {
+impl From<Price> for commons::Price {
     fn from(value: Price) -> Self {
-        trade::Price {
+        commons::Price {
             bid: Decimal::try_from(value.bid).expect("price bid to fit into Decimal"),
             ask: Decimal::try_from(value.ask).expect("price ask to fit into Decimal"),
         }

@@ -1,3 +1,5 @@
+use crate::commons::ContractSymbol;
+use crate::commons::Direction;
 use anyhow::Result;
 use bitcoin::hashes::sha256;
 use bitcoin::secp256k1::PublicKey;
@@ -9,8 +11,6 @@ use secp256k1::VerifyOnly;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -241,6 +241,8 @@ pub struct ChannelOpeningParams {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::commons::ContractSymbol;
+    use crate::commons::Direction;
     use crate::commons::NewLimitOrder;
     use crate::commons::NewOrder;
     use crate::commons::NewOrderRequest;
@@ -251,8 +253,6 @@ pub mod tests {
     use std::str::FromStr;
     use time::ext::NumericalDuration;
     use time::OffsetDateTime;
-    use trade::ContractSymbol;
-    use trade::Direction;
     use uuid::Uuid;
 
     #[test]

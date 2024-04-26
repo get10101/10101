@@ -1,7 +1,10 @@
+use anyhow::bail;
 use bitcoin::secp256k1::PublicKey;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
+use std::fmt;
+use std::str::FromStr;
 
 mod backup;
 mod collab_revert;
@@ -24,11 +27,7 @@ pub use message::*;
 pub use order::*;
 pub use order_matching_fee::order_matching_fee;
 pub use polls::*;
-pub use price::best_ask_price;
-pub use price::best_bid_price;
-pub use price::best_current_price;
-pub use price::Price;
-pub use price::Prices;
+pub use price::*;
 pub use reported_error::ReportedError;
 pub use rollover::*;
 pub use signature::*;
@@ -129,11 +128,90 @@ impl ReferralStatus {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum ContractSymbol {
+    BtcUsd,
+}
+
+impl ContractSymbol {
+    pub fn label(self) -> String {
+        match self {
+            ContractSymbol::BtcUsd => "btcusd".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub enum Direction {
+    Long,
+    Short,
+}
+
+impl Direction {
+    pub fn opposite(&self) -> Direction {
+        match self {
+            Direction::Long => Direction::Short,
+            Direction::Short => Direction::Long,
+        }
+    }
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Direction::Long => "Long",
+            Direction::Short => "Short",
+        };
+
+        s.fmt(f)
+    }
+}
+
+impl FromStr for ContractSymbol {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value.to_lowercase().as_str() {
+            "btcusd" => Ok(ContractSymbol::BtcUsd),
+            // BitMEX representation
+            "xbtusd" => Ok(ContractSymbol::BtcUsd),
+            unknown => bail!("Unknown contract symbol {unknown}"),
+        }
+    }
+}
+
+impl fmt::Display for ContractSymbol {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let symbol = match self {
+            ContractSymbol::BtcUsd => "btcusd",
+        };
+        symbol.to_string().fmt(f)
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use crate::commons::referral_from_pubkey;
+    use crate::commons::ContractSymbol;
     use secp256k1::PublicKey;
     use std::str::FromStr;
+
+    #[test]
+    fn contract_symbol_from_str() {
+        assert_eq!(
+            ContractSymbol::from_str("btcusd").unwrap(),
+            ContractSymbol::BtcUsd
+        );
+        assert_eq!(
+            ContractSymbol::from_str("BTCUSD").unwrap(),
+            ContractSymbol::BtcUsd
+        );
+        assert_eq!(
+            ContractSymbol::from_str("xbtusd").unwrap(),
+            ContractSymbol::BtcUsd
+        );
+        assert!(ContractSymbol::from_str("dogeusd").is_err());
+    }
 
     #[test]
     pub fn test_referral_generation() {

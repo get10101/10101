@@ -1,3 +1,5 @@
+use crate::commons::ContractSymbol;
+use crate::commons::Direction;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
@@ -5,8 +7,6 @@ use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

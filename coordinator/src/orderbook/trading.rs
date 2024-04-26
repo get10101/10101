@@ -24,10 +24,10 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
 use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 use xxi_node::commons::FilledWith;
 use xxi_node::commons::Match;
 use xxi_node::commons::Message;
@@ -535,7 +535,7 @@ mod tests {
     use rust_decimal_macros::dec;
     use std::str::FromStr;
     use time::Duration;
-    use trade::ContractSymbol;
+    use xxi_node::commons::ContractSymbol;
 
     #[test]
     fn when_short_then_sort_desc() {

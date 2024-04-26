@@ -5,10 +5,10 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
 use xxi_node::commons;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 pub mod api;
 pub mod handler;

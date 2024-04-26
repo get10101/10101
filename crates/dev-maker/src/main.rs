@@ -13,9 +13,9 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::sleep;
 use tracing::metadata::LevelFilter;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 use xxi_node::commons::NewLimitOrder;
 use xxi_node::commons::NewOrder;
 

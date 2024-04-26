@@ -1,20 +1,38 @@
 use crate::commons::order::Order;
 use crate::commons::order::OrderState;
+use crate::commons::ContractSymbol;
+use crate::commons::Direction;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
 pub struct Price {
+    pub bid: Decimal,
+    pub ask: Decimal,
+}
+
+impl Price {
+    /// Get the price for the direction
+    ///
+    /// For going long we get the best ask price, for going short we get the best bid price.
+    pub fn get_price_for_direction(&self, direction: Direction) -> Decimal {
+        match direction {
+            Direction::Long => self.ask,
+            Direction::Short => self.bid,
+        }
+    }
+}
+
+pub type Prices = HashMap<ContractSymbol, BestPrice>;
+
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq)]
+pub struct BestPrice {
     pub bid: Option<Decimal>,
     pub ask: Option<Decimal>,
 }
-
-pub type Prices = HashMap<ContractSymbol, Price>;
 
 /// Best prices across all current orders for given ContractSymbol in the orderbook
 /// Taken orders are not included in the average
@@ -23,7 +41,8 @@ pub fn best_current_price(current_orders: &[Order]) -> Prices {
     let mut add_price_for_symbol = |symbol| {
         prices.insert(
             symbol,
-            Price {
+            BestPrice {
+                // TODO(holzeis):
                 bid: best_bid_price(current_orders, symbol),
                 ask: best_ask_price(current_orders, symbol),
             },
@@ -89,16 +108,15 @@ mod test {
     use crate::commons::order::OrderType;
     use crate::commons::price::best_ask_price;
     use crate::commons::price::best_bid_price;
+    use crate::commons::ContractSymbol;
+    use crate::commons::Direction;
     use bitcoin::secp256k1::PublicKey;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
     use time::Duration;
     use time::OffsetDateTime;
-    use trade::ContractSymbol;
-    use trade::Direction;
     use uuid::Uuid;
-    use ContractSymbol::BtcUsd;
 
     fn dummy_public_key() -> PublicKey {
         PublicKey::from_str("02bd998ebd176715fe92b7467cf6b1df8023950a4dd911db4c94dfc89cc9f5a655")
@@ -112,7 +130,7 @@ mod test {
             trader_id: dummy_public_key(),
             direction,
             leverage: 1.0,
-            contract_symbol: BtcUsd,
+            contract_symbol: ContractSymbol::BtcUsd,
             quantity: 100.into(),
             order_type: OrderType::Market,
             timestamp: OffsetDateTime::now_utc(),
@@ -131,7 +149,10 @@ mod test {
             dummy_order(dec!(500_000), Direction::Long, OrderState::Taken), // taken
             dummy_order(dec!(50_000), Direction::Short, OrderState::Open),  // wrong direction
         ];
-        assert_eq!(best_bid_price(&current_orders, BtcUsd), Some(dec!(30_000)));
+        assert_eq!(
+            best_bid_price(&current_orders, ContractSymbol::BtcUsd),
+            Some(dec!(30_000))
+        );
     }
 
     #[test]
@@ -144,7 +165,10 @@ mod test {
             // ignored in the calculations - it's the bid price
             dummy_order(dec!(50_000), Direction::Long, OrderState::Open),
         ];
-        assert_eq!(best_ask_price(&current_orders, BtcUsd), Some(dec!(10_000)));
+        assert_eq!(
+            best_ask_price(&current_orders, ContractSymbol::BtcUsd),
+            Some(dec!(10_000))
+        );
     }
 
     #[test]
@@ -154,7 +178,13 @@ mod test {
             dummy_order(dec!(30_000), Direction::Long, OrderState::Taken),
         ];
 
-        assert_eq!(best_ask_price(&all_orders_taken, BtcUsd), None);
-        assert_eq!(best_bid_price(&all_orders_taken, BtcUsd), None);
+        assert_eq!(
+            best_ask_price(&all_orders_taken, ContractSymbol::BtcUsd),
+            None
+        );
+        assert_eq!(
+            best_bid_price(&all_orders_taken, ContractSymbol::BtcUsd),
+            None
+        );
     }
 }

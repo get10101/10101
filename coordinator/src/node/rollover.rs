@@ -31,11 +31,11 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-use trade::ContractSymbol;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_xonly_pk_29;
 use xxi_node::bitcoin_conversion::to_xonly_pk_30;
 use xxi_node::commons;
+use xxi_node::commons::ContractSymbol;
 use xxi_node::node::event::NodeEvent;
 
 #[derive(Debug, Clone)]

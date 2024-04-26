@@ -1,8 +1,8 @@
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 #[derive(Debug)]
 pub struct NewTrade {

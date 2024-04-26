@@ -16,8 +16,8 @@ use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
 use std::sync::Arc;
 use std::time::Duration;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("maker");

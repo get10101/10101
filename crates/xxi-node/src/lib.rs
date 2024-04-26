@@ -24,6 +24,8 @@ mod on_chain_wallet;
 mod shadow;
 
 pub mod bitcoin_conversion;
+pub mod bitmex_client;
+pub mod cfd;
 pub mod commons;
 pub mod config;
 pub mod dlc_message;

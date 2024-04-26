@@ -8,8 +8,9 @@ use std::str::FromStr;
 use testcontainers::clients::Cli;
 use time::Duration;
 use time::OffsetDateTime;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons;
+use xxi_node::commons::Direction;
 use xxi_node::commons::NewLimitOrder;
 use xxi_node::commons::NewMarketOrder;
 use xxi_node::commons::OrderReason;
@@ -72,7 +73,7 @@ fn dummy_market_order(expiry: OffsetDateTime) -> NewMarketOrder {
         direction: Direction::Long,
         quantity: dec!(100.0),
         expiry,
-        contract_symbol: trade::ContractSymbol::BtcUsd,
+        contract_symbol: commons::ContractSymbol::BtcUsd,
         leverage: dec!(1.0),
         stable: false,
     }
@@ -89,7 +90,7 @@ fn dummy_limit_order(expiry: OffsetDateTime) -> NewLimitOrder {
         direction: Direction::Long,
         quantity: dec!(100.0),
         expiry,
-        contract_symbol: trade::ContractSymbol::BtcUsd,
+        contract_symbol: commons::ContractSymbol::BtcUsd,
         leverage: dec!(1.0),
         stable: false,
     }

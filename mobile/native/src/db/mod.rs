@@ -34,6 +34,7 @@ use std::sync::Arc;
 use time::Duration;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::commons;
 
 mod custom_types;
 pub mod dlc_messages;
@@ -375,7 +376,7 @@ pub fn delete_positions() -> Result<()> {
 }
 
 pub fn update_position_state(
-    contract_symbol: ::trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
     position_state: trade::position::PositionState,
 ) -> Result<trade::position::Position> {
     let mut db = connection()?;
@@ -394,7 +395,7 @@ pub fn update_position(resized_position: trade::position::Position) -> Result<()
 }
 
 pub fn rollover_position(
-    contract_symbol: ::trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
     expiry_timestamp: OffsetDateTime,
 ) -> Result<()> {
     let mut db = connection()?;

@@ -26,9 +26,9 @@ use reqwest::Url;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
-use trade::Direction;
 use uuid::Uuid;
 use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::Direction;
 use xxi_node::commons::FilledWith;
 use xxi_node::node::signed_channel_state_name;
 

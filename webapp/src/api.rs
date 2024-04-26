@@ -33,6 +33,7 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use xxi_node::commons;
 use xxi_node::commons::order_matching_fee;
 use xxi_node::commons::ChannelOpeningParams;
 
@@ -261,20 +262,20 @@ pub enum Direction {
     Short,
 }
 
-impl From<trade::Direction> for Direction {
-    fn from(value: trade::Direction) -> Self {
+impl From<commons::Direction> for Direction {
+    fn from(value: commons::Direction) -> Self {
         match value {
-            trade::Direction::Long => Direction::Long,
-            trade::Direction::Short => Direction::Short,
+            commons::Direction::Long => Direction::Long,
+            commons::Direction::Short => Direction::Short,
         }
     }
 }
 
-impl From<Direction> for trade::Direction {
+impl From<Direction> for commons::Direction {
     fn from(value: Direction) -> Self {
         match value {
-            Direction::Long => trade::Direction::Long,
-            Direction::Short => trade::Direction::Short,
+            Direction::Long => commons::Direction::Long,
+            Direction::Short => commons::Direction::Short,
         }
     }
 }
@@ -297,17 +298,17 @@ pub enum ContractSymbol {
     BtcUsd,
 }
 
-impl From<ContractSymbol> for trade::ContractSymbol {
+impl From<ContractSymbol> for commons::ContractSymbol {
     fn from(value: ContractSymbol) -> Self {
         match value {
-            ContractSymbol::BtcUsd => trade::ContractSymbol::BtcUsd,
+            ContractSymbol::BtcUsd => commons::ContractSymbol::BtcUsd,
         }
     }
 }
-impl From<trade::ContractSymbol> for ContractSymbol {
-    fn from(value: trade::ContractSymbol) -> Self {
+impl From<commons::ContractSymbol> for ContractSymbol {
+    fn from(value: commons::ContractSymbol) -> Self {
         match value {
-            trade::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
+            commons::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
         }
     }
 }
@@ -399,8 +400,8 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
         let res = price.map(|price| match (price.ask, price.bid) {
             (Some(ask), Some(bid)) => {
                 let price = match position.direction {
-                    trade::Direction::Long => price.bid,
-                    trade::Direction::Short => price.ask,
+                    commons::Direction::Long => price.bid,
+                    commons::Direction::Short => price.ask,
                 };
 
                 // FIXME: A from implementation should not contain this kind of logic.
@@ -409,7 +410,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                 (
                     calculate_pnl(
                         position.average_entry_price,
-                        trade::Price { bid, ask },
+                        commons::Price { bid, ask },
                         position.quantity,
                         position.leverage,
                         position.direction,

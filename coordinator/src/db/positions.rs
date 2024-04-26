@@ -19,6 +19,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::any::TypeId;
 use time::OffsetDateTime;
+use xxi_node::commons;
 
 #[derive(Queryable, Debug, Clone)]
 pub struct Position {
@@ -246,7 +247,7 @@ impl Position {
         trader_pubkey: PublicKey,
         temporary_contract_id: ContractId,
         quantity: Decimal,
-        trader_direction: trade::Direction,
+        trader_direction: commons::Direction,
         trader_margin: Amount,
         coordinator_margin: Amount,
         average_entry_price: Decimal,
@@ -372,10 +373,10 @@ impl From<Position> for crate::position::models::Position {
     fn from(value: Position) -> Self {
         crate::position::models::Position {
             id: value.id,
-            contract_symbol: trade::ContractSymbol::from(value.contract_symbol),
+            contract_symbol: commons::ContractSymbol::from(value.contract_symbol),
             trader_leverage: value.trader_leverage,
             quantity: value.quantity,
-            trader_direction: trade::Direction::from(value.trader_direction),
+            trader_direction: commons::Direction::from(value.trader_direction),
             average_entry_price: value.average_entry_price,
             trader_liquidation_price: value.trader_liquidation_price,
             coordinator_liquidation_price: value.coordinator_liquidation_price,
@@ -512,18 +513,18 @@ impl QueryId for ContractSymbolType {
     }
 }
 
-impl From<ContractSymbol> for trade::ContractSymbol {
+impl From<ContractSymbol> for commons::ContractSymbol {
     fn from(value: ContractSymbol) -> Self {
         match value {
-            ContractSymbol::BtcUsd => trade::ContractSymbol::BtcUsd,
+            ContractSymbol::BtcUsd => commons::ContractSymbol::BtcUsd,
         }
     }
 }
 
-impl From<trade::ContractSymbol> for ContractSymbol {
-    fn from(value: trade::ContractSymbol) -> Self {
+impl From<commons::ContractSymbol> for ContractSymbol {
+    fn from(value: commons::ContractSymbol) -> Self {
         match value {
-            trade::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
+            commons::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
         }
     }
 }

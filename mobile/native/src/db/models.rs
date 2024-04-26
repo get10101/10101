@@ -28,8 +28,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
 use time::OffsetDateTime;
-use trade;
 use uuid::Uuid;
+use xxi_node::commons;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -605,18 +605,18 @@ pub enum ContractSymbol {
     BtcUsd,
 }
 
-impl From<trade::ContractSymbol> for ContractSymbol {
-    fn from(value: trade::ContractSymbol) -> Self {
+impl From<commons::ContractSymbol> for ContractSymbol {
+    fn from(value: commons::ContractSymbol) -> Self {
         match value {
-            trade::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
+            commons::ContractSymbol::BtcUsd => ContractSymbol::BtcUsd,
         }
     }
 }
 
-impl From<ContractSymbol> for trade::ContractSymbol {
+impl From<ContractSymbol> for commons::ContractSymbol {
     fn from(value: ContractSymbol) -> Self {
         match value {
-            ContractSymbol::BtcUsd => trade::ContractSymbol::BtcUsd,
+            ContractSymbol::BtcUsd => commons::ContractSymbol::BtcUsd,
         }
     }
 }
@@ -628,20 +628,20 @@ pub enum Direction {
     Short,
 }
 
-impl From<trade::Direction> for Direction {
-    fn from(value: trade::Direction) -> Self {
+impl From<commons::Direction> for Direction {
+    fn from(value: commons::Direction) -> Self {
         match value {
-            trade::Direction::Long => Direction::Long,
-            trade::Direction::Short => Direction::Short,
+            commons::Direction::Long => Direction::Long,
+            commons::Direction::Short => Direction::Short,
         }
     }
 }
 
-impl From<Direction> for trade::Direction {
+impl From<Direction> for commons::Direction {
     fn from(value: Direction) -> Self {
         match value {
-            Direction::Long => trade::Direction::Long,
-            Direction::Short => trade::Direction::Short,
+            Direction::Long => commons::Direction::Long,
+            Direction::Short => commons::Direction::Short,
         }
     }
 }
@@ -1205,6 +1205,7 @@ pub mod test {
     use std::str::FromStr;
     use time::OffsetDateTime;
     use time::Time;
+    use xxi_node::commons;
 
     #[test]
     fn order_round_trip() {
@@ -1214,8 +1215,8 @@ pub mod test {
         let uuid = uuid::Uuid::new_v4();
         let leverage = 2.0;
         let quantity = 100.0;
-        let contract_symbol = trade::ContractSymbol::BtcUsd;
-        let direction = trade::Direction::Long;
+        let contract_symbol = commons::ContractSymbol::BtcUsd;
+        let direction = commons::Direction::Long;
         let (order_type, limit_price) = crate::trade::order::OrderType::Market.into();
         let (status, execution_price, failure_reason) =
             crate::trade::order::OrderState::Initial.into();
@@ -1267,7 +1268,7 @@ pub mod test {
                 leverage,
                 quantity,
                 contract_symbol,
-                direction: trade::Direction::Long,
+                direction: commons::Direction::Long,
                 order_type: crate::trade::order::OrderType::Market,
                 state: crate::trade::order::OrderState::Initial,
                 creation_timestamp,
@@ -1326,8 +1327,8 @@ pub mod test {
         let uuid = uuid::Uuid::new_v4();
         let leverage = 2.0;
         let quantity = 100.0;
-        let contract_symbol = trade::ContractSymbol::BtcUsd;
-        let direction = trade::Direction::Long;
+        let contract_symbol = commons::ContractSymbol::BtcUsd;
+        let direction = commons::Direction::Long;
         let creation_timestamp = OffsetDateTime::UNIX_EPOCH;
         let order_expiry_timestamp = OffsetDateTime::UNIX_EPOCH;
 

@@ -7,8 +7,8 @@ use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use time::OffsetDateTime;
-use trade::bitmex_client::BitmexClient;
-use trade::bitmex_client::Quote;
+use xxi_node::bitmex_client::BitmexClient;
+use xxi_node::bitmex_client::Quote;
 
 pub async fn sync(node: Node) -> Result<()> {
     let mut conn = node.pool.get()?;

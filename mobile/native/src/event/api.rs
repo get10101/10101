@@ -14,7 +14,7 @@ use core::convert::From;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use rust_decimal::prelude::ToPrimitive;
-use trade::ContractSymbol;
+use xxi_node::commons::ContractSymbol;
 
 #[frb]
 #[derive(Clone)]

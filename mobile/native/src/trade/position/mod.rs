@@ -16,8 +16,9 @@ use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 use serde::Serialize;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 pub mod api;
 pub mod handler;
@@ -255,7 +256,7 @@ impl Position {
                     let pnl = {
                         let pnl = calculate_pnl(
                             self.average_entry_price,
-                            trade::Price {
+                            commons::Price {
                                 bid: order_execution_price,
                                 ask: order_execution_price,
                             },
@@ -340,7 +341,7 @@ impl Position {
                     let pnl = {
                         let pnl = calculate_pnl(
                             self.average_entry_price,
-                            trade::Price {
+                            commons::Price {
                                 bid: order_execution_price,
                                 ask: order_execution_price,
                             },
@@ -413,7 +414,7 @@ impl Position {
                     let pnl = {
                         let pnl = calculate_pnl(
                             self.average_entry_price,
-                            trade::Price {
+                            commons::Price {
                                 bid: order_execution_price,
                                 ask: order_execution_price,
                             },
