@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-commons = { path = "../commons" }
 reqwest = { version = "0.11" }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 secp256k1 = { version = "0.27.0", features = ["serde", "rand", "global-context"] }
@@ -18,3 +17,4 @@ tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "time", "tracing-log"] }
 trade = { path = "../trade" }
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
+xxi-node = { path = "../xxi-node" }

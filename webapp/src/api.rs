@@ -13,8 +13,6 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::Amount;
-use commons::order_matching_fee;
-use commons::ChannelOpeningParams;
 use native::api::Fee;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
@@ -35,6 +33,8 @@ use std::sync::Arc;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 use uuid::Uuid;
+use xxi_node::commons::order_matching_fee;
+use xxi_node::commons::ChannelOpeningParams;
 
 pub fn router(app_state: AppState) -> Router {
     Router::new()

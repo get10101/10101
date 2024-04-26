@@ -16,7 +16,7 @@ mod rollover;
 mod signature;
 mod trade;
 
-pub use crate::trade::*;
+pub use crate::commons::trade::*;
 pub use backup::*;
 pub use collab_revert::*;
 pub use liquidity_option::*;
@@ -131,7 +131,7 @@ impl ReferralStatus {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::referral_from_pubkey;
+    use crate::commons::referral_from_pubkey;
     use secp256k1::PublicKey;
     use std::str::FromStr;
 

@@ -14,7 +14,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Network;
-use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -36,6 +35,7 @@ use trade::ContractSymbol;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_xonly_pk_29;
 use xxi_node::bitcoin_conversion::to_xonly_pk_30;
+use xxi_node::commons;
 use xxi_node::node::event::NodeEvent;
 
 #[derive(Debug, Clone)]
@@ -216,7 +216,7 @@ impl Node {
 
             let message = OrderbookMessage::TraderMessage {
                 trader_id,
-                message: Message::Rollover(contract_id.map(hex::encode)),
+                message: commons::Message::Rollover(contract_id.map(hex::encode)),
                 notification,
             };
 

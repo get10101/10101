@@ -3,10 +3,6 @@ use crate::orderbook::db::orders;
 use crate::orderbook::tests::setup_db;
 use crate::orderbook::tests::start_postgres;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewLimitOrder;
-use commons::NewMarketOrder;
-use commons::OrderReason;
-use commons::OrderState;
 use rust_decimal_macros::dec;
 use std::str::FromStr;
 use testcontainers::clients::Cli;
@@ -14,6 +10,10 @@ use time::Duration;
 use time::OffsetDateTime;
 use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::NewLimitOrder;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::OrderReason;
+use xxi_node::commons::OrderState;
 
 #[tokio::test]
 async fn crud_test() {

@@ -1,5 +1,5 @@
-use crate::order::Order;
-use crate::order::OrderState;
+use crate::commons::order::Order;
+use crate::commons::order::OrderState;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
@@ -83,12 +83,12 @@ pub fn best_ask_price(orders: &[Order], symbol: ContractSymbol) -> Option<Decima
 
 #[cfg(test)]
 mod test {
-    use crate::order::Order;
-    use crate::order::OrderReason;
-    use crate::order::OrderState;
-    use crate::order::OrderType;
-    use crate::price::best_ask_price;
-    use crate::price::best_bid_price;
+    use crate::commons::order::Order;
+    use crate::commons::order::OrderReason;
+    use crate::commons::order::OrderState;
+    use crate::commons::order::OrderType;
+    use crate::commons::price::best_ask_price;
+    use crate::commons::price::best_bid_price;
     use bitcoin::secp256k1::PublicKey;
     use rust_decimal::Decimal;
     use rust_decimal_macros::dec;

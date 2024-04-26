@@ -6,12 +6,12 @@ use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
-use commons::TenTenOneConfig;
-use commons::TradeParams;
 use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
 use trade::ContractSymbol;
+use xxi_node::commons::TenTenOneConfig;
+use xxi_node::commons::TradeParams;
 
 mod event_hub;
 

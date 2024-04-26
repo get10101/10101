@@ -1,14 +1,14 @@
 use crate::db::user;
 use crate::notifications::FcmToken;
 use crate::orderbook;
-use commons::OrderReason;
 use diesel::Connection;
 use diesel::PgConnection;
 use diesel::QueryResult;
+use xxi_node::commons;
 
 pub fn get_all_matched_market_orders_by_order_reason(
     conn: &mut PgConnection,
-    order_reasons: Vec<OrderReason>,
+    order_reasons: Vec<commons::OrderReason>,
 ) -> QueryResult<Vec<(commons::Order, FcmToken)>> {
     let result = conn.transaction(|conn| {
         let orders = orderbook::db::orders::get_all_matched_market_orders_by_order_reason(

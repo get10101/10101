@@ -32,8 +32,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Amount;
-use commons::ChannelOpeningParams;
-use commons::OrderbookRequest;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -50,6 +48,8 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::channel;
 pub use trade::ContractSymbol;
 pub use trade::Direction;
+use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::OrderbookRequest;
 use xxi_node::seed::Bip39Seed;
 
 /// Initialise logging infrastructure for Rust
@@ -65,8 +65,8 @@ pub struct TenTenOneConfig {
     pub referral_status: ReferralStatus,
 }
 
-impl From<commons::TenTenOneConfig> for TenTenOneConfig {
-    fn from(value: commons::TenTenOneConfig) -> Self {
+impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
+    fn from(value: xxi_node::commons::TenTenOneConfig) -> Self {
         Self {
             liquidity_options: value
                 .liquidity_options
@@ -127,8 +127,8 @@ pub enum PollType {
     SingleChoice,
 }
 
-impl From<commons::Poll> for Poll {
-    fn from(value: commons::Poll) -> Self {
+impl From<xxi_node::commons::Poll> for Poll {
+    fn from(value: xxi_node::commons::Poll) -> Self {
         Poll {
             id: value.id,
             poll_type: value.poll_type.into(),
@@ -142,16 +142,16 @@ impl From<commons::Poll> for Poll {
     }
 }
 
-impl From<commons::PollType> for PollType {
-    fn from(value: commons::PollType) -> Self {
+impl From<xxi_node::commons::PollType> for PollType {
+    fn from(value: xxi_node::commons::PollType) -> Self {
         match value {
-            commons::PollType::SingleChoice => PollType::SingleChoice,
+            xxi_node::commons::PollType::SingleChoice => PollType::SingleChoice,
         }
     }
 }
 
-impl From<commons::Choice> for Choice {
-    fn from(value: commons::Choice) -> Self {
+impl From<xxi_node::commons::Choice> for Choice {
+    fn from(value: xxi_node::commons::Choice) -> Self {
         Choice {
             id: value.id,
             value: value.value,
@@ -160,9 +160,9 @@ impl From<commons::Choice> for Choice {
     }
 }
 
-impl From<Choice> for commons::Choice {
+impl From<Choice> for xxi_node::commons::Choice {
     fn from(value: Choice) -> Self {
-        commons::Choice {
+        xxi_node::commons::Choice {
             id: value.id,
             value: value.value,
             editable: value.editable,
@@ -333,7 +333,8 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
     let fee_rate = ln_dlc::get_order_matching_fee_rate(false);
-    let order_matching_fee = commons::order_matching_fee(quantity, price, fee_rate).to_sat();
+    let order_matching_fee =
+        xxi_node::commons::order_matching_fee(quantity, price, fee_rate).to_sat();
 
     SyncReturn(order_matching_fee)
 }
@@ -450,11 +451,12 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
             // the coordinator and trigger a new user login event.
             tracing::info!("Re-sending authentication message");
 
-            let signature =
-                orderbook_client::create_auth_message_signature(move |msg| commons::Signature {
+            let signature = orderbook_client::create_auth_message_signature(move |msg| {
+                xxi_node::commons::Signature {
                     pubkey: ln_dlc::get_node_pubkey(),
                     signature: ln_dlc::get_node_key().sign_ecdsa(msg),
-                });
+                }
+            });
 
             let version = env!("CARGO_PKG_VERSION").to_string();
             let runtime = crate::state::get_or_create_tokio_runtime()?;
@@ -574,8 +576,8 @@ pub struct LiquidityOption {
     pub active: bool,
 }
 
-impl From<commons::LiquidityOption> for LiquidityOption {
-    fn from(value: commons::LiquidityOption) -> Self {
+impl From<xxi_node::commons::LiquidityOption> for LiquidityOption {
+    fn from(value: xxi_node::commons::LiquidityOption) -> Self {
         LiquidityOption {
             id: value.id,
             rank: value.rank,
@@ -742,8 +744,8 @@ pub struct User {
     pub nickname: Option<String>,
 }
 
-impl From<commons::User> for User {
-    fn from(value: commons::User) -> Self {
+impl From<xxi_node::commons::User> for User {
+    fn from(value: xxi_node::commons::User) -> Self {
         User {
             pubkey: value.pubkey.to_string(),
             contact: value.contact,
@@ -797,7 +799,10 @@ pub fn get_estimated_funding_tx_fee() -> Result<SyncReturn<u64>> {
 
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
-    SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
+    SyncReturn(
+        xxi_node::commons::calculate_next_expiry(OffsetDateTime::now_utc(), network)
+            .unix_timestamp(),
+    )
 }
 
 pub fn get_dlc_channel_id() -> Result<Option<String>> {
@@ -857,17 +862,17 @@ pub enum BonusStatusType {
     Referent,
 }
 
-impl From<commons::BonusStatusType> for BonusStatusType {
-    fn from(value: commons::BonusStatusType) -> Self {
+impl From<xxi_node::commons::BonusStatusType> for BonusStatusType {
+    fn from(value: xxi_node::commons::BonusStatusType) -> Self {
         match value {
-            commons::BonusStatusType::Referral => BonusStatusType::Referral,
-            commons::BonusStatusType::Referent => BonusStatusType::Referent,
+            xxi_node::commons::BonusStatusType::Referral => BonusStatusType::Referral,
+            xxi_node::commons::BonusStatusType::Referent => BonusStatusType::Referent,
         }
     }
 }
 
-impl From<commons::ReferralStatus> for ReferralStatus {
-    fn from(value: commons::ReferralStatus) -> Self {
+impl From<xxi_node::commons::ReferralStatus> for ReferralStatus {
+    fn from(value: xxi_node::commons::ReferralStatus) -> Self {
         ReferralStatus {
             referral_code: value.referral_code,
             referral_tier: value.referral_tier,

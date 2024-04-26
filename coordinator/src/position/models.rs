@@ -7,7 +7,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
-use commons::TradeParams;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use lightning::ln::ChannelId;
@@ -20,6 +19,7 @@ use trade::cfd::calculate_margin;
 use trade::cfd::calculate_pnl;
 use trade::ContractSymbol;
 use trade::Direction;
+use xxi_node::commons::TradeParams;
 
 #[derive(Clone)]
 pub struct NewPosition {

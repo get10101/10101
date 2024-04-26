@@ -1,11 +1,11 @@
 use anyhow::Result;
-use commons::ChannelOpeningParams;
-use commons::NewOrder;
-use commons::NewOrderRequest;
 use reqwest::Client;
 use reqwest::Url;
 use secp256k1::SecretKey;
 use uuid::Uuid;
+use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::NewOrder;
+use xxi_node::commons::NewOrderRequest;
 
 #[derive(Clone)]
 pub struct OrderbookClient {

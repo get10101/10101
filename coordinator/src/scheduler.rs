@@ -8,7 +8,6 @@ use crate::referrals;
 use crate::settings::Settings;
 use anyhow::Result;
 use bitcoin::Network;
-use commons::OrderReason;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -17,6 +16,7 @@ use tokio::sync::mpsc;
 use tokio_cron_scheduler::Job;
 use tokio_cron_scheduler::JobScheduler;
 use tokio_cron_scheduler::JobSchedulerError;
+use xxi_node::commons;
 
 pub struct NotificationScheduler {
     scheduler: JobScheduler,
@@ -283,7 +283,10 @@ fn build_remind_to_close_expired_position_notification_job(
         // Note, positions that are expired longer than
         // [`crate::node::expired_positions::EXPIRED_POSITION_TIMEOUT`] are set to closing, hence
         // those positions will not get notified anymore afterwards.
-        match get_all_matched_market_orders_by_order_reason(&mut conn, vec![OrderReason::Expired]) {
+        match get_all_matched_market_orders_by_order_reason(
+            &mut conn,
+            vec![commons::OrderReason::Expired],
+        ) {
             Ok(positions_with_token) => Box::pin({
                 async move {
                     for (order, fcm_token) in positions_with_token {
@@ -332,8 +335,8 @@ fn build_remind_to_close_liquidated_position_notification_job(
         match get_all_matched_market_orders_by_order_reason(
             &mut conn,
             vec![
-                OrderReason::TraderLiquidated,
-                OrderReason::CoordinatorLiquidated,
+                commons::OrderReason::TraderLiquidated,
+                commons::OrderReason::CoordinatorLiquidated,
             ],
         ) {
             Ok(orders_with_token) => Box::pin({

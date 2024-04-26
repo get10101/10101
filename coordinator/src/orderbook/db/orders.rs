@@ -7,13 +7,6 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewLimitOrder;
-use commons::NewMarketOrder;
-use commons::Order as OrderbookOrder;
-use commons::OrderReason as OrderBookOrderReason;
-use commons::OrderState as OrderBookOrderState;
-use commons::OrderType as OrderBookOrderType;
-use commons::Price;
 use diesel::dsl::max;
 use diesel::dsl::min;
 use diesel::prelude::*;
@@ -25,6 +18,14 @@ use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use trade::Direction as OrderbookDirection;
 use uuid::Uuid;
+use xxi_node::commons;
+use xxi_node::commons::NewLimitOrder;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::Order as OrderbookOrder;
+use xxi_node::commons::OrderReason as OrderBookOrderReason;
+use xxi_node::commons::OrderState as OrderBookOrderState;
+use xxi_node::commons::OrderType as OrderBookOrderType;
+use xxi_node::commons::Price;
 
 impl From<trade::Direction> for Direction {
     fn from(value: trade::Direction) -> Self {

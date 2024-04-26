@@ -17,7 +17,6 @@ use bitcoin::Amount;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
-use commons::CollaborativeRevertCoordinatorRequest;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::DlcChannelId;
@@ -41,6 +40,8 @@ use tokio::task::spawn_blocking;
 use tracing::instrument;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_txid_30;
+use xxi_node::commons;
+use xxi_node::commons::CollaborativeRevertCoordinatorRequest;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {

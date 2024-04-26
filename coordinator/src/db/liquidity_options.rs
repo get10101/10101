@@ -4,6 +4,7 @@ use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
 use time::OffsetDateTime;
+use xxi_node::commons;
 
 #[derive(Queryable, Debug, Clone, PartialEq)]
 #[diesel(table_name = liquidity_options)]

@@ -14,18 +14,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
-use commons::ChannelOpeningParams;
-use commons::FilledWith;
-use commons::Match;
-use commons::Message;
-use commons::Message::TradeError;
-use commons::Order;
-use commons::OrderReason;
-use commons::OrderState;
-use commons::OrderType;
-use commons::TradeAndChannelParams;
-use commons::TradeParams;
-use commons::TradingError;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use rust_decimal::prelude::ToPrimitive;
@@ -39,6 +27,18 @@ use tokio::task::spawn_blocking;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::FilledWith;
+use xxi_node::commons::Match;
+use xxi_node::commons::Message;
+use xxi_node::commons::Message::TradeError;
+use xxi_node::commons::Order;
+use xxi_node::commons::OrderReason;
+use xxi_node::commons::OrderState;
+use xxi_node::commons::OrderType;
+use xxi_node::commons::TradeAndChannelParams;
+use xxi_node::commons::TradeParams;
+use xxi_node::commons::TradingError;
 
 /// This value is arbitrarily set to 100 and defines the number of new order messages buffered in
 /// the channel.
@@ -408,7 +408,8 @@ fn match_order(
         return Ok(None);
     }
 
-    let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+    let expiry_timestamp =
+        xxi_node::commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     let matches = matched_orders
         .iter()

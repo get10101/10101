@@ -10,6 +10,7 @@ use rust_decimal::Decimal;
 use std::cmp::max;
 use trade::Direction;
 use trade::Price;
+use xxi_node::commons;
 
 /// Calculates the max quantity a user can trade using the following input parameters
 /// - if no channel exists the on-chain fees (channel fee reserve and funding tx fee) is substracted

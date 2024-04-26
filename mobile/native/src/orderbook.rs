@@ -13,13 +13,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
-use commons::best_ask_price;
-use commons::best_bid_price;
-use commons::Message;
-use commons::Order;
-use commons::OrderState;
-use commons::OrderbookRequest;
-use commons::Signature;
 use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
@@ -35,6 +28,13 @@ use tokio::sync::watch;
 use tokio_tungstenite_wasm as tungstenite;
 use trade::ContractSymbol;
 use trade::Direction;
+use xxi_node::commons::best_ask_price;
+use xxi_node::commons::best_bid_price;
+use xxi_node::commons::Message;
+use xxi_node::commons::Order;
+use xxi_node::commons::OrderState;
+use xxi_node::commons::OrderbookRequest;
+use xxi_node::commons::Signature;
 
 /// FIXME(holzeis): There is an edge case where the app is still open while we move into the
 /// rollover window. If the coordinator restarts while the app remains open in that scenario, the

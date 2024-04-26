@@ -1,4 +1,4 @@
-use crate::signature::create_sign_message;
+use crate::commons::signature::create_sign_message;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;

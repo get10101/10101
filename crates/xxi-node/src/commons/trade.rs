@@ -208,8 +208,8 @@ mod test {
             .unwrap()
     }
 
-    use crate::trade::FilledWith;
-    use crate::trade::Match;
+    use crate::commons::trade::FilledWith;
+    use crate::commons::trade::Match;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::secp256k1::XOnlyPublicKey;
     use bitcoin::Amount;

@@ -1,6 +1,6 @@
 use crate::schema::reported_errors;
-use commons::ReportedError;
 use diesel::prelude::*;
+use xxi_node::commons::ReportedError;
 
 #[derive(Insertable, Debug, Clone)]
 #[diesel(table_name = reported_errors)]

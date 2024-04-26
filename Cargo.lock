@@ -901,26 +901,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
-name = "commons"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bitcoin 0.30.2",
- "rust_decimal",
- "rust_decimal_macros",
- "secp256k1 0.27.0",
- "secp256k1-zkp",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "time",
- "tokio-tungstenite-wasm",
- "trade",
- "uuid",
-]
-
-[[package]]
 name = "console"
 version = "0.15.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1001,7 +981,6 @@ dependencies = [
  "bitcoin 0.29.2",
  "bitcoin 0.30.2",
  "clap 4.5.0",
- "commons",
  "console-subscriber",
  "diesel",
  "diesel_migrations",
@@ -1331,7 +1310,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.5.0",
- "commons",
  "reqwest",
  "rust_decimal",
  "secp256k1 0.27.0",
@@ -1343,6 +1321,7 @@ dependencies = [
  "tracing-subscriber",
  "trade",
  "uuid",
+ "xxi-node",
 ]
 
 [[package]]
@@ -1661,13 +1640,13 @@ dependencies = [
  "anyhow",
  "bitcoin 0.30.2",
  "clap 4.5.0",
- "commons",
  "reqwest",
  "serde",
  "time",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "xxi-node",
 ]
 
 [[package]]
@@ -2617,7 +2596,6 @@ dependencies = [
  "bip21",
  "bitcoin 0.29.2",
  "bitcoin 0.30.2",
- "commons",
  "diesel",
  "diesel_migrations",
  "dlc",
@@ -2894,7 +2872,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
- "commons",
  "futures",
  "secp256k1 0.27.0",
  "serde",
@@ -2905,6 +2882,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "xxi-node",
 ]
 
 [[package]]
@@ -4141,7 +4119,6 @@ dependencies = [
  "assertables",
  "bitcoin 0.30.2",
  "clap 4.5.0",
- "commons",
  "coordinator",
  "flutter_rust_bridge",
  "local-ip-address",
@@ -5124,7 +5101,6 @@ dependencies = [
  "axum-login",
  "bitcoin 0.30.2",
  "clap 4.5.0",
- "commons",
  "console-subscriber",
  "dlc-manager",
  "hex",
@@ -5153,6 +5129,7 @@ dependencies = [
  "utoipa-redoc",
  "utoipa-swagger-ui",
  "uuid",
+ "xxi-node",
 ]
 
 [[package]]
@@ -5470,6 +5447,8 @@ dependencies = [
  "reqwest",
  "rust-bitcoin-coin-selection",
  "rust_decimal",
+ "rust_decimal_macros",
+ "secp256k1 0.27.0",
  "secp256k1-zkp",
  "serde",
  "serde_json",
@@ -5483,6 +5462,7 @@ dependencies = [
  "tracing",
  "tracing-log 0.1.3",
  "tracing-subscriber",
+ "trade",
  "ureq",
  "uuid",
 ]

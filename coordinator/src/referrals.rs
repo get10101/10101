@@ -4,7 +4,6 @@ use crate::db::bonus_tiers::BonusTier;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::ReferralStatus;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
@@ -12,6 +11,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::str::FromStr;
 use time::OffsetDateTime;
+use xxi_node::commons::ReferralStatus;
 
 /// When updating a referral status we only want to look at users which had a login in the last 48h.
 const DAYS_SINCE_LAST_LOGIN: i64 = 2;

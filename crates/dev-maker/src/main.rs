@@ -2,8 +2,6 @@ use crate::logger::init_tracing;
 use crate::orderbook_client::OrderbookClient;
 use anyhow::Result;
 use clap::Parser;
-use commons::NewLimitOrder;
-use commons::NewOrder;
 use reqwest::Url;
 use rust_decimal::Decimal;
 use secp256k1::rand;
@@ -18,6 +16,8 @@ use tracing::metadata::LevelFilter;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::NewLimitOrder;
+use xxi_node::commons::NewOrder;
 
 mod historic_rates;
 mod logger;

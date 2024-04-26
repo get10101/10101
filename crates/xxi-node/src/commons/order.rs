@@ -241,9 +241,9 @@ pub struct ChannelOpeningParams {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::NewLimitOrder;
-    use crate::NewOrder;
-    use crate::NewOrderRequest;
+    use crate::commons::NewLimitOrder;
+    use crate::commons::NewOrder;
+    use crate::commons::NewOrderRequest;
     use secp256k1::rand;
     use secp256k1::Secp256k1;
     use secp256k1::SecretKey;

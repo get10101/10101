@@ -22,7 +22,7 @@ pub fn create_sign_message(message: Vec<u8>) -> SecpMessage {
 
 #[cfg(test)]
 mod test {
-    use crate::signature::Signature;
+    use crate::commons::signature::Signature;
     use bitcoin::secp256k1::PublicKey;
     use bitcoin::secp256k1::SecretKey;
     use std::str::FromStr;

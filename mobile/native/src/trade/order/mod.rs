@@ -8,6 +8,7 @@ use time::OffsetDateTime;
 use trade::ContractSymbol;
 use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons;
 
 pub mod api;
 pub mod handler;

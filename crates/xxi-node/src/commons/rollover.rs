@@ -63,8 +63,8 @@ pub fn is_eligible_for_rollover(timestamp: OffsetDateTime, network: Network) -> 
 
 #[cfg(test)]
 mod test {
-    use crate::rollover::calculate_next_expiry;
-    use crate::rollover::is_eligible_for_rollover;
+    use crate::commons::rollover::calculate_next_expiry;
+    use crate::commons::rollover::is_eligible_for_rollover;
     use bitcoin::Network;
     use time::Duration;
     use time::OffsetDateTime;

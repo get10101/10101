@@ -15,7 +15,6 @@ bdk_file_store = "0.6"
 bip21 = "0.3.0"
 bitcoin = { version = "0.30" }
 bitcoin_old = { package = "bitcoin", version = "0.29.2" }
-commons = { path = "../../crates/commons" }
 diesel = { version = "2.0.0", features = ["sqlite", "r2d2", "extras"] }
 diesel_migrations = "2.0.0"
 dlc = "0.4.0"

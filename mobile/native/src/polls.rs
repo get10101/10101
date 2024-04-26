@@ -3,11 +3,11 @@ use crate::config;
 use crate::db;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::Answer;
-use commons::Choice;
-use commons::Poll;
-use commons::PollAnswers;
 use reqwest::Url;
+use xxi_node::commons::Answer;
+use xxi_node::commons::Choice;
+use xxi_node::commons::Poll;
+use xxi_node::commons::PollAnswers;
 
 pub(crate) async fn get_new_polls() -> Result<Vec<Poll>> {
     let node = crate::state::get_node();

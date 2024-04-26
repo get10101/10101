@@ -12,7 +12,6 @@ use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Transaction;
-use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::r2d2::PooledConnection;
@@ -31,6 +30,7 @@ use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_tx_29;
 use xxi_node::bitcoin_conversion::to_tx_30;
 use xxi_node::bitcoin_conversion::to_txid_29;
+use xxi_node::commons::Message;
 use xxi_node::node::Node;
 
 /// The weight for the collaborative revert transaction. The transaction is expected to have 1 input

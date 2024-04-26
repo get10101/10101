@@ -47,7 +47,7 @@ pub struct OnboardingParam {
 
 #[cfg(test)]
 mod test {
-    use crate::liquidity_option::LiquidityOption;
+    use crate::commons::liquidity_option::LiquidityOption;
     use rust_decimal::Decimal;
     use time::OffsetDateTime;
 
