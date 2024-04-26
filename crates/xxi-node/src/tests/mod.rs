@@ -6,11 +6,11 @@ use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use crate::node::InMemoryStore;
-use crate::node::LnDlcNodeSettings;
 use crate::node::Node;
 use crate::node::NodeInfo;
 use crate::node::OracleInfo;
 use crate::node::RunningNode;
+use crate::node::XXINodeSettings;
 use crate::on_chain_wallet;
 use crate::seed::Bip39Seed;
 use crate::storage::DlcChannelEvent;
@@ -105,7 +105,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
                 public_key: XOnlyPublicKey::from_str(ORACLE_PUBKEY)?,
             },
             Arc::new(InMemoryStore::default()),
-            ln_dlc_node_settings_app(),
+            xxi_node_settings_app(),
             None,
         )
     }
@@ -114,7 +114,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         Self::start_test_coordinator_internal(
             name,
             Arc::new(InMemoryStore::default()),
-            ln_dlc_node_settings_coordinator(),
+            xxi_node_settings_coordinator(),
             None,
         )
     }
@@ -122,7 +122,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
     fn start_test_coordinator_internal(
         name: &str,
         storage: Arc<InMemoryStore>,
-        settings: LnDlcNodeSettings,
+        settings: XXINodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
         let coordinator_event_handler = |node, event_sender| {
@@ -152,7 +152,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         electrs_origin: String,
         oracle: OracleInfo,
         node_storage: Arc<InMemoryStore>,
-        settings: LnDlcNodeSettings,
+        settings: XXINodeSettings,
         ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)>
     where
@@ -431,8 +431,8 @@ impl From<&SubChannelState> for SubChannelStateName {
     }
 }
 
-fn ln_dlc_node_settings_coordinator() -> LnDlcNodeSettings {
-    LnDlcNodeSettings {
+fn xxi_node_settings_coordinator() -> XXINodeSettings {
+    XXINodeSettings {
         off_chain_sync_interval: Duration::from_secs(5),
         on_chain_sync_interval: Duration::from_secs(300),
         fee_rate_sync_interval: Duration::from_secs(20),
@@ -441,8 +441,8 @@ fn ln_dlc_node_settings_coordinator() -> LnDlcNodeSettings {
     }
 }
 
-fn ln_dlc_node_settings_app() -> LnDlcNodeSettings {
-    LnDlcNodeSettings {
+fn xxi_node_settings_app() -> XXINodeSettings {
+    XXINodeSettings {
         off_chain_sync_interval: Duration::from_secs(5),
         on_chain_sync_interval: Duration::from_secs(300),
         fee_rate_sync_interval: Duration::from_secs(20),

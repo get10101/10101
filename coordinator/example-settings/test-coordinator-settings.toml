@@ -11,7 +11,7 @@ min_quantity = 1
 maintenance_margin_rate = 0.1
 order_matching_fee_rate = 0.003
 
-[ln_dlc]
+[xxi]
 off_chain_sync_interval = 5
 on_chain_sync_interval = 300
 fee_rate_sync_interval = 20

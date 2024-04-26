@@ -89,7 +89,7 @@ use xxi_node::node::rust_dlc_manager::subchannel::LNChannelManager;
 use xxi_node::node::rust_dlc_manager::DlcChannelId;
 use xxi_node::node::rust_dlc_manager::Signer;
 use xxi_node::node::rust_dlc_manager::Storage as DlcStorage;
-use xxi_node::node::LnDlcNodeSettings;
+use xxi_node::node::XXINodeSettings;
 use xxi_node::seed::Bip39Seed;
 use xxi_node::storage::DlcChannelEvent;
 use xxi_node::AppEventHandler;
@@ -243,7 +243,7 @@ pub fn get_node_pubkey() -> PublicKey {
     get_node_key().public_key(SECP256K1)
 }
 
-pub async fn update_node_settings(settings: LnDlcNodeSettings) {
+pub async fn update_node_settings(settings: XXINodeSettings) {
     let node = state::get_node();
     node.inner.update_settings(settings).await;
 }
@@ -342,7 +342,7 @@ pub fn run(
             config::get_electrs_endpoint(),
             state::get_seed(),
             ephemeral_randomness,
-            ln_dlc_node_settings(),
+            xxi_node_settings(),
             vec![config::get_oracle_info().into()],
             config::get_oracle_info().public_key,
             node_event_handler.clone(),
@@ -1050,8 +1050,8 @@ pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Resul
     Ok(fee)
 }
 
-fn ln_dlc_node_settings() -> LnDlcNodeSettings {
-    LnDlcNodeSettings {
+fn xxi_node_settings() -> XXINodeSettings {
+    XXINodeSettings {
         off_chain_sync_interval: Duration::from_secs(5),
         on_chain_sync_interval: Duration::from_secs(300),
         fee_rate_sync_interval: Duration::from_secs(20),

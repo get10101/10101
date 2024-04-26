@@ -595,12 +595,8 @@ pub async fn update_settings(
         .await
         .map_err(|e| AppError::InternalServerError(format!("Could not write settings: {e:#}")))?;
 
-    // Forward relevant settings down to the LN-DLC node.
-    state
-        .node
-        .inner
-        .update_settings(settings.ln_dlc.clone())
-        .await;
+    // Forward relevant settings down to the xxi node.
+    state.node.inner.update_settings(settings.xxi.clone()).await;
 
     Ok(())
 }

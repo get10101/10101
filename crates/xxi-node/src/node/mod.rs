@@ -102,7 +102,7 @@ type NodeEsploraClient = EsploraSyncClient<Arc<TracingLogger>>;
 
 /// A node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
-    pub settings: Arc<RwLock<LnDlcNodeSettings>>,
+    pub settings: Arc<RwLock<XXINodeSettings>>,
     pub network: Network,
 
     pub(crate) wallet: Arc<OnChainWallet<D>>,
@@ -173,8 +173,8 @@ pub struct RunningNode {
 
 #[serde_as]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct LnDlcNodeSettings {
-    /// How often we sync the LDK wallet
+pub struct XXINodeSettings {
+    /// How often we sync the off chain wallet
     #[serde_as(as = "DurationSeconds")]
     pub off_chain_sync_interval: Duration,
     /// How often we sync the BDK wallet
@@ -194,7 +194,7 @@ pub struct LnDlcNodeSettings {
 impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 'static>
     Node<D, S, N>
 {
-    pub async fn update_settings(&self, new_settings: LnDlcNodeSettings) {
+    pub async fn update_settings(&self, new_settings: XXINodeSettings) {
         tracing::info!(?new_settings, "Updating LnDlcNode settings");
         *self.settings.write().await = new_settings;
     }
@@ -214,7 +214,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         electrs_server_url: String,
         seed: Bip39Seed,
         ephemeral_randomness: [u8; 32],
-        settings: LnDlcNodeSettings,
+        settings: XXINodeSettings,
         oracle_clients: Vec<P2PDOracleClient>,
         oracle_pubkey: XOnlyPublicKey,
         node_event_handler: Arc<NodeEventHandler>,
@@ -507,7 +507,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
 }
 
 async fn update_fee_rate_estimates(
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
+    settings: Arc<RwLock<XXINodeSettings>>,
     fee_rate_estimator: Arc<FeeRateEstimator>,
 ) {
     loop {
@@ -575,7 +575,7 @@ async fn periodic_lightning_wallet_sync<
 >(
     channel_manager: Arc<ChannelManager<D, S, N>>,
     chain_monitor: Arc<ChainMonitor<S, N>>,
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
+    settings: Arc<RwLock<XXINodeSettings>>,
     esplora_client: Arc<EsploraSyncClient<Arc<TracingLogger>>>,
 ) {
     loop {
@@ -614,7 +614,7 @@ fn lightning_wallet_sync<D: BdkStorage, S: TenTenOneStorage, N: Storage + Sync +
 }
 
 fn shadow_sync_periodically<D: BdkStorage, N: Storage>(
-    settings: Arc<RwLock<LnDlcNodeSettings>>,
+    settings: Arc<RwLock<XXINodeSettings>>,
     node_storage: Arc<N>,
     wallet: Arc<OnChainWallet<D>>,
 ) -> impl Fn() {

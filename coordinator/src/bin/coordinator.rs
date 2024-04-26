@@ -137,7 +137,7 @@ async fn main() -> Result<()> {
         opts.electrs.clone(),
         seed,
         ephemeral_randomness,
-        settings.ln_dlc.clone(),
+        settings.xxi.clone(),
         opts.get_oracle_infos()
             .into_iter()
             .map(|o| o.into())
@@ -184,7 +184,7 @@ async fn main() -> Result<()> {
         let node = node.clone();
 
         // TODO: Do we still want to be able to update this at runtime?
-        let interval = settings.ln_dlc.on_chain_sync_interval;
+        let interval = settings.xxi.on_chain_sync_interval;
         async move {
             loop {
                 if let Err(e) = node.inner.sync_on_chain_wallet().await {
