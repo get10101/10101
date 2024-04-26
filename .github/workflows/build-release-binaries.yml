@@ -9,10 +9,6 @@ on:
         description: "The github tag to build the release for e.g. 1.4.1."
         required: true
 
-
-env:
-  RUST_VERSION: "1.70.0"
-
 jobs:
   build_docker_image_for_release:
     permissions:
