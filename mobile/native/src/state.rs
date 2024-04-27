@@ -1,5 +1,5 @@
 use crate::config::ConfigInternal;
-use crate::ln_dlc::node::Node;
+use crate::dlc::node::Node;
 use crate::logger::LogEntry;
 use crate::storage::TenTenOneNodeStorage;
 use anyhow::Result;

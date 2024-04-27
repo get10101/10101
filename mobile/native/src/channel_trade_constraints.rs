@@ -1,4 +1,4 @@
-use crate::ln_dlc;
+use crate::dlc;
 use anyhow::Context;
 use anyhow::Result;
 
@@ -37,7 +37,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
     let config =
         crate::state::try_get_tentenone_config().context("We can't trade without LSP config")?;
 
-    let signed_channel = ln_dlc::get_signed_dlc_channel()?;
+    let signed_channel = dlc::get_signed_dlc_channel()?;
 
     let min_margin = match &signed_channel {
         Some(_) => 1,
@@ -62,7 +62,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
     // FIXME: This doesn't work if the channel is in `Closing` and related states.
     let trade_constraints = match signed_channel {
         None => {
-            let balance = ln_dlc::get_onchain_balance();
+            let balance = dlc::get_onchain_balance();
             let counterparty_balance_sats = option.trade_up_to_sats;
             TradeConstraints {
                 max_local_balance_sats: balance.confirmed
@@ -79,9 +79,8 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
             }
         }
         Some(channel) => {
-            let local_balance = ln_dlc::get_usable_dlc_channel_balance()?.to_sat();
-            let counterparty_balance =
-                ln_dlc::get_usable_dlc_channel_balance_counterparty()?.to_sat();
+            let local_balance = dlc::get_usable_dlc_channel_balance()?.to_sat();
+            let counterparty_balance = dlc::get_usable_dlc_channel_balance_counterparty()?.to_sat();
 
             TradeConstraints {
                 max_local_balance_sats: local_balance,

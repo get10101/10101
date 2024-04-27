@@ -1,10 +1,9 @@
-use crate::bitcoin_conversion::to_network_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::blockchain::Blockchain;
+use crate::dlc::TracingLogger;
 use crate::dlc_custom_signer::CustomKeysManager;
 use crate::dlc_wallet::DlcWallet;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::ln::TracingLogger;
 use crate::message_handler::TenTenOneMessageHandler;
 use crate::node::event::connect_node_event_handler_to_dlc_channel_events;
 use crate::node::event::NodeEventHandler;
@@ -15,9 +14,6 @@ use crate::shadow::Shadow;
 use crate::storage::DlcChannelEvent;
 use crate::storage::DlcStorageProvider;
 use crate::storage::TenTenOneStorage;
-use crate::ChainMonitor;
-use crate::NetworkGraph;
-use crate::P2pGossipSync;
 use crate::PeerManager;
 use anyhow::Result;
 use bdk::FeeRate;
@@ -30,17 +26,7 @@ use bitcoin::Txid;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::chain::chainmonitor;
-use lightning::ln::peer_handler::MessageHandler;
-use lightning::routing::router::DefaultRouter;
-use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::routing::scoring::ProbabilisticScoringDecayParameters;
-use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
-use lightning::routing::utxo::UtxoLookup;
-use lightning::sign::EntropySource;
 use lightning::sign::KeysManager;
-use lightning::util::config::UserConfig;
-use lightning_transaction_sync::EsploraSyncClient;
 use p2pd_oracle_client::P2PDOracleClient;
 use serde::Deserialize;
 use serde::Serialize;
@@ -58,12 +44,10 @@ use std::time::SystemTime;
 use tokio::sync::RwLock;
 use tokio::task::spawn_blocking;
 
-mod channel_manager;
 mod connection;
 mod dlc_manager;
 mod oracle;
 mod storage;
-mod sub_channel_manager;
 mod wallet;
 
 pub mod dlc_channel;
@@ -72,14 +56,15 @@ pub mod peer_manager;
 
 pub use crate::message_handler::tentenone_message_name;
 pub use ::dlc_manager as rust_dlc_manager;
-pub use channel_manager::ChannelManager;
-pub use connection::TenTenOneOnionMessageHandler;
 pub use dlc_manager::signed_channel_state_name;
 pub use dlc_manager::DlcManager;
+use lightning::ln::peer_handler::ErroringMessageHandler;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
+use lightning::ln::peer_handler::MessageHandler;
 pub use oracle::OracleInfo;
+use secp256k1_zkp::SECP256K1;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
-pub use sub_channel_manager::SubChannelManager;
 
 /// A node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
@@ -92,11 +77,8 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     // Making this public is only necessary because of the collaborative revert protocol.
     pub dlc_wallet: Arc<DlcWallet<D, S, N>>,
 
-    pub peer_manager: Arc<PeerManager<D, S, N>>,
-    pub channel_manager: Arc<ChannelManager<D, S, N>>,
-    pub chain_monitor: Arc<ChainMonitor<S, N>>,
+    pub peer_manager: Arc<PeerManager<D>>,
     pub keys_manager: Arc<CustomKeysManager<D>>,
-    pub network_graph: Arc<NetworkGraph>,
     pub fee_rate_estimator: Arc<FeeRateEstimator>,
 
     pub logger: Arc<TracingLogger>,
@@ -104,12 +86,10 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     pub info: NodeInfo,
 
     pub dlc_manager: Arc<DlcManager<D, S, N>>,
-    pub sub_channel_manager: Arc<SubChannelManager<D, S, N>>,
 
     /// All oracles clients the node is aware of.
     pub oracles: Vec<Arc<P2PDOracleClient>>,
     pub dlc_message_handler: Arc<TenTenOneMessageHandler>,
-    pub ldk_config: Arc<parking_lot::RwLock<UserConfig>>,
 
     /// The oracle pubkey used for proposing dlc channels
     pub oracle_pubkey: XOnlyPublicKey,
@@ -120,7 +100,6 @@ pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
     // TODO(holzeis): The node storage should get extracted to the corresponding application
     // layers.
     pub node_storage: Arc<N>,
-    pub ln_storage: Arc<S>,
     pub dlc_storage: Arc<DlcStorageProvider<S>>,
 
     // fields below are needed only to start the node
@@ -178,8 +157,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        // Supplied configuration of LDK node.
-        ldk_config: UserConfig,
         alias: &str,
         network: Network,
         data_dir: &Path,
@@ -203,8 +180,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             alias: alias.to_string(),
         });
 
-        let ldk_config = Arc::new(parking_lot::RwLock::new(ldk_config));
-
         let fee_rate_estimator = Arc::new(FeeRateEstimator::new(network));
 
         let on_chain_wallet = OnChainWallet::new(
@@ -218,21 +193,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         let blockchain = Blockchain::new(electrs_server_url.clone(), node_storage.clone())?;
         let blockchain = Arc::new(blockchain);
 
-        let esplora_client = Arc::new(EsploraSyncClient::new(
-            electrs_server_url.clone(),
-            logger.clone(),
-        ));
-
         let dlc_storage = Arc::new(DlcStorageProvider::new(storage.clone(), dlc_event_sender));
-        let ln_storage = Arc::new(storage);
-
-        let chain_monitor: Arc<ChainMonitor<S, N>> = Arc::new(chainmonitor::ChainMonitor::new(
-            Some(esplora_client.clone()),
-            blockchain.clone(),
-            logger.clone(),
-            fee_rate_estimator.clone(),
-            ln_storage.clone(),
-        ));
 
         let keys_manager = {
             Arc::new(CustomKeysManager::new(
@@ -244,46 +205,6 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
                 on_chain_wallet.clone(),
             ))
         };
-
-        let network_graph = Arc::new(NetworkGraph::new(to_network_29(network), logger.clone()));
-
-        let scorer = ProbabilisticScorer::new(
-            ProbabilisticScoringDecayParameters::default(),
-            network_graph.clone(),
-            logger.clone(),
-        );
-        let scorer = std::sync::RwLock::new(scorer);
-        let scorer = Arc::new(scorer);
-
-        let scoring_fee_params = ProbabilisticScoringFeeParameters::default();
-        let router = Arc::new(DefaultRouter::new(
-            network_graph.clone(),
-            logger.clone(),
-            keys_manager.get_secure_random_bytes(),
-            scorer.clone(),
-            scoring_fee_params,
-        ));
-
-        let channel_manager = channel_manager::build(
-            keys_manager.clone(),
-            blockchain.clone(),
-            fee_rate_estimator.clone(),
-            esplora_client.clone(),
-            logger.clone(),
-            chain_monitor.clone(),
-            *ldk_config.read(),
-            network,
-            ln_storage.clone(),
-            router,
-        )?;
-
-        let channel_manager = Arc::new(channel_manager);
-
-        let gossip_sync = Arc::new(P2pGossipSync::new(
-            network_graph.clone(),
-            None::<Arc<dyn UtxoLookup + Send + Sync>>,
-            logger.clone(),
-        ));
 
         let oracle_clients: Vec<Arc<P2PDOracleClient>> =
             oracle_clients.into_iter().map(Arc::new).collect();
@@ -304,36 +225,25 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
         )?;
         let dlc_manager = Arc::new(dlc_manager);
 
-        let sub_channel_manager = sub_channel_manager::build(
-            channel_manager.clone(),
-            dlc_manager.clone(),
-            chain_monitor.clone(),
-            keys_manager.clone(),
-        )?;
+        let dlc_message_handler =
+            Arc::new(TenTenOneMessageHandler::new(node_event_handler.clone()));
 
-        let dlc_message_handler = Arc::new(TenTenOneMessageHandler::new());
-
-        let onion_message_handler = Arc::new(TenTenOneOnionMessageHandler::new(
-            node_event_handler.clone(),
-        ));
-
-        let lightning_msg_handler = MessageHandler {
-            chan_handler: sub_channel_manager.clone(),
-            route_handler: gossip_sync.clone(),
-            onion_message_handler,
-            custom_message_handler: dlc_message_handler.clone(),
-        };
-
-        let peer_manager: Arc<PeerManager<D, S, N>> = Arc::new(PeerManager::new(
-            lightning_msg_handler,
+        let peer_manager: Arc<PeerManager<D>> = Arc::new(PeerManager::new(
+            MessageHandler {
+                chan_handler: Arc::new(ErroringMessageHandler::new()),
+                route_handler: Arc::new(IgnoringMessageHandler {}),
+                onion_message_handler: dlc_message_handler.clone(),
+                custom_message_handler: dlc_message_handler.clone(),
+            },
             time_since_unix_epoch.as_secs() as u32,
             &ephemeral_randomness,
             logger.clone(),
             keys_manager.clone(),
         ));
 
+        let node_id = keys_manager.get_node_secret_key().public_key(SECP256K1);
         let node_info = NodeInfo {
-            pubkey: to_secp_pk_30(channel_manager.get_our_node_id()),
+            pubkey: to_secp_pk_30(node_id),
             address: announcement_address,
             is_ws: false,
         };
@@ -347,20 +257,14 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             dlc_wallet,
             peer_manager,
             keys_manager,
-            chain_monitor,
             logger,
-            channel_manager: channel_manager.clone(),
             info: node_info,
-            sub_channel_manager,
             oracles: oracle_clients,
             dlc_message_handler,
             dlc_manager,
-            ln_storage,
             dlc_storage,
             node_storage,
             fee_rate_estimator,
-            ldk_config,
-            network_graph,
             settings,
             listen_address,
             oracle_pubkey,
@@ -478,12 +382,8 @@ fn shadow_sync_periodically<D: BdkStorage, N: Storage>(
 }
 
 #[cfg(feature = "ln_net_tcp")]
-fn spawn_connection_management<
-    D: BdkStorage,
-    S: TenTenOneStorage + 'static,
-    N: Storage + Send + Sync + 'static,
->(
-    peer_manager: Arc<PeerManager<D, S, N>>,
+fn spawn_connection_management<D: BdkStorage>(
+    peer_manager: Arc<PeerManager<D>>,
     listen_address: SocketAddr,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = async move {

@@ -9,6 +9,7 @@ use crate::config::get_network;
 use crate::db;
 use crate::destination;
 use crate::dlc;
+use crate::dlc::get_storage;
 pub use crate::dlc_channel::ChannelState;
 pub use crate::dlc_channel::DlcChannel;
 pub use crate::dlc_channel::SignedChannelState;
@@ -16,8 +17,6 @@ use crate::emergency_kit;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::health;
-use crate::ln_dlc;
-use crate::ln_dlc::get_storage;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
@@ -82,14 +81,14 @@ impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
 /// Assembles the wallet info and publishes wallet info update event.
 #[tokio::main(flavor = "current_thread")]
 pub async fn refresh_wallet_info() -> Result<()> {
-    ln_dlc::refresh_wallet_info().await?;
+    dlc::refresh_wallet_info().await?;
 
     Ok(())
 }
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn full_sync(stop_gap: usize) -> Result<()> {
-    ln_dlc::full_sync(stop_gap).await?;
+    dlc::full_sync(stop_gap).await?;
 
     Ok(())
 }
@@ -170,7 +169,7 @@ pub async fn fetch_poll() -> Result<Option<Poll>> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn post_selected_choice(selected_choice: Choice, poll_id: i32) -> Result<()> {
-    let trader_pk = ln_dlc::get_node_pubkey();
+    let trader_pk = dlc::get_node_pubkey();
     polls::answer_poll(selected_choice.into(), poll_id, trader_pk).await?;
     Ok(())
 }
@@ -266,7 +265,7 @@ pub fn calculate_liquidation_price(
     leverage: f32,
     direction: Direction,
 ) -> SyncReturn<f32> {
-    let maintenance_margin_rate = ln_dlc::get_maintenance_margin_rate();
+    let maintenance_margin_rate = dlc::get_maintenance_margin_rate();
     SyncReturn(calculations::calculate_liquidation_price(
         price,
         leverage,
@@ -304,7 +303,7 @@ pub fn calculate_pnl(
 pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
-    let fee_rate = ln_dlc::get_order_matching_fee_rate(false);
+    let fee_rate = dlc::get_order_matching_fee_rate(false);
     let order_matching_fee =
         xxi_node::commons::order_matching_fee(quantity, price, fee_rate).to_sat();
 
@@ -425,8 +424,8 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
 
             let signature = orderbook_client::create_auth_message_signature(move |msg| {
                 xxi_node::commons::Signature {
-                    pubkey: ln_dlc::get_node_pubkey(),
-                    signature: ln_dlc::get_node_key().sign_ecdsa(msg),
+                    pubkey: dlc::get_node_pubkey(),
+                    signature: dlc::get_node_key().sign_ecdsa(msg),
                 }
             });
 
@@ -508,21 +507,21 @@ fn run_internal(
 
     let (_health, tx) = health::Health::new(runtime);
 
-    ln_dlc::run(runtime, tx, fcm_token, tx_websocket)
+    dlc::run(runtime, tx, fcm_token, tx_websocket)
 }
 
 pub fn get_new_address() -> Result<String> {
-    ln_dlc::get_new_address()
+    dlc::get_new_address()
 }
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn close_channel() -> Result<()> {
-    ln_dlc::close_channel(false).await
+    dlc::close_channel(false).await
 }
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn force_close_channel() -> Result<()> {
-    ln_dlc::close_channel(true).await
+    dlc::close_channel(true).await
 }
 
 pub fn channel_trade_constraints() -> Result<SyncReturn<TradeConstraints>> {
@@ -577,7 +576,7 @@ pub fn create_payment_request(
     let amount_query = amount_sats
         .map(|amt| format!("?amount={}", Amount::from_sat(amt).to_btc()))
         .unwrap_or_default();
-    let addr = ln_dlc::get_unused_address()?;
+    let addr = dlc::get_unused_address()?;
 
     Ok(PaymentRequest {
         bip21: format!("bitcoin:{addr}{amount_query}"),
@@ -648,11 +647,11 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
             let fee_rate = fee_rate(confirmation_target);
 
             let fee_config = Fee::Priority(confirmation_target);
-            let absolute_fee =
-                match ln_dlc::estimate_payment_fee(amount, &address, fee_config).await? {
-                    Some(fee) => fee,
-                    None => Amount::ZERO,
-                };
+            let absolute_fee = match dlc::estimate_payment_fee(amount, &address, fee_config).await?
+            {
+                Some(fee) => fee,
+                None => Amount::ZERO,
+            };
 
             fees.push(FeeEstimation {
                 sats_per_vbyte: fee_rate.ceil() as u64,
@@ -665,12 +664,12 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
 }
 
 pub fn fee_rate(confirmation_target: ConfirmationTarget) -> f32 {
-    ln_dlc::get_fee_rate_for_target(confirmation_target.into()).as_sat_per_vb()
+    dlc::get_fee_rate_for_target(confirmation_target.into()).as_sat_per_vb()
 }
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<String> {
-    let txid = ln_dlc::send_payment(amount, address, fee).await?;
+    let txid = dlc::send_payment(amount, address, fee).await?;
 
     Ok(txid.to_string())
 }
@@ -681,7 +680,7 @@ pub struct LastLogin {
 }
 
 pub fn get_seed_phrase() -> SyncReturn<Vec<String>> {
-    SyncReturn(ln_dlc::get_seed_phrase())
+    SyncReturn(dlc::get_seed_phrase())
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -691,14 +690,14 @@ pub async fn restore_from_seed_phrase(
 ) -> Result<()> {
     let file_path = PathBuf::from(target_seed_file_path);
     tracing::info!("Restoring seed from phrase to {:?}", file_path);
-    ln_dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path()).await?;
+    dlc::restore_from_mnemonic(&seed_phrase, file_path.as_path()).await?;
     Ok(())
 }
 
 pub fn init_new_mnemonic(target_seed_file_path: String) -> Result<()> {
     let file_path = PathBuf::from(target_seed_file_path);
     tracing::info!("Creating a new seed in {:?}", file_path);
-    ln_dlc::init_new_mnemonic(file_path.as_path())
+    dlc::init_new_mnemonic(file_path.as_path())
 }
 
 /// Enroll or update a user in the beta program
@@ -754,17 +753,17 @@ pub fn decode_destination(destination: String) -> Result<Destination> {
 }
 
 pub fn get_node_id() -> SyncReturn<String> {
-    SyncReturn(ln_dlc::get_node_pubkey().to_string())
+    SyncReturn(dlc::get_node_pubkey().to_string())
 }
 
 pub fn get_estimated_channel_fee_reserve() -> Result<SyncReturn<u64>> {
-    let reserve = ln_dlc::estimated_fee_reserve()?;
+    let reserve = dlc::estimated_fee_reserve()?;
 
     Ok(SyncReturn(reserve.to_sat()))
 }
 
 pub fn get_estimated_funding_tx_fee() -> Result<SyncReturn<u64>> {
-    let fee = ln_dlc::estimated_funding_tx_fee()?;
+    let fee = dlc::estimated_funding_tx_fee()?;
 
     Ok(SyncReturn(fee.to_sat()))
 }
@@ -779,13 +778,13 @@ pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
 
 pub fn get_dlc_channel_id() -> Result<Option<String>> {
     let dlc_channel_id =
-        ln_dlc::get_signed_dlc_channel()?.map(|channel| hex::encode(channel.channel_id));
+        dlc::get_signed_dlc_channel()?.map(|channel| hex::encode(channel.channel_id));
 
     Ok(dlc_channel_id)
 }
 
 pub fn list_dlc_channels() -> Result<Vec<DlcChannel>> {
-    let channels = ln_dlc::list_dlc_channels()?
+    let channels = dlc::list_dlc_channels()?
         .iter()
         .map(dlc::DlcChannel::from)
         .map(DlcChannel::from)
@@ -810,7 +809,7 @@ pub fn roll_back_channel_state() -> Result<()> {
     tracing::warn!(
         "Executing emergency kit! Attempting to rollback channel state to last stable state"
     );
-    ln_dlc::roll_back_channel_state()
+    dlc::roll_back_channel_state()
 }
 
 #[derive(Clone, Debug, Default)]

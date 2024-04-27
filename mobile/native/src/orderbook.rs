@@ -1,10 +1,10 @@
 use crate::config;
+use crate::dlc;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
-use crate::ln_dlc;
 use crate::state;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
@@ -291,7 +291,7 @@ async fn handle_orderbook_message(
                 BackgroundTask::CollabRevert(TaskStatus::Pending),
             ));
 
-            if let Err(err) = ln_dlc::collaborative_revert_channel(
+            if let Err(err) = dlc::collaborative_revert_channel(
                 channel_id,
                 coordinator_address,
                 coordinator_amount,

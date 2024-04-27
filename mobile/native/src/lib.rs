@@ -1,19 +1,17 @@
 // These modules need to be define at the top so that FRB doesn't try to import from them.
-pub mod db;
-pub mod ln_dlc;
-pub mod trade;
-
 pub mod api;
 pub mod calculations;
 pub mod channel_trade_constraints;
 pub mod commons;
 pub mod config;
+pub mod db;
 pub mod dlc;
 pub mod event;
 pub mod health;
 pub mod logger;
 pub mod schema;
 pub mod state;
+pub mod trade;
 
 mod backup;
 mod cipher;
@@ -27,7 +25,7 @@ mod polls;
 mod report_error;
 mod storage;
 
-pub use ln_dlc::get_maintenance_margin_rate;
+pub use dlc::get_maintenance_margin_rate;
 pub use report_error::report_error_to_coordinator;
 
 #[allow(

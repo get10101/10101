@@ -124,7 +124,6 @@ async fn main() -> Result<()> {
 
     let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
     let node = Arc::new(xxi_node::node::Node::new(
-        xxi_node::config::coordinator_config(),
         NODE_ALIAS,
         network,
         data_dir.as_path(),

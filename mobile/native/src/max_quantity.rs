@@ -1,7 +1,7 @@
 use crate::calculations;
 use crate::calculations::calculate_pnl;
 use crate::channel_trade_constraints::channel_trade_constraints;
-use crate::ln_dlc;
+use crate::dlc;
 use crate::trade::position;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
@@ -29,8 +29,8 @@ pub fn max_quantity(
     let on_chain_fee_estimate = match channel_trade_constraints.is_channel_balance {
         true => None,
         false => {
-            let channel_fee_reserve = ln_dlc::estimated_fee_reserve()?;
-            let funding_tx_fee = ln_dlc::estimated_funding_tx_fee()?;
+            let channel_fee_reserve = dlc::estimated_fee_reserve()?;
+            let funding_tx_fee = dlc::estimated_funding_tx_fee()?;
             // double the funding tx fee to ensure we have enough buffer
             let funding_tx_with_buffer = funding_tx_fee * 2;
 

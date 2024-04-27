@@ -1,3 +1,6 @@
+use crate::bitcoin_conversion::to_secp_pk_30;
+use crate::node::event::NodeEvent;
+use crate::node::event::NodeEventHandler;
 use anyhow::bail;
 use dlc_manager::ReferenceId;
 use dlc_messages::channel::AcceptChannel;
@@ -24,10 +27,14 @@ use dlc_messages::segmentation::SegmentChunk;
 use dlc_messages::segmentation::SegmentStart;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
+use lightning::events::OnionMessageProvider;
 use lightning::ln::features::InitFeatures;
 use lightning::ln::features::NodeFeatures;
+use lightning::ln::msgs;
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::msgs::LightningError;
+use lightning::ln::msgs::OnionMessage;
+use lightning::ln::msgs::OnionMessageHandler;
 use lightning::ln::peer_handler::CustomMessageHandler;
 use lightning::ln::wire::CustomMessageReader;
 use lightning::ln::wire::Type;
@@ -42,6 +49,7 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::Cursor;
+use std::sync::Arc;
 use std::sync::Mutex;
 
 /// TenTenOneMessageHandler is used to send and receive messages through the custom
@@ -49,14 +57,55 @@ use std::sync::Mutex;
 /// by splitting large messages when sending and re-constructing them when
 /// receiving.
 pub struct TenTenOneMessageHandler {
+    handler: Arc<NodeEventHandler>,
     msg_events: Mutex<VecDeque<(PublicKey, WireMessage)>>,
     msg_received: Mutex<Vec<(PublicKey, TenTenOneMessage)>>,
     segment_readers: Mutex<HashMap<PublicKey, SegmentReader>>,
 }
 
-impl Default for TenTenOneMessageHandler {
-    fn default() -> Self {
-        Self::new()
+impl TenTenOneMessageHandler {
+    pub fn new(handler: Arc<NodeEventHandler>) -> Self {
+        Self {
+            handler,
+            msg_events: Mutex::new(Default::default()),
+            msg_received: Mutex::new(vec![]),
+            segment_readers: Mutex::new(Default::default()),
+        }
+    }
+}
+
+/// Copied from the IgnoringMessageHandler
+impl OnionMessageProvider for TenTenOneMessageHandler {
+    fn next_onion_message_for_peer(&self, _peer_node_id: PublicKey) -> Option<OnionMessage> {
+        None
+    }
+}
+
+/// Copied primarily from the IgnoringMessageHandler. Using the peer_connected hook to get notified
+/// once a peer successfully connected. (This also includes that the Init Message has been processed
+/// and the connection is ready to use).
+impl OnionMessageHandler for TenTenOneMessageHandler {
+    fn handle_onion_message(&self, _their_node_id: &PublicKey, _msg: &OnionMessage) {}
+    fn peer_connected(
+        &self,
+        their_node_id: &PublicKey,
+        _init: &msgs::Init,
+        inbound: bool,
+    ) -> anyhow::Result<(), ()> {
+        tracing::info!(%their_node_id, inbound, "Peer connected!");
+
+        self.handler.publish(NodeEvent::Connected {
+            peer: to_secp_pk_30(*their_node_id),
+        });
+
+        Ok(())
+    }
+    fn peer_disconnected(&self, _their_node_id: &PublicKey) {}
+    fn provided_node_features(&self) -> NodeFeatures {
+        NodeFeatures::empty()
+    }
+    fn provided_init_features(&self, _their_node_id: &PublicKey) -> InitFeatures {
+        InitFeatures::empty()
     }
 }
 
@@ -157,15 +206,6 @@ pub struct TenTenOneCollaborativeCloseOffer {
 }
 
 impl TenTenOneMessageHandler {
-    /// Creates a new instance of a [`TenTenOneMessageHandler`]
-    pub fn new() -> Self {
-        TenTenOneMessageHandler {
-            msg_events: Mutex::new(VecDeque::new()),
-            msg_received: Mutex::new(Vec::new()),
-            segment_readers: Mutex::new(HashMap::new()),
-        }
-    }
-
     /// Returns whether there are any new received messages to process.
     pub fn has_pending_messages_to_process(&self) -> bool {
         !self.msg_received.lock().expect("to get lock").is_empty()
