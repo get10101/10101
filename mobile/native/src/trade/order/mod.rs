@@ -207,9 +207,6 @@ pub struct Order {
 
 impl Order {
     /// This returns the executed price once known
-    ///
-    /// Logs an error if this function is called on a state where the execution price is not know
-    /// yet.
     pub fn execution_price(&self) -> Option<f32> {
         match self.state {
             OrderState::Filling {
@@ -222,12 +219,7 @@ impl Order {
                 execution_price: Some(execution_price),
                 ..
             } => Some(execution_price),
-            _ => {
-                // TODO: The caller should decide how to handle this. Always logging an error is
-                // weird.
-                tracing::error!("Executed price not known in state {:?}", self.state);
-                None
-            }
+            _ => None,
         }
     }
 

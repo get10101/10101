@@ -8,12 +8,12 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
-use dlc_messages::Message;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
 use ln_dlc_node::dlc_message::DlcMessage;
 use ln_dlc_node::dlc_message::SerializedDlcMessage;
+use ln_dlc_node::message_handler::TenTenOneMessage;
 use ln_dlc_node::node::dlc_channel::send_dlc_message;
 use ln_dlc_node::node::event::NodeEvent;
 use ln_dlc_node::node::Node;
@@ -103,7 +103,7 @@ pub fn spawn_handling_outbound_dlc_messages(
 }
 
 impl DlcHandler {
-    pub fn send_dlc_message(&self, peer: PublicKey, msg: Message) -> Result<()> {
+    pub fn send_dlc_message(&self, peer: PublicKey, msg: TenTenOneMessage) -> Result<()> {
         self.store_dlc_message(peer, msg.clone())?;
 
         send_dlc_message(
@@ -116,7 +116,7 @@ impl DlcHandler {
         Ok(())
     }
 
-    pub fn store_dlc_message(&self, peer: PublicKey, msg: Message) -> Result<()> {
+    pub fn store_dlc_message(&self, peer: PublicKey, msg: TenTenOneMessage) -> Result<()> {
         let mut conn = self.pool.get()?;
 
         let serialized_outbound_message = SerializedDlcMessage::try_from(&msg)?;
@@ -132,7 +132,7 @@ impl DlcHandler {
         let last_serialized_message = db::last_outbound_dlc_message::get(&mut conn, &peer)?;
 
         if let Some(last_serialized_message) = last_serialized_message {
-            let message = Message::try_from(&last_serialized_message)?;
+            let message = TenTenOneMessage::try_from(&last_serialized_message)?;
             send_dlc_message(
                 &self.node.dlc_message_handler,
                 &self.node.peer_manager,

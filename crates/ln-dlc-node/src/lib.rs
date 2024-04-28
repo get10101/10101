@@ -4,7 +4,6 @@ use crate::node::SubChannelManager;
 use crate::node::TenTenOneOnionMessageHandler;
 use dlc_custom_signer::CustomKeysManager;
 use dlc_custom_signer::CustomSigner;
-use dlc_messages::message_handler::MessageHandler as DlcMessageHandler;
 use fee_rate_estimator::FeeRateEstimator;
 use lightning::chain::chainmonitor;
 use lightning::chain::Filter;
@@ -28,12 +27,14 @@ pub mod bitcoin_conversion;
 pub mod config;
 pub mod dlc_message;
 pub mod ln;
+pub mod message_handler;
 pub mod networking;
 pub mod node;
 pub mod seed;
 pub mod storage;
 pub mod transaction;
 
+use crate::message_handler::TenTenOneMessageHandler;
 use crate::networking::DynamicSocketDescriptor;
 pub use config::CONFIRMATION_TARGET;
 pub use lightning;
@@ -72,7 +73,7 @@ pub type PeerManager<D, S, N> = lightning::ln::peer_handler::PeerManager<
     >,
     Arc<TenTenOneOnionMessageHandler>,
     Arc<TracingLogger>,
-    Arc<DlcMessageHandler>,
+    Arc<TenTenOneMessageHandler>,
     Arc<CustomKeysManager<D>>,
 >;
 
