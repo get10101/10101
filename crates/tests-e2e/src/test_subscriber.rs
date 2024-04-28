@@ -1,5 +1,5 @@
 use native::api::ContractSymbol;
-use native::api::WalletInfo;
+use native::event::api::WalletInfo;
 use native::event::subscriber::Subscriber;
 use native::event::EventType;
 use native::health::Service;

@@ -89,7 +89,7 @@ pub struct Balances {
     pub off_chain: Option<u64>,
 }
 
-impl From<Balances> for crate::api::Balances {
+impl From<Balances> for crate::event::api::Balances {
     fn from(value: Balances) -> Self {
         Self {
             on_chain: value.on_chain,

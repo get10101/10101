@@ -1,6 +1,6 @@
 use crate::api::DlcChannel;
 use crate::api::TenTenOneConfig;
-use crate::api::WalletInfo;
+use crate::api::WalletHistoryItem;
 use crate::dlc_channel;
 use crate::event;
 use crate::event::subscriber::Subscriber;
@@ -171,4 +171,18 @@ impl From<event::TaskStatus> for TaskStatus {
             event::TaskStatus::Success => TaskStatus::Success,
         }
     }
+}
+
+#[frb]
+#[derive(Clone, Debug, Default)]
+pub struct WalletInfo {
+    pub balances: Balances,
+    pub history: Vec<WalletHistoryItem>,
+}
+
+#[frb]
+#[derive(Clone, Debug, Default)]
+pub struct Balances {
+    pub on_chain: u64,
+    pub off_chain: Option<u64>,
 }

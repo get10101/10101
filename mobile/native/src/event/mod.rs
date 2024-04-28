@@ -1,5 +1,5 @@
-use crate::api::WalletInfo;
 use crate::dlc::DlcChannel;
+use crate::event::api::WalletInfo;
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;

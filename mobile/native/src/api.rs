@@ -32,7 +32,6 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Amount;
-use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
@@ -78,18 +77,6 @@ impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
             referral_status: value.referral_status.into(),
         }
     }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct WalletInfo {
-    pub balances: Balances,
-    pub history: Vec<WalletHistoryItem>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Balances {
-    pub on_chain: u64,
-    pub off_chain: Option<u64>,
 }
 
 /// Assembles the wallet info and publishes wallet info update event.

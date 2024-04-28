@@ -1,4 +1,3 @@
-use crate::api;
 use crate::api::Fee;
 use crate::api::PaymentFlow;
 use crate::api::Status;
@@ -660,7 +659,7 @@ fn keep_wallet_balance_and_history_up_to_date(node: &Node) -> Result<()> {
         .sorted_by(|a, b| b.timestamp.cmp(&a.timestamp))
         .collect();
 
-    let wallet_info = api::WalletInfo {
+    let wallet_info = event::api::WalletInfo {
         balances: wallet_balances.into(),
         history,
     };
