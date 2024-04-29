@@ -16,7 +16,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
-void showConfirmPaymentModal(BuildContext context, Destination destination, Amount sats,
+void showConfirmPaymentModal(BuildContext context, Destination destination, Amount? sats,
     FeeConfig feeConfig, FeeEstimation feeEstimation) {
   showModalBottomSheet<void>(
       shape: const RoundedRectangleBorder(
@@ -40,7 +40,7 @@ void showConfirmPaymentModal(BuildContext context, Destination destination, Amou
 
 class ConfirmPayment extends StatelessWidget {
   final Destination destination;
-  final Amount amt;
+  final Amount? amt;
   final FeeConfig feeConfig;
   final FeeEstimation feeEstimation;
 
@@ -84,7 +84,7 @@ class ConfirmPayment extends StatelessWidget {
                     children: [
                       const Text("Amount", style: TextStyle(color: Colors.grey, fontSize: 16)),
                       const SizedBox(height: 5),
-                      Text(amt.sats == 0 ? "Max" : amt.toString(),
+                      Text(amt == null ? "Max" : amt.toString(),
                           style: const TextStyle(fontSize: 16)),
                       const Divider(height: 40, indent: 0, endIndent: 0),
                       const Text("Destination", style: TextStyle(color: Colors.grey, fontSize: 16)),

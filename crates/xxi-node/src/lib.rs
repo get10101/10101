@@ -1,5 +1,9 @@
 use crate::dlc::TracingLogger;
+use crate::message_handler::TenTenOneMessageHandler;
+use crate::networking::DynamicSocketDescriptor;
 use dlc_custom_signer::CustomKeysManager;
+use lightning::ln::peer_handler::ErroringMessageHandler;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 use std::fmt;
 use std::sync::Arc;
 
@@ -24,17 +28,12 @@ pub mod seed;
 pub mod storage;
 pub mod transaction;
 
-use crate::message_handler::TenTenOneMessageHandler;
-use crate::networking::DynamicSocketDescriptor;
 pub use config::CONFIRMATION_TARGET;
 pub use dlc::ContractDetails;
 pub use dlc::DlcChannelDetails;
 pub use lightning;
-use lightning::ln::peer_handler::ErroringMessageHandler;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
 pub use lightning_invoice;
 pub use on_chain_wallet::ConfirmationStatus;
-pub use on_chain_wallet::EstimateFeeError;
 pub use on_chain_wallet::FeeConfig;
 pub use on_chain_wallet::TransactionDetails;
 

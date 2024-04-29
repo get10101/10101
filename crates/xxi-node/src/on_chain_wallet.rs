@@ -299,6 +299,10 @@ where
         amount_sat_or_drain: u64,
         fee_config: FeeConfig,
     ) -> Result<Transaction> {
+        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
+            bail!("Send amount below dust: {amount_sat_or_drain} sat");
+        }
+
         let tx = self
             .build_and_sign_psbt(recipient, amount_sat_or_drain, fee_config)?
             .extract_tx();
@@ -379,17 +383,10 @@ where
     }
 
     /// Estimate the fee for sending funds to a given [`Address`].
-    pub fn estimate_fee(
-        &self,
-        recipient: &Address,
-        amount_sat_or_drain: u64,
-        fee_config: FeeConfig,
-    ) -> Result<Amount, EstimateFeeError> {
-        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
-            return Err(EstimateFeeError::SendAmountBelowDust);
-        }
-
-        let psbt = self.build_psbt(recipient, amount_sat_or_drain, fee_config)?;
+    pub fn estimate_fee(&self, recipient: &Address, fee_config: FeeConfig) -> Result<Amount> {
+        // We're just estimating a fee, the send amount is irrelevant. But it needs to be over the
+        // dust limit (546 sats according to BDK).
+        let psbt = self.build_psbt(recipient, 1_000, fee_config)?;
 
         let fee_sat = match psbt.fee_amount() {
             Some(fee) => fee,
@@ -463,14 +460,6 @@ pub enum FeeConfig {
     Priority(ConfirmationTarget),
     /// The fee rate is explicitly configured.
     FeeRate(FeeRate),
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum EstimateFeeError {
-    #[error("Cannot estimate fee for output below dust")]
-    SendAmountBelowDust,
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
 }
 
 pub trait BdkStorage: PersistBackend<bdk::wallet::ChangeSet> + Send + Sync + 'static {}

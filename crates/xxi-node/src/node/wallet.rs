@@ -1,7 +1,6 @@
 use crate::bitcoin_conversion::to_secp_sk_30;
 use crate::node::Node;
 use crate::node::Storage;
-use crate::on_chain_wallet;
 use crate::on_chain_wallet::BdkStorage;
 use crate::on_chain_wallet::FeeConfig;
 use crate::on_chain_wallet::OnChainWallet;
@@ -63,15 +62,10 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         self.wallet.is_mine(script_pubkey)
     }
 
-    /// Estimate the fee for sending the given `amount_sats` to the given `address` on-chain with
-    /// the given fee configuration.
-    pub fn estimate_fee(
-        &self,
-        address: Address,
-        amount_sats: u64,
-        fee_config: FeeConfig,
-    ) -> Result<Amount, on_chain_wallet::EstimateFeeError> {
-        self.wallet.estimate_fee(&address, amount_sats, fee_config)
+    /// Estimate the fee for sending sats to the given `address` on-chain with the given fee
+    /// configuration.
+    pub fn estimate_fee(&self, address: Address, fee_config: FeeConfig) -> Result<Amount> {
+        self.wallet.estimate_fee(&address, fee_config)
     }
 
     /// Sync the state of the on-chain wallet against the blockchain.

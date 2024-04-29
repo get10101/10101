@@ -47,11 +47,10 @@ class WalletService {
     }
   }
 
-  Future<Map<ConfirmationTarget, FeeEstimation>> calculateFeesForOnChain(
-      String address, Amount amount) async {
+  Future<Map<ConfirmationTarget, FeeEstimation>> calculateFeesForOnChain(String address) async {
     final Map<ConfirmationTarget, FeeEstimation> map = {};
 
-    final fees = await rust.api.calculateAllFeesForOnChain(address: address, amount: amount.sats);
+    final fees = await rust.api.calculateAllFeesForOnChain(address: address);
     for (int i = 0; i < ConfirmationTarget.values.length; i++) {
       map[ConfirmationTarget.values[i]] = FeeEstimation.fromAPI(fees[i]);
     }
@@ -59,11 +58,10 @@ class WalletService {
     return map;
   }
 
-  Future<FeeEstimation?> calculateCustomFee(
-      String address, Amount amount, CustomFeeRate feeRate) async {
+  Future<FeeEstimation?> calculateCustomFee(String address, CustomFeeRate feeRate) async {
     try {
-      rust.FeeEstimation result = await rust.api.calculateFeeEstimate(
-          address: address, amount: amount.sats, feeRateSatsPerVb: feeRate.feeRate.toDouble());
+      rust.FeeEstimation result = await rust.api
+          .calculateFeeEstimate(address: address, feeRateSatsPerVb: feeRate.feeRate.toDouble());
       return FeeEstimation(satsPerVbyte: result.satsPerVbyte, total: Amount(result.totalSats));
     } catch (error) {
       logger.d("Failed to calculate custom fee: $error", error: error);

@@ -631,7 +631,7 @@ pub struct FeeEstimation {
 /// Calculate the fees for an on-chain transaction, using the 3 default fee rates (background,
 /// normal, and high priority). This both estimates the fee rate and calculates the TX size to get
 /// the overall fee for a given TX.
-pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<Vec<FeeEstimation>> {
+pub fn calculate_all_fees_for_on_chain(address: String) -> Result<Vec<FeeEstimation>> {
     const TARGETS: [ConfirmationTarget; 4] = [
         ConfirmationTarget::Minimum,
         ConfirmationTarget::Background,
@@ -647,11 +647,7 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
             let fee_rate_sats_per_vb = fee_rate(confirmation_target);
 
             let fee_config = FeeConfig::Priority(confirmation_target);
-            let absolute_fee = match dlc::estimate_payment_fee(amount, &address, fee_config).await?
-            {
-                Some(fee) => fee,
-                None => Amount::ZERO,
-            };
+            let absolute_fee = dlc::estimate_payment_fee(&address, fee_config).await?;
 
             fees.push(FeeEstimation {
                 sats_per_vbyte: fee_rate_sats_per_vb,
@@ -666,18 +662,15 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
 #[tokio::main(flavor = "current_thread")]
 pub async fn calculate_fee_estimate(
     address: String,
-    amount: u64,
     fee_rate_sats_per_vb: f32,
 ) -> Result<FeeEstimation> {
     let estimate = dlc::estimate_payment_fee(
-        amount,
         &address,
         FeeConfig::FeeRate {
             sats_per_vbyte: fee_rate_sats_per_vb,
         },
     )
-    .await?
-    .context("Could not estimate fee")?;
+    .await?;
 
     Ok(FeeEstimation {
         sats_per_vbyte: fee_rate_sats_per_vb,
