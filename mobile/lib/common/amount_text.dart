@@ -39,6 +39,6 @@ String formatSats(Amount amount) {
 }
 
 String formatUsd(Usd usd) {
-  final formatter = NumberFormat("\$ #,###,###,###,###", "en");
+  final formatter = NumberFormat("\$#,###,###,###,###", "en");
   return formatter.format(usd.asDouble());
 }

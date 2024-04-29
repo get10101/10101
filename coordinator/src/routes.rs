@@ -15,6 +15,7 @@ use crate::node::Node;
 use crate::notifications::Notification;
 use crate::orderbook::trading::NewOrderMessage;
 use crate::parse_dlc_channel_id;
+use crate::routes::admin::post_funding_rates;
 use crate::settings::Settings;
 use crate::trade::websocket::InternalPositionUpdateMessage;
 use crate::AppError;
@@ -212,6 +213,7 @@ pub fn router(
             "/api/admin/users/:trader_pubkey/referrals",
             get(get_user_referral_status),
         )
+        .route("/api/admin/funding-rates", post(post_funding_rates))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
         .route(

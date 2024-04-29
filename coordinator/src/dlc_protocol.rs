@@ -70,6 +70,19 @@ impl TradeParams {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RolloverParams {
+    pub protocol_id: ProtocolId,
+    pub trader_pubkey: PublicKey,
+    pub margin_coordinator: Amount,
+    pub margin_trader: Amount,
+    pub leverage_coordinator: Decimal,
+    pub leverage_trader: Decimal,
+    pub liquidation_price_coordinator: Decimal,
+    pub liquidation_price_trader: Decimal,
+    pub expiry_timestamp: OffsetDateTime,
+}
+
 pub enum DlcProtocolState {
     Pending,
     Success,
@@ -89,7 +102,7 @@ pub enum DlcProtocolType {
         trade_params: TradeParams,
     },
     Rollover {
-        trader: PublicKey,
+        rollover_params: RolloverParams,
     },
     Settle {
         trade_params: TradeParams,
@@ -149,7 +162,9 @@ impl DlcProtocolType {
             } => trader,
             DlcProtocolType::Close { trader } => trader,
             DlcProtocolType::ForceClose { trader } => trader,
-            DlcProtocolType::Rollover { trader } => trader,
+            DlcProtocolType::Rollover {
+                rollover_params: RolloverParams { trader_pubkey, .. },
+            } => trader_pubkey,
         }
     }
 }
@@ -163,10 +178,7 @@ impl DlcProtocolExecutor {
         DlcProtocolExecutor { pool }
     }
 
-    /// Starts a dlc protocol, by creating a new dlc protocol and temporarily stores
-    /// the trade params.
-    ///
-    /// Returns a uniquely generated protocol id as [`dlc_manager::ReferenceId`]
+    /// Persist a new DLC protocol and update technical tables in a single transaction.
     pub fn start_dlc_protocol(
         &self,
         protocol_id: ProtocolId,
@@ -183,7 +195,7 @@ impl DlcProtocolExecutor {
                 previous_protocol_id,
                 contract_id,
                 channel_id,
-                protocol_type.clone(),
+                &protocol_type,
                 protocol_type.get_trader_pubkey(),
             )?;
 
@@ -192,10 +204,47 @@ impl DlcProtocolExecutor {
                 | DlcProtocolType::OpenPosition { trade_params }
                 | DlcProtocolType::ResizePosition { trade_params }
                 | DlcProtocolType::Settle { trade_params } => {
-                    db::trade_params::insert(conn, protocol_id, &trade_params)?;
+                    db::trade_params::insert(conn, &trade_params)?;
+                }
+                DlcProtocolType::Rollover { rollover_params } => {
+                    db::rollover_params::insert(conn, &rollover_params)?;
                 }
                 _ => {}
             }
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    /// Persist a new rollover protocol and update technical tables in a single transaction.
+    pub fn start_rollover(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        rollover_params: RolloverParams,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = rollover_params.trader_pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                Some(contract_id),
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::Rollover,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::rollover_params::insert(conn, &rollover_params)?;
 
             diesel::result::QueryResult::Ok(())
         })?;
@@ -210,7 +259,8 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Finishes a dlc protocol by the corresponding dlc protocol type handling.
+    /// Update the state of the database and the position feed based on the completion of a DLC
+    /// protocol.
     pub fn finish_dlc_protocol(
         &self,
         protocol_id: ProtocolId,
@@ -260,16 +310,18 @@ impl DlcProtocolExecutor {
                         channel_id,
                     )
                 }
-                DlcProtocolType::Rollover { .. } => {
+                DlcProtocolType::Rollover { rollover_params } => {
                     let contract_id = contract_id
                         .context("missing contract id")
                         .map_err(|_| RollbackTransaction)?;
+
                     self.finish_rollover_dlc_protocol(
                         conn,
                         trader_id,
                         protocol_id,
                         &contract_id,
                         channel_id,
+                        rollover_params,
                     )
                 }
                 DlcProtocolType::Close { .. } => {
@@ -506,8 +558,8 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the rollover dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
+    /// Complete the rollover DLC protocol as successful and update the 10101 metadata accordingly,
+    /// in a single database transaction.
     fn finish_rollover_dlc_protocol(
         &self,
         conn: &mut PgConnection,
@@ -515,6 +567,7 @@ impl DlcProtocolExecutor {
         protocol_id: ProtocolId,
         contract_id: &ContractId,
         channel_id: &DlcChannelId,
+        rollover_params: &RolloverParams,
     ) -> QueryResult<()> {
         tracing::debug!(%trader, %protocol_id, "Finalizing rollover");
         db::dlc_protocols::set_dlc_protocol_state_to_success(
@@ -524,7 +577,20 @@ impl DlcProtocolExecutor {
             channel_id,
         )?;
 
-        db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)?;
+        db::positions::Position::finish_rollover_protocol(
+            conn,
+            trader.to_string(),
+            *contract_id,
+            rollover_params.leverage_coordinator,
+            rollover_params.margin_coordinator,
+            rollover_params.liquidation_price_coordinator,
+            rollover_params.leverage_trader,
+            rollover_params.margin_trader,
+            rollover_params.liquidation_price_trader,
+        )?;
+
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+
         Ok(())
     }
 

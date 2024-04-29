@@ -36,6 +36,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    funding_fee_events (id) {
+        id -> Integer,
+        contract_symbol -> Text,
+        contracts -> Float,
+        direction -> Text,
+        price -> Float,
+        fee -> BigInt,
+        due_date -> BigInt,
+        paid_date -> Nullable<BigInt>,
+    }
+}
+
+diesel::table! {
     ignored_polls (id) {
         id -> Integer,
         poll_id -> Integer,
@@ -109,6 +122,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    rollover_params (protocol_id) {
+        protocol_id -> Text,
+        contract_symbol -> Text,
+        funding_fee_sat -> BigInt,
+        expiry -> BigInt,
+    }
+}
+
+diesel::table! {
     spendable_outputs (id) {
         id -> Integer,
         outpoint -> Text,
@@ -147,11 +169,13 @@ diesel::allow_tables_to_appear_in_same_query!(
     answered_polls,
     channels,
     dlc_messages,
+    funding_fee_events,
     ignored_polls,
     last_outbound_dlc_messages,
     orders,
     payments,
     positions,
+    rollover_params,
     spendable_outputs,
     trades,
     transactions,

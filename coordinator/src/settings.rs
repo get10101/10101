@@ -1,3 +1,4 @@
+use crate::funding_fee::IndexPriceSource;
 use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
@@ -21,45 +22,45 @@ pub struct Settings {
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
-    /// A cron syntax for sending notifications about the rollover window being open
+    /// A cron syntax for sending notifications about the rollover window being open.
     ///
-    /// The format is :
+    /// The format is:
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub rollover_window_open_scheduler: String,
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
-    /// A cron syntax for sending notifications about the rollover window being open
+    /// A cron syntax for sending notifications about the rollover window closing.
     ///
-    /// The format is :
+    /// The format is:
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub rollover_window_close_scheduler: String,
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
-    /// A cron syntax for sending notifications to close an expired position
+    /// A cron syntax for sending notifications to close an expired position.
     ///
-    /// The format is :
+    /// The format is:
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub close_expired_position_scheduler: String,
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
-    /// A cron syntax for sending notifications to close an expired position
+    /// A cron syntax for sending notifications to close a liquidated position.
     ///
-    /// The format is :
+    /// The format is:
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub close_liquidated_position_scheduler: String,
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
-    /// A cron syntax for updating users bonus status
+    /// A cron syntax for updating users bonus status.
     ///
-    /// The format is :
+    /// The format is:
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub update_user_bonus_status_scheduler: String,
@@ -72,6 +73,12 @@ pub struct Settings {
     /// sec   min   hour   day of month   month   day of week   year
     /// *     *     *      *              *       *             *
     pub collect_metrics_scheduler: String,
+    /// A cron syntax for generating funding fee events.
+    ///
+    /// The format is:
+    /// sec   min   hour   day of month   month   day of week   year
+    /// * *     *      *              *       *             *
+    pub generate_funding_fee_events_scheduler: String,
 
     // Location of the settings file in the file system.
     path: PathBuf,
@@ -92,6 +99,9 @@ pub struct Settings {
     /// The order matching fee rate, which is charged for matching an order. Note, this is at the
     /// moment applied for taker and maker orders.
     pub order_matching_fee_rate: f32,
+
+    /// Where to get the index price from. This value is used to calculate funding fees.
+    pub index_price_source: IndexPriceSource,
 }
 
 impl Settings {
@@ -144,12 +154,14 @@ impl Settings {
             close_liquidated_position_scheduler: file.close_liquidated_position_scheduler,
             update_user_bonus_status_scheduler: file.update_user_bonus_status_scheduler,
             collect_metrics_scheduler: file.collect_metrics_scheduler,
+            generate_funding_fee_events_scheduler: file.generate_funding_fee_events_scheduler,
             path,
             whitelist_enabled: file.whitelist_enabled,
             whitelisted_makers: file.whitelisted_makers,
             min_quantity: file.min_quantity,
             maintenance_margin_rate: file.maintenance_margin_rate,
             order_matching_fee_rate: file.order_matching_fee_rate,
+            index_price_source: file.index_price_source,
         }
     }
 }
@@ -168,12 +180,16 @@ pub struct SettingsFile {
     update_user_bonus_status_scheduler: String,
     collect_metrics_scheduler: String,
 
+    generate_funding_fee_events_scheduler: String,
+
     whitelist_enabled: bool,
     whitelisted_makers: Vec<PublicKey>,
 
     min_quantity: u64,
     maintenance_margin_rate: f32,
     order_matching_fee_rate: f32,
+
+    index_price_source: IndexPriceSource,
 }
 
 impl From<Settings> for SettingsFile {
@@ -187,11 +203,13 @@ impl From<Settings> for SettingsFile {
             close_liquidated_position_scheduler: value.close_liquidated_position_scheduler,
             update_user_bonus_status_scheduler: value.update_user_bonus_status_scheduler,
             collect_metrics_scheduler: value.collect_metrics_scheduler,
+            generate_funding_fee_events_scheduler: value.generate_funding_fee_events_scheduler,
             whitelist_enabled: false,
             whitelisted_makers: value.whitelisted_makers,
             min_quantity: value.min_quantity,
             maintenance_margin_rate: value.maintenance_margin_rate,
             order_matching_fee_rate: value.order_matching_fee_rate,
+            index_price_source: value.index_price_source,
         }
     }
 }
@@ -218,6 +236,7 @@ mod tests {
             close_liquidated_position_scheduler: "baz".to_string(),
             update_user_bonus_status_scheduler: "bazinga".to_string(),
             collect_metrics_scheduler: "42".to_string(),
+            generate_funding_fee_events_scheduler: "qux".to_string(),
             whitelist_enabled: false,
             whitelisted_makers: vec![PublicKey::from_str(
                 "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166",
@@ -226,6 +245,7 @@ mod tests {
             min_quantity: 1,
             maintenance_margin_rate: 0.1,
             order_matching_fee_rate: 0.003,
+            index_price_source: IndexPriceSource::Bitmex,
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();

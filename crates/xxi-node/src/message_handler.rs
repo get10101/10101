@@ -5,6 +5,7 @@ use crate::commons::OrderReason;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use anyhow::Result;
+use bitcoin::SignedAmount;
 use dlc_manager::ReferenceId;
 use dlc_messages::channel::AcceptChannel;
 use dlc_messages::channel::CollaborativeCloseOffer;
@@ -28,7 +29,9 @@ use dlc_messages::segmentation::get_segments;
 use dlc_messages::segmentation::segment_reader::SegmentReader;
 use dlc_messages::segmentation::SegmentChunk;
 use dlc_messages::segmentation::SegmentStart;
+use dlc_messages::ser_impls::read_i64;
 use dlc_messages::ser_impls::read_string;
+use dlc_messages::ser_impls::write_i64;
 use dlc_messages::ser_impls::write_string;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
@@ -47,6 +50,7 @@ use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use lightning::util::ser::Writer;
 use lightning::util::ser::MAX_BUF_SIZE;
+use rust_decimal::Decimal;
 use secp256k1_zkp::PublicKey;
 use serde::Deserialize;
 use serde::Serialize;
@@ -57,6 +61,7 @@ use std::io::Cursor;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 /// TenTenOneMessageHandler is used to send and receive messages through the custom
@@ -280,6 +285,18 @@ pub struct TenTenOneRenewRevoke {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneRolloverOffer {
     pub renew_offer: RenewOffer,
+    // TODO: The funding fee should be extracted from the `RenewOffer`, but this is more
+    // convenient.
+    pub funding_fee_events: Vec<FundingFeeEvent>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FundingFeeEvent {
+    pub due_date: OffsetDateTime,
+    pub funding_rate: Decimal,
+    pub price: Decimal,
+    #[serde(with = "bitcoin::amount::serde::as_sat")]
+    pub funding_fee: SignedAmount,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -691,6 +708,7 @@ impl TenTenOneMessage {
             })
             | TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
                 renew_offer: RenewOffer { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept {
                 renew_accept: RenewAccept { reference_id, .. },
@@ -776,7 +794,7 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke, .. }) => {
                 ChannelMessage::RenewRevoke(renew_revoke)
             }
-            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }) => {
+            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer, .. }) => {
                 ChannelMessage::RenewOffer(renew_offer)
             }
             TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }) => {
@@ -811,6 +829,46 @@ pub fn write_uuid<W: Writer>(
 pub fn read_uuid<R: ::std::io::Read>(reader: &mut R) -> std::result::Result<Uuid, DecodeError> {
     let uuid = read_string(reader)?;
     Uuid::from_str(&uuid).map_err(|_| DecodeError::InvalidValue)
+}
+
+/// Writes a [`FundingFeeEvent`] to the given writer.
+pub fn write_funding_fee_event<W: Writer>(
+    input: &FundingFeeEvent,
+    writer: &mut W,
+) -> std::result::Result<(), ::std::io::Error> {
+    write_i64(&input.due_date.unix_timestamp(), writer)?;
+    // Using strings because of https://github.com/p2pderivatives/rust-dlc/issues/216.
+    write_string(&input.funding_rate.to_string(), writer)?;
+    write_string(&input.price.to_string(), writer)?;
+    write_i64(&input.funding_fee.to_sat(), writer)?;
+
+    Ok(())
+}
+
+/// Reads a [`FundingFeeEvent`] from the given writer.
+pub fn read_funding_fee_event<R: ::std::io::Read>(
+    reader: &mut R,
+) -> std::result::Result<FundingFeeEvent, DecodeError> {
+    let due_date = read_i64(reader)?;
+    let due_date =
+        OffsetDateTime::from_unix_timestamp(due_date).map_err(|_| DecodeError::InvalidValue)?;
+
+    let funding_rate = read_string(reader)?
+        .parse()
+        .map_err(|_| DecodeError::InvalidValue)?;
+    let price = read_string(reader)?
+        .parse()
+        .map_err(|_| DecodeError::InvalidValue)?;
+
+    let funding_fee = read_i64(reader)?;
+    let funding_fee = SignedAmount::from_sat(funding_fee);
+
+    Ok(FundingFeeEvent {
+        due_date,
+        funding_rate,
+        price,
+        funding_fee,
+    })
 }
 
 macro_rules! impl_type_writeable_for_enum {
@@ -913,7 +971,7 @@ impl_dlc_writeable!(TenTenOneRenewAccept, { (order_id, {cb_writeable, write_uuid
 impl_dlc_writeable!(TenTenOneRenewConfirm, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneRenewFinalize, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_finalize, writeable) });
 impl_dlc_writeable!(TenTenOneRenewRevoke, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_revoke, writeable) });
-impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable), (funding_fee_events, { vec_cb, write_funding_fee_event, read_funding_fee_event }) });
 impl_dlc_writeable!(TenTenOneRolloverAccept, { (renew_accept, writeable) });
 impl_dlc_writeable!(TenTenOneRolloverConfirm, { (renew_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneRolloverFinalize, { (renew_finalize, writeable) });
@@ -989,15 +1047,12 @@ fn read_tentenone_message<R: ::std::io::Read>(
 
 #[cfg(test)]
 mod tests {
-    use crate::commons;
+    use super::*;
     use crate::commons::ContractSymbol;
     use crate::commons::Direction;
     use crate::commons::OrderReason;
     use crate::commons::OrderState;
     use crate::commons::OrderType;
-    use crate::message_handler::TenTenOneMessageHandler;
-    use crate::message_handler::TenTenOneReject;
-    use crate::message_handler::TenTenOneSettleOffer;
     use crate::node::event::NodeEventHandler;
     use anyhow::anyhow;
     use anyhow::Result;
@@ -1009,6 +1064,7 @@ mod tests {
     use lightning::ln::wire::Type;
     use lightning::util::ser::Readable;
     use lightning::util::ser::Writeable;
+    use rust_decimal_macros::dec;
     use secp256k1::PublicKey;
     use std::io::Cursor;
     use std::str::FromStr;
@@ -1047,8 +1103,27 @@ mod tests {
         assert_debug_snapshot!(json_msg);
     }
 
-    fn dummy_filled_with() -> commons::FilledWith {
-        commons::FilledWith {
+    #[test]
+    fn funding_fee_event_roundtrip() {
+        let original = FundingFeeEvent {
+            due_date: OffsetDateTime::from_unix_timestamp(100_000).unwrap(),
+            funding_rate: dec!(0.0003),
+            price: dec!(60_000.0),
+            funding_fee: SignedAmount::from_sat(100),
+        };
+
+        let mut buffer = vec![];
+
+        write_funding_fee_event(&original, &mut buffer).unwrap();
+
+        let mut reader = std::io::Cursor::new(buffer);
+        let result = read_funding_fee_event(&mut reader).unwrap();
+
+        assert_eq!(original, result);
+    }
+
+    fn dummy_filled_with() -> FilledWith {
+        FilledWith {
             order_id: Default::default(),
             expiry_timestamp: dummy_timestamp(),
             oracle_pk: dummy_x_only_pubkey(),
@@ -1056,8 +1131,8 @@ mod tests {
         }
     }
 
-    fn dummy_order() -> commons::Order {
-        commons::Order {
+    fn dummy_order() -> Order {
+        Order {
             id: Default::default(),
             price: Default::default(),
             leverage: 0.0,

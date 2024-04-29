@@ -23,11 +23,13 @@ use crate::health;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
+use crate::trade::funding_fee_event::handler::get_funding_fee_events;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
+use crate::trade::trades::api::Trade;
 use crate::trade::users;
 use crate::unfunded_channel_opening_order;
 use crate::unfunded_channel_opening_order::ExternalFunding;
@@ -378,6 +380,19 @@ pub async fn get_positions() -> Result<Vec<Position>> {
         .collect::<Vec<Position>>();
 
     Ok(positions)
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_trades() -> Result<Vec<Trade>> {
+    let trades = crate::trade::trades::handler::get_trades()?
+        .into_iter()
+        .map(|trade| trade.into());
+
+    let funding_fee_events = get_funding_fee_events()?.into_iter().map(|e| e.into());
+
+    let trades = trades.chain(funding_fee_events).collect();
+
+    Ok(trades)
 }
 
 pub fn set_filling_orders_to_failed() -> Result<()> {

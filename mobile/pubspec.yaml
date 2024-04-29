@@ -30,7 +30,7 @@ dependencies:
   logger: ^2.0.2+1
   carousel_slider: ^4.2.1
   http: ^1.0.0
-  timeago: ^3.3.0
+  timeago: ^3.6.1
   shared_preferences: ^2.1.2
   package_info_plus: ^4.0.2
   uuid: ^3.0.7
@@ -51,6 +51,7 @@ dependencies:
   syncfusion_flutter_core: ^24.2.9
   html: ^0.15.4
   flutter_inappwebview: ^6.0.0-beta.23
+  timeago_flutter: ^3.6.0
 dev_dependencies:
   analyzer: ^6.4.1
   flutter_launcher_icons: ^0.13.1

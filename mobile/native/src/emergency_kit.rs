@@ -138,7 +138,7 @@ pub fn recreate_position() -> Result<()> {
         stable: false,
         order_matching_fees: order.matching_fee().unwrap_or(Amount::ZERO),
     };
-    db::insert_position(position.clone())?;
+    db::insert_position(position)?;
 
     event::publish(&EventInternal::PositionUpdateNotification(position));
 

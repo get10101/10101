@@ -13,7 +13,6 @@ use anyhow::Result;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
 use bitcoin::Txid;
-use diesel;
 use diesel::prelude::*;
 use diesel::sql_types::Text;
 use diesel::AsExpression;
@@ -30,6 +29,11 @@ use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
 use xxi_node::commons;
+
+mod funding_fee_event;
+
+pub(crate) use funding_fee_event::FundingFeeEvent;
+pub(crate) use funding_fee_event::UnpaidFundingFeeEvent;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -375,7 +379,7 @@ fn derive_order_state(
     Ok(state)
 }
 
-#[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
+#[derive(Queryable, AsChangeset, QueryableByName, Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = positions)]
 pub(crate) struct Position {
     pub contract_symbol: ContractSymbol,
@@ -420,6 +424,15 @@ impl Position {
         positions::table.load(conn)
     }
 
+    pub fn get_position(
+        conn: &mut SqliteConnection,
+        contract_symbol: ContractSymbol,
+    ) -> QueryResult<Position> {
+        positions::table
+            .filter(positions::contract_symbol.eq(contract_symbol))
+            .first(conn)
+    }
+
     /// Update the status of the [`Position`] identified by the given [`ContractSymbol`].
     pub fn update_state(
         contract_symbol: ContractSymbol,
@@ -442,58 +455,37 @@ impl Position {
         Ok(position)
     }
 
-    // sets the position to rollover and updates the new expiry timestamp.
-    pub fn rollover(
-        conn: &mut SqliteConnection,
-        contract_symbol: ContractSymbol,
-        expiry_timestamp: OffsetDateTime,
-    ) -> Result<()> {
+    /// Update the position after the rollover protocol has started.
+    pub fn start_rollover(conn: &mut SqliteConnection, updated_position: Position) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
-            .filter(schema::positions::contract_symbol.eq(contract_symbol))
-            .set((
-                positions::expiry_timestamp.eq(expiry_timestamp.unix_timestamp()),
-                positions::state.eq(PositionState::Rollover),
-                positions::updated_timestamp.eq(OffsetDateTime::now_utc().unix_timestamp()),
-            ))
+            .filter(schema::positions::contract_symbol.eq(updated_position.contract_symbol))
+            .set(updated_position)
             .execute(conn)?;
 
-        ensure!(affected_rows > 0, "Could not set position to rollover");
+        if affected_rows == 0 {
+            bail!("Could not start rollover in DB");
+        }
 
         Ok(())
     }
 
-    /// Updates the status of the given order in the DB.
-    pub fn update_position(conn: &mut SqliteConnection, position: Position) -> Result<()> {
-        let Position {
-            contract_symbol,
-            leverage,
-            quantity,
-            direction,
-            average_entry_price,
-            liquidation_price,
-            state,
-            collateral,
-            creation_timestamp: _,
-            expiry_timestamp,
-            updated_timestamp,
-            order_matching_fees,
-            ..
-        } = position;
-
+    /// Update the position after the rollover protocol has ended.
+    pub fn finish_rollover(conn: &mut SqliteConnection, updated_position: Position) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
-            .filter(schema::positions::contract_symbol.eq(contract_symbol))
-            .set((
-                positions::leverage.eq(leverage),
-                positions::quantity.eq(quantity),
-                positions::direction.eq(direction),
-                positions::average_entry_price.eq(average_entry_price),
-                positions::liquidation_price.eq(liquidation_price),
-                positions::state.eq(state),
-                positions::collateral.eq(collateral),
-                positions::expiry_timestamp.eq(expiry_timestamp),
-                positions::order_matching_fees.eq(order_matching_fees),
-                positions::updated_timestamp.eq(updated_timestamp),
-            ))
+            .filter(positions::state.eq(PositionState::Rollover))
+            .set(updated_position)
+            .execute(conn)?;
+
+        if affected_rows == 0 {
+            bail!("Could not finish rollover in DB");
+        }
+
+        Ok(())
+    }
+
+    pub fn update_position(conn: &mut SqliteConnection, updated_position: Position) -> Result<()> {
+        let affected_rows = diesel::update(positions::table)
+            .set(updated_position)
             .execute(conn)?;
 
         if affected_rows == 0 {
@@ -916,6 +908,8 @@ pub enum ChannelState {
     ForceClosedRemote,
     ForceClosedLocal,
 }
+
+// TODO: Get rid of `Channel` and matching table in DB.
 
 #[derive(Insertable, QueryableByName, Queryable, Debug, Clone, PartialEq, AsChangeset)]
 #[diesel(table_name = channels)]

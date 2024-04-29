@@ -1,0 +1,27 @@
+---
+source: crates/tests-e2e/tests/e2e_rollover_position.rs
+expression: after
+---
+{
+  "id": "[u64]",
+  "contract_symbol": "BtcUsd",
+  "trader_leverage": "2.004008",
+  "quantity": "1000",
+  "trader_direction": "long",
+  "average_entry_price": "50001",
+  "trader_liquidation_price": "35740.53",
+  "position_state": "Open",
+  "coordinator_margin": 999980,
+  "creation_timestamp": "[timestamp]",
+  "expiry_timestamp": "[timestamp]",
+  "update_timestamp": "[timestamp]",
+  "trader_pubkey": "[public-key]",
+  "temporary_contract_id": "[public-key]",
+  "trader_realized_pnl_sat": null,
+  "trader_unrealized_pnl_sat": null,
+  "closing_price": null,
+  "coordinator_leverage": "2",
+  "trader_margin": 997980,
+  "coordinator_liquidation_price": "83335",
+  "order_matching_fees": 6000
+}

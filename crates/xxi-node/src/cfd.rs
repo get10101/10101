@@ -31,8 +31,25 @@ pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> Am
     bitcoin::Amount::from_btc(margin).expect("collateral to fit in amount")
 }
 
-/// Calculate the quantity from price, collateral and leverage
-/// Margin in sats, calculation in BTC
+/// Calculate leverage.
+pub fn calculate_leverage(
+    quantity: Decimal,
+    margin: Amount,
+    open_price: Decimal,
+) -> Result<Decimal> {
+    let margin_btc = Decimal::try_from(margin.to_btc()).expect("to fit");
+
+    quantity
+        .checked_div(margin_btc * open_price)
+        .with_context(|| {
+            format!(
+                "Division by zero when computing leverage. \
+                 Denominator: {margin_btc} * {open_price}"
+            )
+        })
+}
+
+/// Calculate the quantity from price, collateral and leverage Margin in sats, calculation in BTC
 pub fn calculate_quantity(opening_price: f32, margin: u64, leverage: f32) -> f32 {
     let margin_amount = bitcoin::Amount::from_sat(margin);
 

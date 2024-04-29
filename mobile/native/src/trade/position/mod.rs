@@ -4,9 +4,11 @@ use crate::get_maintenance_margin_rate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
+use crate::trade::FundingFeeEvent;
 use crate::trade::Trade;
 use anyhow::bail;
 use anyhow::ensure;
+use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
@@ -16,9 +18,11 @@ use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
 use serde::Serialize;
 use time::OffsetDateTime;
+use xxi_node::cfd::calculate_leverage;
 use xxi_node::commons;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
+use xxi_node::node::ProtocolId;
 
 pub mod api;
 pub mod handler;
@@ -59,7 +63,7 @@ pub enum PositionState {
     Resizing,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct Position {
     pub leverage: f32,
     pub quantity: f32,
@@ -557,6 +561,71 @@ impl Position {
 
         position.apply_order_recursive(order, expiry, leftover_matching_fee, trades)
     }
+
+    /// Apply [`FundingFeeEvent`]s to a [`Position`].
+    fn apply_funding_fee_events(self, funding_fee_events: &[FundingFeeEvent]) -> Result<Self> {
+        let funding_fee: SignedAmount = funding_fee_events.iter().map(|event| event.fee).sum();
+
+        let (collateral, leverage, liquidation_price) = if funding_fee.is_positive() {
+            // Trader pays.
+
+            let collateral = self
+                .collateral
+                .checked_sub(funding_fee.to_sat() as u64)
+                .context("Cannot cover funding fee with margin")?;
+            let collateral = Amount::from_sat(collateral);
+
+            let leverage = {
+                let quantity = Decimal::try_from(self.quantity).expect("to fit");
+                let average_entry_price =
+                    Decimal::try_from(self.average_entry_price).expect("to fit");
+
+                let leverage = calculate_leverage(quantity, collateral, average_entry_price)?;
+
+                leverage.to_f32().expect("to fit")
+            };
+
+            let maintenance_margin_rate = get_maintenance_margin_rate();
+            let liquidation_price = calculate_liquidation_price(
+                self.average_entry_price,
+                leverage,
+                self.direction,
+                maintenance_margin_rate,
+            );
+
+            (collateral.to_sat(), leverage, liquidation_price)
+        } else {
+            // Coordinator pays.
+            (self.collateral, self.leverage, self.liquidation_price)
+        };
+
+        Ok(Self {
+            collateral,
+            leverage,
+            liquidation_price,
+            updated: OffsetDateTime::now_utc(),
+            ..self
+        })
+    }
+
+    /// Start rollover protocol.
+    fn start_rollover(self, expiry: OffsetDateTime) -> Self {
+        Self {
+            expiry,
+            position_state: PositionState::Rollover,
+            updated: OffsetDateTime::now_utc(),
+            ..self
+        }
+    }
+
+    /// Finish rollover protocol.
+    fn finish_rollover(self) -> Self {
+        Self {
+            position_state: PositionState::Open,
+            updated: OffsetDateTime::now_utc(),
+            ..self
+        }
+    }
 }
 
 /// The _cost_ of a trade is computed as the change in margin (positive if the margin _increases_),
@@ -591,6 +660,21 @@ fn compute_relative_contracts(contracts: f32, direction: Direction) -> Decimal {
         Direction::Long => contracts,
         Direction::Short => -contracts,
     }
+}
+
+/// The rollover parameters can be stored after receiving a [`TenTenOneRolloverOffer`], so that they
+/// can be used to modify the [`Position`] after the rollover has been finalized.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct RolloverParams {
+    pub protocol_id: ProtocolId,
+    /// The contract symbol identifies the position, since we can only have one position per
+    /// contract symbol.
+    pub contract_symbol: ContractSymbol,
+    /// The sign determines who pays who. A positive signs denotes that the trader pays the
+    /// coordinator. A negative sign denotes that the coordinator pays the trader.
+    pub funding_fee: SignedAmount,
+    /// Rolling over sets a new expiry time.
+    pub expiry: OffsetDateTime,
 }
 
 #[cfg(test)]
@@ -748,7 +832,7 @@ mod tests {
             failure_reason: None,
         };
 
-        let (updated_position, trades) = position.clone().apply_order(order.clone(), now).unwrap();
+        let (updated_position, trades) = position.apply_order(order.clone(), now).unwrap();
         let updated_position = updated_position.unwrap();
 
         assert_eq!(updated_position.leverage, 2.0);
@@ -818,7 +902,7 @@ mod tests {
             failure_reason: None,
         };
 
-        let (updated_position, trades) = position.clone().apply_order(order.clone(), now).unwrap();
+        let (updated_position, trades) = position.apply_order(order.clone(), now).unwrap();
         let updated_position = updated_position.unwrap();
 
         assert_eq!(updated_position.leverage, 2.0);
@@ -894,7 +978,7 @@ mod tests {
             failure_reason: None,
         };
 
-        let (updated_position, trades) = position.clone().apply_order(order.clone(), now).unwrap();
+        let (updated_position, trades) = position.apply_order(order.clone(), now).unwrap();
         let updated_position = updated_position.unwrap();
 
         assert_eq!(updated_position.leverage, 2.0);

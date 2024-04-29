@@ -4,6 +4,8 @@ use crate::event::EventInternal;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
+use crate::trade::trades::handler::new_trade;
+use crate::trade::FundingFeeEvent;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -35,7 +37,7 @@ pub fn get_position_matching_order(order: &Order) -> Result<Option<Position>> {
         Some(position)
             if position.direction != order.direction && position.quantity == order.quantity =>
         {
-            Ok(Some(position.clone()))
+            Ok(Some(*position))
         }
         _ => Ok(None),
     }
@@ -51,47 +53,90 @@ pub fn set_position_state(state: PositionState) -> Result<()> {
     Ok(())
 }
 
-/// A channel renewal could be triggered to:
-///
-/// - Roll over (no offer associated).
-/// - Open a new position.
-/// - Resize a position.
-pub fn handle_channel_renewal_offer(expiry_timestamp: OffsetDateTime) -> Result<()> {
+pub fn handle_renew_offer() -> Result<()> {
     if let Some(position) = db::get_positions()?.first() {
-        // Assume that if there is an order in filling we are dealing with position resizing.
-        //
-        // TODO: This has caused problems in the past. Any other ideas? We could generate
-        // `ProtocolId`s using `OrderId`s whenever possible on the coordinator, and compare the two
-        // values here to be sure.
-        if db::get_order_in_filling()?.is_some() {
-            tracing::debug!("Setting position to resizing");
+        tracing::debug!("Received renew offer to resize position");
 
-            let position =
-                db::update_position_state(position.contract_symbol, PositionState::Resizing)?;
+        let position =
+            db::update_position_state(position.contract_symbol, PositionState::Resizing)?;
 
-            event::publish(&EventInternal::PositionUpdateNotification(position));
-        }
-        // Without an order, we must be rolling over.
-        else {
-            tracing::debug!("Setting position to rollover");
-
-            db::rollover_position(position.contract_symbol, expiry_timestamp)?;
-
-            let mut position = position.clone();
-            position.position_state = PositionState::Rollover;
-            position.expiry = expiry_timestamp;
-
-            event::publish(&EventInternal::PositionUpdateNotification(position));
-        }
+        event::publish(&EventInternal::PositionUpdateNotification(position));
     } else {
         // If we have no position, we must be opening a new one.
-        tracing::info!("Received channel renewal proposal to open new position");
+        tracing::info!("Received renew offer to open new position");
     }
 
     Ok(())
 }
 
-/// Create a position after creating or updating a DLC channel.
+pub fn handle_rollover_offer(
+    expiry_timestamp: OffsetDateTime,
+    funding_fee_events: &[FundingFeeEvent],
+) -> Result<()> {
+    tracing::debug!("Setting position state to rollover");
+
+    let positions = &db::get_positions()?;
+    let position = positions.first().context("No position to roll over")?;
+
+    // TODO: Update the `expiry_timestamp` only after the rollover protocol is finished. We only do
+    // it so that we don't have to store the `expiry_timestamp` in the database.
+    let position = position
+        .start_rollover(expiry_timestamp)
+        .apply_funding_fee_events(funding_fee_events)?;
+
+    db::start_position_rollover(position)?;
+
+    event::publish(&EventInternal::PositionUpdateNotification(position));
+
+    Ok(())
+}
+
+/// Update position after completing rollover protocol.
+pub fn update_position_after_rollover() -> Result<Position> {
+    tracing::debug!("Setting position state from rollover back to open");
+
+    let positions = &db::get_positions()?;
+    let position = positions
+        .first()
+        .context("No position to finish rollover")?;
+
+    let position = position.finish_rollover();
+
+    db::finish_position_rollover(position)?;
+
+    event::publish(&EventInternal::PositionUpdateNotification(position));
+
+    Ok(position)
+}
+
+/// The app will sometimes receive [`FundingFeeEvent`]s from the coordinator which are not directly
+/// linked to a channel update. These need to be applied to the [`Position`] to keep it in sync with
+/// the coordinator.
+pub fn handle_funding_fee_events(funding_fee_events: &[FundingFeeEvent]) -> Result<()> {
+    if funding_fee_events.is_empty() {
+        return Ok(());
+    }
+
+    tracing::debug!(
+        ?funding_fee_events,
+        "Applying funding fee events to position"
+    );
+
+    let positions = &db::get_positions()?;
+    let position = positions
+        .first()
+        .context("No position to apply funding fee events")?;
+
+    let position = position.apply_funding_fee_events(funding_fee_events)?;
+
+    db::update_position(position)?;
+
+    event::publish(&EventInternal::PositionUpdateNotification(position));
+
+    Ok(())
+}
+
+/// Create or insert a position after filling an order.
 pub fn update_position_after_dlc_channel_creation_or_update(
     filled_order: Order,
     expiry: OffsetDateTime,
@@ -109,7 +154,7 @@ pub fn update_position_after_dlc_channel_creation_or_update(
 
             tracing::info!(?trade, ?position, "Position created");
 
-            db::insert_position(position.clone())?;
+            db::insert_position(position)?;
 
             (position, vec![trade])
         }
@@ -121,11 +166,11 @@ pub fn update_position_after_dlc_channel_creation_or_update(
         ) => {
             tracing::info!("Calculating new position after DLC channel has been resized");
 
-            let (position, trades) = position.clone().apply_order(filled_order, expiry)?;
+            let (position, trades) = position.apply_order(filled_order, expiry)?;
 
             let position = position.context("Resized position has vanished")?;
 
-            db::update_position(position.clone())?;
+            db::update_position(position)?;
 
             (position, trades)
         }
@@ -138,7 +183,7 @@ pub fn update_position_after_dlc_channel_creation_or_update(
     };
 
     for trade in trades {
-        db::insert_trade(trade)?;
+        new_trade(trade)?;
     }
 
     event::publish(&EventInternal::PositionUpdateNotification(position));
@@ -150,11 +195,12 @@ pub fn update_position_after_dlc_channel_creation_or_update(
 pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
     tracing::debug!(?filled_order, "Removing position after DLC channel closure");
 
-    let position = match db::get_positions()?.as_slice() {
-        [position] => position.clone(),
+    let positions = &db::get_positions()?;
+    let position = match positions.as_slice() {
+        [position] => position,
         [position, ..] => {
             tracing::warn!("Found more than one position. Taking the first one");
-            position.clone()
+            position
         }
         [] => {
             tracing::warn!("No position to remove");
@@ -182,7 +228,7 @@ pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
     }
 
     for trade in trades {
-        db::insert_trade(trade)?;
+        new_trade(trade)?;
     }
 
     db::delete_positions()?;

@@ -5,6 +5,8 @@ use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
+use crate::trade::FundingFeeEvent;
+use crate::trade::Trade;
 use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
@@ -41,6 +43,8 @@ pub enum EventInternal {
     DlcChannelEvent(DlcChannel),
     FundingChannelNotification(FundingChannelTask),
     LnPaymentReceived { r_hash: String },
+    NewTrade(Trade),
+    FundingFeeEvent(FundingFeeEvent),
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +91,8 @@ impl fmt::Display for EventInternal {
             EventInternal::BidPriceUpdateNotification(_) => "BidPriceUpdateNotification",
             EventInternal::FundingChannelNotification(_) => "FundingChannelNotification",
             EventInternal::LnPaymentReceived { .. } => "LnPaymentReceived",
+            EventInternal::NewTrade(_) => "NewTrade",
+            EventInternal::FundingFeeEvent(_) => "FundingFeeEvent",
         }
         .fmt(f)
     }
@@ -112,6 +118,8 @@ impl From<EventInternal> for EventType {
             EventInternal::BidPriceUpdateNotification(_) => EventType::BidPriceUpdateNotification,
             EventInternal::FundingChannelNotification(_) => EventType::FundingChannelNotification,
             EventInternal::LnPaymentReceived { .. } => EventType::LnPaymentReceived,
+            EventInternal::NewTrade(_) => EventType::NewTrade,
+            EventInternal::FundingFeeEvent(_) => EventType::NewTrade,
         }
     }
 }
@@ -136,4 +144,5 @@ pub enum EventType {
     AskPriceUpdateNotification,
     BidPriceUpdateNotification,
     FundingChannelNotification,
+    NewTrade,
 }

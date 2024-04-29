@@ -234,6 +234,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    funding_fee_events (id) {
+        id -> Int4,
+        amount_sats -> Int8,
+        trader_pubkey -> Text,
+        position_id -> Int4,
+        due_date -> Timestamptz,
+        price -> Float4,
+        funding_rate -> Float4,
+        paid_date -> Nullable<Timestamptz>,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    funding_rates (id) {
+        id -> Int4,
+        start_date -> Timestamptz,
+        end_date -> Timestamptz,
+        rate -> Float4,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     last_outbound_dlc_messages (peer_id) {
         peer_id -> Text,
         message_hash -> Text,
@@ -415,12 +439,36 @@ diesel::table! {
 }
 
 diesel::table! {
+    protocol_funding_fee_events (id) {
+        id -> Int4,
+        protocol_id -> Uuid,
+        funding_fee_event_id -> Int4,
+        timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
     reported_errors (id) {
         id -> Int4,
         trader_pubkey -> Text,
         error -> Text,
         timestamp -> Timestamptz,
         version -> Text,
+    }
+}
+
+diesel::table! {
+    rollover_params (id) {
+        id -> Int4,
+        protocol_id -> Uuid,
+        trader_pubkey -> Text,
+        margin_coordinator_sat -> Int8,
+        margin_trader_sat -> Int8,
+        leverage_coordinator -> Float4,
+        leverage_trader -> Float4,
+        liquidation_price_coordinator -> Float4,
+        liquidation_price_trader -> Float4,
+        expiry_timestamp -> Timestamptz,
     }
 }
 
@@ -508,9 +556,11 @@ diesel::table! {
 
 diesel::joinable!(answers -> choices (choice_id));
 diesel::joinable!(choices -> polls (poll_id));
+diesel::joinable!(funding_fee_events -> positions (position_id));
 diesel::joinable!(last_outbound_dlc_messages -> dlc_messages (message_hash));
 diesel::joinable!(liquidity_request_logs -> liquidity_options (liquidity_option));
 diesel::joinable!(polls_whitelist -> polls (poll_id));
+diesel::joinable!(protocol_funding_fee_events -> funding_fee_events (funding_fee_event_id));
 diesel::joinable!(trades -> positions (position_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
@@ -524,6 +574,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     dlc_channels,
     dlc_messages,
     dlc_protocols,
+    funding_fee_events,
+    funding_rates,
     hodl_invoices,
     last_outbound_dlc_messages,
     legacy_collaborative_reverts,
@@ -536,7 +588,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     polls,
     polls_whitelist,
     positions,
+    protocol_funding_fee_events,
     reported_errors,
+    rollover_params,
     routing_fees,
     spendable_outputs,
     trade_params,

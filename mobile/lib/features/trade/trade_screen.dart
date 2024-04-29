@@ -10,6 +10,8 @@ import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
+import 'package:get_10101/features/trade/trade_change_notifier.dart';
+import 'package:get_10101/features/trade/trade_list_item.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -38,6 +40,7 @@ class TradeScreen extends StatelessWidget {
 
     OrderChangeNotifier orderChangeNotifier = context.watch<OrderChangeNotifier>();
     PositionChangeNotifier positionChangeNotifier = context.watch<PositionChangeNotifier>();
+    TradeChangeNotifier tradeChangeNotifier = context.watch<TradeChangeNotifier>();
     TradeValuesChangeNotifier tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
     SubmitOrderChangeNotifier submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
 
@@ -92,9 +95,14 @@ class TradeScreen extends StatelessWidget {
                   tabs: const [
                     "Positions",
                     "Orders",
+                    "Trades",
                   ],
                   selectedIndex: 0,
-                  keys: const [tradeScreenTabsPositions, tradeScreenTabsOrders],
+                  keys: const [
+                    tradeScreenTabsPositions,
+                    tradeScreenTabsTrades,
+                    tradeScreenTabsOrders
+                  ],
                   tabBarViewChildren: [
                     ListView.builder(
                       shrinkWrap: true,
@@ -114,7 +122,7 @@ class TradeScreen extends StatelessWidget {
                                     style: DefaultTextStyle.of(context).style,
                                     children: const <TextSpan>[
                                   TextSpan(
-                                      text: "Your order is being filled...\n\nCheck the ",
+                                      text: "Your order is being filled\n\nCheck the ",
                                       style: TextStyle(color: Colors.grey)),
                                   TextSpan(text: "Orders", style: TextStyle(color: Colors.black)),
                                   TextSpan(
@@ -122,13 +130,12 @@ class TradeScreen extends StatelessWidget {
                                       style: TextStyle(color: Colors.grey)),
                                 ]));
                           }
-
                           return RichText(
                               text: TextSpan(
                                   style: DefaultTextStyle.of(context).style,
                                   children: <TextSpan>[
                                 const TextSpan(
-                                    text: "You currently don't have an open position...\n\n",
+                                    text: "You don't have an open position.\n\n",
                                     style: TextStyle(color: Colors.grey)),
                                 TextSpan(
                                     text: "Buy",
@@ -176,6 +183,34 @@ class TradeScreen extends StatelessWidget {
                         );
                       },
                     ),
+                    tradeChangeNotifier.trades.isEmpty
+                        ? RichText(
+                            text: TextSpan(
+                                style: DefaultTextStyle.of(context).style,
+                                children: <TextSpan>[
+                                const TextSpan(
+                                    text: "You don't have any trades yet.\n\n",
+                                    style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Buy",
+                                    style: TextStyle(
+                                        color: tradeTheme.buy, fontWeight: FontWeight.bold)),
+                                const TextSpan(text: " or ", style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Sell",
+                                    style: TextStyle(
+                                        color: tradeTheme.sell, fontWeight: FontWeight.bold)),
+                                const TextSpan(
+                                    text: " to create one!", style: TextStyle(color: Colors.grey)),
+                              ]))
+                        : SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Card(
+                                child: Column(
+                              children: tradeChangeNotifier.trades
+                                  .map((trade) => TradeListItem(trade: trade))
+                                  .toList(),
+                            ))),
                     // If there are no positions we early-return with placeholder
                     orderChangeNotifier.orders.isEmpty
                         ? RichText(
@@ -183,7 +218,7 @@ class TradeScreen extends StatelessWidget {
                                 style: DefaultTextStyle.of(context).style,
                                 children: <TextSpan>[
                                 const TextSpan(
-                                    text: "You don't have any orders yet...\n\n",
+                                    text: "You don't have any orders yet.\n\n",
                                     style: TextStyle(color: Colors.grey)),
                                 TextSpan(
                                     text: "Buy",

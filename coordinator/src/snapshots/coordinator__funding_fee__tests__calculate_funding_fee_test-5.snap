@@ -1,0 +1,5 @@
+---
+source: coordinator/src/funding_fee.rs
+expression: "calculate_funding_fee(500.0, dec!(0.003), dec!(40_000), Direction::Long)"
+---
+SignedAmount(0.00003750 BTC)
