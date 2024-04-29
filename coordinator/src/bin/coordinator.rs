@@ -5,6 +5,7 @@ use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
 use coordinator::dlc_handler;
 use coordinator::dlc_handler::DlcHandler;
+use coordinator::funding_fee::generate_funding_fee_events_periodically;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
@@ -40,6 +41,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::task::spawn_blocking;
+use tokio_cron_scheduler::JobScheduler;
 use tracing::metadata::LevelFilter;
 use xxi_node::node::event::NodeEventHandler;
 use xxi_node::seed::Bip39Seed;
@@ -318,12 +320,10 @@ async fn main() -> Result<()> {
     );
 
     let sender = notification_service.get_sender();
-    let notification_scheduler = NotificationScheduler::new(sender, settings, network, node);
+    let scheduler = NotificationScheduler::new(sender, settings.clone(), network, node).await;
     tokio::spawn({
         let pool = pool.clone();
-        let scheduler = notification_scheduler;
         async move {
-            let scheduler = scheduler.await;
             scheduler
                 .add_rollover_window_reminder_job(pool.clone())
                 .await
@@ -355,6 +355,16 @@ async fn main() -> Result<()> {
                 .expect("to be able to start scheduler");
         }
     });
+
+    generate_funding_fee_events_periodically(
+        &JobScheduler::new().await?,
+        pool.clone(),
+        auth_users_notifier,
+        settings.generate_funding_fee_events_scheduler,
+        settings.index_price_source,
+    )
+    .await
+    .expect("to start task");
 
     tracing::debug!("Listening on http://{}", http_address);
 

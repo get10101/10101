@@ -33,10 +33,12 @@ const _positions = "positions";
 const _orders = "orders";
 const _confirmationButton = "confirmation_button";
 const _confirmationSlider = "confirmation_slider";
+const _trades = "trades";
 const _openChannel = "open_channel";
 
 const tradeScreenTabsOrders = Key(_trade + _tabs + _orders);
 const tradeScreenTabsPositions = Key(_trade + _tabs + _positions);
+const tradeScreenTabsTrades = Key(_trade + _tabs + _trades);
 
 const tradeScreenButtonBuy = Key(_trade + _button + _buy);
 const tradeScreenButtonSell = Key(_trade + _button + _sell);

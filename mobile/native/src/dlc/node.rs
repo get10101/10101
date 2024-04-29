@@ -4,13 +4,18 @@ use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::storage::TenTenOneNodeStorage;
+use crate::trade::funding_fee_event::handler::handle_unpaid_funding_fee_events;
+use crate::trade::funding_fee_event::handler::mark_funding_fee_events_as_paid;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
 use crate::trade::order::InvalidSubchannelOffer;
 use crate::trade::position;
+use crate::trade::position::handler::get_positions;
+use crate::trade::position::handler::handle_rollover_offer;
 use crate::trade::position::handler::update_position_after_dlc_channel_creation_or_update;
 use crate::trade::position::handler::update_position_after_dlc_closure;
-use crate::trade::position::PositionState;
+use crate::trade::position::handler::update_position_after_rollover;
+use crate::trade::FundingFeeEvent;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -21,11 +26,13 @@ use dlc_messages::channel::OfferChannel;
 use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewOffer;
 use dlc_messages::channel::SettleOffer;
+use itertools::Itertools;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
 use rust_decimal::prelude::ToPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -370,7 +377,11 @@ impl Node {
                     "Finished rollover protocol"
                 );
 
-                position::handler::set_position_state(PositionState::Open)?;
+                let position = update_position_after_rollover()
+                    .context("Failed to update position after rollover protocol finished")?;
+
+                mark_funding_fee_events_as_paid(position.contract_symbol, position.created)
+                    .context("Failed to mark funding fee events as paid")?;
 
                 event::publish(&EventInternal::BackgroundNotification(
                     BackgroundTask::Rollover(TaskStatus::Success),
@@ -682,17 +693,15 @@ impl Node {
     #[instrument(fields(channel_id = hex::encode(offer.renew_offer.channel_id)),skip_all, err(Debug))]
     pub fn process_renew_offer(&self, offer: &TenTenOneRenewOffer) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
-        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-            offer.renew_offer.contract_info.get_closest_maturity_date() as i64,
-        )?;
 
         let order_id = offer.filled_with.order_id;
-        self.set_order_to_filling(offer.filled_with.clone())?;
 
         let channel_id = offer.renew_offer.channel_id;
         match self.inner.dlc_manager.accept_renew_offer(&channel_id) {
             Ok((renew_accept, node_id)) => {
-                position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
+                self.set_order_to_filling(offer.filled_with.clone())?;
+
+                position::handler::handle_renew_offer()?;
 
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
@@ -726,7 +735,6 @@ impl Node {
 
     #[instrument(fields(channel_id = hex::encode(offer.renew_offer.channel_id)),skip_all, err(Debug))]
     pub fn process_rollover_offer(&self, offer: &TenTenOneRolloverOffer) -> Result<()> {
-        tracing::info!("Received a rollover notification from orderbook.");
         event::publish(&EventInternal::BackgroundNotification(
             BackgroundTask::Rollover(TaskStatus::Pending),
         ));
@@ -736,9 +744,30 @@ impl Node {
         )?;
 
         let channel_id = offer.renew_offer.channel_id;
+
         match self.inner.dlc_manager.accept_renew_offer(&channel_id) {
             Ok((renew_accept, node_id)) => {
-                position::handler::handle_channel_renewal_offer(expiry_timestamp)?;
+                let positions = get_positions()?;
+                let position = positions.first().context("No position to roll over")?;
+
+                let new_unpaid_funding_fee_events = handle_unpaid_funding_fee_events(
+                    &offer
+                        .funding_fee_events
+                        .iter()
+                        .map(|e| {
+                            FundingFeeEvent::unpaid(
+                                position.contract_symbol,
+                                Decimal::try_from(position.quantity).expect("to fit"),
+                                position.direction,
+                                e.price,
+                                e.funding_fee,
+                                e.due_date,
+                            )
+                        })
+                        .collect_vec(),
+                )?;
+
+                handle_rollover_offer(expiry_timestamp, &new_unpaid_funding_fee_events)?;
 
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
@@ -746,9 +775,10 @@ impl Node {
                 )?;
             }
             Err(e) => {
-                tracing::error!("Failed to accept dlc channel rollover offer. {e:#}");
+                tracing::error!("Failed to accept DLC channel rollover offer: {e}");
+
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
+                    BackgroundTask::Rollover(TaskStatus::Failed(format!("{e}"))),
                 ));
 
                 self.reject_rollover_offer(&channel_id)?;

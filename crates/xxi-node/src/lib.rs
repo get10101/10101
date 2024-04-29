@@ -28,6 +28,7 @@ pub mod seed;
 pub mod storage;
 pub mod transaction;
 
+pub use commons::FundingFeeEvent;
 pub use config::CONFIRMATION_TARGET;
 pub use dlc::ContractDetails;
 pub use dlc::DlcChannelDetails;

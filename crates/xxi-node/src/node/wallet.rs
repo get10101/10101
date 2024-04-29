@@ -124,6 +124,8 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
     pub async fn full_sync(&self, stop_gap: usize) -> Result<()> {
         let client = &self.blockchain.esplora_client_async;
 
+        tracing::info!("Running full sync of on-chain wallet");
+
         let (local_chain, all_script_pubkeys) = spawn_blocking({
             let wallet = self.wallet.clone();
             move || {
@@ -164,6 +166,8 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         })
         .await
         .expect("task to complete")?;
+
+        tracing::info!("Finished full sync of on-chain wallet");
 
         Ok(())
     }

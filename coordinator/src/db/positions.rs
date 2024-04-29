@@ -89,6 +89,32 @@ impl Position {
         Ok(positions)
     }
 
+    /// Get all active positions that were open before `open_before_timestamp`.
+    ///
+    /// Active positions are either [`PositionState::Open`], [`PositionState::Rollover`] or
+    /// [`PositionState::Resizing`].
+    pub fn get_all_active_positions_open_before(
+        conn: &mut PgConnection,
+        open_before_timestamp: OffsetDateTime,
+    ) -> QueryResult<Vec<crate::position::models::Position>> {
+        let positions = positions::table
+            .filter(
+                positions::position_state
+                    .eq(PositionState::Open)
+                    .or(positions::position_state.eq(PositionState::Rollover))
+                    .or(positions::position_state.eq(PositionState::Resizing)),
+            )
+            .filter(positions::creation_timestamp.lt(open_before_timestamp))
+            .load::<Position>(conn)?;
+
+        let positions = positions
+            .into_iter()
+            .map(crate::position::models::Position::from)
+            .collect();
+
+        Ok(positions)
+    }
+
     pub fn get_all_open_positions(
         conn: &mut PgConnection,
     ) -> QueryResult<Vec<crate::position::models::Position>> {
@@ -263,6 +289,37 @@ impl Position {
             .execute(conn)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn finish_rollover_protocol(
+        conn: &mut PgConnection,
+        trader_pubkey: String,
+        temporary_contract_id: ContractId,
+        leverage_coordinator: Decimal,
+        margin_coordinator: Amount,
+        liquidation_price_coordinator: Decimal,
+        leverage_trader: Decimal,
+        margin_trader: Amount,
+        liquidation_price_trader: Decimal,
+    ) -> QueryResult<usize> {
+        diesel::update(positions::table)
+            .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .filter(positions::position_state.eq(PositionState::Rollover))
+            .set((
+                positions::position_state.eq(PositionState::Open),
+                positions::temporary_contract_id.eq(hex::encode(temporary_contract_id)),
+                positions::update_timestamp.eq(OffsetDateTime::now_utc()),
+                positions::coordinator_leverage.eq(leverage_coordinator.to_f32().expect("to fit")),
+                positions::coordinator_margin.eq(margin_coordinator.to_sat() as i64),
+                positions::coordinator_liquidation_price
+                    .eq(liquidation_price_coordinator.to_f32().expect("to fit")),
+                positions::trader_leverage.eq(leverage_trader.to_f32().expect("to fit")),
+                positions::trader_margin.eq(margin_trader.to_sat() as i64),
+                positions::trader_liquidation_price
+                    .eq(liquidation_price_trader.to_f32().expect("to fit")),
+            ))
+            .execute(conn)
+    }
+
     pub fn set_position_to_open(
         conn: &mut PgConnection,
         trader_pubkey: String,
@@ -301,11 +358,11 @@ impl Position {
 
     pub fn rollover_position(
         conn: &mut PgConnection,
-        trader_pubkey: String,
+        trader_pubkey: PublicKey,
         expiry_timestamp: &OffsetDateTime,
     ) -> Result<()> {
         let affected_rows = diesel::update(positions::table)
-            .filter(positions::trader_pubkey.eq(trader_pubkey))
+            .filter(positions::trader_pubkey.eq(trader_pubkey.to_string()))
             .filter(positions::position_state.eq(PositionState::Open))
             .set((
                 positions::expiry_timestamp.eq(expiry_timestamp),

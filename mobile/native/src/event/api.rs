@@ -9,6 +9,7 @@ use crate::event::EventType;
 use crate::health::ServiceUpdate;
 use crate::trade::order::api::Order;
 use crate::trade::position::api::Position;
+use crate::trade::trades::api::Trade;
 use core::convert::From;
 use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
@@ -32,6 +33,7 @@ pub enum Event {
     DlcChannelEvent(DlcChannel),
     FundingChannelNotification(FundingChannelTask),
     LnPaymentReceived { r_hash: String },
+    NewTrade(Trade),
 }
 
 #[frb]
@@ -94,6 +96,8 @@ impl From<EventInternal> for Event {
                 Event::FundingChannelNotification(status.into())
             }
             EventInternal::LnPaymentReceived { r_hash } => Event::LnPaymentReceived { r_hash },
+            EventInternal::NewTrade(trade) => Event::NewTrade(trade.into()),
+            EventInternal::FundingFeeEvent(event) => Event::NewTrade(event.into()),
         }
     }
 }
@@ -134,6 +138,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::FundingChannelNotification,
             EventType::Authenticated,
             EventType::DlcChannelEvent,
+            EventType::NewTrade,
         ]
     }
 }

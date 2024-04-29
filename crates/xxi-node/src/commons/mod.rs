@@ -8,6 +8,7 @@ use std::str::FromStr;
 
 mod backup;
 mod collab_revert;
+mod funding_fee_event;
 mod liquidity_option;
 mod message;
 mod order;
@@ -23,6 +24,7 @@ mod trade;
 pub use crate::commons::trade::*;
 pub use backup::*;
 pub use collab_revert::*;
+pub use funding_fee_event::FundingFeeEvent;
 pub use liquidity_option::*;
 pub use message::*;
 pub use order::*;

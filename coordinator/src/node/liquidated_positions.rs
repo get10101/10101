@@ -44,6 +44,9 @@ async fn check_if_positions_need_to_get_liquidated(
         orderbook::db::orders::get_best_price(&mut conn, ContractSymbol::BtcUsd)?;
 
     for position in open_positions {
+        // TODO: These liquidation prices do not consider the outstanding funding fee events, so
+        // they are not quite right for the party that owes the fees.
+
         let coordinator_liquidation_price =
             Decimal::try_from(position.coordinator_liquidation_price).expect("to fit into decimal");
         let trader_liquidation_price =

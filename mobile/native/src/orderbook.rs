@@ -6,14 +6,18 @@ use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::health::ServiceStatus;
 use crate::state;
+use crate::trade::funding_fee_event;
+use crate::trade::funding_fee_event::FundingFeeEvent;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
+use crate::trade::position;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
 use futures::SinkExt;
 use futures::TryStreamExt;
+use itertools::Itertools;
 use parking_lot::Mutex;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
@@ -233,6 +237,29 @@ async fn handle_orderbook_message(
             }
 
             update_both_prices_if_needed(cached_best_price, &orders);
+        }
+        Message::AllFundingFeeEvents(funding_fee_events) => {
+            let funding_fee_events = funding_fee_events
+                .into_iter()
+                .map(FundingFeeEvent::from)
+                .collect_vec();
+
+            let new_funding_fee_events =
+                funding_fee_event::handler::handle_unpaid_funding_fee_events(&funding_fee_events)
+                    .context("Failed to handle funding fee events from coordinator")?;
+
+            position::handler::handle_funding_fee_events(&new_funding_fee_events)
+                .context("Failed to apply all funding fee events from coordinator")?;
+        }
+        Message::FundingFeeEvent(funding_fee_event) => {
+            let new_funding_fee_events =
+                funding_fee_event::handler::handle_unpaid_funding_fee_events(&[
+                    funding_fee_event.into()
+                ])
+                .context("Failed to handle funding fee event from coordinator")?;
+
+            position::handler::handle_funding_fee_events(&new_funding_fee_events)
+                .context("Failed to apply new funding fee event from coordinator")?;
         }
         Message::DlcChannelCollaborativeRevert {
             channel_id,

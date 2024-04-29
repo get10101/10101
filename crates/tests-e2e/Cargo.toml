@@ -10,6 +10,7 @@ anyhow = "1"
 bitcoin = "0.30"
 coordinator = { path = "../../coordinator" }
 flutter_rust_bridge = "1.78.0"
+insta = { version = "1", features = ["json", "redactions"] }
 native = { path = "../../mobile/native" }
 parking_lot = { version = "0.12.1" }
 quote = "1.0.28"

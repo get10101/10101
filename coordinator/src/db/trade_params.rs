@@ -32,12 +32,11 @@ pub(crate) struct TradeParams {
 
 pub(crate) fn insert(
     conn: &mut PgConnection,
-    protocol_id: ProtocolId,
     params: &dlc_protocol::TradeParams,
 ) -> QueryResult<()> {
     let affected_rows = diesel::insert_into(trade_params::table)
         .values(&(
-            trade_params::protocol_id.eq(protocol_id.to_uuid()),
+            trade_params::protocol_id.eq(params.protocol_id.to_uuid()),
             trade_params::quantity.eq(params.quantity),
             trade_params::leverage.eq(params.leverage),
             trade_params::trader_pubkey.eq(params.trader.to_string()),

@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::commons;
+use crate::message_handler::FundingFeeEvent;
 use crate::message_handler::TenTenOneCollaborativeCloseOffer;
 use crate::message_handler::TenTenOneMessage;
 use crate::message_handler::TenTenOneMessageHandler;
@@ -378,6 +379,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
         protocol_id: ReferenceId,
+        funding_fee_events: Vec<FundingFeeEvent>,
     ) -> Result<ContractId> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel rollover");
         spawn_blocking({
@@ -396,7 +398,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 )?;
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
-                    msg: TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }),
+                    msg: TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
+                        renew_offer,
+                        funding_fee_events,
+                    }),
                     peer: to_secp_pk_30(counterparty_pubkey),
                 });
 

@@ -1,5 +1,6 @@
 use crate::config;
 use crate::db::models::FailureReason;
+use crate::db::models::FundingFeeEvent;
 use crate::db::models::NewTrade;
 use crate::db::models::Order;
 use crate::db::models::OrderState;
@@ -8,6 +9,7 @@ use crate::db::models::SpendableOutputInsertable;
 use crate::db::models::SpendableOutputQueryable;
 use crate::db::models::Trade;
 use crate::db::models::Transaction;
+use crate::db::models::UnpaidFundingFeeEvent;
 use crate::trade;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -37,6 +39,7 @@ use uuid::Uuid;
 use xxi_node::commons;
 
 mod custom_types;
+
 pub mod dlc_messages;
 pub mod last_outbound_dlc_messages;
 pub mod models;
@@ -342,6 +345,15 @@ pub fn insert_position(position: trade::position::Position) -> Result<trade::pos
     Ok(position.into())
 }
 
+/// We only allow one [`Position`] per [`ContractSymbol`] in the database.
+pub fn get_position(contract_symbol: commons::ContractSymbol) -> Result<trade::position::Position> {
+    let mut conn = connection()?;
+
+    let position = Position::get_position(&mut conn, contract_symbol.into())?;
+
+    Ok(position.into())
+}
+
 pub fn get_positions() -> Result<Vec<trade::position::Position>> {
     let mut db = connection()?;
     let positions = Position::get_all(&mut db)?;
@@ -371,21 +383,27 @@ pub fn update_position_state(
     Ok(position.into())
 }
 
-pub fn update_position(resized_position: trade::position::Position) -> Result<()> {
+pub fn update_position(updated_position: trade::position::Position) -> Result<()> {
     let mut db = connection()?;
-    Position::update_position(&mut db, resized_position.into())
-        .context("Failed to update position state")?;
+    Position::update_position(&mut db, updated_position.into())
+        .context("Failed to update position")?;
 
     Ok(())
 }
 
-pub fn rollover_position(
-    contract_symbol: commons::ContractSymbol,
-    expiry_timestamp: OffsetDateTime,
-) -> Result<()> {
+pub fn start_position_rollover(updated_position: trade::position::Position) -> Result<()> {
     let mut db = connection()?;
-    Position::rollover(&mut db, contract_symbol.into(), expiry_timestamp)
-        .context("Failed to rollover position")?;
+
+    Position::start_rollover(&mut db, updated_position.into())
+        .context("Failed to start position rollover")?;
+
+    Ok(())
+}
+
+pub fn finish_position_rollover(updated_position: trade::position::Position) -> Result<()> {
+    let mut db = connection()?;
+    Position::finish_rollover(&mut db, updated_position.into())
+        .context("Failed to finish position rollover")?;
 
     Ok(())
 }
@@ -503,8 +521,52 @@ pub fn set_poll_to_ignored_or_answered(poll_id: i32) -> Result<()> {
     polls::insert(&mut db, poll_id)?;
     Ok(())
 }
+
 pub fn delete_answered_poll_cache() -> Result<()> {
     let mut db = connection()?;
     polls::delete_all(&mut db)?;
+    Ok(())
+}
+
+pub fn get_all_funding_fee_events() -> Result<Vec<crate::trade::FundingFeeEvent>> {
+    let mut db = connection()?;
+
+    let funding_fee_events = FundingFeeEvent::get_all(&mut db)?;
+
+    Ok(funding_fee_events)
+}
+
+/// Attempt to insert a list of unpaid funding fee events. Unpaid funding fee events that are
+/// already in the database are ignored.
+///
+/// Unpaid funding fee events that are confirmed to be new are returned.
+pub fn insert_unpaid_funding_fee_events(
+    funding_fee_events: &[crate::trade::FundingFeeEvent],
+) -> Result<Vec<crate::trade::FundingFeeEvent>> {
+    let mut db = connection()?;
+
+    let inserted_events = funding_fee_events
+        .iter()
+        .filter_map(|e| match UnpaidFundingFeeEvent::insert(&mut db, *e) {
+            Ok(event) => event,
+            Err(e) => {
+                tracing::error!(?e, "Failed to insert unpaid funding fee event");
+                None
+            }
+        })
+        .collect();
+
+    Ok(inserted_events)
+}
+
+pub fn mark_funding_fee_events_as_paid(
+    contract_symbol: commons::ContractSymbol,
+    since: OffsetDateTime,
+) -> Result<()> {
+    let mut db = connection()?;
+
+    UnpaidFundingFeeEvent::mark_as_paid(&mut db, contract_symbol, since)
+        .context("Failed to mark funding fee events as paid")?;
+
     Ok(())
 }
