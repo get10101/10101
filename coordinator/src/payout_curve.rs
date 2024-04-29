@@ -25,13 +25,13 @@ use xxi_node::commons::Direction;
 #[allow(clippy::too_many_arguments)]
 pub fn build_contract_descriptor(
     initial_price: Decimal,
-    coordinator_margin: u64,
-    trader_margin: u64,
+    coordinator_margin: Amount,
+    trader_margin: Amount,
     leverage_coordinator: f32,
     leverage_trader: f32,
     coordinator_direction: Direction,
-    coordinator_collateral_reserve: u64,
-    trader_collateral_reserve: u64,
+    coordinator_collateral_reserve: Amount,
+    trader_collateral_reserve: Amount,
     quantity: f32,
     symbol: ContractSymbol,
 ) -> Result<ContractDescriptor> {
@@ -74,13 +74,13 @@ pub fn build_contract_descriptor(
 fn build_inverse_payout_function(
     // TODO: The `coordinator_margin` and `trader_margin` are _not_ orthogonal to the other
     // arguments passed in.
-    coordinator_margin: u64,
-    trader_margin: u64,
+    coordinator_margin: Amount,
+    trader_margin: Amount,
     initial_price: Decimal,
     leverage_trader: f32,
     leverage_coordinator: f32,
-    coordinator_collateral_reserve: u64,
-    trader_collateral_reserve: u64,
+    coordinator_collateral_reserve: Amount,
+    trader_collateral_reserve: Amount,
     coordinator_direction: Direction,
     quantity: f32,
 ) -> Result<(PayoutFunction, RoundingIntervals)> {
@@ -106,14 +106,10 @@ fn build_inverse_payout_function(
         short_liquidation_price,
     )?;
 
-    let party_params_coordinator = payout_curve::PartyParams::new(
-        Amount::from_sat(coordinator_margin),
-        Amount::from_sat(coordinator_collateral_reserve),
-    );
-    let party_params_trader = payout_curve::PartyParams::new(
-        Amount::from_sat(trader_margin),
-        Amount::from_sat(trader_collateral_reserve),
-    );
+    let party_params_coordinator =
+        payout_curve::PartyParams::new(coordinator_margin, coordinator_collateral_reserve);
+    let party_params_trader =
+        payout_curve::PartyParams::new(trader_margin, trader_collateral_reserve);
 
     let payout_points = payout_curve::build_inverse_payout_function(
         quantity,
@@ -194,10 +190,13 @@ mod tests {
 
         let coordinator_direction = Direction::Long;
 
-        let coordinator_collateral_reserve = Amount::from_sat(1000).to_sat();
-        let trader_collateral_reserve = Amount::from_sat(1000).to_sat();
+        let coordinator_collateral_reserve = Amount::from_sat(1000);
+        let trader_collateral_reserve = Amount::from_sat(1000);
 
-        let total_collateral = coordinator_margin + trader_margin;
+        let total_collateral = coordinator_margin
+            + trader_margin
+            + coordinator_collateral_reserve
+            + trader_collateral_reserve;
 
         let symbol = ContractSymbol::BtcUsd;
 
@@ -218,9 +217,7 @@ mod tests {
         let range_payouts = match descriptor {
             ContractDescriptor::Enum(_) => unreachable!(),
             ContractDescriptor::Numerical(numerical) => numerical
-                .get_range_payouts(
-                    total_collateral + coordinator_collateral_reserve + trader_collateral_reserve,
-                )
+                .get_range_payouts(total_collateral.to_sat())
                 .unwrap(),
         };
 
@@ -256,8 +253,8 @@ mod tests {
 
         let direction_offer = Direction::Short;
 
-        let collateral_reserve_offer = 2_120_386;
-        let collateral_reserve_accept = 5_115_076;
+        let collateral_reserve_offer = Amount::from_sat(2_120_386);
+        let collateral_reserve_accept = Amount::from_sat(5_115_076);
 
         let total_collateral =
             margin_offer + margin_accept + collateral_reserve_offer + collateral_reserve_accept;
@@ -285,9 +282,9 @@ mod tests {
         // Extract the payouts from the generated `ContractDescriptor`.
         let range_payouts = match descriptor {
             ContractDescriptor::Enum(_) => unreachable!(),
-            ContractDescriptor::Numerical(numerical) => {
-                numerical.get_range_payouts(total_collateral).unwrap()
-            }
+            ContractDescriptor::Numerical(numerical) => numerical
+                .get_range_payouts(total_collateral.to_sat())
+                .unwrap(),
         };
 
         // The offer party gets liquidated when they get the minimum amount of sats as a payout.
@@ -299,7 +296,7 @@ mod tests {
             .offer;
 
         // The minimum amount the offer party can get as a payout is their collateral reserve.
-        assert_eq!(liquidation_payout_offer, collateral_reserve_offer);
+        assert_eq!(liquidation_payout_offer, collateral_reserve_offer.to_sat());
 
         // The accept party gets liquidated when they get the minimum amount of sats as a payout.
         let liquidation_payout_accept = range_payouts
@@ -310,7 +307,10 @@ mod tests {
             .accept;
 
         // The minimum amount the accept party can get as a payout is their collateral reserve.
-        assert_eq!(liquidation_payout_accept, collateral_reserve_accept);
+        assert_eq!(
+            liquidation_payout_accept,
+            collateral_reserve_accept.to_sat()
+        );
     }
 
     proptest! {
@@ -337,6 +337,9 @@ mod tests {
                 Direction::Short
             };
 
+            let collateral_reserve_coordinator = Amount::from_sat(collateral_reserve_coordinator);
+            let collateral_reserve_trader = Amount::from_sat(collateral_reserve_trader);
+
             let total_collateral = margin_coordinator
                 + margin_trader
                 + collateral_reserve_coordinator
@@ -361,7 +364,7 @@ mod tests {
             let range_payouts = match descriptor {
                 ContractDescriptor::Enum(_) => unreachable!(),
                 ContractDescriptor::Numerical(numerical) => numerical
-                    .get_range_payouts(total_collateral)
+                    .get_range_payouts(total_collateral.to_sat())
                     .unwrap(),
             };
 
@@ -372,7 +375,7 @@ mod tests {
                 .payout
                 .offer;
 
-            assert_eq!(liquidation_payout_offer, collateral_reserve_coordinator);
+            assert_eq!(liquidation_payout_offer, collateral_reserve_coordinator.to_sat());
 
             let liquidation_payout_accept = range_payouts
                 .iter()
@@ -381,7 +384,7 @@ mod tests {
                 .payout
                 .accept;
 
-            assert_eq!(liquidation_payout_accept, collateral_reserve_trader);
+            assert_eq!(liquidation_payout_accept, collateral_reserve_trader.to_sat());
         }
     }
 
@@ -426,15 +429,15 @@ mod tests {
         let initial_price = dec!(36404.5);
         let quantity = 20.0;
         let leverage_coordinator = 2.0;
-        let coordinator_margin = 18_313;
+        let coordinator_margin = Amount::from_sat(18_313);
 
         let leverage_trader = 3.0;
-        let trader_margin = 27_469;
+        let trader_margin = Amount::from_sat(27_469);
 
         let coordinator_direction = Direction::Short;
 
-        let coordinator_collateral_reserve = 0;
-        let trader_collateral_reserve = 0;
+        let coordinator_collateral_reserve = Amount::ZERO;
+        let trader_collateral_reserve = Amount::ZERO;
 
         let symbol = ContractSymbol::BtcUsd;
 

@@ -31,11 +31,11 @@ pub struct NewPosition {
     pub average_entry_price: f32,
     pub trader_liquidation_price: Decimal,
     pub coordinator_liquidation_price: Decimal,
-    pub coordinator_margin: i64,
+    pub coordinator_margin: Amount,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
     pub coordinator_leverage: f32,
-    pub trader_margin: i64,
+    pub trader_margin: Amount,
     pub stable: bool,
     pub order_matching_fees: Amount,
 }
@@ -78,8 +78,8 @@ pub struct Position {
     pub trader_liquidation_price: f32,
     pub coordinator_liquidation_price: f32,
 
-    pub trader_margin: i64,
-    pub coordinator_margin: i64,
+    pub trader_margin: Amount,
+    pub coordinator_margin: Amount,
 
     pub trader_leverage: f32,
     pub coordinator_leverage: f32,
@@ -141,8 +141,8 @@ impl Position {
             closing_price,
             self.quantity,
             direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .context("Failed to calculate pnl for position")?;
 
@@ -221,8 +221,8 @@ fn calculate_coordinator_settlement_amount(
         closing_price,
         quantity,
         coordinator_direction,
-        long_margin,
-        short_margin,
+        long_margin.to_sat(),
+        short_margin.to_sat(),
     )?;
 
     let coordinator_margin = match coordinator_direction {
@@ -230,7 +230,8 @@ fn calculate_coordinator_settlement_amount(
         Direction::Short => short_margin,
     };
 
-    let coordinator_settlement_amount = Decimal::from(coordinator_margin) + Decimal::from(pnl);
+    let coordinator_settlement_amount =
+        Decimal::from(coordinator_margin.to_sat()) + Decimal::from(pnl);
 
     // Double-checking that the coordinator's payout isn't negative, although `calculate_pnl` should
     // guarantee this.
@@ -246,7 +247,7 @@ fn calculate_coordinator_settlement_amount(
 
     // The coordinator's maximum settlement amount is capped by the total combined margin in the
     // contract.
-    let coordinator_settlement_amount = coordinator_settlement_amount.min(total_margin);
+    let coordinator_settlement_amount = coordinator_settlement_amount.min(total_margin.to_sat());
 
     Ok(coordinator_settlement_amount)
 }
@@ -323,11 +324,11 @@ fn calculate_accept_settlement_amount_partial_close(
             trade_average_execution_price,
             settled_contracts,
             position_direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )?;
 
-        ((position_trader_margin as i64) + pnl).max(0) as u64
+        ((position_trader_margin.to_sat() as i64) + pnl).max(0) as u64
     }
     // Position changed direction.
     else if contracts_before_relative.signum() != contracts_after_relative.signum()
@@ -346,17 +347,17 @@ fn calculate_accept_settlement_amount_partial_close(
             trade_average_execution_price,
             settled_contracts,
             position_direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )?;
 
-        ((position_trader_margin as i64) + pnl).max(0) as u64
+        ((position_trader_margin.to_sat() as i64) + pnl).max(0) as u64
     }
     // Position extended.
     else if contracts_before_relative.signum() == contracts_after_relative.signum()
         && contracts_before_relative.abs() < contracts_after_relative.abs()
     {
-        position_trader_margin
+        position_trader_margin.to_sat()
     }
     // Position either fully settled or unchanged. This is a bug.
     else {
@@ -511,7 +512,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -522,7 +523,7 @@ mod tests {
             coordinator_leverage: 2.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -547,7 +548,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -558,7 +559,7 @@ mod tests {
             coordinator_leverage: 2.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -583,7 +584,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -594,7 +595,7 @@ mod tests {
             coordinator_leverage: 3.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -631,7 +632,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -656,7 +657,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -681,7 +682,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -706,7 +707,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -731,7 +732,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -756,7 +757,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -781,7 +782,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -806,7 +807,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -1034,7 +1035,7 @@ mod tests {
                 trader_liquidation_price: 0.0,
                 coordinator_liquidation_price: 0.0,
                 position_state: PositionState::Open,
-                coordinator_margin: 1000,
+                coordinator_margin: Amount::from_sat(1_000),
                 creation_timestamp: OffsetDateTime::now_utc(),
                 expiry_timestamp: OffsetDateTime::now_utc(),
                 update_timestamp: OffsetDateTime::now_utc(),
@@ -1045,7 +1046,7 @@ mod tests {
                 temporary_contract_id: None,
                 closing_price: None,
                 coordinator_leverage: 2.0,
-                trader_margin: 1000,
+                trader_margin: Amount::from_sat(1_000),
                 stable: false,
                 trader_realized_pnl_sat: None,
                 order_matching_fees: Amount::ZERO,

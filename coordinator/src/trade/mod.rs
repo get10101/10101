@@ -69,8 +69,8 @@ enum TradeAction {
     },
     OpenPosition {
         channel_id: DlcChannelId,
-        own_payout: u64,
-        counter_payout: u64,
+        own_payout: Amount,
+        counter_payout: Amount,
     },
     ClosePosition {
         channel_id: DlcChannelId,
@@ -371,7 +371,7 @@ impl TradeExecutor {
                     .coordinator_reserve
                     .context("Missing coordinator collateral reserve")?;
                 let order_matching_fee = params.trade_params.order_matching_fee();
-                let margin_trader = Amount::from_sat(margin_trader(&params.trade_params));
+                let margin_trader = margin_trader(&params.trade_params);
 
                 let fee_rate = self
                     .node
@@ -480,12 +480,11 @@ impl TradeExecutor {
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
 
-        let order_matching_fee = trade_params.order_matching_fee().to_sat();
+        let order_matching_fee = trade_params.order_matching_fee();
 
         // The coordinator gets the `order_matching_fee` directly in the collateral reserve.
         let collateral_reserve_with_fee_coordinator =
-            collateral_reserve_coordinator.to_sat() + order_matching_fee;
-        let collateral_reserve_trader = collateral_reserve_trader.to_sat();
+            collateral_reserve_coordinator + order_matching_fee;
 
         let initial_price = trade_params.filled_with.average_execution_price();
 
@@ -496,11 +495,11 @@ impl TradeExecutor {
             order_id = %trade_params.filled_with.order_id,
             ?trade_params,
             leverage_coordinator,
-            margin_coordinator_sat = %margin_coordinator,
-            margin_trader_sat = %margin_trader,
-            order_matching_fee_sat = %order_matching_fee,
-            collateral_reserve_with_fee_coordinator = %collateral_reserve_with_fee_coordinator,
-            collateral_reserve_trader = %collateral_reserve_trader,
+            %margin_coordinator,
+            %margin_trader,
+            %order_matching_fee,
+            %collateral_reserve_with_fee_coordinator,
+            %collateral_reserve_trader,
             "Opening DLC channel and position"
         );
 
@@ -540,23 +539,22 @@ impl TradeExecutor {
 
         let (offer_collateral, accept_collateral, fee_config) = match trader_required_utxos {
             TraderRequiredLiquidity::ForTradeCostAndTxFees => (
-                margin_coordinator + collateral_reserve_coordinator.to_sat(),
-                margin_trader + collateral_reserve_trader + order_matching_fee,
+                (margin_coordinator + collateral_reserve_coordinator).to_sat(),
+                (margin_trader + collateral_reserve_trader + order_matching_fee).to_sat(),
                 dlc::FeeConfig::EvenSplit,
             ),
-            TraderRequiredLiquidity::None => {
-                (
-                    margin_coordinator
-                        + collateral_reserve_coordinator.to_sat()
-                        + margin_trader
-                        + collateral_reserve_trader
-                        // If the trader doesn't bring their own UTXOs, including the order matching fee
-                        // is not strictly necessary, but it's simpler to do so.
-                        + order_matching_fee,
-                    0,
-                    dlc::FeeConfig::AllOffer,
-                )
-            }
+            TraderRequiredLiquidity::None => (
+                // If the trader doesn't bring their own UTXOs, including the `order_matching_fee`
+                // is not strictly necessary, but it's simpler to do so.
+                (margin_coordinator
+                    + collateral_reserve_coordinator
+                    + margin_trader
+                    + collateral_reserve_trader
+                    + order_matching_fee)
+                    .to_sat(),
+                0,
+                dlc::FeeConfig::AllOffer,
+            ),
         };
 
         let contract_input = ContractInput {
@@ -623,7 +621,7 @@ impl TradeExecutor {
             temporary_contract_id,
             leverage_coordinator,
             stable,
-            Amount::from_sat(order_matching_fee),
+            order_matching_fee,
         )
         .await
     }
@@ -633,8 +631,8 @@ impl TradeExecutor {
         conn: &mut PgConnection,
         dlc_channel_id: DlcChannelId,
         trade_params: &TradeParams,
-        coordinator_dlc_channel_collateral: u64,
-        trader_dlc_channel_collateral: u64,
+        coordinator_dlc_channel_collateral: Amount,
+        trader_dlc_channel_collateral: Amount,
         stable: bool,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
@@ -655,7 +653,7 @@ impl TradeExecutor {
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
         let margin_trader = margin_trader(trade_params);
 
-        let order_matching_fee = trade_params.order_matching_fee().to_sat();
+        let order_matching_fee = trade_params.order_matching_fee();
 
         let coordinator_direction = trade_params.direction.opposite();
 
@@ -742,8 +740,8 @@ impl TradeExecutor {
         );
 
         let contract_input = ContractInput {
-            offer_collateral: coordinator_dlc_channel_collateral,
-            accept_collateral: trader_dlc_channel_collateral,
+            offer_collateral: coordinator_dlc_channel_collateral.to_sat(),
+            accept_collateral: trader_dlc_channel_collateral.to_sat(),
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -791,7 +789,7 @@ impl TradeExecutor {
             temporary_contract_id,
             leverage_coordinator,
             stable,
-            Amount::from_sat(order_matching_fee),
+            order_matching_fee,
         )
         .await
     }
@@ -880,13 +878,13 @@ impl TradeExecutor {
 
         let contract_descriptor = payout_curve::build_contract_descriptor(
             average_execution_price,
-            margin_coordinator.to_sat(),
-            margin_trader.to_sat(),
+            margin_coordinator,
+            margin_trader,
             leverage_coordinator,
             leverage_trader,
             coordinator_direction,
-            collateral_reserve_coordinator.to_sat(),
-            collateral_reserve_trader.to_sat(),
+            collateral_reserve_coordinator,
+            collateral_reserve_trader,
             contracts.to_f32().expect("to fit"),
             trade_params.contract_symbol,
         )
@@ -1025,11 +1023,11 @@ impl TradeExecutor {
             average_entry_price,
             trader_liquidation_price,
             coordinator_liquidation_price,
-            coordinator_margin: margin_coordinator as i64,
+            coordinator_margin: margin_coordinator,
             expiry_timestamp: trade_params.filled_with.expiry_timestamp,
             temporary_contract_id,
             coordinator_leverage,
-            trader_margin: margin_trader as i64,
+            trader_margin: margin_trader,
             stable,
             order_matching_fees,
         };
@@ -1191,8 +1189,8 @@ impl TradeExecutor {
                 ..
             }) => TradeAction::OpenPosition {
                 channel_id,
-                own_payout,
-                counter_payout,
+                own_payout: Amount::from_sat(own_payout),
+                counter_payout: Amount::from_sat(counter_payout),
             },
             Some(SignedChannel {
                 state: SignedChannelState::Established { .. },
@@ -1326,13 +1324,12 @@ fn apply_resize_to_position(
         } => {
             let order_contracts = contracts;
 
-            let extra_margin_coordinator = Amount::from_sat(calculate_margin(
+            let extra_margin_coordinator = calculate_margin(
                 order_execution_price,
                 order_contracts.to_f32().expect("to fit"),
                 position.coordinator_leverage,
-            ));
-            let margin_coordinator =
-                Amount::from_sat(position.coordinator_margin as u64) + extra_margin_coordinator;
+            );
+            let margin_coordinator = position.coordinator_margin + extra_margin_coordinator;
 
             let original_accumulated_order_matching_fees = position.order_matching_fees;
 
@@ -1364,13 +1361,12 @@ fn apply_resize_to_position(
                 + original_accumulated_order_matching_fees
                 + order_matching_fee;
 
-            let extra_margin_trader = Amount::from_sat(calculate_margin(
+            let extra_margin_trader = calculate_margin(
                 order_execution_price,
                 order_contracts.to_f32().expect("to fit"),
                 position.trader_leverage,
-            ));
-            let margin_trader =
-                Amount::from_sat(position.trader_margin as u64) + extra_margin_trader;
+            );
+            let margin_trader = position.trader_margin + extra_margin_trader;
 
             let collateral_reserve_trader = original_trader_collateral_reserve
                 .checked_sub(order_matching_fee)
@@ -1442,27 +1438,21 @@ fn apply_resize_to_position(
             let coordinator_liquidation_price =
                 Decimal::try_from(position.coordinator_liquidation_price).expect("to fit");
 
-            let margin_coordinator = Amount::from_sat(calculate_margin(
+            let margin_coordinator = calculate_margin(
                 position_average_execution_price,
                 total_contracts.to_f32().expect("to fit"),
                 position.coordinator_leverage,
-            ));
+            );
 
-            let margin_trader = Amount::from_sat(calculate_margin(
+            let margin_trader = calculate_margin(
                 position_average_execution_price,
                 total_contracts.to_f32().expect("to fit"),
                 position.trader_leverage,
-            ));
+            );
 
             let (original_margin_long, original_margin_short) = match position.trader_direction {
-                Direction::Long => (
-                    position.trader_margin as u64,
-                    position.coordinator_margin as u64,
-                ),
-                Direction::Short => (
-                    position.coordinator_margin as u64,
-                    position.trader_margin as u64,
-                ),
+                Direction::Long => (position.trader_margin, position.coordinator_margin),
+                Direction::Short => (position.coordinator_margin, position.trader_margin),
             };
 
             // The PNL is capped by the margin, so the coordinator should never end up eating into
@@ -1472,14 +1462,13 @@ fn apply_resize_to_position(
                 order_average_execution_price,
                 order_contracts.to_f32().expect("to fit"),
                 position.trader_direction,
-                original_margin_long,
-                original_margin_short,
+                original_margin_long.to_sat(),
+                original_margin_short.to_sat(),
             )?;
             let realized_pnl_trader = SignedAmount::from_sat(realized_pnl_trader);
 
             let collateral_reserve_coordinator = {
-                let margin_coordinator_before =
-                    Amount::from_sat(position.coordinator_margin as u64);
+                let margin_coordinator_before = position.coordinator_margin;
                 let margin_decrease = margin_coordinator_before
                     .checked_sub(margin_coordinator)
                     .with_context(|| {
@@ -1508,7 +1497,7 @@ fn apply_resize_to_position(
             };
 
             let collateral_reserve_trader = {
-                let margin_trader_before = Amount::from_sat(position.trader_margin as u64);
+                let margin_trader_before = position.trader_margin;
                 let margin_decrease = margin_trader_before
                     .checked_sub(margin_trader)
                     .with_context(|| {
@@ -1570,29 +1559,23 @@ fn apply_resize_to_position(
                 maintenance_margin_rate,
             );
 
-            let new_margin_coordinator = Amount::from_sat(calculate_margin(
+            let new_margin_coordinator = calculate_margin(
                 order_average_execution_price,
                 contracts_new_direction.to_f32().expect("to fit"),
                 position.coordinator_leverage,
-            ));
+            );
 
-            let new_margin_trader = Amount::from_sat(calculate_margin(
+            let new_margin_trader = calculate_margin(
                 order_average_execution_price,
                 contracts_new_direction.to_f32().expect("to fit"),
                 position.trader_leverage,
-            ));
+            );
 
             let position_average_execution_price =
                 Decimal::try_from(position.average_entry_price).expect("to fit");
             let (original_margin_long, original_margin_short) = match position.trader_direction {
-                Direction::Long => (
-                    position.trader_margin as u64,
-                    position.coordinator_margin as u64,
-                ),
-                Direction::Short => (
-                    position.coordinator_margin as u64,
-                    position.trader_margin as u64,
-                ),
+                Direction::Long => (position.trader_margin, position.coordinator_margin),
+                Direction::Short => (position.coordinator_margin, position.trader_margin),
             };
 
             // The PNL is capped by the margin, so the coordinator should never end up eating into
@@ -1602,8 +1585,8 @@ fn apply_resize_to_position(
                 order_average_execution_price,
                 position.quantity,
                 position.trader_direction,
-                original_margin_long,
-                original_margin_short,
+                original_margin_long.to_sat(),
+                original_margin_short.to_sat(),
             )?;
             let realized_pnl_trader = SignedAmount::from_sat(realized_pnl_trader);
 
@@ -1612,11 +1595,13 @@ fn apply_resize_to_position(
                     .to_signed()
                     .expect("to fit");
 
-                let closed_margin = SignedAmount::from_sat(calculate_margin(
+                let closed_margin = calculate_margin(
                     position_average_execution_price,
                     position.quantity,
                     position.trader_leverage,
-                ) as i64);
+                )
+                .to_signed()
+                .expect("to fit");
 
                 let new_margin = new_margin_trader.to_signed().expect("to fit");
 
@@ -1638,10 +1623,10 @@ fn apply_resize_to_position(
             };
 
             let collateral_reserve_coordinator = {
-                let total_channel_collateral =
-                    Amount::from_sat((position.trader_margin + position.coordinator_margin) as u64)
-                        + original_coordinator_collateral_reserve
-                        + original_trader_collateral_reserve;
+                let total_channel_collateral = position.trader_margin
+                    + position.coordinator_margin
+                    + original_coordinator_collateral_reserve
+                    + original_trader_collateral_reserve;
 
                 total_channel_collateral
                     .checked_sub(
@@ -1676,7 +1661,7 @@ fn apply_resize_to_position(
     Ok(resized_position)
 }
 
-fn margin_trader(trade_params: &TradeParams) -> u64 {
+fn margin_trader(trade_params: &TradeParams) -> Amount {
     calculate_margin(
         trade_params.average_execution_price(),
         trade_params.quantity,
@@ -1684,7 +1669,7 @@ fn margin_trader(trade_params: &TradeParams) -> u64 {
     )
 }
 
-fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> u64 {
+fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> Amount {
     calculate_margin(
         trade_params.average_execution_price(),
         trade_params.quantity,
@@ -1872,8 +1857,8 @@ mod tests {
                 trader_realized_pnl_sat: None,
                 coordinator_liquidation_price: coordinator_liquidation_price.to_f32().unwrap(),
                 trader_liquidation_price: trader_liquidation_price.to_f32().unwrap(),
-                trader_margin: trader_margin as i64,
-                coordinator_margin: coordinator_margin as i64,
+                trader_margin,
+                coordinator_margin,
                 trader_leverage,
                 coordinator_leverage,
                 position_state: PositionState::Open,

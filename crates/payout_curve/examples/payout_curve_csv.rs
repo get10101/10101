@@ -66,8 +66,8 @@ fn main() -> Result<()> {
         Amount::from_sat(fee)
     };
 
-    let margin_short = Amount::from_sat(calculate_margin(initial_price, quantity, leverage_short));
-    let margin_long = Amount::from_sat(calculate_margin(initial_price, quantity, leverage_long));
+    let margin_short = calculate_margin(initial_price, quantity, leverage_short);
+    let margin_long = calculate_margin(initial_price, quantity, leverage_long);
 
     let direction_offer = Direction::Long;
 
@@ -304,8 +304,8 @@ pub fn should_payouts_as_csv_short(
                 Decimal::from(price),
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);
@@ -324,8 +324,8 @@ pub fn should_payouts_as_csv_short(
                 short_liquidation_price,
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);
@@ -345,8 +345,8 @@ pub fn should_payouts_as_csv_short(
                 Decimal::from(100_000),
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);
@@ -413,8 +413,8 @@ pub fn should_payouts_as_csv_long(
                 Decimal::from(price),
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);
@@ -434,8 +434,8 @@ pub fn should_payouts_as_csv_long(
                 short_liquidation_price,
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);
@@ -454,8 +454,8 @@ pub fn should_payouts_as_csv_long(
                 Decimal::from(100_000),
                 quantity,
                 coordinator_direction,
-                long_margin,
-                short_margin,
+                long_margin.to_sat(),
+                short_margin.to_sat(),
             )?)
             + coordinator_collateral_reserve)
             .min(total_collateral);

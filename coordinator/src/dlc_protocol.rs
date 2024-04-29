@@ -368,8 +368,8 @@ impl DlcProtocolExecutor {
                 Decimal::from_f32(trade_params.average_price).expect("to fit into decimal"),
                 trade_params.quantity,
                 trader_position_direction,
-                initial_margin_long as u64,
-                initial_margin_short as u64,
+                initial_margin_long.to_sat(),
+                initial_margin_short.to_sat(),
             ) {
                 Ok(pnl) => pnl,
                 Err(e) => {
