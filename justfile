@@ -641,7 +641,7 @@ upload-app-bundle:
 
     if [ "$NETWORK" = "regtest" ]; then
       echo "Uploading for regtest"
-      ANDROID_PACKAGE_NAME='finance.get10101.app.demo' FASTLANE_ANDROID_APP_SCHEME='demo' bundle exec fastlane alpha
+      ANDROID_PACKAGE_NAME='finance.get10101.app.demo' FASTLANE_ANDROID_APP_SCHEME='demo' bundle exec fastlane beta
     else
       echo "Uploading for mainnet"
       ANDROID_PACKAGE_NAME='finance.get10101.app' FASTLANE_ANDROID_APP_SCHEME='full' bundle exec fastlane internal
