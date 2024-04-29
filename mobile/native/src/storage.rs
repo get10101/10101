@@ -7,16 +7,14 @@ use crate::db;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Network;
-use lightning::util::persist::KVStore;
 use lightning_persister::fs_store::FilesystemStore;
-use ln_dlc_storage::sled::SledStorageProvider;
-use ln_dlc_storage::DlcStoreProvider;
-use ln_dlc_storage::KeyValue;
 use std::fs;
-use std::io::Error;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use xxi_node::storage::sled::SledStorageProvider;
+use xxi_node::storage::DlcStoreProvider;
+use xxi_node::storage::KeyValue;
 
 #[derive(Clone)]
 pub struct TenTenOneNodeStorage {
@@ -124,48 +122,5 @@ impl DlcStoreProvider for TenTenOneNodeStorage {
         // remember those remote handles and handle a failure accordingly.
         self.client.delete(key).forget();
         Ok(())
-    }
-}
-
-impl KVStore for TenTenOneNodeStorage {
-    fn read(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-    ) -> std::result::Result<Vec<u8>, Error> {
-        self.ln_storage
-            .read(primary_namespace, secondary_namespace, key)
-    }
-
-    fn write(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-        value: &[u8],
-    ) -> std::result::Result<(), Error> {
-        self.ln_storage
-            .write(primary_namespace, secondary_namespace, key, value)?;
-        Ok(())
-    }
-
-    fn remove(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-        lazy: bool,
-    ) -> std::result::Result<(), Error> {
-        self.ln_storage
-            .remove(primary_namespace, secondary_namespace, key, lazy)
-    }
-
-    fn list(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-    ) -> std::result::Result<Vec<String>, Error> {
-        self.ln_storage.list(primary_namespace, secondary_namespace)
     }
 }

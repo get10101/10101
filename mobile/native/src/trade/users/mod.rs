@@ -1,12 +1,12 @@
 use crate::commons::reqwest_client;
 use crate::config;
-use crate::ln_dlc;
+use crate::dlc;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use commons::RegisterParams;
-use commons::UpdateUsernameParams;
-use commons::User;
+use xxi_node::commons::RegisterParams;
+use xxi_node::commons::UpdateUsernameParams;
+use xxi_node::commons::User;
 
 /// Enroll the user in the beta program
 pub async fn register_beta(
@@ -16,7 +16,7 @@ pub async fn register_beta(
 ) -> Result<()> {
     let name = crate::names::get_new_name();
     let register = RegisterParams {
-        pubkey: ln_dlc::get_node_pubkey(),
+        pubkey: dlc::get_node_pubkey(),
         contact: Some(contact),
         nickname: Some(name),
         version: Some(version.clone()),
@@ -57,7 +57,7 @@ pub async fn register_beta(
 
 /// Retrieve latest user details
 pub async fn get_user_details() -> Result<User> {
-    let key = ln_dlc::get_node_pubkey();
+    let key = dlc::get_node_pubkey();
 
     let client = reqwest_client();
     let response = client
@@ -79,7 +79,7 @@ pub async fn get_user_details() -> Result<User> {
 /// Update a user's name on the coordinator
 pub async fn update_username(name: String) -> Result<()> {
     let update_nickname = UpdateUsernameParams {
-        pubkey: ln_dlc::get_node_pubkey(),
+        pubkey: dlc::get_node_pubkey(),
         nickname: Some(name),
     };
 

@@ -2,10 +2,10 @@ use crate::config;
 use crate::db;
 use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
+use crate::dlc;
+use crate::dlc::is_dlc_channel_confirmed;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
-use crate::ln_dlc::is_dlc_channel_confirmed;
 use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
@@ -20,17 +20,17 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
-use commons::ChannelOpeningParams;
-use commons::FilledWith;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
-use ln_dlc_node::node::signed_channel_state_name;
 use reqwest::Url;
 use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::Direction;
+use xxi_node::commons::FilledWith;
+use xxi_node::node::signed_channel_state_name;
 
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
 
@@ -131,7 +131,7 @@ pub async fn submit_order_internal(
 /// 2. Open position and not enough confirmations on the funding txid.
 /// 3. No position and a channel which is not in state [`SignedChannelState::Settled`]
 fn check_channel_state() -> Result<(), SubmitOrderError> {
-    let channel = ln_dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
+    let channel = dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
 
     if position::handler::get_positions()
         .map_err(SubmitOrderError::Storage)?
@@ -185,10 +185,13 @@ fn check_channel_state() -> Result<(), SubmitOrderError> {
     Ok(())
 }
 
-pub(crate) fn async_order_filling(order: commons::Order, filled_with: FilledWith) -> Result<()> {
+pub(crate) fn async_order_filling(
+    order: xxi_node::commons::Order,
+    filled_with: FilledWith,
+) -> Result<()> {
     let order_type = match order.order_type {
-        commons::OrderType::Market => OrderType::Market,
-        commons::OrderType::Limit => OrderType::Limit {
+        xxi_node::commons::OrderType::Market => OrderType::Market,
+        xxi_node::commons::OrderType::Limit => OrderType::Limit {
             price: order.price.to_f32().expect("to fit into f32"),
         },
     };

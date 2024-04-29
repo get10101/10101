@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/custom_app_bar.dart';
-import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
@@ -32,8 +31,9 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // null = max
-  Amount? _amount = Amount(1000);
-  Fee _fee = PriorityFee(ConfirmationTarget.normal);
+  Amount? _amount = Amount.zero();
+  FeeConfig _feeConfig = PriorityFee(ConfirmationTarget.normal);
+  FeeEstimation? _customFee;
   Map<ConfirmationTarget, FeeEstimation>? _feeEstimates;
   late WalletService _walletService;
 
@@ -43,6 +43,16 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
   void initState() {
     super.initState();
     _walletService = context.read<WalletChangeNotifier>().service;
+
+    _walletService
+        .calculateFeesForOnChain(widget.destination.address)
+        .then((fees) => setState(() => _feeEstimates = fees));
+
+    setState(() {
+      Amount amt = widget.destination.amount;
+      _amount = amt;
+      _controller.text = amt.formatted();
+    });
   }
 
   @override
@@ -51,23 +61,19 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
     _controller.dispose();
   }
 
-  Future<void> init(ChannelInfoService channelInfoService) async {
-    final fees = await _walletService.calculateFeesForOnChain(
-        widget.destination.address, widget.destination.amount);
+  Future<void> calculateCustomFee(CustomFeeRate feeRate) async {
+    FeeEstimation? feeEstimation =
+        await _walletService.calculateCustomFee(widget.destination.address, feeRate);
 
     setState(() {
-      _feeEstimates = fees;
-      Amount amt = widget.destination.amount;
-      amt = amt.sats == 0 ? Amount(1000) : amt;
-      _amount = amt;
-      _controller.text = amt.formatted();
+      _customFee = feeEstimation;
     });
   }
 
-  Amount currentFee() {
-    return switch (_fee) {
-      PriorityFee() => _feeEstimates?[(_fee as PriorityFee).priority]?.total ?? Amount(0),
-      CustomFeeRate() => (_fee as CustomFeeRate).amount,
+  FeeEstimation? currentFee() {
+    return switch (_feeConfig) {
+      PriorityFee() => _feeEstimates?[(_feeConfig as PriorityFee).priority],
+      CustomFeeRate() => _customFee,
     };
   }
 
@@ -133,7 +139,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     ),
                     const SizedBox(height: 25),
                     const Text(
-                      "Enter amount",
+                      "Amount",
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
@@ -141,23 +147,29 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     Container(
                         margin: const EdgeInsets.only(left: 40, right: 40),
                         child: FormField(
-                          validator: (val) {
+                          validator: (_) {
                             final amount = _amount;
 
+                            // This corresponds to sending the max amount.
                             if (amount == null) {
                               return null;
-                            }
-
-                            if (amount.sats == 0) {
-                              return "Enter an amount";
                             }
 
                             if (amount.sats < 0) {
                               return "Amount cannot be negative";
                             }
 
-                            if (amount.sats + currentFee().sats > balance.sats) {
-                              return "Not enough funds.";
+                            FeeEstimation? fee = currentFee();
+                            if (fee == null) {
+                              return "Select a fee";
+                            }
+
+                            if (amount.sats + fee.total.sats > balance.sats) {
+                              return "Not enough funds";
+                            }
+
+                            if (amount.sats == 0) {
+                              return sendAmountIsZero;
                             }
 
                             return null;
@@ -169,8 +181,6 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
                                   decoration: const InputDecoration(
-                                      hintText: "1,000",
-                                      hintStyle: TextStyle(fontSize: 40),
                                       enabledBorder: InputBorder.none,
                                       border: InputBorder.none,
                                       errorBorder: InputBorder.none,
@@ -180,7 +190,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                       )),
                                   style: const TextStyle(fontSize: 40),
                                   textAlignVertical: TextAlignVertical.center,
-                                  enabled: widget.destination.amount.sats == 0 && _amount != null,
+                                  enabled: _amount != null,
                                   controller: _controller,
                                   onChanged: (value) {
                                     Amount amt = Amount.parseAmount(value);
@@ -190,12 +200,13 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                     });
 
                                     _walletService
-                                        .calculateFeesForOnChain(widget.destination.address, amt)
+                                        .calculateFeesForOnChain(widget.destination.address)
                                         .then((fees) => setState(() => _feeEstimates = fees));
                                   },
                                 ),
                                 Visibility(
-                                  visible: formFieldState.hasError,
+                                  visible: formFieldState.hasError &&
+                                      formFieldState.errorText != sendAmountIsZero,
                                   child: Container(
                                     decoration: BoxDecoration(
                                         color: Colors.redAccent.shade100.withOpacity(0.1),
@@ -247,14 +258,13 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                   _amount = null;
                                   _controller.text = "Max";
                                 } else {
-                                  _amount = Amount(1000);
-                                  _controller.text = Amount(1000).formatted();
+                                  _amount = Amount.zero();
+                                  _controller.text = Amount.zero().formatted();
                                 }
                               });
 
                               _walletService
-                                  .calculateFeesForOnChain(
-                                      widget.destination.address, _amount ?? Amount.zero())
+                                  .calculateFeesForOnChain(widget.destination.address)
                                   .then((fees) => setState(() => _feeEstimates = fees));
                             },
                           ),
@@ -311,24 +321,27 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 10),
                     FeePicker(
-                      initialSelection: _fee,
-                      feeEstimates: _feeEstimates,
-                      onChange: (target) => setState(() => _fee = target),
-                    ),
+                        initialSelection: _feeConfig,
+                        feeEstimates: _feeEstimates,
+                        customFee: _customFee,
+                        onChange: (feeConfig) async {
+                          setState(() => _feeConfig = feeConfig);
+                          if (feeConfig is CustomFeeRate) {
+                            await calculateCustomFee(feeConfig);
+                          }
+                        }),
                     const Spacer(),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
                               ? () => showConfirmPaymentModal(
-                                  context,
-                                  widget.destination,
-                                  false,
-                                  _amount ?? Amount.zero(),
-                                  // this value doesn't matter at the moment because we do not support USDP sending
-                                  // TODO: remove USDP leftovers
-                                  Usd.zero(),
-                                  fee: _fee)
+                                    context,
+                                    widget.destination,
+                                    _amount,
+                                    _feeConfig,
+                                    currentFee()!,
+                                  )
                               : null,
                           style: ButtonStyle(
                               padding:
@@ -368,3 +381,11 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
     );
   }
 }
+
+// We define a constant to avoid _displaying_ an error if the send amount is set
+// to zero. It should be self-evident that sending zero sats is not supported,
+// so it's enough to disable the `Send` button.
+//
+// This allows us to set the send amount to zero by default, without displaying
+// an error.
+const String sendAmountIsZero = "send-amount-is-zero";

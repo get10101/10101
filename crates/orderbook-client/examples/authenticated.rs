@@ -1,10 +1,10 @@
 use anyhow::Result;
-use commons::Signature;
 use futures::never::Never;
 use futures::TryStreamExt;
 use secp256k1::SecretKey;
 use secp256k1::SECP256K1;
 use std::time::Duration;
+use xxi_node::commons::Signature;
 
 #[tokio::main]
 async fn main() -> Result<Never> {

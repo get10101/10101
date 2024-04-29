@@ -34,6 +34,7 @@ use std::sync::Arc;
 use time::Duration;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::commons;
 
 mod custom_types;
 pub mod dlc_messages;
@@ -375,7 +376,7 @@ pub fn delete_positions() -> Result<()> {
 }
 
 pub fn update_position_state(
-    contract_symbol: ::trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
     position_state: trade::position::PositionState,
 ) -> Result<trade::position::Position> {
     let mut db = connection()?;
@@ -394,7 +395,7 @@ pub fn update_position(resized_position: trade::position::Position) -> Result<()
 }
 
 pub fn rollover_position(
-    contract_symbol: ::trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
     expiry_timestamp: OffsetDateTime,
 ) -> Result<()> {
     let mut db = connection()?;
@@ -453,13 +454,13 @@ pub fn get_spendable_outputs() -> Result<Vec<lightning::sign::SpendableOutputDes
 
 // Transaction
 
-pub fn upsert_transaction(transaction: ln_dlc_node::transaction::Transaction) -> Result<()> {
+pub fn upsert_transaction(transaction: xxi_node::transaction::Transaction) -> Result<()> {
     tracing::debug!(?transaction, "Upserting transaction");
     let mut db = connection()?;
     Transaction::upsert(transaction.into(), &mut db)
 }
 
-pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Transaction>> {
+pub fn get_transaction(txid: &str) -> Result<Option<xxi_node::transaction::Transaction>> {
     tracing::debug!(%txid, "Getting transaction");
     let mut db = connection()?;
     let transaction = Transaction::get(txid, &mut db)
@@ -469,7 +470,7 @@ pub fn get_transaction(txid: &str) -> Result<Option<ln_dlc_node::transaction::Tr
     Ok(transaction)
 }
 
-pub fn get_all_transactions_without_fees() -> Result<Vec<ln_dlc_node::transaction::Transaction>> {
+pub fn get_all_transactions_without_fees() -> Result<Vec<xxi_node::transaction::Transaction>> {
     let mut db = connection()?;
     let transactions = Transaction::get_all_without_fees(&mut db)?
         .into_iter()

@@ -1,7 +1,7 @@
 use crate::trade::position;
 use flutter_rust_bridge::frb;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 #[frb]
 #[derive(Debug, Clone, PartialEq, Copy)]

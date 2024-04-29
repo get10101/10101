@@ -1,17 +1,17 @@
-use crate::api::WalletInfo;
 use crate::dlc::DlcChannel;
+use crate::event::api::WalletInfo;
 use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
 use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
-use commons::TenTenOneConfig;
-use commons::TradeParams;
 use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
-use trade::ContractSymbol;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::TenTenOneConfig;
+use xxi_node::commons::TradeParams;
 
 mod event_hub;
 

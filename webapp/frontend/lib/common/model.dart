@@ -225,3 +225,22 @@ class Quote {
 
   Quote(this._bid, this._ask);
 }
+
+class FeeRate implements Formattable {
+  double _feeRate = 1.0;
+
+  FeeRate.one() : _feeRate = 1.0;
+
+  FeeRate(double feeRate) {
+    _feeRate = feeRate;
+  }
+
+  FeeRate.parse(String value) {
+    FeeRate(double.parse(value));
+  }
+
+  @override
+  String formatted() {
+    return _feeRate.toString();
+  }
+}

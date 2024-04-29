@@ -1,9 +1,22 @@
 use crate::trade::order;
 use flutter_rust_bridge::frb;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
+pub use xxi_node::commons::ContractSymbol;
+pub use xxi_node::commons::Direction;
+
+#[frb(mirror(ContractSymbol))]
+#[derive(Debug, Clone, Copy)]
+pub enum _ContractSymbol {
+    BtcUsd,
+}
+
+#[frb(mirror(Direction))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum _Direction {
+    Long,
+    Short,
+}
 
 #[frb]
 #[derive(Debug, Clone, Copy)]

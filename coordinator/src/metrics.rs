@@ -3,7 +3,6 @@ use crate::node::storage::NodeStorage;
 use crate::node::Node;
 use crate::storage::CoordinatorTenTenOneStorage;
 use lazy_static::lazy_static;
-use lightning::ln::channelmanager::ChannelDetails;
 use opentelemetry::global;
 use opentelemetry::metrics::Meter;
 use opentelemetry::metrics::ObservableGauge;
@@ -16,8 +15,8 @@ use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
 use std::sync::Arc;
 use std::time::Duration;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("maker");
@@ -86,8 +85,6 @@ pub fn collect(node: Node) {
 
     let inner_node = node.inner;
 
-    let channels = inner_node.channel_manager.list_channels();
-    channel_metrics(&cx, channels);
     node_metrics(&cx, inner_node);
 }
 
@@ -170,32 +167,10 @@ fn position_metrics(cx: &Context, node: &Node) {
     );
 }
 
-fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
-    for channel_detail in channels {
-        let key_values = [
-            KeyValue::new("channel_id", hex::encode(channel_detail.channel_id.0)),
-            KeyValue::new("is_outbound", channel_detail.is_outbound),
-            KeyValue::new("is_public", channel_detail.is_public),
-        ];
-        CHANNEL_BALANCE_SATOSHI.observe(cx, channel_detail.balance_msat / 1_000, &key_values);
-        CHANNEL_OUTBOUND_CAPACITY_SATOSHI.observe(
-            cx,
-            channel_detail.outbound_capacity_msat / 1_000,
-            &key_values,
-        );
-        CHANNEL_INBOUND_CAPACITY_SATOSHI.observe(
-            cx,
-            channel_detail.inbound_capacity_msat / 1_000,
-            &key_values,
-        );
-        CHANNEL_IS_USABLE.observe(cx, channel_detail.is_usable as u64, &key_values);
-    }
-}
-
 fn node_metrics(
     cx: &Context,
     inner_node: Arc<
-        ln_dlc_node::node::Node<
+        xxi_node::node::Node<
             bdk_file_store::Store<bdk::wallet::ChangeSet>,
             CoordinatorTenTenOneStorage,
             NodeStorage,

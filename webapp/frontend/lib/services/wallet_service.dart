@@ -29,13 +29,13 @@ class WalletService {
     }
   }
 
-  Future<void> sendPayment(String address, Amount amount, Amount fee) async {
+  Future<void> sendPayment(String address, Amount amount, FeeRate feeRate) async {
     final response = await HttpClientManager.instance.post(Uri(path: '/api/sendpayment'),
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
         body: jsonEncode(
-            <String, dynamic>{'address': address, 'amount': amount.sats, 'fee': fee.sats}));
+            <String, dynamic>{'address': address, 'amount': amount.sats, 'feeRate': feeRate}));
 
     if (response.statusCode != 200) {
       throw FlutterError(response.body);

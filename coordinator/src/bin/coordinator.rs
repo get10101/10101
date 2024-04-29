@@ -29,10 +29,6 @@ use coordinator::trade::websocket::InternalPositionUpdateMessage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use ln_dlc_node::node::event::NodeEventHandler;
-use ln_dlc_node::seed::Bip39Seed;
-use ln_dlc_node::CoordinatorEventHandler;
-use ln_dlc_storage::DlcChannelEvent;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -46,6 +42,9 @@ use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::task::spawn_blocking;
 use tracing::metadata::LevelFilter;
+use xxi_node::node::event::NodeEventHandler;
+use xxi_node::seed::Bip39Seed;
+use xxi_node::storage::DlcChannelEvent;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -124,8 +123,7 @@ async fn main() -> Result<()> {
     )?;
 
     let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
-    let node = Arc::new(ln_dlc_node::node::Node::new(
-        ln_dlc_node::config::coordinator_config(),
+    let node = Arc::new(xxi_node::node::Node::new(
         NODE_ALIAS,
         network,
         data_dir.as_path(),
@@ -137,7 +135,7 @@ async fn main() -> Result<()> {
         opts.electrs.clone(),
         seed,
         ephemeral_randomness,
-        settings.ln_dlc.clone(),
+        settings.xxi.clone(),
         opts.get_oracle_infos()
             .into_iter()
             .map(|o| o.into())
@@ -153,8 +151,7 @@ async fn main() -> Result<()> {
         node_event_handler.subscribe(),
     );
 
-    let event_handler = CoordinatorEventHandler::new(node.clone(), None);
-    let running = node.start(event_handler, dlc_event_receiver, false)?;
+    let running = node.start(dlc_event_receiver)?;
 
     // an internal channel to send updates about our position
     let (tx_position_feed, _rx) = broadcast::channel::<InternalPositionUpdateMessage>(100);
@@ -184,7 +181,7 @@ async fn main() -> Result<()> {
         let node = node.clone();
 
         // TODO: Do we still want to be able to update this at runtime?
-        let interval = settings.ln_dlc.on_chain_sync_interval;
+        let interval = settings.xxi.on_chain_sync_interval;
         async move {
             loop {
                 if let Err(e) = node.inner.sync_on_chain_wallet().await {

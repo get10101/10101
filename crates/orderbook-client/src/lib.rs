@@ -2,10 +2,6 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use async_stream::stream;
-use commons::create_sign_message;
-use commons::OrderbookRequest;
-use commons::Signature;
-use commons::AUTH_SIGN_MESSAGE;
 use futures::stream::SplitSink;
 use futures::SinkExt;
 use futures::Stream;
@@ -13,6 +9,10 @@ use futures::StreamExt;
 use secp256k1::Message;
 use tokio_tungstenite_wasm as tungstenite;
 use tokio_tungstenite_wasm::WebSocketStream;
+use xxi_node::commons::create_sign_message;
+use xxi_node::commons::OrderbookRequest;
+use xxi_node::commons::Signature;
+use xxi_node::commons::AUTH_SIGN_MESSAGE;
 
 /// Connects to the 10101 orderbook WebSocket API.
 ///

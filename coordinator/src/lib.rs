@@ -15,6 +15,7 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::json;
+use xxi_node::commons;
 
 mod collaborative_revert;
 mod emergency_kit;
@@ -89,10 +90,10 @@ pub fn parse_dlc_channel_id(channel_id: &str) -> Result<DlcChannelId> {
     Ok(DlcChannelId::from_hex(channel_id)?)
 }
 
-pub fn compute_relative_contracts(contracts: Decimal, direction: &::trade::Direction) -> Decimal {
+pub fn compute_relative_contracts(contracts: Decimal, direction: &commons::Direction) -> Decimal {
     match direction {
-        ::trade::Direction::Long => contracts,
-        ::trade::Direction::Short => -contracts,
+        commons::Direction::Long => contracts,
+        commons::Direction::Short => -contracts,
     }
 }
 

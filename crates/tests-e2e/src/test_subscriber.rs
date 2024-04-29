@@ -1,6 +1,5 @@
-use commons::TradeParams;
 use native::api::ContractSymbol;
-use native::api::WalletInfo;
+use native::event::api::WalletInfo;
 use native::event::subscriber::Subscriber;
 use native::event::EventType;
 use native::health::Service;
@@ -13,6 +12,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
+use xxi_node::commons::TradeParams;
 
 pub struct Senders {
     wallet_info: watch::Sender<Option<WalletInfo>>,

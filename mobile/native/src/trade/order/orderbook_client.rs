@@ -1,12 +1,12 @@
 use crate::commons::reqwest_client;
-use crate::ln_dlc::get_node_key;
+use crate::dlc::get_node_key;
 use anyhow::bail;
 use anyhow::Result;
-use commons::ChannelOpeningParams;
-use commons::NewMarketOrder;
-use commons::NewOrder;
-use commons::NewOrderRequest;
 use reqwest::Url;
+use xxi_node::commons::ChannelOpeningParams;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::NewOrder;
+use xxi_node::commons::NewOrderRequest;
 
 pub struct OrderbookClient {
     url: Url,

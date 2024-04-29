@@ -1,23 +1,23 @@
 use crate::db;
+use crate::dlc::node::Node;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
-use crate::ln_dlc::node::Node;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use ln_dlc_node::dlc_message::DlcMessage;
-use ln_dlc_node::dlc_message::SerializedDlcMessage;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::node::dlc_channel::send_dlc_message;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
-use ln_dlc_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
-use ln_dlc_node::node::rust_dlc_manager::channel::Channel;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
+use xxi_node::dlc_message::DlcMessage;
+use xxi_node::dlc_message::SerializedDlcMessage;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::node::dlc_channel::send_dlc_message;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::node::rust_dlc_manager::channel::signed_channel::SignedChannel;
+use xxi_node::node::rust_dlc_manager::channel::signed_channel::SignedChannelState;
+use xxi_node::node::rust_dlc_manager::channel::Channel;
 
 /// The DlcHandler is responsible for sending dlc messages and marking received ones as
 /// processed. It's main purpose is to ensure the following.

@@ -7,13 +7,6 @@ use crate::orderbook::db::custom_types::OrderType;
 use crate::schema::matches;
 use crate::schema::orders;
 use bitcoin::secp256k1::PublicKey;
-use commons::NewLimitOrder;
-use commons::NewMarketOrder;
-use commons::Order as OrderbookOrder;
-use commons::OrderReason as OrderBookOrderReason;
-use commons::OrderState as OrderBookOrderState;
-use commons::OrderType as OrderBookOrderType;
-use commons::Price;
 use diesel::dsl::max;
 use diesel::dsl::min;
 use diesel::prelude::*;
@@ -23,23 +16,31 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
-use trade::Direction as OrderbookDirection;
 use uuid::Uuid;
+use xxi_node::commons;
+use xxi_node::commons::BestPrice;
+use xxi_node::commons::Direction as OrderbookDirection;
+use xxi_node::commons::NewLimitOrder;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::Order as OrderbookOrder;
+use xxi_node::commons::OrderReason as OrderBookOrderReason;
+use xxi_node::commons::OrderState as OrderBookOrderState;
+use xxi_node::commons::OrderType as OrderBookOrderType;
 
-impl From<trade::Direction> for Direction {
-    fn from(value: trade::Direction) -> Self {
+impl From<commons::Direction> for Direction {
+    fn from(value: commons::Direction) -> Self {
         match value {
-            trade::Direction::Long => Direction::Long,
-            trade::Direction::Short => Direction::Short,
+            commons::Direction::Long => Direction::Long,
+            commons::Direction::Short => Direction::Short,
         }
     }
 }
 
-impl From<Direction> for trade::Direction {
+impl From<Direction> for commons::Direction {
     fn from(value: Direction) -> Self {
         match value {
-            Direction::Long => trade::Direction::Long,
-            Direction::Short => trade::Direction::Short,
+            Direction::Long => commons::Direction::Long,
+            Direction::Short => commons::Direction::Short,
         }
     }
 }
@@ -257,9 +258,9 @@ pub fn all_by_direction_and_type(
 
 pub fn get_best_price(
     conn: &mut PgConnection,
-    contract_symbol: trade::ContractSymbol,
-) -> QueryResult<Price> {
-    let best_price = Price {
+    contract_symbol: commons::ContractSymbol,
+) -> QueryResult<BestPrice> {
+    let best_price = BestPrice {
         bid: get_best_bid_price(conn, contract_symbol)?,
         ask: get_best_ask_price(conn, contract_symbol)?,
     };
@@ -270,7 +271,7 @@ pub fn get_best_price(
 /// Returns the best price to sell.
 pub fn get_best_bid_price(
     conn: &mut PgConnection,
-    contract_symbol: trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
 ) -> QueryResult<Option<Decimal>> {
     let price: Option<f32> = orders::table
         .select(max(orders::price))
@@ -287,7 +288,7 @@ pub fn get_best_bid_price(
 /// Returns the best price to buy.
 pub fn get_best_ask_price(
     conn: &mut PgConnection,
-    contract_symbol: trade::ContractSymbol,
+    contract_symbol: commons::ContractSymbol,
 ) -> QueryResult<Option<Decimal>> {
     let price: Option<f32> = orders::table
         .select(min(orders::price))

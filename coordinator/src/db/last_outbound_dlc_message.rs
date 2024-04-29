@@ -16,8 +16,8 @@ use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::QueryableByName;
 use diesel::RunQueryDsl;
-use ln_dlc_node::dlc_message::SerializedDlcMessage;
 use time::OffsetDateTime;
+use xxi_node::dlc_message::SerializedDlcMessage;
 
 #[derive(Insertable, QueryableByName, Queryable, Debug, Clone, PartialEq, AsChangeset)]
 #[diesel(table_name = last_outbound_dlc_messages)]
@@ -48,7 +48,7 @@ pub(crate) fn get(
     let serialized_dlc_message =
         last_outbound_dlc_message.map(|(message_type, message)| SerializedDlcMessage {
             message,
-            message_type: ln_dlc_node::dlc_message::DlcMessageType::from(message_type),
+            message_type: xxi_node::dlc_message::DlcMessageType::from(message_type),
         });
 
     Ok(serialized_dlc_message)

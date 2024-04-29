@@ -2,10 +2,10 @@ use crate::calculations::calculate_liquidation_price;
 use crate::config;
 use crate::db;
 use crate::db::connection;
+use crate::dlc;
 use crate::event;
 use crate::event::EventInternal;
 use crate::get_maintenance_margin_rate;
-use crate::ln_dlc;
 use crate::state::get_node;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
@@ -22,12 +22,12 @@ use dlc_manager::Signer;
 use dlc_messages::channel::SettleFinalize;
 use hex::FromHex;
 use lightning::ln::chan_utils::build_commitment_secret;
-use ln_dlc_node::bitcoin_conversion::to_secp_sk_29;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::message_handler::TenTenOneSettleFinalize;
-use ln_dlc_node::node::event::NodeEvent;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
+use xxi_node::bitcoin_conversion::to_secp_sk_29;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneSettleFinalize;
+use xxi_node::node::event::NodeEvent;
 
 pub fn set_filling_orders_to_failed() -> Result<()> {
     tracing::warn!("Executing emergency kit! Setting orders in state Filling to Failed!");
@@ -42,7 +42,7 @@ pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
         "Executing emergency kit! Deleting dlc channel"
     );
     let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
-    ln_dlc::delete_dlc_channel(&dlc_channel_id)
+    dlc::delete_dlc_channel(&dlc_channel_id)
 }
 
 pub fn delete_position() -> Result<()> {

@@ -12,6 +12,7 @@ use tests_e2e::app::AppHandle;
 use tests_e2e::setup;
 use tests_e2e::wait_until;
 use time::OffsetDateTime;
+use xxi_node::commons;
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore]

@@ -6,9 +6,9 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
-use trade::cfd::calculate_pnl;
-use trade::cfd::BTCUSD_MAX_PRICE;
-use trade::Direction;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::BTCUSD_MAX_PRICE;
+use xxi_node::commons::Direction;
 
 /// Factor by which we can multiply the total margin being wagered in order to get consistent
 /// rounding in the middle (non-constant) part of the payout function.
@@ -434,9 +434,9 @@ mod tests {
     use rust_decimal_macros::dec;
     use std::fs::File;
     use std::ops::Mul;
-    use trade::cfd::calculate_long_bankruptcy_price;
-    use trade::cfd::calculate_margin;
-    use trade::cfd::calculate_short_bankruptcy_price;
+    use xxi_node::cfd::calculate_long_bankruptcy_price;
+    use xxi_node::cfd::calculate_margin;
+    use xxi_node::cfd::calculate_short_bankruptcy_price;
 
     /// set this to true to export test data to csv files
     /// An example gnuplot file has been provided in [`payout_curve.gp`]
@@ -936,13 +936,13 @@ mod bounds_tests {
     use proptest::prelude::*;
     use rust_decimal::prelude::ToPrimitive;
     use rust_decimal_macros::dec;
-    use trade::cfd::calculate_long_bankruptcy_price;
-    use trade::cfd::calculate_margin;
-    use trade::cfd::calculate_short_bankruptcy_price;
+    use xxi_node::cfd::calculate_long_bankruptcy_price;
+    use xxi_node::cfd::calculate_margin;
+    use xxi_node::cfd::calculate_short_bankruptcy_price;
 
     #[test]
     fn correct_bounds_between_middle_and_liquidation_intervals() {
-        use Direction::*;
+        use xxi_node::commons::Direction::*;
 
         check(1.0, dec!(20_000), dec!(1), dec!(1), 0, 0, Short);
         check(500.0, dec!(28_251), dec!(2), dec!(2), 20_386, 15_076, Short);

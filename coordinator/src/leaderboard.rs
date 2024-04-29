@@ -163,8 +163,8 @@ pub mod tests {
     use std::collections::HashMap;
     use std::str::FromStr;
     use time::OffsetDateTime;
-    use trade::ContractSymbol;
-    use trade::Direction;
+    use xxi_node::commons::ContractSymbol;
+    use xxi_node::commons::Direction;
 
     #[test]
     pub fn given_3_leaders_sort_by_pnl() {

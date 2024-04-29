@@ -15,12 +15,12 @@ use dlc_manager::channel::ClosedPunishedChannel;
 use dlc_manager::channel::ClosingChannel;
 use dlc_manager::channel::SettledClosingChannel;
 use dlc_manager::DlcChannelId;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::bitcoin_conversion::to_txid_30;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_storage::DlcChannelEvent;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::error::RecvError;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::bitcoin_conversion::to_txid_30;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::storage::DlcChannelEvent;
 
 pub enum DlcChannelState {
     Pending,

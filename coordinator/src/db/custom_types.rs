@@ -24,7 +24,7 @@ use diesel::serialize::IsNull;
 use diesel::serialize::Output;
 use diesel::serialize::ToSql;
 use std::io::Write;
-use trade::Direction;
+use xxi_node::commons::Direction;
 
 impl ToSql<ContractSymbolType, Pg> for ContractSymbol {
     fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {

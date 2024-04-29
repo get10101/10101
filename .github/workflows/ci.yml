@@ -145,9 +145,10 @@ jobs:
       - name: Running flutter tests
         run: just flutter-test
 
-  ln-dlc-node-tests:
+  xxi-node-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    name: "10101 node tests"
     steps:
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
@@ -162,8 +163,8 @@ jobs:
       - name: Test containers are up
         run: |
           curl http://localhost:8080/bitcoin -d '{"jsonrpc": "1.0", "method": "sendtoaddress", "params": ["bcrt1qylgu6ffkp3p0m8tw8kp4tt2dmdh755f4r5dq7s", 0.1]}'
-      - name: Run LN-DLC tests
-        run: RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --nocapture --test-threads=1
+      - name: Run node tests
+        run: RUST_BACKTRACE=1 cargo test -p xxi-node -- --ignored --nocapture --test-threads=1
       - name: bitcoin logs on e2e tests error
         if: failure()
         run: docker logs bitcoin

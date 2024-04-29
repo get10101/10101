@@ -1,9 +1,9 @@
 use anyhow::Result;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use trade::cfd;
-use trade::Direction;
-use trade::Price;
+use xxi_node::cfd;
+use xxi_node::commons::Direction;
+use xxi_node::commons::Price;
 
 /// Calculate the collateral in BTC.
 pub fn calculate_margin(opening_price: f32, quantity: f32, leverage: f32) -> u64 {

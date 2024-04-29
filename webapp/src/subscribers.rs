@@ -1,4 +1,4 @@
-use native::api::WalletInfo;
+use native::event::api::WalletInfo;
 use native::event::subscriber::Subscriber;
 use native::event::EventInternal;
 use native::event::EventType;

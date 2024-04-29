@@ -1,9 +1,9 @@
+use crate::dlc::node::Node;
 use crate::dlc::DlcChannel;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc::node::Node;
-use ln_dlc_node::node::event::NodeEvent;
 use tokio::sync::broadcast::error::RecvError;
+use xxi_node::node::event::NodeEvent;
 
 impl Node {
     pub fn spawn_listen_dlc_channels_event_task(&self) {

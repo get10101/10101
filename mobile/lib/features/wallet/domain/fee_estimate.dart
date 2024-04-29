@@ -2,11 +2,11 @@ import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/domain/model.dart';
 
 class FeeEstimation {
-  final Amount perVbyte;
+  final double satsPerVbyte;
   final Amount total;
 
-  FeeEstimation({required this.perVbyte, required this.total});
+  FeeEstimation({required this.satsPerVbyte, required this.total});
 
   static FeeEstimation fromAPI(rust.FeeEstimation fee) =>
-      FeeEstimation(perVbyte: Amount(fee.satsPerVbyte), total: Amount(fee.totalSats));
+      FeeEstimation(satsPerVbyte: fee.satsPerVbyte, total: Amount(fee.totalSats));
 }

@@ -6,7 +6,7 @@ use crate::event;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
-use trade::ContractSymbol;
+use xxi_node::commons::ContractSymbol;
 
 #[derive(Clone, Copy)]
 pub struct ForceCloseDlcChannelSubscriber;

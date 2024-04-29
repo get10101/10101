@@ -1,13 +1,14 @@
 use crate::calculations::calculate_margin;
-use crate::ln_dlc;
+use crate::dlc;
 use bitcoin::Amount;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use serde::Serialize;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::commons;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 pub mod api;
 pub mod handler;
@@ -248,7 +249,7 @@ impl Order {
 impl From<Order> for commons::NewMarketOrder {
     fn from(order: Order) -> Self {
         let quantity = Decimal::try_from(order.quantity).expect("to parse into decimal");
-        let trader_id = ln_dlc::get_node_pubkey();
+        let trader_id = dlc::get_node_pubkey();
         commons::NewMarketOrder {
             id: order.id,
             contract_symbol: order.contract_symbol,

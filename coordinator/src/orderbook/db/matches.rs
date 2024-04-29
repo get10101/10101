@@ -19,6 +19,7 @@ use rust_decimal::Decimal;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::commons;
 
 #[derive(Insertable, QueryableByName, Queryable, Debug, Clone, PartialEq)]
 #[diesel(table_name = matches)]
