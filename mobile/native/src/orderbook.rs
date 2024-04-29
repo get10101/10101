@@ -76,7 +76,8 @@ pub fn subscribe(
             let url = url.clone();
             let fcm_token = fcm_token.clone();
             let version = env!("CARGO_PKG_VERSION").to_string();
-            match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token, Some(version))
+            let os = std::env::consts::OS.to_string();
+            match orderbook_client::subscribe_with_authentication(url, authenticate, fcm_token, Some(version), Some(os))
                 .await
             {
                 Ok((mut sink, mut stream)) => {

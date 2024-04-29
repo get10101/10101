@@ -286,6 +286,7 @@ pub async fn post_register(
         register_params.nickname.clone(),
         register_params.version.clone(),
         register_params.referral_code,
+        register_params.os,
     )
     .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
 

@@ -81,6 +81,7 @@ pub enum OrderbookRequest {
     Authenticate {
         fcm_token: Option<String>,
         version: Option<String>,
+        os: Option<String>,
         signature: Signature,
     },
     InsertOrder(NewLimitOrder),

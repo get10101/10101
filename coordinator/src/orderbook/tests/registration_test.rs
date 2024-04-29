@@ -23,6 +23,7 @@ async fn registered_user_is_stored_in_db() {
     let nickname = Some("dummy_user".to_string());
     let fcm_token = "just_a_token".to_string();
     let version = Some("1.9.0".to_string());
+    let os = Some("linux".to_string());
 
     let user = user::upsert_user(
         &mut conn,
@@ -31,10 +32,18 @@ async fn registered_user_is_stored_in_db() {
         nickname.clone(),
         version.clone(),
         Some("code1".to_string()),
+        os.clone(),
     )
     .unwrap();
     assert!(user.id.is_some(), "Id should be filled in by diesel");
-    user::login_user(&mut conn, dummy_pubkey, fcm_token.clone(), version.clone()).unwrap();
+    user::login_user(
+        &mut conn,
+        dummy_pubkey,
+        fcm_token.clone(),
+        version.clone(),
+        os,
+    )
+    .unwrap();
 
     let users = user::all(&mut conn).unwrap();
     assert_eq!(users.len(), 1);
