@@ -57,8 +57,8 @@ fn calculating_payout_curve_doesnt_crash_1() {
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
-        coordinator_margin,
-        trader_margin,
+        coordinator_margin.to_sat(),
+        trader_margin.to_sat(),
         initial_price,
         collateral_reserve_offer,
         coordinator_direction,
@@ -99,8 +99,8 @@ fn calculating_payout_curve_doesnt_crash_2() {
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
-        coordinator_collateral,
-        trader_collateral,
+        coordinator_collateral.to_sat(),
+        trader_collateral.to_sat(),
         initial_price,
         collateral_reserve_offer,
         coordinator_direction,
@@ -141,8 +141,8 @@ fn calculating_payout_curve_doesnt_crash_3() {
     // act: we only test that this does not panic
     computed_payout_curve(
         quantity,
-        coordinator_collateral,
-        trader_collateral,
+        coordinator_collateral.to_sat(),
+        trader_collateral.to_sat(),
         initial_price,
         collateral_reserve_offer,
         coordinator_direction,
@@ -196,8 +196,8 @@ proptest! {
             leverage_coordinator,
             quantity,
             fee,
-            coordinator_margin,
-            trader_margin,
+            %coordinator_margin,
+            %trader_margin,
             ?long_liquidation_price,
             ?short_liquidation_price,
             "Started computing payout curve"
@@ -208,8 +208,8 @@ proptest! {
 
         computed_payout_curve(
             quantity,
-            coordinator_margin,
-            trader_margin,
+            coordinator_margin.to_sat(),
+            trader_margin.to_sat(),
             initial_price,
             fee,
             coordinator_direction,

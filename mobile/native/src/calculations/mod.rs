@@ -8,7 +8,7 @@ use xxi_node::commons::Price;
 /// Calculate the collateral in BTC.
 pub fn calculate_margin(opening_price: f32, quantity: f32, leverage: f32) -> u64 {
     let opening_price = Decimal::try_from(opening_price).expect("price to fit into decimal");
-    cfd::calculate_margin(opening_price, quantity, leverage)
+    cfd::calculate_margin(opening_price, quantity, leverage).to_sat()
 }
 
 /// Calculate the quantity from price, collateral and leverage
