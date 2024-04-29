@@ -7,7 +7,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Txid;
-use commons::TradeParams;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use lightning::ln::ChannelId;
@@ -15,11 +14,12 @@ use rust_decimal::prelude::Signed;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
-use trade::bitmex_client::Quote;
-use trade::cfd::calculate_margin;
-use trade::cfd::calculate_pnl;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::bitmex_client::Quote;
+use xxi_node::cfd::calculate_margin;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
+use xxi_node::commons::TradeParams;
 
 #[derive(Clone)]
 pub struct NewPosition {

@@ -1,9 +1,9 @@
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::Backup;
-use commons::DeleteBackup;
-use commons::Restore;
 use sled::Db;
+use xxi_node::commons::Backup;
+use xxi_node::commons::DeleteBackup;
+use xxi_node::commons::Restore;
 
 const BACKUPS_DIRECTORY: &str = "user_backups";
 

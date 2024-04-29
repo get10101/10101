@@ -54,21 +54,10 @@ use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::secp256k1::VerifyOnly;
-use commons::Backup;
-use commons::CollaborativeRevertTraderResponse;
-use commons::DeleteBackup;
-use commons::Message;
-use commons::Poll;
-use commons::PollAnswers;
-use commons::RegisterParams;
-use commons::ReportedError;
-use commons::Restore;
-use commons::UpdateUsernameParams;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use lightning::ln::msgs::SocketAddress;
-use ln_dlc_node::node::NodeInfo;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook::delete_order;
 use orderbook::get_order;
@@ -88,6 +77,18 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use tracing::instrument;
+use xxi_node::commons;
+use xxi_node::commons::Backup;
+use xxi_node::commons::CollaborativeRevertTraderResponse;
+use xxi_node::commons::DeleteBackup;
+use xxi_node::commons::Message;
+use xxi_node::commons::Poll;
+use xxi_node::commons::PollAnswers;
+use xxi_node::commons::RegisterParams;
+use xxi_node::commons::ReportedError;
+use xxi_node::commons::Restore;
+use xxi_node::commons::UpdateUsernameParams;
+use xxi_node::node::NodeInfo;
 
 mod admin;
 mod orderbook;
@@ -236,7 +237,7 @@ pub async fn lightning_peer_ws_handler(
         Some(ws) => {
             let peer_manager = state.node.inner.peer_manager.clone();
             ws.on_upgrade(move |socket| {
-                ln_dlc_node::networking::axum::setup_inbound(peer_manager, socket, addr)
+                xxi_node::networking::axum::setup_inbound(peer_manager, socket, addr)
             })
             .into_response()
         }

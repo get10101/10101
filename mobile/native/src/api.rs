@@ -32,13 +32,9 @@ use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
 use bitcoin::Amount;
-use commons::ChannelOpeningParams;
-use commons::OrderbookRequest;
-use flutter_rust_bridge::frb;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
-use ln_dlc_node::seed::Bip39Seed;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -49,8 +45,11 @@ use std::path::PathBuf;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::channel;
-pub use trade::ContractSymbol;
-pub use trade::Direction;
+use xxi_node::commons::ChannelOpeningParams;
+pub use xxi_node::commons::ContractSymbol;
+pub use xxi_node::commons::Direction;
+use xxi_node::commons::OrderbookRequest;
+use xxi_node::seed::Bip39Seed;
 
 /// Initialise logging infrastructure for Rust
 pub fn init_logging(sink: StreamSink<logger::LogEntry>) {
@@ -65,8 +64,8 @@ pub struct TenTenOneConfig {
     pub referral_status: ReferralStatus,
 }
 
-impl From<commons::TenTenOneConfig> for TenTenOneConfig {
-    fn from(value: commons::TenTenOneConfig) -> Self {
+impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
+    fn from(value: xxi_node::commons::TenTenOneConfig) -> Self {
         Self {
             liquidity_options: value
                 .liquidity_options
@@ -78,18 +77,6 @@ impl From<commons::TenTenOneConfig> for TenTenOneConfig {
             referral_status: value.referral_status.into(),
         }
     }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct WalletInfo {
-    pub balances: Balances,
-    pub history: Vec<WalletHistoryItem>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct Balances {
-    pub on_chain: u64,
-    pub off_chain: Option<u64>,
 }
 
 /// Assembles the wallet info and publishes wallet info update event.
@@ -127,8 +114,8 @@ pub enum PollType {
     SingleChoice,
 }
 
-impl From<commons::Poll> for Poll {
-    fn from(value: commons::Poll) -> Self {
+impl From<xxi_node::commons::Poll> for Poll {
+    fn from(value: xxi_node::commons::Poll) -> Self {
         Poll {
             id: value.id,
             poll_type: value.poll_type.into(),
@@ -142,16 +129,16 @@ impl From<commons::Poll> for Poll {
     }
 }
 
-impl From<commons::PollType> for PollType {
-    fn from(value: commons::PollType) -> Self {
+impl From<xxi_node::commons::PollType> for PollType {
+    fn from(value: xxi_node::commons::PollType) -> Self {
         match value {
-            commons::PollType::SingleChoice => PollType::SingleChoice,
+            xxi_node::commons::PollType::SingleChoice => PollType::SingleChoice,
         }
     }
 }
 
-impl From<commons::Choice> for Choice {
-    fn from(value: commons::Choice) -> Self {
+impl From<xxi_node::commons::Choice> for Choice {
+    fn from(value: xxi_node::commons::Choice) -> Self {
         Choice {
             id: value.id,
             value: value.value,
@@ -160,9 +147,9 @@ impl From<commons::Choice> for Choice {
     }
 }
 
-impl From<Choice> for commons::Choice {
+impl From<Choice> for xxi_node::commons::Choice {
     fn from(value: Choice) -> Self {
-        commons::Choice {
+        xxi_node::commons::Choice {
             id: value.id,
             value: value.value,
             editable: value.editable,
@@ -274,21 +261,6 @@ pub fn calculate_quantity(price: f32, margin: u64, leverage: f32) -> SyncReturn<
     SyncReturn(calculations::calculate_quantity(price, margin, leverage))
 }
 
-#[allow(dead_code)]
-#[frb(mirror(ContractSymbol))]
-#[derive(Debug, Clone, Copy)]
-pub enum _ContractSymbol {
-    BtcUsd,
-}
-
-#[allow(dead_code)]
-#[frb(mirror(Direction))]
-#[derive(Debug, Clone, Copy)]
-pub enum _Direction {
-    Long,
-    Short,
-}
-
 pub fn calculate_liquidation_price(
     price: f32,
     leverage: f32,
@@ -333,7 +305,8 @@ pub fn order_matching_fee(quantity: f32, price: f32) -> SyncReturn<u64> {
     let price = Decimal::from_f32(price).expect("price to fit in Decimal");
 
     let fee_rate = ln_dlc::get_order_matching_fee_rate(false);
-    let order_matching_fee = commons::order_matching_fee(quantity, price, fee_rate).to_sat();
+    let order_matching_fee =
+        xxi_node::commons::order_matching_fee(quantity, price, fee_rate).to_sat();
 
     SyncReturn(order_matching_fee)
 }
@@ -450,11 +423,12 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
             // the coordinator and trigger a new user login event.
             tracing::info!("Re-sending authentication message");
 
-            let signature =
-                orderbook_client::create_auth_message_signature(move |msg| commons::Signature {
+            let signature = orderbook_client::create_auth_message_signature(move |msg| {
+                xxi_node::commons::Signature {
                     pubkey: ln_dlc::get_node_pubkey(),
                     signature: ln_dlc::get_node_key().sign_ecdsa(msg),
-                });
+                }
+            });
 
             let version = env!("CARGO_PKG_VERSION").to_string();
             let runtime = crate::state::get_or_create_tokio_runtime()?;
@@ -574,8 +548,8 @@ pub struct LiquidityOption {
     pub active: bool,
 }
 
-impl From<commons::LiquidityOption> for LiquidityOption {
-    fn from(value: commons::LiquidityOption) -> Self {
+impl From<xxi_node::commons::LiquidityOption> for LiquidityOption {
+    fn from(value: xxi_node::commons::LiquidityOption) -> Self {
         LiquidityOption {
             id: value.id,
             rank: value.rank,
@@ -619,12 +593,12 @@ pub enum Fee {
     FeeRate { sats: u64 },
 }
 
-impl From<Fee> for ln_dlc_node::node::Fee {
+impl From<Fee> for xxi_node::node::Fee {
     fn from(value: Fee) -> Self {
         match value {
-            Fee::Priority(target) => ln_dlc_node::node::Fee::Priority(target.into()),
+            Fee::Priority(target) => xxi_node::node::Fee::Priority(target.into()),
             Fee::FeeRate { sats } => {
-                ln_dlc_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
+                xxi_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
             }
         }
     }
@@ -742,8 +716,8 @@ pub struct User {
     pub nickname: Option<String>,
 }
 
-impl From<commons::User> for User {
-    fn from(value: commons::User) -> Self {
+impl From<xxi_node::commons::User> for User {
+    fn from(value: xxi_node::commons::User) -> Self {
         User {
             pubkey: value.pubkey.to_string(),
             contact: value.contact,
@@ -797,7 +771,10 @@ pub fn get_estimated_funding_tx_fee() -> Result<SyncReturn<u64>> {
 
 pub fn get_expiry_timestamp(network: String) -> SyncReturn<i64> {
     let network = config::api::parse_network(&network);
-    SyncReturn(commons::calculate_next_expiry(OffsetDateTime::now_utc(), network).unix_timestamp())
+    SyncReturn(
+        xxi_node::commons::calculate_next_expiry(OffsetDateTime::now_utc(), network)
+            .unix_timestamp(),
+    )
 }
 
 pub fn get_dlc_channel_id() -> Result<Option<String>> {
@@ -857,17 +834,17 @@ pub enum BonusStatusType {
     Referent,
 }
 
-impl From<commons::BonusStatusType> for BonusStatusType {
-    fn from(value: commons::BonusStatusType) -> Self {
+impl From<xxi_node::commons::BonusStatusType> for BonusStatusType {
+    fn from(value: xxi_node::commons::BonusStatusType) -> Self {
         match value {
-            commons::BonusStatusType::Referral => BonusStatusType::Referral,
-            commons::BonusStatusType::Referent => BonusStatusType::Referent,
+            xxi_node::commons::BonusStatusType::Referral => BonusStatusType::Referral,
+            xxi_node::commons::BonusStatusType::Referent => BonusStatusType::Referent,
         }
     }
 }
 
-impl From<commons::ReferralStatus> for ReferralStatus {
-    fn from(value: commons::ReferralStatus) -> Self {
+impl From<xxi_node::commons::ReferralStatus> for ReferralStatus {
+    fn from(value: xxi_node::commons::ReferralStatus) -> Self {
         ReferralStatus {
             referral_code: value.referral_code,
             referral_tier: value.referral_tier,

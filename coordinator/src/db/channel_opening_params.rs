@@ -11,6 +11,7 @@ use diesel::QueryableByName;
 use diesel::RunQueryDsl;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::commons;
 
 #[derive(Queryable, QueryableByName, Insertable, Debug, Clone, PartialEq)]
 #[diesel(table_name = channel_opening_params)]

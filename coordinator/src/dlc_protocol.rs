@@ -15,7 +15,6 @@ use diesel::PgConnection;
 use diesel::QueryResult;
 use dlc_manager::ContractId;
 use dlc_manager::ReferenceId;
-use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
@@ -24,9 +23,11 @@ use std::fmt::Formatter;
 use std::str::from_utf8;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::Sender;
-use trade::cfd::calculate_pnl;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::commons;
+use xxi_node::commons::Direction;
+use xxi_node::node::rust_dlc_manager::DlcChannelId;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct ProtocolId(Uuid);

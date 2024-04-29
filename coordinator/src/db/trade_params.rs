@@ -13,6 +13,7 @@ use diesel::Queryable;
 use diesel::RunQueryDsl;
 use std::str::FromStr;
 use uuid::Uuid;
+use xxi_node::commons;
 
 #[derive(Queryable, Debug)]
 #[diesel(table_name = trade_params)]
@@ -73,7 +74,7 @@ impl From<TradeParams> for dlc_protocol::TradeParams {
             quantity: value.quantity,
             leverage: value.leverage,
             average_price: value.average_price,
-            direction: trade::Direction::from(value.direction),
+            direction: commons::Direction::from(value.direction),
             matching_fee: Amount::from_sat(value.matching_fee as u64),
             trader_pnl: value.trader_pnl.map(SignedAmount::from_sat),
         }

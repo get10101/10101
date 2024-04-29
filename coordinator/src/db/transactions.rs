@@ -52,8 +52,8 @@ pub(crate) fn upsert(tx: Transaction, conn: &mut PgConnection) -> Result<()> {
     Ok(())
 }
 
-impl From<ln_dlc_node::transaction::Transaction> for Transaction {
-    fn from(value: ln_dlc_node::transaction::Transaction) -> Self {
+impl From<xxi_node::transaction::Transaction> for Transaction {
+    fn from(value: xxi_node::transaction::Transaction) -> Self {
         Transaction {
             txid: value.txid().to_string(),
             fee: value.fee() as i64,
@@ -64,9 +64,9 @@ impl From<ln_dlc_node::transaction::Transaction> for Transaction {
     }
 }
 
-impl From<Transaction> for ln_dlc_node::transaction::Transaction {
+impl From<Transaction> for xxi_node::transaction::Transaction {
     fn from(value: Transaction) -> Self {
-        ln_dlc_node::transaction::Transaction::new(
+        xxi_node::transaction::Transaction::new(
             Txid::from_str(&value.txid).expect("valid txid"),
             value.fee as u64,
             value.created_at,

@@ -6,12 +6,12 @@ use crate::schema::users;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::referral_from_pubkey;
-use commons::RegisterParams;
 use diesel::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
+use xxi_node::commons::referral_from_pubkey;
+use xxi_node::commons::RegisterParams;
 
 #[derive(Queryable, Identifiable, Debug, Clone, Serialize, Deserialize)]
 #[diesel(primary_key(id))]

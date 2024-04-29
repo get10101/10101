@@ -324,13 +324,13 @@ native-test:
 
 test: flutter-test native-test
 
-# Run expensive tests from the `ln-dlc-node` crate.
-ln-dlc-node-test args="": docker
+# Run expensive tests from the `xxi-node` crate.
+xxi-test args="": docker
     # wait a few seconds to ensure that Docker containers started
     sleep 2
     # adjust the max amount of available file descriptors - we're making a lot of requests, and it might go over the limit
     ulimit -n 1024
-    RUST_BACKTRACE=1 cargo test -p ln-dlc-node -- --ignored --test-threads=1 {{args}}
+    RUST_BACKTRACE=1 cargo test -p xxi-node -- --ignored --test-threads=1 {{args}}
 
 # Runs background Docker services
 docker:

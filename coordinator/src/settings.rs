@@ -2,13 +2,13 @@ use crate::node::NodeSettings;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use ln_dlc_node::node::LnDlcNodeSettings;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use xxi_node::node::XXINodeSettings;
 
 const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 
@@ -17,7 +17,7 @@ const SETTINGS_FILE_NAME: &str = "coordinator-settings.toml";
 pub struct Settings {
     pub new_positions_enabled: bool,
 
-    pub ln_dlc: LnDlcNodeSettings,
+    pub xxi: XXINodeSettings,
 
     // We don't want the doc block below to be auto-formatted.
     #[rustfmt::skip]
@@ -128,7 +128,7 @@ impl Settings {
     fn from_file(file: SettingsFile, path: PathBuf) -> Self {
         Self {
             new_positions_enabled: file.new_positions_enabled,
-            ln_dlc: file.ln_dlc,
+            xxi: file.xxi,
             rollover_window_open_scheduler: file.rollover_window_open_scheduler,
             rollover_window_close_scheduler: file.rollover_window_close_scheduler,
             close_expired_position_scheduler: file.close_expired_position_scheduler,
@@ -148,7 +148,7 @@ impl Settings {
 pub struct SettingsFile {
     new_positions_enabled: bool,
 
-    ln_dlc: LnDlcNodeSettings,
+    xxi: XXINodeSettings,
 
     rollover_window_open_scheduler: String,
     rollover_window_close_scheduler: String,
@@ -169,7 +169,7 @@ impl From<Settings> for SettingsFile {
     fn from(value: Settings) -> Self {
         Self {
             new_positions_enabled: value.new_positions_enabled,
-            ln_dlc: value.ln_dlc,
+            xxi: value.xxi,
             rollover_window_open_scheduler: value.rollover_window_open_scheduler,
             rollover_window_close_scheduler: value.rollover_window_close_scheduler,
             close_expired_position_scheduler: value.close_expired_position_scheduler,
@@ -193,7 +193,7 @@ mod tests {
     fn toml_serde_roundtrip() {
         let original = SettingsFile {
             new_positions_enabled: true,
-            ln_dlc: LnDlcNodeSettings {
+            xxi: XXINodeSettings {
                 off_chain_sync_interval: std::time::Duration::from_secs(1),
                 on_chain_sync_interval: std::time::Duration::from_secs(1),
                 fee_rate_sync_interval: std::time::Duration::from_secs(1),

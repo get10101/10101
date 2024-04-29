@@ -6,10 +6,6 @@ use axum::extract::ws::WebSocket;
 use axum::extract::State;
 use axum::extract::WebSocketUpgrade;
 use axum::response::IntoResponse;
-use commons::create_sign_message;
-use commons::PositionMessage;
-use commons::PositionMessageRequest;
-use commons::AUTH_SIGN_MESSAGE;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
@@ -19,7 +15,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
-use trade::Direction;
+use xxi_node::commons::create_sign_message;
+use xxi_node::commons::Direction;
+use xxi_node::commons::PositionMessage;
+use xxi_node::commons::PositionMessageRequest;
+use xxi_node::commons::AUTH_SIGN_MESSAGE;
 
 #[derive(Clone)]
 pub enum InternalPositionUpdateMessage {

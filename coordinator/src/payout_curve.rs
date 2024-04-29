@@ -13,10 +13,10 @@ use dlc_manager::payout_curve::RoundingIntervals;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tracing::instrument;
-use trade::cfd::calculate_long_bankruptcy_price;
-use trade::cfd::calculate_short_bankruptcy_price;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::cfd::calculate_long_bankruptcy_price;
+use xxi_node::cfd::calculate_short_bankruptcy_price;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 /// Builds the contract descriptor from the point of view of the coordinator.
 ///
@@ -180,7 +180,7 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
     use rust_decimal_macros::dec;
-    use trade::cfd::calculate_margin;
+    use xxi_node::cfd::calculate_margin;
 
     #[test]
     fn payout_price_range_is_below_max_price() {

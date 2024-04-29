@@ -7,7 +7,6 @@ description = "A simple websocket client for the 10101 orderbook. "
 [dependencies]
 anyhow = "1"
 async-stream = "0.3"
-commons = { path = "../commons" }
 futures = "0.3"
 secp256k1 = { version = "0.27.0", features = ["global-context", "serde"] }
 serde = { version = "1", features = ["derive"] }
@@ -17,6 +16,7 @@ tokio = { version = "1", features = ["macros", "time", "tracing"] }
 tokio-tungstenite-wasm = { version = "0.3.0", features = ["native-tls"] }
 tracing = "0.1"
 url = "2.3.0"
+xxi-node = { path = "../xxi-node" }
 
 [dev-dependencies]
 anyhow = "1"

@@ -12,6 +12,7 @@ use diesel::QueryResult;
 use diesel::Queryable;
 use diesel::RunQueryDsl;
 use time::OffsetDateTime;
+use xxi_node::commons;
 
 /// A user's referral bonus status may be active for this much days at max
 const MAX_DAYS_FOR_ACTIVE_REFERRAL_STATUS: i64 = 30;

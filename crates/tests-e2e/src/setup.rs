@@ -10,12 +10,12 @@ use crate::wait_until;
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
 use bitcoin::Amount;
-use ln_dlc_node::node::rust_dlc_manager::manager::NB_CONFIRMATIONS;
 use native::api;
 use native::api::ContractSymbol;
 use native::trade::order::api::NewOrder;
 use native::trade::order::api::OrderType;
 use native::trade::position::PositionState;
+use xxi_node::node::rust_dlc_manager::manager::NB_CONFIRMATIONS;
 
 pub struct TestSetup {
     pub app: AppHandle,

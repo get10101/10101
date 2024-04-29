@@ -20,11 +20,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
-use commons::MatchState;
-use commons::Message;
-use commons::OrderState;
-use commons::TradeAndChannelParams;
-use commons::TradeParams;
 use diesel::Connection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -36,21 +31,26 @@ use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_29;
-use ln_dlc_node::bitcoin_conversion::to_xonly_pk_29;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_node::node::signed_channel_state_name;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use trade::cfd::calculate_long_liquidation_price;
-use trade::cfd::calculate_margin;
-use trade::cfd::calculate_pnl;
-use trade::cfd::calculate_short_liquidation_price;
-use trade::Direction;
 use uuid::Uuid;
+use xxi_node::bitcoin_conversion::to_secp_pk_29;
+use xxi_node::bitcoin_conversion::to_xonly_pk_29;
+use xxi_node::cfd::calculate_long_liquidation_price;
+use xxi_node::cfd::calculate_margin;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::calculate_short_liquidation_price;
+use xxi_node::commons::Direction;
+use xxi_node::commons::MatchState;
+use xxi_node::commons::Message;
+use xxi_node::commons::OrderState;
+use xxi_node::commons::TradeAndChannelParams;
+use xxi_node::commons::TradeParams;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::node::signed_channel_state_name;
 
 pub mod models;
 pub mod websocket;
@@ -1478,7 +1478,7 @@ mod tests {
     use insta::assert_debug_snapshot;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
-    use trade::ContractSymbol;
+    use xxi_node::commons::ContractSymbol;
 
     #[test]
     fn apply_resize() {

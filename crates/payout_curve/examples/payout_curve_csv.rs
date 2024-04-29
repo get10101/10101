@@ -17,11 +17,11 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use std::fs::File;
 use std::ops::Mul;
-use trade::cfd::calculate_long_bankruptcy_price;
-use trade::cfd::calculate_margin;
-use trade::cfd::calculate_pnl;
-use trade::cfd::calculate_short_bankruptcy_price;
-use trade::Direction;
+use xxi_node::cfd::calculate_long_bankruptcy_price;
+use xxi_node::cfd::calculate_margin;
+use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::calculate_short_bankruptcy_price;
+use xxi_node::commons::Direction;
 
 /// The example below will export the computed payout curve and how it should look like as CSV.
 ///

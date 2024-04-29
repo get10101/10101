@@ -5,7 +5,6 @@ use crate::notifications::NotificationKind;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use commons::Message;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
@@ -19,6 +18,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio::task::spawn_blocking;
+use xxi_node::commons::Message;
 
 /// This value is arbitrarily set to 100 and defines theff message accepted in the message
 /// channel buffer.

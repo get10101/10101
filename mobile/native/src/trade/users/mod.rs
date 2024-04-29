@@ -4,9 +4,9 @@ use crate::ln_dlc;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use commons::RegisterParams;
-use commons::UpdateUsernameParams;
-use commons::User;
+use xxi_node::commons::RegisterParams;
+use xxi_node::commons::UpdateUsernameParams;
+use xxi_node::commons::User;
 
 /// Enroll the user in the beta program
 pub async fn register_beta(

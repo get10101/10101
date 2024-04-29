@@ -20,7 +20,7 @@ pub fn report_error_to_coordinator<E: ToString>(error: &E) {
             runtime.spawn(async move {
                 if let Err(e) = client
                     .post(url)
-                    .json(&commons::ReportedError {
+                    .json(&xxi_node::commons::ReportedError {
                         trader_pk: pk,
                         msg: error_string,
                     })

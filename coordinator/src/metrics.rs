@@ -16,8 +16,8 @@ use opentelemetry::KeyValue;
 use opentelemetry_prometheus::PrometheusExporter;
 use std::sync::Arc;
 use std::time::Duration;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 lazy_static! {
     pub static ref METER: Meter = global::meter("maker");
@@ -195,7 +195,7 @@ fn channel_metrics(cx: &Context, channels: Vec<ChannelDetails>) {
 fn node_metrics(
     cx: &Context,
     inner_node: Arc<
-        ln_dlc_node::node::Node<
+        xxi_node::node::Node<
             bdk_file_store::Store<bdk::wallet::ChangeSet>,
             CoordinatorTenTenOneStorage,
             NodeStorage,

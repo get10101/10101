@@ -10,6 +10,7 @@ use bitcoin::secp256k1::rand::Rng;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::secp256k1::SECP256K1;
+use xxi_node::commons;
 
 #[derive(Clone)]
 pub struct AesCipher {
@@ -82,6 +83,7 @@ mod tests {
     use bitcoin::secp256k1;
     use bitcoin::secp256k1::SecretKey;
     use bitcoin::secp256k1::SECP256K1;
+    use xxi_node::commons;
 
     #[test]
     fn cipher_backup_value() {

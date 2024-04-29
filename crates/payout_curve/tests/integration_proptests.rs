@@ -18,10 +18,10 @@ use rust_decimal_macros::dec;
 use std::fs::File;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
-use trade::cfd::calculate_long_bankruptcy_price;
-use trade::cfd::calculate_margin;
-use trade::cfd::calculate_short_bankruptcy_price;
-use trade::Direction;
+use xxi_node::cfd::calculate_long_bankruptcy_price;
+use xxi_node::cfd::calculate_margin;
+use xxi_node::cfd::calculate_short_bankruptcy_price;
+use xxi_node::commons::Direction;
 
 /// set this to true to export test data to csv files
 const PRINT_CSV: bool = false;

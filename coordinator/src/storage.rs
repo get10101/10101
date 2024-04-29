@@ -1,12 +1,12 @@
 use lightning::util::persist::KVStore;
 use lightning_persister::fs_store::FilesystemStore;
-use ln_dlc_storage::sled::SledStorageProvider;
-use ln_dlc_storage::DlcStoreProvider;
-use ln_dlc_storage::KeyValue;
 use std::fs;
 use std::io::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
+use xxi_node::storage::sled::SledStorageProvider;
+use xxi_node::storage::DlcStoreProvider;
+use xxi_node::storage::KeyValue;
 
 #[derive(Clone)]
 pub struct CoordinatorTenTenOneStorage {

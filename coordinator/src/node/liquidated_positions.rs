@@ -4,21 +4,21 @@ use crate::orderbook;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::NewOrderMessage;
 use anyhow::Result;
-use commons::average_execution_price;
-use commons::Match;
-use commons::MatchState;
-use commons::NewMarketOrder;
-use commons::OrderReason;
-use commons::OrderState;
-use commons::Price;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::ops::Add;
 use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::average_execution_price;
+use xxi_node::commons::BestPrice;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
+use xxi_node::commons::Match;
+use xxi_node::commons::MatchState;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::OrderReason;
+use xxi_node::commons::OrderState;
 
 /// The timeout before we give up on closing a liquidated position collaboratively. This value
 /// should not be larger than our refund transaction time lock.
@@ -170,7 +170,7 @@ async fn check_if_positions_need_to_get_liquidated(
 
 fn check_if_position_needs_to_get_liquidated(
     direction: Direction,
-    best_current_price: &Price,
+    best_current_price: &BestPrice,
     liquidation_price: Decimal,
 ) -> bool {
     match direction {

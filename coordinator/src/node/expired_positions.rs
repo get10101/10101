@@ -8,18 +8,18 @@ use crate::position::models::PositionState;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use commons::average_execution_price;
-use commons::Match;
-use commons::MatchState;
-use commons::NewMarketOrder;
-use commons::OrderReason;
-use commons::OrderState;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::ops::Add;
 use time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
+use xxi_node::commons::average_execution_price;
+use xxi_node::commons::Match;
+use xxi_node::commons::MatchState;
+use xxi_node::commons::NewMarketOrder;
+use xxi_node::commons::OrderReason;
+use xxi_node::commons::OrderState;
 
 /// The timeout before we give up on closing an expired position collaboratively. This value should
 /// not be larger than our refund transaction time lock.

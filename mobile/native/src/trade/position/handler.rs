@@ -9,8 +9,8 @@ use anyhow::Context;
 use anyhow::Result;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
-use trade::ContractSymbol;
-use trade::Direction;
+use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::Direction;
 
 /// Fetch the positions from the database
 pub fn get_positions() -> Result<Vec<Position>> {

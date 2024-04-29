@@ -25,30 +25,30 @@ use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
 use lightning::sign::StaticPaymentOutputDescriptor;
-use ln_dlc_node::bitcoin_conversion::to_secp_pk_30;
-use ln_dlc_node::dlc_message::DlcMessage;
-use ln_dlc_node::dlc_message::SerializedDlcMessage;
-use ln_dlc_node::message_handler::TenTenOneAcceptChannel;
-use ln_dlc_node::message_handler::TenTenOneCollaborativeCloseOffer;
-use ln_dlc_node::message_handler::TenTenOneMessage;
-use ln_dlc_node::message_handler::TenTenOneOfferChannel;
-use ln_dlc_node::message_handler::TenTenOneReject;
-use ln_dlc_node::message_handler::TenTenOneRenewAccept;
-use ln_dlc_node::message_handler::TenTenOneRenewOffer;
-use ln_dlc_node::message_handler::TenTenOneSettleOffer;
-use ln_dlc_node::node;
-use ln_dlc_node::node::event::NodeEvent;
-use ln_dlc_node::node::rust_dlc_manager::DlcChannelId;
-use ln_dlc_node::node::tentenone_message_name;
-use ln_dlc_node::node::NodeInfo;
-use ln_dlc_node::node::RunningNode;
-use ln_dlc_node::transaction::Transaction;
-use ln_dlc_node::TransactionDetails;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::instrument;
+use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::dlc_message::DlcMessage;
+use xxi_node::dlc_message::SerializedDlcMessage;
+use xxi_node::message_handler::TenTenOneAcceptChannel;
+use xxi_node::message_handler::TenTenOneCollaborativeCloseOffer;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneOfferChannel;
+use xxi_node::message_handler::TenTenOneReject;
+use xxi_node::message_handler::TenTenOneRenewAccept;
+use xxi_node::message_handler::TenTenOneRenewOffer;
+use xxi_node::message_handler::TenTenOneSettleOffer;
+use xxi_node::node;
+use xxi_node::node::event::NodeEvent;
+use xxi_node::node::rust_dlc_manager::DlcChannelId;
+use xxi_node::node::tentenone_message_name;
+use xxi_node::node::NodeInfo;
+use xxi_node::node::RunningNode;
+use xxi_node::transaction::Transaction;
+use xxi_node::TransactionDetails;
 
 #[derive(Clone)]
 pub struct Node {
@@ -89,7 +89,7 @@ pub struct Balances {
     pub off_chain: Option<u64>,
 }
 
-impl From<Balances> for crate::api::Balances {
+impl From<Balances> for crate::event::api::Balances {
     fn from(value: Balances) -> Self {
         Self {
             on_chain: value.on_chain,

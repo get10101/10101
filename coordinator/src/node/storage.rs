@@ -6,8 +6,8 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::SpendableOutputDescriptor;
-use ln_dlc_node::node;
-use ln_dlc_node::transaction::Transaction;
+use xxi_node::node;
+use xxi_node::transaction::Transaction;
 
 #[derive(Clone)]
 pub struct NodeStorage {
