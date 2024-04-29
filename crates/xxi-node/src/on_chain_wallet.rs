@@ -1,6 +1,5 @@
 use crate::bitcoin_conversion::to_outpoint_29;
 use crate::fee_rate_estimator::FeeRateEstimator;
-use crate::node::Fee;
 use crate::seed::WalletSeed;
 use anyhow::anyhow;
 use anyhow::bail;
@@ -14,6 +13,7 @@ use bdk::chain::ChainPosition;
 use bdk::chain::PersistBackend;
 use bdk::psbt::PsbtUtils;
 use bdk::wallet::IsDust;
+use bdk::FeeRate;
 use bdk::KeychainKind;
 use bdk::LocalOutput;
 use bdk::SignOptions;
@@ -225,6 +225,13 @@ impl<D> OnChainWallet<D> {
             utxos,
         )
     }
+
+    pub(crate) fn fee_rate_from_config(&self, fee_config: FeeConfig) -> FeeRate {
+        match fee_config {
+            FeeConfig::Priority(target) => self.fee_rate_estimator.get(target),
+            FeeConfig::FeeRate(fee_rate) => fee_rate,
+        }
+    }
 }
 
 impl<D> OnChainWallet<D>
@@ -290,10 +297,14 @@ where
         &self,
         recipient: &Address,
         amount_sat_or_drain: u64,
-        fee: Fee,
+        fee_config: FeeConfig,
     ) -> Result<Transaction> {
+        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
+            bail!("Send amount below dust: {amount_sat_or_drain} sat");
+        }
+
         let tx = self
-            .build_and_sign_psbt(recipient, amount_sat_or_drain, fee)?
+            .build_and_sign_psbt(recipient, amount_sat_or_drain, fee_config)?
             .extract_tx();
 
         let input_utxos = tx
@@ -323,7 +334,7 @@ where
         &self,
         recipient: &Address,
         amount_sat_or_drain: u64,
-        fee: Fee,
+        fee_config: FeeConfig,
     ) -> Result<PartiallySignedTransaction> {
         let script_pubkey = recipient.script_pubkey();
 
@@ -341,10 +352,7 @@ where
             builder.drain_wallet().drain_to(script_pubkey);
         }
 
-        let fee_rate = match fee {
-            Fee::Priority(target) => self.fee_rate_estimator.get(target),
-            Fee::FeeRate(fee_rate) => fee_rate,
-        };
+        let fee_rate = self.fee_rate_from_config(fee_config);
 
         builder.fee_rate(fee_rate);
 
@@ -357,9 +365,9 @@ where
         &self,
         recipient: &Address,
         amount_sat_or_drain: u64,
-        fee: Fee,
+        fee_config: FeeConfig,
     ) -> Result<PartiallySignedTransaction> {
-        let mut psbt = self.build_psbt(recipient, amount_sat_or_drain, fee)?;
+        let mut psbt = self.build_psbt(recipient, amount_sat_or_drain, fee_config)?;
 
         let finalized = self
             .bdk
@@ -375,26 +383,15 @@ where
     }
 
     /// Estimate the fee for sending funds to a given [`Address`].
-    pub fn estimate_fee(
-        &self,
-        recipient: &Address,
-        amount_sat_or_drain: u64,
-        confirmation_target: ConfirmationTarget,
-    ) -> Result<Amount, EstimateFeeError> {
-        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
-            return Err(EstimateFeeError::SendAmountBelowDust);
-        }
-
-        let psbt = self.build_psbt(
-            recipient,
-            amount_sat_or_drain,
-            Fee::Priority(confirmation_target),
-        )?;
+    pub fn estimate_fee(&self, recipient: &Address, fee_config: FeeConfig) -> Result<Amount> {
+        // We're just estimating a fee, the send amount is irrelevant. But it needs to be over the
+        // dust limit (546 sats according to BDK).
+        let psbt = self.build_psbt(recipient, 1_000, fee_config)?;
 
         let fee_sat = match psbt.fee_amount() {
             Some(fee) => fee,
             None => {
-                let rate = self.fee_rate_estimator.get(confirmation_target);
+                let rate = self.fee_rate_from_config(fee_config);
                 rate.fee_vb(AVG_SEGWIT_TX_WEIGHT_VB)
             }
         };
@@ -456,12 +453,13 @@ impl ConfirmationStatus {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum EstimateFeeError {
-    #[error("Cannot estimate fee for output below dust")]
-    SendAmountBelowDust,
-    #[error(transparent)]
-    Other(#[from] anyhow::Error),
+/// Fee configuration for an on-chain transaction.
+#[derive(Clone, Copy)]
+pub enum FeeConfig {
+    /// The fee rate is derived from the configured priority.
+    Priority(ConfirmationTarget),
+    /// The fee rate is explicitly configured.
+    FeeRate(FeeRate),
 }
 
 pub trait BdkStorage: PersistBackend<bdk::wallet::ChangeSet> + Send + Sync + 'static {}

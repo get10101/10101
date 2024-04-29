@@ -9,17 +9,15 @@ import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/fee.dart';
+import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:slide_to_confirm/slide_to_confirm.dart';
 
-void showConfirmPaymentModal(
-    BuildContext context, Destination destination, bool payWithUsdp, Amount sats, Usd usdp,
-    {Fee? fee}) {
-  logger.i(fee);
+void showConfirmPaymentModal(BuildContext context, Destination destination, Amount? sats,
+    FeeConfig feeConfig, FeeEstimation feeEstimation) {
   showModalBottomSheet<void>(
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -32,56 +30,36 @@ void showConfirmPaymentModal(
       context: context,
       builder: (BuildContext context) {
         return ConfirmPayment(
-          payWithUsdp: payWithUsdp,
           destination: destination,
-          sats: sats,
-          usdp: usdp,
-          fee: fee,
+          amt: sats,
+          feeConfig: feeConfig,
+          feeEstimation: feeEstimation,
         );
       });
 }
 
 class ConfirmPayment extends StatelessWidget {
   final Destination destination;
-  final bool payWithUsdp;
-  final Amount sats;
-  final Usd usdp;
-  final Fee? fee;
+  final Amount? amt;
+  final FeeConfig feeConfig;
+  final FeeEstimation feeEstimation;
 
-  const ConfirmPayment(
-      {super.key,
-      required this.destination,
-      required this.payWithUsdp,
-      required this.sats,
-      required this.usdp,
-      this.fee});
+  const ConfirmPayment({
+    super.key,
+    required this.destination,
+    required this.amt,
+    required this.feeConfig,
+    required this.feeEstimation,
+  });
 
   @override
   Widget build(BuildContext context) {
     final walletService = context.read<WalletChangeNotifier>().service;
-    final formatter = NumberFormat("#,###,##0.00", "en");
 
     final tradeValuesChangeNotifier = context.watch<TradeValuesChangeNotifier>();
 
     final tradeValues = tradeValuesChangeNotifier.fromDirection(Direction.long);
     tradeValues.updateLeverage(Leverage(1));
-
-    Amount amt = destination.amount;
-    if (destination.amount.sats == 0) {
-      if (payWithUsdp) {
-        // if the destination does not specify an amount and we ar paying with the usdp balance we
-        // calculate the amount from the quantity point of view.
-        tradeValues.updateQuantity(usdp);
-        amt = tradeValues.margin!;
-      } else {
-        // Otherwise it is a regular lightning payment and we just pay the given amount.
-        amt = sats;
-      }
-    } else {
-      // if the amount is set on the invoice we need to pay the amount no matter what. That might
-      // lead to the usdp amount to jump by one dollar depending on the current bid price
-      tradeValues.updateMargin(destination.amount);
-    }
 
     return SafeArea(
       child: Container(
@@ -106,19 +84,8 @@ class ConfirmPayment extends StatelessWidget {
                     children: [
                       const Text("Amount", style: TextStyle(color: Colors.grey, fontSize: 16)),
                       const SizedBox(height: 5),
-                      Visibility(
-                          visible: payWithUsdp,
-                          replacement: Text(amt.sats == 0 ? "Max" : amt.toString(),
-                              style: const TextStyle(fontSize: 16)),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text("~ \$ ${formatter.format(tradeValues.quantity.toInt)}",
-                                  style: const TextStyle(fontSize: 16)),
-                              Text(amt.toString(),
-                                  style: const TextStyle(fontSize: 16, color: Colors.grey))
-                            ],
-                          )),
+                      Text(amt == null ? "Max" : amt.toString(),
+                          style: const TextStyle(fontSize: 16)),
                       const Divider(height: 40, indent: 0, endIndent: 0),
                       const Text("Destination", style: TextStyle(color: Colors.grey, fontSize: 16)),
                       const SizedBox(height: 5),
@@ -131,37 +98,23 @@ class ConfirmPayment extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             const Text("Fee", style: TextStyle(fontSize: 16)),
-                            if (fee != null && fee is PriorityFee)
-                              Text("(${(fee as PriorityFee).priority})",
+                            if (feeConfig is PriorityFee)
+                              Text("(${(feeConfig as PriorityFee).priority})",
                                   style: const TextStyle(fontSize: 16))
-                            else if (fee != null && fee is CustomFeeRate)
+                            else if (feeConfig is CustomFeeRate)
                               const Text("(Custom)", style: TextStyle(fontSize: 16))
                           ],
                         ),
-                        FutureBuilder(
-                            // TODO: Someone to remove all this Lightning stuff.
-                            future: Future.value(1000),
-                            builder: (BuildContext context, AsyncSnapshot<int> feeMsat) {
-                              final msat = feeMsat.data ?? 0;
-
-                              final Widget feeWidget;
-                              if (msat < 1000 && msat > 0) {
-                                feeWidget =
-                                    Text("$msat msat", style: const TextStyle(fontSize: 16));
-                              } else {
-                                feeWidget = AmountText(
-                                    amount: Amount((msat / 1000).round()),
-                                    textStyle: const TextStyle(fontSize: 16));
-                              }
-
-                              return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                                feeWidget,
-                                if (fee != null && fee is PriorityFee)
-                                  // TODO: estimate time for fixed fee
-                                  Text((fee as PriorityFee).priority.toTimeEstimate(),
-                                      style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                              ]);
-                            })
+                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          AmountText(
+                            amount: feeEstimation.total,
+                            textStyle: const TextStyle(fontSize: 16),
+                          ),
+                          // TODO: Estimate time for `CustomFee`.
+                          if (feeConfig is PriorityFee)
+                            Text((feeConfig as PriorityFee).priority.toTimeEstimate(),
+                                style: const TextStyle(fontSize: 16, color: Colors.grey)),
+                        ]),
                       ]),
                       const SizedBox(height: 10),
                     ],
@@ -185,7 +138,8 @@ class ConfirmPayment extends StatelessWidget {
                   final goRouter = GoRouter.of(context);
                   final messenger = ScaffoldMessenger.of(context);
                   try {
-                    var txid = await walletService.sendOnChainPayment(destination, amt, fee: fee);
+                    var txid = await walletService.sendOnChainPayment(destination, amt,
+                        feeConfig: feeConfig);
                     showSnackBar(messenger, "Transaction broadcasted $txid");
                     goRouter.pop();
                   } catch (error) {

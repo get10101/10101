@@ -13,7 +13,7 @@ use axum::routing::post;
 use axum::Json;
 use axum::Router;
 use bitcoin::Amount;
-use native::api::Fee;
+use native::api::FeeConfig;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::channel_trade_constraints;
@@ -187,7 +187,7 @@ pub async fn get_onchain_payment_history(
 pub struct Payment {
     address: String,
     amount: u64,
-    fee: u64,
+    fee_rate: f32,
 }
 
 #[utoipa::path(
@@ -214,7 +214,9 @@ pub async fn send_payment(
     dlc::send_payment(
         params.amount,
         params.address,
-        Fee::FeeRate { sats: params.fee },
+        FeeConfig::FeeRate {
+            sats_per_vbyte: params.fee_rate,
+        },
     )
     .await?;
 

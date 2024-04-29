@@ -17,17 +17,20 @@ class FeeText extends StatelessWidget {
         var askPrice = provider.getAskPrice() ?? 0.0;
         var bidPrice = provider.getBidPrice() ?? 0.0;
         var midMarket = (askPrice + bidPrice) / 2;
+
         return midMarket;
       },
       builder: (BuildContext context, double price, Widget? child) =>
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text("${formatSats(fee.perVbyte)}/vbyte", style: const TextStyle(fontSize: 17)),
+        Text("${fee.satsPerVbyte} sats/vByte", style: const TextStyle(fontSize: 17)),
         AmountText(amount: fee.total, textStyle: const TextStyle(fontSize: 15)),
         Wrap(children: [
           Text("~", style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
           FiatText(
-              amount: (fee.total.btc / price).toDouble(),
-              textStyle: TextStyle(color: Colors.grey.shade700, fontSize: 15))
+            amount: (fee.total.btc * price).toDouble(),
+            textStyle: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+            decimalPlaces: 2,
+          ),
         ])
       ]),
     );

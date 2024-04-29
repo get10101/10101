@@ -1,13 +1,12 @@
-import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/wallet/domain/confirmation_target.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
-sealed class Fee {
+sealed class FeeConfig {
   String get name;
-  rust.Fee toAPI();
+  rust.FeeConfig toAPI();
 }
 
-class PriorityFee implements Fee {
+class PriorityFee implements FeeConfig {
   final ConfirmationTarget priority;
 
   PriorityFee(this.priority);
@@ -16,17 +15,17 @@ class PriorityFee implements Fee {
   String get name => priority.toString();
 
   @override
-  rust.Fee toAPI() => rust.Fee_Priority(priority.toAPI());
+  rust.FeeConfig toAPI() => rust.FeeConfig_Priority(priority.toAPI());
 }
 
-class CustomFeeRate implements Fee {
-  final Amount amount;
+class CustomFeeRate implements FeeConfig {
+  final int feeRate;
 
-  CustomFeeRate({required this.amount});
-
-  @override
-  String get name => "Custom (sats/vbyte)";
+  CustomFeeRate({required this.feeRate});
 
   @override
-  rust.Fee toAPI() => rust.Fee_FeeRate(sats: amount.sats);
+  String get name => "Custom fee rate";
+
+  @override
+  rust.FeeConfig toAPI() => rust.FeeConfig_FeeRate(satsPerVbyte: feeRate.toDouble());
 }
