@@ -8,8 +8,6 @@ import 'package:get_10101/features/wallet/domain/fee.dart';
 import 'package:get_10101/features/wallet/domain/fee_estimate.dart';
 import 'package:get_10101/features/wallet/send/fee_text.dart';
 
-// TODO: The estimated fee in USD is always 0.
-
 class FeePicker extends StatefulWidget {
   final void Function(FeeConfig) onChange;
   final FeeConfig initialSelection;
