@@ -1,7 +1,5 @@
-use lightning::util::persist::KVStore;
 use lightning_persister::fs_store::FilesystemStore;
 use std::fs;
-use std::io::Error;
 use std::path::PathBuf;
 use std::sync::Arc;
 use xxi_node::storage::sled::SledStorageProvider;
@@ -47,47 +45,5 @@ impl DlcStoreProvider for CoordinatorTenTenOneStorage {
 
     fn delete(&self, kind: u8, key: Option<Vec<u8>>) -> anyhow::Result<()> {
         self.dlc_storage.delete(kind, key)
-    }
-}
-
-impl KVStore for CoordinatorTenTenOneStorage {
-    fn read(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-    ) -> Result<Vec<u8>, Error> {
-        self.ln_storage
-            .read(primary_namespace, secondary_namespace, key)
-    }
-
-    fn write(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-        value: &[u8],
-    ) -> Result<(), Error> {
-        self.ln_storage
-            .write(primary_namespace, secondary_namespace, key, value)
-    }
-
-    fn remove(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-        key: &str,
-        lazy: bool,
-    ) -> Result<(), Error> {
-        self.ln_storage
-            .remove(primary_namespace, secondary_namespace, key, lazy)
-    }
-
-    fn list(
-        &self,
-        primary_namespace: &str,
-        secondary_namespace: &str,
-    ) -> Result<Vec<String>, Error> {
-        self.ln_storage.list(primary_namespace, secondary_namespace)
     }
 }

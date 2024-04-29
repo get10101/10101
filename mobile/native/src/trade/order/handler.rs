@@ -2,10 +2,10 @@ use crate::config;
 use crate::db;
 use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
+use crate::dlc;
+use crate::dlc::is_dlc_channel_confirmed;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc;
-use crate::ln_dlc::is_dlc_channel_confirmed;
 use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
@@ -131,7 +131,7 @@ pub async fn submit_order_internal(
 /// 2. Open position and not enough confirmations on the funding txid.
 /// 3. No position and a channel which is not in state [`SignedChannelState::Settled`]
 fn check_channel_state() -> Result<(), SubmitOrderError> {
-    let channel = ln_dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
+    let channel = dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
 
     if position::handler::get_positions()
         .map_err(SubmitOrderError::Storage)?

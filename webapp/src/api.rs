@@ -17,8 +17,8 @@ use native::api::Fee;
 use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::channel_trade_constraints;
-use native::ln_dlc;
-use native::ln_dlc::is_dlc_channel_confirmed;
+use native::dlc;
+use native::dlc::is_dlc_channel_confirmed;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
 use rust_decimal::prelude::ToPrimitive;
@@ -106,7 +106,7 @@ pub async fn version() -> Json<Version> {
     )
 )]
 pub async fn get_unused_address() -> Result<impl IntoResponse, AppError> {
-    let address = ln_dlc::get_unused_address()?;
+    let address = dlc::get_unused_address()?;
 
     Ok(address)
 }
@@ -203,7 +203,7 @@ pub async fn send_payment(
     Json(params): Json<Payment>,
 ) -> Result<(), AppError> {
     if !state.withdrawal_addresses.contains(&params.address)
-        && !ln_dlc::is_address_mine(&params.address)?
+        && !dlc::is_address_mine(&params.address)?
         && state.whitelist_withdrawal_addresses
     {
         // if whitelisting is configured, the address is not whitelisted and not our own address we
@@ -211,14 +211,14 @@ pub async fn send_payment(
         return Err(anyhow!("Withdrawal address is not whitelisted!").into());
     }
 
-    ln_dlc::send_payment(
+    dlc::send_payment(
         params.amount,
         params.address,
         Fee::FeeRate { sats: params.fee },
     )
     .await?;
 
-    ln_dlc::refresh_wallet_info().await?;
+    dlc::refresh_wallet_info().await?;
     Ok(())
 }
 
@@ -230,7 +230,7 @@ responses(
 )
 )]
 pub async fn get_node_id() -> impl IntoResponse {
-    ln_dlc::get_node_pubkey().to_string()
+    dlc::get_node_pubkey().to_string()
 }
 
 #[derive(Serialize, ToSchema)]
@@ -247,7 +247,7 @@ responses(
 )]
 pub async fn get_seed_phrase() -> Json<Seed> {
     Json(Seed {
-        seed: ln_dlc::get_seed_phrase(),
+        seed: dlc::get_seed_phrase(),
     })
 }
 
@@ -405,7 +405,7 @@ impl From<(native::trade::position::Position, Option<Price>)> for Position {
                 };
 
                 // FIXME: A from implementation should not contain this kind of logic.
-                let fee_rate = ln_dlc::get_order_matching_fee_rate(true);
+                let fee_rate = dlc::get_order_matching_fee_rate(true);
 
                 (
                     calculate_pnl(
@@ -623,7 +623,7 @@ responses(
 )
 )]
 pub async fn post_sync() -> Result<(), AppError> {
-    ln_dlc::refresh_wallet_info().await?;
+    dlc::refresh_wallet_info().await?;
 
     Ok(())
 }
@@ -683,7 +683,7 @@ pub async fn get_best_quote(
             bid: bid_price,
             ask: ask_price,
         },
-        fee: ln_dlc::get_order_matching_fee_rate(true),
+        fee: dlc::get_order_matching_fee_rate(true),
     };
 
     Ok(Json(Some(quotes)))
@@ -745,7 +745,7 @@ responses(
 )
 )]
 pub async fn get_channels() -> Result<Json<Vec<DlcChannel>>, AppError> {
-    let channels = ln_dlc::list_dlc_channels()?
+    let channels = dlc::list_dlc_channels()?
         .iter()
         .map(DlcChannel::from)
         .collect();
@@ -936,7 +936,7 @@ responses(
 )
 )]
 pub async fn close_channel(Query(params): Query<DeleteChannel>) -> Result<(), AppError> {
-    ln_dlc::close_channel(params.force.unwrap_or_default()).await?;
+    dlc::close_channel(params.force.unwrap_or_default()).await?;
     Ok(())
 }
 
@@ -974,8 +974,8 @@ responses(
 )]
 pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
-    let fee = ln_dlc::estimated_funding_tx_fee()?;
-    let channel_fee_reserve = ln_dlc::estimated_fee_reserve()?;
+    let fee = dlc::estimated_funding_tx_fee()?;
+    let channel_fee_reserve = dlc::estimated_fee_reserve()?;
     Ok(Json(TradeConstraints {
         max_local_balance_sats: trade_constraints.max_local_balance_sats,
         max_counterparty_balance_sats: trade_constraints.max_counterparty_balance_sats,

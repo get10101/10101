@@ -30,7 +30,6 @@ use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
 use dlc_manager::ReferenceId;
 use lightning::ln::ChannelId;
-use lightning::util::persist::KVStore;
 use lightning::util::ser::Readable;
 use lightning::util::ser::Writeable;
 use std::convert::TryInto;
@@ -76,9 +75,9 @@ pub trait DlcStoreProvider {
     fn delete(&self, kind: u8, key: Option<Vec<u8>>) -> Result<()>;
 }
 
-pub trait TenTenOneStorage: KVStore + DlcStoreProvider + Sync + Send + Clone {}
+pub trait TenTenOneStorage: DlcStoreProvider + Sync + Send + Clone {}
 
-impl<T> TenTenOneStorage for T where T: KVStore + DlcStoreProvider + Sync + Send + Clone {}
+impl<T> TenTenOneStorage for T where T: DlcStoreProvider + Sync + Send + Clone {}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DlcChannelEvent {

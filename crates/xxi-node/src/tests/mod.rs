@@ -1,7 +1,5 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::bitcoin_conversion::to_xonly_pk_29;
-use crate::config::app_config;
-use crate::config::coordinator_config;
 use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
@@ -15,10 +13,6 @@ use crate::on_chain_wallet;
 use crate::seed::Bip39Seed;
 use crate::storage::DlcChannelEvent;
 use crate::storage::TenTenOneInMemoryStorage;
-use crate::AppEventHandler;
-use crate::CoordinatorEventHandler;
-use crate::EventHandlerTrait;
-use crate::EventSender;
 use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
@@ -35,11 +29,8 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use dlc_manager::subchannel::SubChannelState;
 use dlc_manager::ReferenceId;
 use futures::Future;
-use lightning::events::Event;
-use lightning::util::config::UserConfig;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
@@ -55,8 +46,6 @@ use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::watch;
-use tokio::task::block_in_place;
 use uuid::Uuid;
 
 mod bitcoind;
@@ -91,14 +80,8 @@ fn init_tracing() {
 
 impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore> {
     fn start_test_app(name: &str) -> Result<(Arc<Self>, RunningNode)> {
-        let app_event_handler = |node, event_sender| {
-            Arc::new(AppEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
-
         Self::start_test(
-            app_event_handler,
             name,
-            app_config(),
             ELECTRS_ORIGIN.to_string(),
             OracleInfo {
                 endpoint: ORACLE_ORIGIN.to_string(),
@@ -106,7 +89,6 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             },
             Arc::new(InMemoryStore::default()),
             xxi_node_settings_app(),
-            None,
         )
     }
 
@@ -115,7 +97,6 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             name,
             Arc::new(InMemoryStore::default()),
             xxi_node_settings_coordinator(),
-            None,
         )
     }
 
@@ -123,16 +104,9 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         name: &str,
         storage: Arc<InMemoryStore>,
         settings: XXINodeSettings,
-        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
     ) -> Result<(Arc<Self>, RunningNode)> {
-        let coordinator_event_handler = |node, event_sender| {
-            Arc::new(CoordinatorEventHandler::new(node, event_sender)) as Arc<dyn EventHandlerTrait>
-        };
-
         Self::start_test(
-            coordinator_event_handler,
             name,
-            coordinator_config(),
             ELECTRS_ORIGIN.to_string(),
             OracleInfo {
                 endpoint: ORACLE_ORIGIN.to_string(),
@@ -140,27 +114,17 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             },
             storage,
             settings,
-            ldk_event_sender,
         )
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn start_test<EH>(
-        event_handler_factory: EH,
+    fn start_test(
         name: &str,
-        ldk_config: UserConfig,
         electrs_origin: String,
         oracle: OracleInfo,
         node_storage: Arc<InMemoryStore>,
         settings: XXINodeSettings,
-        ldk_event_sender: Option<watch::Sender<Option<Event>>>,
-    ) -> Result<(Arc<Self>, RunningNode)>
-    where
-        EH: Fn(
-            Arc<Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>>,
-            Option<EventSender>,
-        ) -> Arc<dyn EventHandlerTrait>,
-    {
+    ) -> Result<(Arc<Self>, RunningNode)> {
         let data_dir = random_tmp_dir().join(name);
 
         let seed = Bip39Seed::new().expect("A valid bip39 seed");
@@ -179,7 +143,6 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
         let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
         let event_handler = Arc::new(NodeEventHandler::new());
         let node = Node::new(
-            ldk_config,
             name,
             Network::Regtest,
             data_dir.as_path(),
@@ -243,8 +206,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
             }
         });
 
-        let event_handler = event_handler_factory(node.clone(), ldk_event_sender);
-        let running = node.start(event_handler, dlc_event_receiver, false)?;
+        let running = node.start(dlc_event_receiver)?;
 
         tracing::debug!(%name, info = %node.info, "Node started");
 
@@ -259,13 +221,7 @@ impl Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemorySt
     /// Because we use `block_in_place`, we must configure the `tokio::test`s with `flavor =
     /// "multi_thread"`.
     async fn sync_wallets(&self) -> Result<()> {
-        self.sync_on_chain_wallet().await?;
-
-        block_in_place(|| {
-            self.sync_lightning_wallet()?;
-
-            Ok(())
-        })
+        self.sync_on_chain_wallet().await
     }
 
     async fn fund(&self, amount: Amount, n_utxos: u64) -> Result<()> {
@@ -344,37 +300,6 @@ fn random_tmp_dir() -> PathBuf {
     tmp
 }
 
-#[allow(dead_code)]
-fn log_channel_id(
-    node: &Node<on_chain_wallet::InMemoryStorage, TenTenOneInMemoryStorage, InMemoryStore>,
-    index: usize,
-    pair: &str,
-) {
-    let details = match node.channel_manager.list_channels().get(index) {
-        Some(details) => details.clone(),
-        None => {
-            tracing::info!(%index, %pair, "No channel");
-            return;
-        }
-    };
-
-    let channel_id = hex::encode(details.channel_id.0);
-    let short_channel_id = details.short_channel_id;
-    let is_ready = details.is_channel_ready;
-    let is_usable = details.is_usable;
-    let inbound = details.inbound_capacity_msat / 1000;
-    let outbound = details.outbound_capacity_msat / 1000;
-    tracing::info!(
-        channel_id,
-        short_channel_id,
-        is_ready,
-        is_usable,
-        inbound,
-        outbound,
-        "{pair}"
-    );
-}
-
 async fn wait_until<P, T, F>(timeout: Duration, predicate_fn: P) -> Result<T>
 where
     P: Fn() -> F,
@@ -389,46 +314,6 @@ where
         }
     })
     .await?
-}
-
-#[derive(PartialEq, Debug)]
-enum SubChannelStateName {
-    Offered,
-    Accepted,
-    Confirmed,
-    Finalized,
-    Signed,
-    Closing,
-    OnChainClosed,
-    CounterOnChainClosed,
-    CloseOffered,
-    CloseAccepted,
-    CloseConfirmed,
-    OffChainClosed,
-    ClosedPunished,
-    Rejected,
-}
-
-impl From<&SubChannelState> for SubChannelStateName {
-    fn from(value: &SubChannelState) -> Self {
-        use SubChannelState::*;
-        match value {
-            Offered(_) => SubChannelStateName::Offered,
-            Accepted(_) => SubChannelStateName::Accepted,
-            Confirmed(_) => SubChannelStateName::Confirmed,
-            Finalized(_) => SubChannelStateName::Finalized,
-            Signed(_) => SubChannelStateName::Signed,
-            Closing(_) => SubChannelStateName::Closing,
-            OnChainClosed => SubChannelStateName::OnChainClosed,
-            CounterOnChainClosed => SubChannelStateName::CounterOnChainClosed,
-            CloseOffered(_) => SubChannelStateName::CloseOffered,
-            CloseAccepted(_) => SubChannelStateName::CloseAccepted,
-            CloseConfirmed(_) => SubChannelStateName::CloseConfirmed,
-            OffChainClosed => SubChannelStateName::OffChainClosed,
-            ClosedPunished(_) => SubChannelStateName::ClosedPunished,
-            Rejected => SubChannelStateName::Rejected,
-        }
-    }
 }
 
 fn xxi_node_settings_coordinator() -> XXINodeSettings {

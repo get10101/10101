@@ -2,10 +2,10 @@ use crate::calculations::calculate_liquidation_price;
 use crate::config;
 use crate::db;
 use crate::db::connection;
+use crate::dlc;
 use crate::event;
 use crate::event::EventInternal;
 use crate::get_maintenance_margin_rate;
-use crate::ln_dlc;
 use crate::state::get_node;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
@@ -42,7 +42,7 @@ pub fn delete_dlc_channel(dlc_channel_id: String) -> Result<()> {
         "Executing emergency kit! Deleting dlc channel"
     );
     let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id)?;
-    ln_dlc::delete_dlc_channel(&dlc_channel_id)
+    dlc::delete_dlc_channel(&dlc_channel_id)
 }
 
 pub fn delete_position() -> Result<()> {

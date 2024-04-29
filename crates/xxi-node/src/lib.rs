@@ -1,18 +1,5 @@
-use crate::blockchain::Blockchain;
-use crate::ln::TracingLogger;
-use crate::node::SubChannelManager;
-use crate::node::TenTenOneOnionMessageHandler;
+use crate::dlc::TracingLogger;
 use dlc_custom_signer::CustomKeysManager;
-use dlc_custom_signer::CustomSigner;
-use fee_rate_estimator::FeeRateEstimator;
-use lightning::chain::chainmonitor;
-use lightning::chain::Filter;
-use lightning::routing::gossip;
-use lightning::routing::gossip::P2PGossipSync;
-use lightning::routing::router::DefaultRouter;
-use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::routing::scoring::ProbabilisticScoringFeeParameters;
-use lightning::routing::utxo::UtxoLookup;
 use std::fmt;
 use std::sync::Arc;
 
@@ -28,8 +15,8 @@ pub mod bitmex_client;
 pub mod cfd;
 pub mod commons;
 pub mod config;
+pub mod dlc;
 pub mod dlc_message;
-pub mod ln;
 pub mod message_handler;
 pub mod networking;
 pub mod node;
@@ -40,14 +27,12 @@ pub mod transaction;
 use crate::message_handler::TenTenOneMessageHandler;
 use crate::networking::DynamicSocketDescriptor;
 pub use config::CONFIRMATION_TARGET;
+pub use dlc::ContractDetails;
+pub use dlc::DlcChannelDetails;
 pub use lightning;
+use lightning::ln::peer_handler::ErroringMessageHandler;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 pub use lightning_invoice;
-pub use ln::AppEventHandler;
-pub use ln::ContractDetails;
-pub use ln::CoordinatorEventHandler;
-pub use ln::DlcChannelDetails;
-pub use ln::EventHandlerTrait;
-pub use ln::EventSender;
 pub use on_chain_wallet::ConfirmationStatus;
 pub use on_chain_wallet::EstimateFeeError;
 pub use on_chain_wallet::TransactionDetails;
@@ -55,44 +40,15 @@ pub use on_chain_wallet::TransactionDetails;
 #[cfg(test)]
 mod tests;
 
-type ChainMonitor<S, N> = chainmonitor::ChainMonitor<
-    CustomSigner,
-    Arc<dyn Filter + Send + Sync>,
-    Arc<Blockchain<N>>,
-    Arc<FeeRateEstimator>,
-    Arc<TracingLogger>,
-    Arc<S>,
->;
-
-pub type PeerManager<D, S, N> = lightning::ln::peer_handler::PeerManager<
+pub(crate) type PeerManager<D> = lightning::ln::peer_handler::PeerManager<
     DynamicSocketDescriptor,
-    Arc<SubChannelManager<D, S, N>>,
-    Arc<
-        P2PGossipSync<
-            Arc<gossip::NetworkGraph<Arc<TracingLogger>>>,
-            Arc<dyn UtxoLookup + Send + Sync>,
-            Arc<TracingLogger>,
-        >,
-    >,
-    Arc<TenTenOneOnionMessageHandler>,
+    Arc<ErroringMessageHandler>,
+    Arc<IgnoringMessageHandler>,
+    Arc<TenTenOneMessageHandler>,
     Arc<TracingLogger>,
     Arc<TenTenOneMessageHandler>,
     Arc<CustomKeysManager<D>>,
 >;
-
-pub(crate) type Router = DefaultRouter<
-    Arc<NetworkGraph>,
-    Arc<TracingLogger>,
-    Arc<std::sync::RwLock<Scorer>>,
-    ProbabilisticScoringFeeParameters,
-    Scorer,
->;
-pub(crate) type Scorer = ProbabilisticScorer<Arc<NetworkGraph>, Arc<TracingLogger>>;
-
-type NetworkGraph = gossip::NetworkGraph<Arc<TracingLogger>>;
-
-type P2pGossipSync =
-    P2PGossipSync<Arc<NetworkGraph>, Arc<dyn UtxoLookup + Send + Sync>, Arc<TracingLogger>>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PaymentFlow {

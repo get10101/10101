@@ -45,7 +45,6 @@ use tracing::metadata::LevelFilter;
 use xxi_node::node::event::NodeEventHandler;
 use xxi_node::seed::Bip39Seed;
 use xxi_node::storage::DlcChannelEvent;
-use xxi_node::CoordinatorEventHandler;
 
 const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
@@ -125,7 +124,6 @@ async fn main() -> Result<()> {
 
     let (dlc_event_sender, dlc_event_receiver) = mpsc::channel::<DlcChannelEvent>();
     let node = Arc::new(xxi_node::node::Node::new(
-        xxi_node::config::coordinator_config(),
         NODE_ALIAS,
         network,
         data_dir.as_path(),
@@ -153,8 +151,7 @@ async fn main() -> Result<()> {
         node_event_handler.subscribe(),
     );
 
-    let event_handler = CoordinatorEventHandler::new(node.clone(), None);
-    let running = node.start(event_handler, dlc_event_receiver, false)?;
+    let running = node.start(dlc_event_receiver)?;
 
     // an internal channel to send updates about our position
     let (tx_position_feed, _rx) = broadcast::channel::<InternalPositionUpdateMessage>(100);

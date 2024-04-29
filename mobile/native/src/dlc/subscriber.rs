@@ -1,7 +1,7 @@
+use crate::dlc::node::Node;
 use crate::dlc::DlcChannel;
 use crate::event;
 use crate::event::EventInternal;
-use crate::ln_dlc::node::Node;
 use tokio::sync::broadcast::error::RecvError;
 use xxi_node::node::event::NodeEvent;
 

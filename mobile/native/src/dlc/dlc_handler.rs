@@ -1,9 +1,9 @@
 use crate::db;
+use crate::dlc::node::Node;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
-use crate::ln_dlc::node::Node;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;

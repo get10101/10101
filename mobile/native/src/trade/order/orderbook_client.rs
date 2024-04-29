@@ -1,5 +1,5 @@
 use crate::commons::reqwest_client;
-use crate::ln_dlc::get_node_key;
+use crate::dlc::get_node_key;
 use anyhow::bail;
 use anyhow::Result;
 use reqwest::Url;
