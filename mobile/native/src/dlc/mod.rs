@@ -1,4 +1,4 @@
-use crate::api::Fee;
+use crate::api::FeeConfig;
 use crate::api::PaymentFlow;
 use crate::api::Status;
 use crate::api::WalletHistoryItem;
@@ -942,7 +942,7 @@ pub fn estimated_fee_reserve() -> Result<Amount> {
     Ok(reserve)
 }
 
-pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<Txid> {
+pub async fn send_payment(amount: u64, address: String, fee: FeeConfig) -> Result<Txid> {
     let address = Address::from_str(&address)?;
 
     let txid = state::get_node()
@@ -988,26 +988,25 @@ pub fn is_address_mine(address: &str) -> Result<bool> {
     Ok(is_mine)
 }
 
-pub async fn estimate_payment_fee(amount: u64, address: &str, fee: Fee) -> Result<Option<Amount>> {
+pub async fn estimate_payment_fee(
+    amount: u64,
+    address: &str,
+    fee_config: FeeConfig,
+) -> Result<Option<Amount>> {
     let address: Address<NetworkUnchecked> = address.parse().context("Failed to parse address")?;
     // This is safe to do because we are only using this address to estimate a fee.
     let address = address.assume_checked();
 
-    let fee = match fee {
-        Fee::Priority(target) => {
-            match state::get_node()
-                .inner
-                .estimate_fee(address, amount, target.into())
-            {
-                Ok(fee) => Some(fee),
-                // It's not sensible to calculate the fee for an amount below dust.
-                Err(xxi_node::EstimateFeeError::SendAmountBelowDust) => None,
-                Err(e) => {
-                    bail!("Failed to estimate payment fee: {e:#}")
-                }
-            }
+    let fee = match state::get_node()
+        .inner
+        .estimate_fee(address, amount, fee_config.into())
+    {
+        Ok(fee) => Some(fee),
+        // It's not sensible to calculate the fee for an amount below dust.
+        Err(xxi_node::EstimateFeeError::SendAmountBelowDust) => None,
+        Err(e) => {
+            bail!("Failed to estimate payment fee: {e:#}")
         }
-        Fee::FeeRate { sats } => Some(Amount::from_sat(sats)),
     };
 
     Ok(fee)

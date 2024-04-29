@@ -33,7 +33,8 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
 
   // null = max
   Amount? _amount = Amount(1000);
-  Fee _fee = PriorityFee(ConfirmationTarget.normal);
+  FeeConfig _feeConfig = PriorityFee(ConfirmationTarget.normal);
+  FeeEstimation? _customFee;
   Map<ConfirmationTarget, FeeEstimation>? _feeEstimates;
   late WalletService _walletService;
 
@@ -64,10 +65,19 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
     });
   }
 
-  Amount currentFee() {
-    return switch (_fee) {
-      PriorityFee() => _feeEstimates?[(_fee as PriorityFee).priority]?.total ?? Amount(0),
-      CustomFeeRate() => (_fee as CustomFeeRate).amount,
+  Future<void> calculateCustomFee(CustomFeeRate feeRate) async {
+    FeeEstimation? feeEstimation =
+        await _walletService.calculateCustomFee(widget.destination.address, _amount!, feeRate);
+
+    setState(() {
+      _customFee = feeEstimation;
+    });
+  }
+
+  FeeEstimation? currentFee() {
+    return switch (_feeConfig) {
+      PriorityFee() => _feeEstimates?[(_feeConfig as PriorityFee).priority],
+      CustomFeeRate() => _customFee,
     };
   }
 
@@ -141,7 +151,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     Container(
                         margin: const EdgeInsets.only(left: 40, right: 40),
                         child: FormField(
-                          validator: (val) {
+                          validator: (_) {
                             final amount = _amount;
 
                             if (amount == null) {
@@ -156,8 +166,13 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                               return "Amount cannot be negative";
                             }
 
-                            if (amount.sats + currentFee().sats > balance.sats) {
-                              return "Not enough funds.";
+                            FeeEstimation? fee = currentFee();
+                            if (fee == null) {
+                              return "Select a fee";
+                            }
+
+                            if (amount.sats + fee.total.sats > balance.sats) {
+                              return "Not enough funds";
                             }
 
                             return null;
@@ -169,8 +184,6 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                                   keyboardType: TextInputType.number,
                                   textAlign: TextAlign.center,
                                   decoration: const InputDecoration(
-                                      hintText: "1,000",
-                                      hintStyle: TextStyle(fontSize: 40),
                                       enabledBorder: InputBorder.none,
                                       border: InputBorder.none,
                                       errorBorder: InputBorder.none,
@@ -311,24 +324,27 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                     const Text("Select Network Fee", style: TextStyle(fontSize: 16)),
                     const SizedBox(height: 10),
                     FeePicker(
-                      initialSelection: _fee,
-                      feeEstimates: _feeEstimates,
-                      onChange: (target) => setState(() => _fee = target),
-                    ),
+                        initialSelection: _feeConfig,
+                        feeEstimates: _feeEstimates,
+                        customFee: _customFee,
+                        onChange: (feeConfig) async {
+                          setState(() => _feeConfig = feeConfig);
+                          if (feeConfig is CustomFeeRate) {
+                            await calculateCustomFee(feeConfig);
+                          }
+                        }),
                     const Spacer(),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
                           onPressed: (_formKey.currentState?.validate() ?? false)
                               ? () => showConfirmPaymentModal(
-                                  context,
-                                  widget.destination,
-                                  false,
-                                  _amount ?? Amount.zero(),
-                                  // this value doesn't matter at the moment because we do not support USDP sending
-                                  // TODO: remove USDP leftovers
-                                  Usd.zero(),
-                                  fee: _fee)
+                                    context,
+                                    widget.destination,
+                                    _amount ?? Amount.zero(),
+                                    _feeConfig,
+                                    currentFee()!,
+                                  )
                               : null,
                           style: ButtonStyle(
                               padding:

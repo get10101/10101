@@ -584,20 +584,20 @@ pub fn create_payment_request(
     })
 }
 
-/// The choice of on-chain network fee
-pub enum Fee {
-    /// A fee based on the priority of the payment
+/// Fee configuration for an on-chaint transaction.
+pub enum FeeConfig {
+    /// The fee rate is derived from the configured priority.
     Priority(ConfirmationTarget),
-    /// A custom fee rate in sats/vbyte
-    FeeRate { sats: u64 },
+    /// The fee rate is explicitly configured.
+    FeeRate { sats_per_vbyte: f32 },
 }
 
-impl From<Fee> for xxi_node::node::Fee {
-    fn from(value: Fee) -> Self {
+impl From<FeeConfig> for xxi_node::FeeConfig {
+    fn from(value: FeeConfig) -> Self {
         match value {
-            Fee::Priority(target) => xxi_node::node::Fee::Priority(target.into()),
-            Fee::FeeRate { sats } => {
-                xxi_node::node::Fee::FeeRate(FeeRate::from_sat_per_vb(sats as f32))
+            FeeConfig::Priority(target) => xxi_node::FeeConfig::Priority(target.into()),
+            FeeConfig::FeeRate { sats_per_vbyte } => {
+                xxi_node::FeeConfig::FeeRate(FeeRate::from_sat_per_vb(sats_per_vbyte))
             }
         }
     }
@@ -624,7 +624,7 @@ impl From<ConfirmationTarget> for LnConfirmationTarget {
 }
 
 pub struct FeeEstimation {
-    pub sats_per_vbyte: u64,
+    pub sats_per_vbyte: f32,
     pub total_sats: u64,
 }
 
@@ -644,9 +644,9 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
         let mut fees = Vec::with_capacity(TARGETS.len());
 
         for confirmation_target in TARGETS {
-            let fee_rate = fee_rate(confirmation_target);
+            let fee_rate_sats_per_vb = fee_rate(confirmation_target);
 
-            let fee_config = Fee::Priority(confirmation_target);
+            let fee_config = FeeConfig::Priority(confirmation_target);
             let absolute_fee = match dlc::estimate_payment_fee(amount, &address, fee_config).await?
             {
                 Some(fee) => fee,
@@ -654,7 +654,7 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
             };
 
             fees.push(FeeEstimation {
-                sats_per_vbyte: fee_rate.ceil() as u64,
+                sats_per_vbyte: fee_rate_sats_per_vb,
                 total_sats: absolute_fee.to_sat(),
             })
         }
@@ -663,12 +663,34 @@ pub fn calculate_all_fees_for_on_chain(address: String, amount: u64) -> Result<V
     })
 }
 
+#[tokio::main(flavor = "current_thread")]
+pub async fn calculate_fee_estimate(
+    address: String,
+    amount: u64,
+    fee_rate_sats_per_vb: f32,
+) -> Result<FeeEstimation> {
+    let estimate = dlc::estimate_payment_fee(
+        amount,
+        &address,
+        FeeConfig::FeeRate {
+            sats_per_vbyte: fee_rate_sats_per_vb,
+        },
+    )
+    .await?
+    .context("Could not estimate fee")?;
+
+    Ok(FeeEstimation {
+        sats_per_vbyte: fee_rate_sats_per_vb,
+        total_sats: estimate.to_sat(),
+    })
+}
+
 pub fn fee_rate(confirmation_target: ConfirmationTarget) -> f32 {
     dlc::get_fee_rate_for_target(confirmation_target.into()).as_sat_per_vb()
 }
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn send_payment(amount: u64, address: String, fee: Fee) -> Result<String> {
+pub async fn send_payment(amount: u64, address: String, fee: FeeConfig) -> Result<String> {
     let txid = dlc::send_payment(amount, address, fee).await?;
 
     Ok(txid.to_string())

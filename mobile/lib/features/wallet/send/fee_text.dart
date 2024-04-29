@@ -21,7 +21,7 @@ class FeeText extends StatelessWidget {
       },
       builder: (BuildContext context, double price, Widget? child) =>
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text("${formatSats(fee.perVbyte)}/vbyte", style: const TextStyle(fontSize: 17)),
+        Text("${fee.satsPerVbyte} sats/vByte", style: const TextStyle(fontSize: 17)),
         AmountText(amount: fee.total, textStyle: const TextStyle(fontSize: 15)),
         Wrap(children: [
           Text("~", style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),

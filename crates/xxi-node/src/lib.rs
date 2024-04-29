@@ -35,6 +35,7 @@ use lightning::ln::peer_handler::IgnoringMessageHandler;
 pub use lightning_invoice;
 pub use on_chain_wallet::ConfirmationStatus;
 pub use on_chain_wallet::EstimateFeeError;
+pub use on_chain_wallet::FeeConfig;
 pub use on_chain_wallet::TransactionDetails;
 
 #[cfg(test)]

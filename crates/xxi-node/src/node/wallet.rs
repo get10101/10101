@@ -3,6 +3,7 @@ use crate::node::Node;
 use crate::node::Storage;
 use crate::on_chain_wallet;
 use crate::on_chain_wallet::BdkStorage;
+use crate::on_chain_wallet::FeeConfig;
 use crate::on_chain_wallet::OnChainWallet;
 use crate::on_chain_wallet::TransactionDetails;
 use crate::storage::TenTenOneStorage;
@@ -15,7 +16,6 @@ use bitcoin::Amount;
 use bitcoin::OutPoint;
 use bitcoin::ScriptBuf;
 use bitcoin::TxOut;
-use lightning::chain::chaininterface::ConfirmationTarget;
 use std::sync::Arc;
 use tokio::task::spawn_blocking;
 
@@ -64,14 +64,14 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
     }
 
     /// Estimate the fee for sending the given `amount_sats` to the given `address` on-chain with
-    /// the given `fee`.
+    /// the given fee configuration.
     pub fn estimate_fee(
         &self,
         address: Address,
         amount_sats: u64,
-        fee: ConfirmationTarget,
+        fee_config: FeeConfig,
     ) -> Result<Amount, on_chain_wallet::EstimateFeeError> {
-        self.wallet.estimate_fee(&address, amount_sats, fee)
+        self.wallet.estimate_fee(&address, amount_sats, fee_config)
     }
 
     /// Sync the state of the on-chain wallet against the blockchain.

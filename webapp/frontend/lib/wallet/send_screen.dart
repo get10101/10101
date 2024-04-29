@@ -24,7 +24,7 @@ class _SendScreenState extends State<SendScreen> {
 
   String? address;
   Amount? amount;
-  Amount? fee;
+  FeeRate? feeRate;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +88,7 @@ class _SendScreenState extends State<SendScreen> {
                 ),
                 const SizedBox(height: 20),
                 AmountInputField(
-                  initialValue: fee != null ? fee! : Amount.zero(),
+                  initialValue: feeRate != null ? feeRate! : FeeRate.one(),
                   label: "Sats/vb",
                   controller: _feeController,
                   validator: (value) {
@@ -99,9 +99,9 @@ class _SendScreenState extends State<SendScreen> {
                   },
                   onChanged: (value) {
                     if (value.isEmpty) {
-                      fee = null;
+                      feeRate = null;
                     }
-                    setState(() => fee = Amount.parseAmount(value));
+                    setState(() => feeRate = FeeRate.parse(value));
                   },
                 ),
                 const SizedBox(height: 20),
@@ -116,7 +116,7 @@ class _SendScreenState extends State<SendScreen> {
                                   await context
                                       .read<WalletChangeNotifier>()
                                       .service
-                                      .sendPayment(address!, amount!, fee!);
+                                      .sendPayment(address!, amount!, feeRate!);
 
                                   setState(() {
                                     _formKey.currentState!.reset();
@@ -125,7 +125,7 @@ class _SendScreenState extends State<SendScreen> {
                                     _amountController.clear();
                                     amount = null;
                                     _feeController.clear();
-                                    fee = null;
+                                    feeRate = null;
 
                                     _formKey.currentState!.validate();
                                   });
