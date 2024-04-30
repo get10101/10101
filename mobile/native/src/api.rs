@@ -430,11 +430,13 @@ pub fn run_in_flutter(seed_dir: String, fcm_token: String) -> Result<()> {
             });
 
             let version = env!("CARGO_PKG_VERSION").to_string();
+            let os = std::env::consts::OS.to_string();
             let runtime = crate::state::get_or_create_tokio_runtime()?;
             runtime.block_on(async {
                 tx_websocket.send(OrderbookRequest::Authenticate {
                     fcm_token: Some(fcm_token),
                     version: Some(version),
+                    os: Some(os),
                     signature,
                 })
             })?;

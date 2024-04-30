@@ -470,6 +470,7 @@ diesel::table! {
         version -> Nullable<Text>,
         referral_code -> Text,
         used_referral_code -> Nullable<Text>,
+        os -> Nullable<Text>,
     }
 }
 

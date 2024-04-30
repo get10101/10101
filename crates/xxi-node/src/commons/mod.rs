@@ -41,6 +41,7 @@ pub struct RegisterParams {
     pub contact: Option<String>,
     pub nickname: Option<String>,
     pub version: Option<String>,
+    pub os: Option<String>,
     /// Entered referral code, i.e. this user was revered by using this referral code
     pub referral_code: Option<String>,
 }

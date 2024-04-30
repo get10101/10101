@@ -20,6 +20,7 @@ pub async fn register_beta(
         contact: Some(contact),
         nickname: Some(name),
         version: Some(version.clone()),
+        os: Some(std::env::consts::OS.to_string()),
         referral_code,
     };
 
