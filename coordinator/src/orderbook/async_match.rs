@@ -23,8 +23,6 @@ use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::FilledWith;
 use xxi_node::commons::Match;
 use xxi_node::commons::Matches;
-use xxi_node::commons::Message;
-use xxi_node::commons::OrderReason;
 use xxi_node::commons::OrderState;
 use xxi_node::commons::TradeAndChannelParams;
 use xxi_node::commons::TradeParams;
@@ -99,33 +97,10 @@ async fn process_pending_match(
     if let Some(order) =
         orders::get_by_trader_id_and_state(&mut conn, trader_id, OrderState::Matched)?
     {
-        tracing::debug!(%trader_id, order_id=%order.id, "Notifying trader about pending match");
+        tracing::debug!(%trader_id, order_id=%order.id, "Executing pending match");
 
         let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
-
         let filled_with = get_filled_with_from_matches(matches, network, oracle_pk)?;
-
-        let message = match order.order_reason {
-            OrderReason::Manual => Message::Match(filled_with.clone()),
-            OrderReason::Expired
-            | OrderReason::CoordinatorLiquidated
-            | OrderReason::TraderLiquidated => Message::AsyncMatch {
-                order: order.clone(),
-                filled_with: filled_with.clone(),
-            },
-        };
-
-        // Sending no optional push notification as this is only executed if the user just
-        // registered on the websocket. So we can assume that the user is still online.
-        let notification = None;
-        let msg = OrderbookMessage::TraderMessage {
-            trader_id,
-            message,
-            notification,
-        };
-        if let Err(e) = notifier.send(msg).await {
-            tracing::error!("Failed to send notification. Error: {e:#}");
-        }
 
         let channel_opening_params =
             db::channel_opening_params::get_by_order_id(&mut conn, order.id)?;

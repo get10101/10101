@@ -16,7 +16,6 @@ use bitcoin::secp256k1::SECP256K1;
 use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -36,11 +35,6 @@ use xxi_node::commons::OrderState;
 use xxi_node::commons::OrderbookRequest;
 use xxi_node::commons::Signature;
 
-/// FIXME(holzeis): There is an edge case where the app is still open while we move into the
-/// rollover window. If the coordinator restarts while the app remains open in that scenario, the
-/// rollover will fail. However the rollover will succeed on the next restart.
-/// This could be fixed by only sending the rollover message once the channel is usable with the
-/// trader.
 const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
 
 pub fn subscribe(
@@ -177,44 +171,6 @@ async fn handle_orderbook_message(
                 "Successfully logged in to 10101 websocket api!");
             state::set_tentenone_config(config.clone());
             event::publish(&EventInternal::Authenticated(config));
-        }
-        Message::Rollover(_) => {
-            tracing::info!("Received a rollover notification from orderbook.");
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::Rollover(TaskStatus::Pending),
-            ));
-        }
-        Message::AsyncMatch { order, filled_with } => {
-            let order_id = order.id;
-            let order_reason = order.clone().order_reason.into();
-
-            tracing::info!(
-                %order_id,
-                "Received an async match from orderbook. Reason: {order_reason:?}"
-            );
-
-            event::publish(&EventInternal::BackgroundNotification(
-                BackgroundTask::AsyncTrade(order_reason),
-            ));
-
-            order::handler::async_order_filling(order, filled_with).with_context(|| {
-                format!("Failed to process async match update from orderbook. order_id {order_id}")
-            })?;
-        }
-        Message::Match(filled) => {
-            let order_id = filled.order_id;
-
-            tracing::info!(%order_id, "Received match from orderbook");
-            let execution_price = filled
-                .average_execution_price()
-                .to_f32()
-                .expect("to fit into f32");
-
-            let matching_fee = filled.order_matching_fee();
-
-            order::handler::order_filling(order_id, execution_price, matching_fee).with_context(
-                || format!("Failed to process match update from orderbook. order_id = {order_id}"),
-            )?;
         }
         Message::AllOrders(initial_orders) => {
             let mut orders = orders.lock();

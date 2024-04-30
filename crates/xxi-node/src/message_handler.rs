@@ -1,7 +1,9 @@
 use crate::bitcoin_conversion::to_secp_pk_30;
+use crate::commons::FilledWith;
+use crate::commons::Order;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
-use anyhow::bail;
+use anyhow::Result;
 use dlc_manager::ReferenceId;
 use dlc_messages::channel::AcceptChannel;
 use dlc_messages::channel::CollaborativeCloseOffer;
@@ -25,6 +27,8 @@ use dlc_messages::segmentation::get_segments;
 use dlc_messages::segmentation::segment_reader::SegmentReader;
 use dlc_messages::segmentation::SegmentChunk;
 use dlc_messages::segmentation::SegmentStart;
+use dlc_messages::ser_impls::read_string;
+use dlc_messages::ser_impls::write_string;
 use dlc_messages::ChannelMessage;
 use dlc_messages::Message;
 use lightning::events::OnionMessageProvider;
@@ -91,7 +95,7 @@ impl OnionMessageHandler for TenTenOneMessageHandler {
         their_node_id: &PublicKey,
         _init: &msgs::Init,
         inbound: bool,
-    ) -> anyhow::Result<(), ()> {
+    ) -> Result<(), ()> {
         tracing::info!(%their_node_id, inbound, "Peer connected!");
 
         self.handler.publish(NodeEvent::Connected {
@@ -128,6 +132,7 @@ pub enum TenTenOneMessage {
     SettleConfirm(TenTenOneSettleConfirm),
     SettleFinalize(TenTenOneSettleFinalize),
     RenewOffer(TenTenOneRenewOffer),
+    RolloverOffer(TenTenOneRolloverOffer),
     RenewAccept(TenTenOneRenewAccept),
     RenewConfirm(TenTenOneRenewConfirm),
     RenewFinalize(TenTenOneRenewFinalize),
@@ -142,6 +147,7 @@ pub struct TenTenOneReject {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneOfferChannel {
+    pub filled_with: FilledWith,
     pub offer_channel: OfferChannel,
 }
 
@@ -155,8 +161,10 @@ pub struct TenTenOneSignChannel {
     pub sign_channel: SignChannel,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneSettleOffer {
+    pub order: Order,
+    pub filled_with: FilledWith,
     pub settle_offer: SettleOffer,
 }
 
@@ -177,6 +185,12 @@ pub struct TenTenOneSettleFinalize {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneRenewOffer {
+    pub filled_with: FilledWith,
+    pub renew_offer: RenewOffer,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverOffer {
     pub renew_offer: RenewOffer,
 }
 
@@ -372,6 +386,7 @@ pub fn tentenone_message_name(msg: &TenTenOneMessage) -> String {
         TenTenOneMessage::SettleConfirm(_) => "SettleConfirm",
         TenTenOneMessage::SettleFinalize(_) => "SettleFinalize",
         TenTenOneMessage::RenewOffer(_) => "RenewOffer",
+        TenTenOneMessage::RolloverOffer(_) => "RolloverOffer",
         TenTenOneMessage::RenewAccept(_) => "RenewAccept",
         TenTenOneMessage::RenewConfirm(_) => "RenewConfirm",
         TenTenOneMessage::RenewFinalize(_) => "RenewFinalize",
@@ -383,22 +398,18 @@ pub fn tentenone_message_name(msg: &TenTenOneMessage) -> String {
     name.to_string()
 }
 
-impl TryFrom<Message> for TenTenOneMessage {
-    type Error = anyhow::Error;
-
-    fn try_from(value: Message) -> Result<Self, Self::Error> {
-        let msg = match value {
-            Message::Channel(ChannelMessage::Offer(offer_channel)) => {
-                TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel })
-            }
+impl TenTenOneMessage {
+    /// Builds a 10101 message from the rust-dlc response message. Note, a response can never return
+    /// an offer so if an offer is passed the function will panic. This is most likely not a future
+    /// proof solution as we'd might want to enrich the response with 10101 metadata as well. If
+    /// that happens we will have to rework this part.
+    pub fn build_from_response(message: Message) -> Self {
+        match message {
             Message::Channel(ChannelMessage::Accept(accept_channel)) => {
                 TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel })
             }
             Message::Channel(ChannelMessage::Sign(sign_channel)) => {
                 TenTenOneMessage::Sign(TenTenOneSignChannel { sign_channel })
-            }
-            Message::Channel(ChannelMessage::SettleOffer(settle_offer)) => {
-                TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer })
             }
             Message::Channel(ChannelMessage::SettleAccept(settle_accept)) => {
                 TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept })
@@ -408,9 +419,6 @@ impl TryFrom<Message> for TenTenOneMessage {
             }
             Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)) => {
                 TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { settle_finalize })
-            }
-            Message::Channel(ChannelMessage::RenewOffer(renew_offer)) => {
-                TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer })
             }
             Message::Channel(ChannelMessage::RenewAccept(renew_accept)) => {
                 TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept })
@@ -432,18 +440,21 @@ impl TryFrom<Message> for TenTenOneMessage {
             Message::Channel(ChannelMessage::Reject(reject)) => {
                 TenTenOneMessage::Reject(TenTenOneReject { reject })
             }
-            Message::OnChain(_) | Message::SubChannel(_) => bail!("Unexpected dlc message"),
-        };
-
-        Ok(msg)
+            Message::OnChain(_)
+            | Message::SubChannel(_)
+            | Message::Channel(ChannelMessage::RenewOffer(_))
+            | Message::Channel(ChannelMessage::SettleOffer(_))
+            | Message::Channel(ChannelMessage::Offer(_)) => {
+                unreachable!()
+            }
+        }
     }
-}
 
-impl TenTenOneMessage {
     pub fn get_reference_id(&self) -> Option<ReferenceId> {
         match self {
             TenTenOneMessage::Offer(TenTenOneOfferChannel {
                 offer_channel: OfferChannel { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::Accept(TenTenOneAcceptChannel {
                 accept_channel: AcceptChannel { reference_id, .. },
@@ -453,6 +464,7 @@ impl TenTenOneMessage {
             })
             | TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
                 settle_offer: SettleOffer { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept {
                 settle_accept: SettleAccept { reference_id, .. },
@@ -464,6 +476,10 @@ impl TenTenOneMessage {
                 settle_finalize: SettleFinalize { reference_id, .. },
             })
             | TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
+                renew_offer: RenewOffer { reference_id, .. },
+                ..
+            })
+            | TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
                 renew_offer: RenewOffer { reference_id, .. },
             })
             | TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
@@ -498,7 +514,7 @@ impl From<TenTenOneMessage> for Message {
 impl From<TenTenOneMessage> for ChannelMessage {
     fn from(value: TenTenOneMessage) -> Self {
         match value {
-            TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel }) => {
+            TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel, .. }) => {
                 ChannelMessage::Offer(offer_channel)
             }
             TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }) => {
@@ -507,7 +523,7 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::Sign(TenTenOneSignChannel { sign_channel }) => {
                 ChannelMessage::Sign(sign_channel)
             }
-            TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer }) => {
+            TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer, .. }) => {
                 ChannelMessage::SettleOffer(settle_offer)
             }
             TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept }) => {
@@ -519,7 +535,10 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { settle_finalize }) => {
                 ChannelMessage::SettleFinalize(settle_finalize)
             }
-            TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer }) => {
+            TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer, .. }) => {
+                ChannelMessage::RenewOffer(renew_offer)
+            }
+            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }) => {
                 ChannelMessage::RenewOffer(renew_offer)
             }
             TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }) => {
@@ -587,6 +606,24 @@ macro_rules! handle_read_tentenone_messages {
     }};
 }
 
+macro_rules! impl_serde_writeable {
+    ($st:ident) => {
+        impl Writeable for $st {
+            fn write<W: Writer>(&self, w: &mut W) -> Result<(), ::std::io::Error> {
+                let serialized = serde_json::to_string(self)?;
+                write_string(&serialized, w)
+            }
+        }
+
+        impl Readable for $st {
+            fn read<R: std::io::Read>(r: &mut R) -> Result<Self, DecodeError> {
+                let serialized = read_string(r)?;
+                serde_json::from_str(&serialized).map_err(|_| DecodeError::InvalidValue)
+            }
+        }
+    };
+}
+
 impl_type_writeable_for_enum!(WireMessage, { Message, SegmentStart, SegmentChunk });
 impl_type_writeable_for_enum!(TenTenOneMessage,
 {
@@ -599,6 +636,7 @@ impl_type_writeable_for_enum!(TenTenOneMessage,
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
+    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
@@ -607,14 +645,15 @@ impl_type_writeable_for_enum!(TenTenOneMessage,
 });
 
 impl_dlc_writeable!(TenTenOneReject, { (reject, writeable) });
-impl_dlc_writeable!(TenTenOneOfferChannel, { (offer_channel, writeable) });
+impl_dlc_writeable!(TenTenOneOfferChannel, { (filled_with, writeable), (offer_channel, writeable) });
 impl_dlc_writeable!(TenTenOneAcceptChannel, { (accept_channel, writeable) });
 impl_dlc_writeable!(TenTenOneSignChannel, { (sign_channel, writeable) });
-impl_dlc_writeable!(TenTenOneSettleOffer, { (settle_offer, writeable) });
+impl_dlc_writeable!(TenTenOneSettleOffer, { (order, writeable), (filled_with, writeable), (settle_offer, writeable) });
 impl_dlc_writeable!(TenTenOneSettleAccept, { (settle_accept, writeable) });
 impl_dlc_writeable!(TenTenOneSettleConfirm, { (settle_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneSettleFinalize, { (settle_finalize, writeable) });
-impl_dlc_writeable!(TenTenOneRenewOffer, { (renew_offer, writeable) });
+impl_dlc_writeable!(TenTenOneRenewOffer, { (filled_with, writeable), (renew_offer, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable) });
 impl_dlc_writeable!(TenTenOneRenewAccept, { (renew_accept, writeable) });
 impl_dlc_writeable!(TenTenOneRenewConfirm, { (renew_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneRenewFinalize, { (renew_finalize, writeable) });
@@ -632,6 +671,7 @@ impl_type!(SETTLE_CHANNEL_ACCEPT_TYPE, TenTenOneSettleAccept, 43008);
 impl_type!(SETTLE_CHANNEL_CONFIRM_TYPE, TenTenOneSettleConfirm, 43010);
 impl_type!(SETTLE_CHANNEL_FINALIZE_TYPE, TenTenOneSettleFinalize, 43012);
 impl_type!(RENEW_CHANNEL_OFFER_TYPE, TenTenOneRenewOffer, 43014);
+impl_type!(ROLLOVER_CHANNEL_OFFER_TYPE, TenTenOneRolloverOffer, 43028);
 impl_type!(RENEW_CHANNEL_ACCEPT_TYPE, TenTenOneRenewAccept, 43016);
 impl_type!(RENEW_CHANNEL_CONFIRM_TYPE, TenTenOneRenewConfirm, 43018);
 impl_type!(RENEW_CHANNEL_FINALIZE_TYPE, TenTenOneRenewFinalize, 43020);
@@ -641,6 +681,9 @@ impl_type!(
     TenTenOneCollaborativeCloseOffer,
     43022
 );
+
+impl_serde_writeable!(Order);
+impl_serde_writeable!(FilledWith);
 
 fn read_tentenone_message<R: ::std::io::Read>(
     msg_type: u16,
@@ -658,10 +701,139 @@ fn read_tentenone_message<R: ::std::io::Read>(
         (SETTLE_CHANNEL_CONFIRM_TYPE, SettleConfirm),
         (SETTLE_CHANNEL_FINALIZE_TYPE, SettleFinalize),
         (RENEW_CHANNEL_OFFER_TYPE, RenewOffer),
+        (ROLLOVER_CHANNEL_OFFER_TYPE, RolloverOffer),
         (RENEW_CHANNEL_ACCEPT_TYPE, RenewAccept),
         (RENEW_CHANNEL_CONFIRM_TYPE, RenewConfirm),
         (RENEW_CHANNEL_FINALIZE_TYPE, RenewFinalize),
         (RENEW_CHANNEL_REVOKE_TYPE, RenewRevoke),
         (COLLABORATIVE_CLOSE_OFFER_TYPE, CollaborativeCloseOffer)
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::commons;
+    use crate::commons::ContractSymbol;
+    use crate::commons::Direction;
+    use crate::commons::OrderReason;
+    use crate::commons::OrderState;
+    use crate::commons::OrderType;
+    use crate::message_handler::TenTenOneMessageHandler;
+    use crate::message_handler::TenTenOneReject;
+    use crate::message_handler::TenTenOneSettleOffer;
+    use crate::node::event::NodeEventHandler;
+    use anyhow::anyhow;
+    use anyhow::Result;
+    use dlc_manager::DlcChannelId;
+    use dlc_messages::channel::Reject;
+    use dlc_messages::channel::SettleOffer;
+    use insta::assert_debug_snapshot;
+    use lightning::ln::wire::CustomMessageReader;
+    use lightning::ln::wire::Type;
+    use lightning::util::ser::Readable;
+    use lightning::util::ser::Writeable;
+    use secp256k1::PublicKey;
+    use std::io::Cursor;
+    use std::str::FromStr;
+    use std::sync::Arc;
+    use time::OffsetDateTime;
+
+    #[test]
+    fn test_reject_writeable() {
+        let reject = TenTenOneReject {
+            reject: Reject {
+                channel_id: DlcChannelId::default(),
+                timestamp: 0,
+                reference_id: None,
+            },
+        };
+
+        let json_msg = handler_read_test(reject);
+        assert_debug_snapshot!(json_msg);
+    }
+
+    #[test]
+    fn test_settle_offer_impl_serde_writeable() {
+        let settle_offer = TenTenOneSettleOffer {
+            settle_offer: SettleOffer {
+                channel_id: DlcChannelId::default(),
+                counter_payout: 0,
+                next_per_update_point: dummy_pubkey(),
+                timestamp: 0,
+                reference_id: None,
+            },
+            order: dummy_order(),
+            filled_with: dummy_filled_with(),
+        };
+
+        let json_msg = handler_read_test(settle_offer);
+        assert_debug_snapshot!(json_msg);
+    }
+
+    fn dummy_filled_with() -> commons::FilledWith {
+        commons::FilledWith {
+            order_id: Default::default(),
+            expiry_timestamp: dummy_timestamp(),
+            oracle_pk: dummy_x_only_pubkey(),
+            matches: vec![],
+        }
+    }
+
+    fn dummy_order() -> commons::Order {
+        commons::Order {
+            id: Default::default(),
+            price: Default::default(),
+            leverage: 0.0,
+            contract_symbol: ContractSymbol::BtcUsd,
+            trader_id: PublicKey::from_str(
+                "02d5aa8fce495f6301b466594af056a46104dcdc6d735ec4793aa43108854cbd4a",
+            )
+            .unwrap(),
+            direction: Direction::Long,
+            quantity: Default::default(),
+            order_type: OrderType::Market,
+            timestamp: dummy_timestamp(),
+            expiry: dummy_timestamp(),
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        }
+    }
+
+    fn dummy_timestamp() -> OffsetDateTime {
+        OffsetDateTime::from_unix_timestamp(0).unwrap()
+    }
+
+    fn dummy_pubkey() -> secp256k1_zkp::PublicKey {
+        secp256k1_zkp::PublicKey::from_str(
+            "02d5aa8fce495f6301b466594af056a46104dcdc6d735ec4793aa43108854cbd4a",
+        )
+        .unwrap()
+    }
+
+    fn dummy_x_only_pubkey() -> secp256k1::XOnlyPublicKey {
+        secp256k1::XOnlyPublicKey::from_str(
+            "cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115",
+        )
+        .unwrap()
+    }
+
+    fn handler_read_test<T: Writeable + Readable + Type + std::fmt::Debug>(
+        msg: T,
+    ) -> Result<String> {
+        let mut buf = Vec::new();
+        msg.type_id().write(&mut buf)?;
+        msg.write(&mut buf)?;
+
+        let handler = TenTenOneMessageHandler::new(Arc::new(NodeEventHandler::new()));
+        let mut reader = Cursor::new(&mut buf);
+        let message_type = <u16 as Readable>::read(&mut reader).map_err(|e| anyhow!("{e:#}"))?;
+        let message = handler
+            .read(message_type, &mut reader)
+            .map_err(|e| anyhow!("{e:#}"))?
+            .expect("to read message");
+
+        let msg = serde_json::to_string(&message)?;
+        Ok(msg)
+    }
 }

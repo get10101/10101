@@ -1,10 +1,12 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::bitcoin_conversion::to_secp_pk_30;
+use crate::commons;
 use crate::message_handler::TenTenOneCollaborativeCloseOffer;
 use crate::message_handler::TenTenOneMessage;
 use crate::message_handler::TenTenOneMessageHandler;
 use crate::message_handler::TenTenOneOfferChannel;
 use crate::message_handler::TenTenOneRenewOffer;
+use crate::message_handler::TenTenOneRolloverOffer;
 use crate::message_handler::TenTenOneSettleAccept;
 use crate::message_handler::TenTenOneSettleOffer;
 use crate::node::event::NodeEvent;
@@ -39,6 +41,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 {
     pub async fn propose_dlc_channel(
         &self,
+        filled_with: commons::FilledWith,
         contract_input: ContractInput,
         counterparty: PublicKey,
         protocol_id: ReferenceId,
@@ -93,7 +96,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: counterparty,
-                    msg: TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel }),
+                    msg: TenTenOneMessage::Offer(TenTenOneOfferChannel {
+                        offer_channel,
+                        filled_with,
+                    }),
                 });
 
                 Ok((temporary_contract_id, temporary_channel_id))
@@ -214,6 +220,8 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     /// Collaboratively close a position within a DLC Channel
     pub async fn propose_dlc_channel_collaborative_settlement(
         &self,
+        order: commons::Order,
+        filled_with: commons::FilledWith,
         channel_id: &DlcChannelId,
         accept_settlement_amount: u64,
         protocol_id: ReferenceId,
@@ -239,7 +247,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
                     peer: to_secp_pk_30(counterparty),
-                    msg: TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer }),
+                    msg: TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
+                        settle_offer,
+                        order,
+                        filled_with,
+                    }),
                 });
 
                 Ok(())
@@ -282,6 +294,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
     pub async fn propose_dlc_channel_update(
         &self,
+        filled_with: Option<commons::FilledWith>,
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
         protocol_id: ReferenceId,
@@ -302,8 +315,18 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                     Some(protocol_id),
                 )?;
 
+                // TODO(holzeis): Separate into different functions for renew and rollover.
+                let msg = match filled_with {
+                    Some(filled_with) => TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
+                        renew_offer,
+                        filled_with,
+                    }),
+                    // if no filled with is provided we are rolling over.
+                    None => TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }),
+                };
+
                 event_handler.publish(NodeEvent::StoreDlcMessage {
-                    msg: TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer }),
+                    msg,
                     peer: to_secp_pk_30(counterparty_pubkey),
                 });
 

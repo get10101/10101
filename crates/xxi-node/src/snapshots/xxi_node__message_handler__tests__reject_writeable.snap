@@ -1,0 +1,7 @@
+---
+source: crates/xxi-node/src/message_handler.rs
+expression: json_msg
+---
+Ok(
+    "{\"Message\":{\"Reject\":{\"reject\":{\"channelId\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"timestamp\":0,\"referenceId\":null}}}}",
+)

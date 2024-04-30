@@ -274,7 +274,7 @@ async fn main() -> Result<()> {
     let _handle = rollover::monitor(
         pool.clone(),
         node_event_handler.subscribe(),
-        auth_users_notifier.clone(),
+        notification_service.get_sender(),
         network,
         node.clone(),
     );
@@ -332,8 +332,7 @@ async fn main() -> Result<()> {
     );
 
     let sender = notification_service.get_sender();
-    let notification_scheduler =
-        NotificationScheduler::new(sender, settings, network, node, auth_users_notifier);
+    let notification_scheduler = NotificationScheduler::new(sender, settings, network, node);
     tokio::spawn({
         let pool = pool.clone();
         let scheduler = notification_scheduler;

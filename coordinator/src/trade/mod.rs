@@ -43,6 +43,7 @@ use xxi_node::cfd::calculate_long_liquidation_price;
 use xxi_node::cfd::calculate_margin;
 use xxi_node::cfd::calculate_pnl;
 use xxi_node::cfd::calculate_short_liquidation_price;
+use xxi_node::commons;
 use xxi_node::commons::Direction;
 use xxi_node::commons::MatchState;
 use xxi_node::commons::Message;
@@ -236,6 +237,7 @@ impl TradeExecutor {
             } => self
                 .start_closing_position(
                     &mut connection,
+                    order,
                     &position,
                     &params.trade_params,
                     channel_id,
@@ -363,7 +365,12 @@ impl TradeExecutor {
         let (temporary_contract_id, temporary_channel_id) = self
             .node
             .inner
-            .propose_dlc_channel(contract_input, trade_params.pubkey, protocol_id.into())
+            .propose_dlc_channel(
+                trade_params.filled_with.clone(),
+                contract_input,
+                trade_params.pubkey,
+                protocol_id.into(),
+            )
             .await
             .context("Could not propose DLC channel")?;
 
@@ -537,7 +544,12 @@ impl TradeExecutor {
         let temporary_contract_id = self
             .node
             .inner
-            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id.into())
+            .propose_dlc_channel_update(
+                Some(trade_params.filled_with.clone()),
+                &dlc_channel_id,
+                contract_input,
+                protocol_id.into(),
+            )
             .await
             .context("Could not propose DLC channel update")?;
 
@@ -705,7 +717,12 @@ impl TradeExecutor {
         let temporary_contract_id = self
             .node
             .inner
-            .propose_dlc_channel_update(&dlc_channel_id, contract_input, protocol_id.into())
+            .propose_dlc_channel_update(
+                Some(trade_params.filled_with.clone()),
+                &dlc_channel_id,
+                contract_input,
+                protocol_id.into(),
+            )
             .await
             .context("Could not propose DLC channel update")?;
 
@@ -802,6 +819,7 @@ impl TradeExecutor {
     pub async fn start_closing_position(
         &self,
         conn: &mut PgConnection,
+        order: commons::Order,
         position: &Position,
         trade_params: &TradeParams,
         channel_id: DlcChannelId,
@@ -856,6 +874,8 @@ impl TradeExecutor {
         self.node
             .inner
             .propose_dlc_channel_collaborative_settlement(
+                order,
+                trade_params.filled_with.clone(),
                 &channel_id,
                 settlement_amount_trader,
                 protocol_id.into(),

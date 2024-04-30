@@ -5336,6 +5336,7 @@ dependencies = [
  "getrandom",
  "hex",
  "hkdf",
+ "insta",
  "lightning",
  "log",
  "mempool",

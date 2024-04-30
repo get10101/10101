@@ -1,5 +1,4 @@
 use crate::db;
-use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
@@ -24,7 +23,6 @@ pub struct NotificationScheduler {
     settings: Settings,
     network: Network,
     node: Node,
-    notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 impl NotificationScheduler {
@@ -33,7 +31,6 @@ impl NotificationScheduler {
         settings: Settings,
         network: Network,
         node: Node,
-        notifier: mpsc::Sender<OrderbookMessage>,
     ) -> Self {
         let scheduler = JobScheduler::new()
             .await
@@ -45,7 +42,6 @@ impl NotificationScheduler {
             settings,
             network,
             node,
-            notifier,
         }
     }
 
@@ -117,7 +113,7 @@ impl NotificationScheduler {
         let schedule = self.settings.rollover_window_open_scheduler.clone();
         let network = self.network;
         let node = self.node.clone();
-        let notifier = self.notifier.clone();
+        let sender = self.sender.clone();
 
         let uuid = self
             .scheduler
@@ -127,7 +123,7 @@ impl NotificationScheduler {
                 network,
                 NotificationKind::RolloverWindowOpen,
                 node,
-                notifier,
+                sender,
             )?)
             .await?;
         tracing::debug!(
@@ -144,7 +140,7 @@ impl NotificationScheduler {
         let schedule = self.settings.rollover_window_close_scheduler.clone();
         let network = self.network;
         let node = self.node.clone();
-        let notifier = self.notifier.clone();
+        let sender = self.sender.clone();
 
         let uuid = self
             .scheduler
@@ -154,7 +150,7 @@ impl NotificationScheduler {
                 network,
                 NotificationKind::PositionSoonToExpire,
                 node,
-                notifier,
+                sender,
             )?)
             .await?;
 
@@ -177,7 +173,7 @@ fn build_rollover_notification_job(
     network: Network,
     notification: NotificationKind,
     node: Node,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<Notification>,
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
         let notifier = notifier.clone();
