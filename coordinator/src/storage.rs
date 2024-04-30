@@ -1,4 +1,3 @@
-use lightning_persister::fs_store::FilesystemStore;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,7 +7,6 @@ use xxi_node::storage::KeyValue;
 
 #[derive(Clone)]
 pub struct CoordinatorTenTenOneStorage {
-    pub ln_storage: Arc<FilesystemStore>,
     pub dlc_storage: Arc<SledStorageProvider>,
     pub data_dir: String,
 }
@@ -21,13 +19,10 @@ impl CoordinatorTenTenOneStorage {
             fs::create_dir_all(data_dir.as_path()).expect("Failed to create data dir");
         }
 
-        let ln_storage = Arc::new(FilesystemStore::new(data_dir.clone()));
-
         let data_dir = data_dir.to_string_lossy().to_string();
         let dlc_storage = Arc::new(SledStorageProvider::new(&data_dir));
 
         CoordinatorTenTenOneStorage {
-            ln_storage,
             dlc_storage,
             data_dir,
         }

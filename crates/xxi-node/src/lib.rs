@@ -32,7 +32,6 @@ pub use config::CONFIRMATION_TARGET;
 pub use dlc::ContractDetails;
 pub use dlc::DlcChannelDetails;
 pub use lightning;
-pub use lightning_invoice;
 pub use on_chain_wallet::ConfirmationStatus;
 pub use on_chain_wallet::FeeConfig;
 pub use on_chain_wallet::TransactionDetails;

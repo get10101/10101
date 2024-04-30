@@ -432,17 +432,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bdk-macros"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81c1980e50ae23bb6efa9283ae8679d6ea2c6fa6a99fe62533f65f4a25a1a56c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "bdk_chain"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -467,7 +456,7 @@ checksum = "d8d3b3f593d5fb57db374e14489dcd0da0ed6292c6d8989a1f2b381f1cbbc74b"
 dependencies = [
  "async-trait",
  "bdk_chain",
- "esplora-client 0.6.0",
+ "esplora-client",
  "futures",
 ]
 
@@ -994,8 +983,6 @@ dependencies = [
  "insta",
  "lazy_static",
  "lightning",
- "lightning-invoice",
- "lightning-persister",
  "local-ip-address",
  "openssl",
  "opentelemetry",
@@ -1488,18 +1475,6 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
-]
-
-[[package]]
-name = "esplora-client"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "847e59bd6ee1c3f2bdf217118ee3640b97a1b1d8becb55771e67e533b87da66f"
-dependencies = [
- "bitcoin 0.29.2",
- "log",
- "serde",
- "ureq",
 ]
 
 [[package]]
@@ -2305,60 +2280,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightning-background-processor"
-version = "0.0.117"
-source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
-dependencies = [
- "bitcoin 0.29.2",
- "lightning",
- "lightning-rapid-gossip-sync",
-]
-
-[[package]]
-name = "lightning-invoice"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d2380d053673c467c5f0be992cd4685e40d141d075647d74b64aba1b9c0b1ae"
-dependencies = [
- "bech32",
- "bitcoin 0.29.2",
- "bitcoin_hashes 0.11.0",
- "lightning",
- "num-traits",
- "secp256k1 0.24.3",
-]
-
-[[package]]
-name = "lightning-persister"
-version = "0.0.117"
-source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
-dependencies = [
- "bitcoin 0.29.2",
- "lightning",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "lightning-rapid-gossip-sync"
-version = "0.0.117"
-source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
-dependencies = [
- "bitcoin 0.29.2",
- "lightning",
-]
-
-[[package]]
-name = "lightning-transaction-sync"
-version = "0.0.117"
-source = "git+https://github.com/bonomat/rust-lightning-p2p-derivatives?rev=e49030e#e49030e785408f0fd4da077f63f8101cc0b2436e"
-dependencies = [
- "bdk-macros",
- "bitcoin 0.29.2",
- "esplora-client 0.4.0",
- "lightning",
-]
-
-[[package]]
 name = "link-cplusplus"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2605,8 +2526,6 @@ dependencies = [
  "hex",
  "itertools",
  "lightning",
- "lightning-invoice",
- "lightning-persister",
  "openssl",
  "orderbook-client",
  "parking_lot 0.12.1",
@@ -5418,10 +5337,6 @@ dependencies = [
  "hex",
  "hkdf",
  "lightning",
- "lightning-background-processor",
- "lightning-invoice",
- "lightning-persister",
- "lightning-transaction-sync",
  "log",
  "mempool",
  "p2pd-oracle-client",

@@ -24,8 +24,6 @@ futures = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
 lightning = { version = "0.0.117", features = ["max_level_trace"] }
-lightning-invoice = { version = "0.25" }
-lightning-persister = "0.0.117"
 local-ip-address = "0.5.1"
 openssl = { version = "0.10.60", features = ["vendored"] }
 opentelemetry = "0.19.0"
