@@ -1,9 +1,9 @@
 use crate::db;
-use crate::db::orders_helper::get_all_matched_market_orders_by_order_reason;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
+use crate::orderbook;
 use crate::referrals;
 use crate::settings::Settings;
 use anyhow::Result;
@@ -283,17 +283,17 @@ fn build_remind_to_close_expired_position_notification_job(
         // Note, positions that are expired longer than
         // [`crate::node::expired_positions::EXPIRED_POSITION_TIMEOUT`] are set to closing, hence
         // those positions will not get notified anymore afterwards.
-        match get_all_matched_market_orders_by_order_reason(
+        match orderbook::db::orders::get_all_matched_market_orders_by_order_reason(
             &mut conn,
             vec![commons::OrderReason::Expired],
         ) {
-            Ok(positions_with_token) => Box::pin({
+            Ok(orders) => Box::pin({
                 async move {
-                    for (order, fcm_token) in positions_with_token {
+                    for order in orders {
                         tracing::debug!(trader_id=%order.trader_id, "Sending reminder to close expired position.");
                         if let Err(e) = notification_sender
                             .send(Notification::new(
-                                fcm_token.clone(),
+                                order.trader_id,
                                 NotificationKind::PositionExpired,
                             ))
                             .await
@@ -332,16 +332,16 @@ fn build_remind_to_close_liquidated_position_notification_job(
         // Note, positions that are liquidated longer than
         // [`crate::node::liquidated_positions::LIQUIDATED_POSITION_TIMEOUT`] are set to closing,
         // hence those positions will not get notified anymore afterwards.
-        match get_all_matched_market_orders_by_order_reason(
+        match orderbook::db::orders::get_all_matched_market_orders_by_order_reason(
             &mut conn,
             vec![
                 commons::OrderReason::TraderLiquidated,
                 commons::OrderReason::CoordinatorLiquidated,
             ],
         ) {
-            Ok(orders_with_token) => Box::pin({
+            Ok(orders) => Box::pin({
                 async move {
-                    for (order, fcm_token) in orders_with_token {
+                    for order in orders {
                         tracing::debug!(trader_id=%order.trader_id, "Sending reminder to close liquidated position.");
 
                         let notification_kind = NotificationKind::Custom {
@@ -351,7 +351,7 @@ fn build_remind_to_close_liquidated_position_notification_job(
 
                         if let Err(e) = notification_sender
                             .send(Notification::new(
-                                fcm_token.clone(),
+                                order.trader_id,
                                 notification_kind.clone(),
                             ))
                             .await
