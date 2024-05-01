@@ -753,7 +753,7 @@ impl TradeExecutor {
 
         let trader_liquidation_price = liquidation_price(
             price,
-            Decimal::try_from(coordinator_leverage).expect("to fit into decimal"),
+            Decimal::try_from(trade_params.leverage).expect("to fit into decimal"),
             trade_params.direction,
             maintenance_margin_rate,
         );
