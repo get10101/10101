@@ -7,7 +7,6 @@ use crate::db;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
 use bitcoin::Network;
-use lightning_persister::fs_store::FilesystemStore;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -19,7 +18,6 @@ use xxi_node::storage::KeyValue;
 #[derive(Clone)]
 pub struct TenTenOneNodeStorage {
     pub client: RemoteBackupClient,
-    pub ln_storage: Arc<FilesystemStore>,
     pub dlc_storage: Arc<SledStorageProvider>,
     pub data_dir: String,
     pub backup_dir: String,
@@ -43,14 +41,11 @@ impl TenTenOneNodeStorage {
         let backup_dir = backup_dir.to_string_lossy().to_string();
         tracing::info!("Created backup dir at {backup_dir}");
 
-        let ln_storage = Arc::new(FilesystemStore::new(data_dir.clone()));
-
         let data_dir = data_dir.to_string_lossy().to_string();
         let dlc_storage = Arc::new(SledStorageProvider::new(&data_dir));
         let client = RemoteBackupClient::new(AesCipher::new(secret_key));
 
         TenTenOneNodeStorage {
-            ln_storage,
             dlc_storage,
             data_dir,
             backup_dir,
