@@ -11,6 +11,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/logger/logger.dart';
 
+const Color appBackgroundColor = Color(0xFFFAFAFA);
+
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
@@ -66,7 +68,7 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         primarySwatch: swatch,
-        scaffoldBackgroundColor: const Color(0xFFFAFAFA),
+        scaffoldBackgroundColor: appBackgroundColor,
         cardTheme: const CardTheme(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12.0))),
             surfaceTintColor: Colors.white,
