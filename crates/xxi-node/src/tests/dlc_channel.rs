@@ -38,8 +38,8 @@ async fn can_open_and_settle_offchain() {
     let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
     coordinator
-        .propose_dlc_channel_update(
-            Some(dummy_filled_with()),
+        .propose_reopen_or_resize(
+            dummy_filled_with(),
             &coordinator_signed_channel.channel_id,
             contract_input,
             new_reference_id(),

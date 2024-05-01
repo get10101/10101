@@ -291,15 +291,15 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     }
 
     /// Propose an update to the DLC channel based on the provided [`ContractInput`]. A
-    /// [`RenewOffer`] is sent to the counterparty, kickstarting the renew protocol.
-    pub async fn propose_dlc_channel_update(
+    /// [`TenTenOneRenewOffer`] is sent to the counterparty, kickstarting the dlc renew protocol.
+    pub async fn propose_reopen_or_resize(
         &self,
-        filled_with: Option<commons::FilledWith>,
+        filled_with: commons::FilledWith,
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
         protocol_id: ReferenceId,
     ) -> Result<ContractId> {
-        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel update");
+        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel reopen or resize");
         spawn_blocking({
             let dlc_manager = self.dlc_manager.clone();
             let dlc_channel_id = *dlc_channel_id;
@@ -315,18 +315,61 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                     Some(protocol_id),
                 )?;
 
-                // TODO(holzeis): Separate into different functions for renew and rollover.
-                let msg = match filled_with {
-                    Some(filled_with) => TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
+                event_handler.publish(NodeEvent::StoreDlcMessage {
+                    msg: TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
                         renew_offer,
                         filled_with,
                     }),
-                    // if no filled with is provided we are rolling over.
-                    None => TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }),
-                };
+                    peer: to_secp_pk_30(counterparty_pubkey),
+                });
+
+                let offered_contracts = dlc_manager.get_store().get_contract_offers()?;
+
+                // We assume that the first `OfferedContract` we find here is the one we just
+                // proposed when renewing the DLC channel.
+                //
+                // TODO: Change `renew_offer` API to return the `temporary_contract_id`, like
+                // `offer_channel` does.
+                let offered_contract = offered_contracts
+                    .iter()
+                    .find(|contract| contract.counter_party == counterparty_pubkey)
+                    .context(
+                        "Could not find offered contract after proposing DLC channel update",
+                    )?;
+
+                Ok(offered_contract.id)
+            }
+        })
+        .await
+        .map_err(|e| anyhow!("{e:#}"))?
+    }
+
+    /// Propose an update to the DLC channel based on the provided [`ContractInput`]. A
+    /// [`TenTenOneRolloverOffer`] is sent to the counterparty, kickstarting the dlc renew protocol.
+    pub async fn propose_rollover(
+        &self,
+        dlc_channel_id: &DlcChannelId,
+        contract_input: ContractInput,
+        protocol_id: ReferenceId,
+    ) -> Result<ContractId> {
+        tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel rollover");
+        spawn_blocking({
+            let dlc_manager = self.dlc_manager.clone();
+            let dlc_channel_id = *dlc_channel_id;
+            let event_handler = self.event_handler.clone();
+            move || {
+                // Not actually needed. See https://github.com/p2pderivatives/rust-dlc/issues/149.
+                let counter_payout = 0;
+
+                let (renew_offer, counterparty_pubkey) = dlc_manager.renew_offer(
+                    &dlc_channel_id,
+                    counter_payout,
+                    &contract_input,
+                    Some(protocol_id),
+                )?;
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
-                    msg,
+                    msg: TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }),
                     peer: to_secp_pk_30(counterparty_pubkey),
                 });
 

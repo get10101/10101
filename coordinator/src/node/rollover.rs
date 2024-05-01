@@ -255,7 +255,7 @@ impl Node {
 
         let contract_id = self
             .inner
-            .propose_dlc_channel_update(None, dlc_channel_id, contract_input, protocol_id.into())
+            .propose_rollover(dlc_channel_id, contract_input, protocol_id.into())
             .await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());

@@ -544,14 +544,14 @@ impl TradeExecutor {
         let temporary_contract_id = self
             .node
             .inner
-            .propose_dlc_channel_update(
-                Some(trade_params.filled_with.clone()),
+            .propose_reopen_or_resize(
+                trade_params.filled_with.clone(),
                 &dlc_channel_id,
                 contract_input,
                 protocol_id.into(),
             )
             .await
-            .context("Could not propose DLC channel update")?;
+            .context("Could not propose reopen DLC channel update")?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_dlc_protocol(
@@ -717,14 +717,14 @@ impl TradeExecutor {
         let temporary_contract_id = self
             .node
             .inner
-            .propose_dlc_channel_update(
-                Some(trade_params.filled_with.clone()),
+            .propose_reopen_or_resize(
+                trade_params.filled_with.clone(),
                 &dlc_channel_id,
                 contract_input,
                 protocol_id.into(),
             )
             .await
-            .context("Could not propose DLC channel update")?;
+            .context("Could not propose resize DLC channel update")?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_dlc_protocol(
