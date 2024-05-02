@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/domain/background_task.dart';
+import 'package:get_10101/common/recover_dlc_change_notifier.dart';
+import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
@@ -31,6 +34,22 @@ class _XXIScreenState extends State<XXIScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final taskStatus = context.watch<RecoverDlcChangeNotifier>().taskStatus;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (taskStatus == TaskStatus.pending) {
+        // initialize dialog for the pending task
+        showDialog(
+          context: context,
+          builder: (context) {
+            TaskStatus status = context.watch<RecoverDlcChangeNotifier>().taskStatus;
+            late Widget content = const Text("Recovering your dlc channel");
+            return TaskStatusDialog(title: "Catching up!", status: status, content: content);
+          },
+        );
+      }
+    });
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark, child: Scaffold(body: widget.child));
   }
