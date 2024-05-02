@@ -5,6 +5,7 @@ import 'package:get_10101/common/settings/emergency_kit_screen.dart';
 import 'package:get_10101/common/settings/user_screen.dart';
 import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/status_screen.dart';
+import 'package:get_10101/common/xxi_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/welcome/error_screen.dart';
@@ -64,158 +65,166 @@ GoRouter createRoutes() {
             pageBuilder: (context, state) => const NoTransitionPage<void>(
                   child: ErrorScreen(),
                 )),
-        GoRoute(
-            path: SettingsScreen.route,
-            pageBuilder: (BuildContext context, GoRouterState state) {
-              return CustomTransitionPage<void>(
-                transitionsBuilder: (BuildContext context, Animation<double> animation,
-                    Animation<double> secondaryAnimation, Widget child) {
-                  const begin = Offset(-1.0, 0.0);
-                  const end = Offset.zero;
-                  const curve = Curves.ease;
+        ShellRoute(
+            builder: (BuildContext context, GoRouterState state, Widget child) {
+              return XXIScreen(
+                child: child,
+              );
+            },
+            routes: [
+              GoRoute(
+                  path: SettingsScreen.route,
+                  pageBuilder: (BuildContext context, GoRouterState state) {
+                    return CustomTransitionPage<void>(
+                      transitionsBuilder: (BuildContext context, Animation<double> animation,
+                          Animation<double> secondaryAnimation, Widget child) {
+                        const begin = Offset(-1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.ease;
 
-                  var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+                        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
 
-                  return SlideTransition(
-                    position: animation.drive(tween),
+                        return SlideTransition(
+                          position: animation.drive(tween),
+                          child: child,
+                        );
+                      },
+                      child: SettingsScreen(location: state.extra! as String),
+                    );
+                  },
+                  routes: <RouteBase>[
+                    GoRoute(
+                      path: AppInfoScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const AppInfoScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: ShareLogsScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const ShareLogsScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: SeedScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const SeedScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: WalletSettings.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const WalletSettings();
+                      },
+                    ),
+                    GoRoute(
+                      path: UserSettings.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const UserSettings();
+                      },
+                    ),
+                    GoRoute(
+                      path: ChannelScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const ChannelScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: StatusScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const StatusScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: EmergencyKitScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const EmergencyKitScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: CollabCloseScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const CollabCloseScreen();
+                      },
+                    ),
+                    GoRoute(
+                      path: ForceCloseScreen.subRouteName,
+                      // Use root navigator so the screen overlays the application shell
+                      parentNavigatorKey: rootNavigatorKey,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const ForceCloseScreen();
+                      },
+                    )
+                  ]),
+              ShellRoute(
+                navigatorKey: shellNavigatorKey,
+                builder: (BuildContext context, GoRouterState state, Widget child) {
+                  return ScaffoldWithNavBar(
                     child: child,
                   );
                 },
-                child: SettingsScreen(location: state.extra! as String),
-              );
-            },
-            routes: <RouteBase>[
-              GoRoute(
-                path: AppInfoScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const AppInfoScreen();
-                },
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: WalletScreen.route,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const WalletScreen();
+                    },
+                    routes: <RouteBase>[
+                      GoRoute(
+                        path: SendOnChainScreen.subRouteName,
+                        // Use root navigator so the screen overlays the application shell
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (BuildContext context, GoRouterState state) {
+                          return SendOnChainScreen(destination: state.extra as OnChainAddress);
+                        },
+                      ),
+                      GoRoute(
+                        path: ReceiveScreen.subRouteName,
+                        // Use root navigator so the screen overlays the application shell
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (BuildContext context, GoRouterState state) {
+                          if (state.extra != null) {
+                            return ReceiveScreen(walletType: state.extra as WalletType);
+                          }
+                          return const ReceiveScreen();
+                        },
+                      ),
+                      GoRoute(
+                        path: ScannerScreen.subRouteName,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (BuildContext context, GoRouterState state) {
+                          return const ScannerScreen();
+                        },
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: TradeScreen.route,
+                    builder: (BuildContext context, GoRouterState state) {
+                      return const TradeScreen();
+                    },
+                    routes: const [],
+                  ),
+                ],
               ),
-              GoRoute(
-                path: ShareLogsScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const ShareLogsScreen();
-                },
-              ),
-              GoRoute(
-                path: SeedScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const SeedScreen();
-                },
-              ),
-              GoRoute(
-                path: WalletSettings.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const WalletSettings();
-                },
-              ),
-              GoRoute(
-                path: UserSettings.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const UserSettings();
-                },
-              ),
-              GoRoute(
-                path: ChannelScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const ChannelScreen();
-                },
-              ),
-              GoRoute(
-                path: StatusScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const StatusScreen();
-                },
-              ),
-              GoRoute(
-                path: EmergencyKitScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const EmergencyKitScreen();
-                },
-              ),
-              GoRoute(
-                path: CollabCloseScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const CollabCloseScreen();
-                },
-              ),
-              GoRoute(
-                path: ForceCloseScreen.subRouteName,
-                // Use root navigator so the screen overlays the application shell
-                parentNavigatorKey: rootNavigatorKey,
-                builder: (BuildContext context, GoRouterState state) {
-                  return const ForceCloseScreen();
-                },
-              )
             ]),
-        ShellRoute(
-          navigatorKey: shellNavigatorKey,
-          builder: (BuildContext context, GoRouterState state, Widget child) {
-            return ScaffoldWithNavBar(
-              child: child,
-            );
-          },
-          routes: <RouteBase>[
-            GoRoute(
-              path: WalletScreen.route,
-              builder: (BuildContext context, GoRouterState state) {
-                return const WalletScreen();
-              },
-              routes: <RouteBase>[
-                GoRoute(
-                  path: SendOnChainScreen.subRouteName,
-                  // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return SendOnChainScreen(destination: state.extra as OnChainAddress);
-                  },
-                ),
-                GoRoute(
-                  path: ReceiveScreen.subRouteName,
-                  // Use root navigator so the screen overlays the application shell
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    if (state.extra != null) {
-                      return ReceiveScreen(walletType: state.extra as WalletType);
-                    }
-                    return const ReceiveScreen();
-                  },
-                ),
-                GoRoute(
-                  path: ScannerScreen.subRouteName,
-                  parentNavigatorKey: rootNavigatorKey,
-                  builder: (BuildContext context, GoRouterState state) {
-                    return const ScannerScreen();
-                  },
-                ),
-              ],
-            ),
-            GoRoute(
-              path: TradeScreen.route,
-              builder: (BuildContext context, GoRouterState state) {
-                return const TradeScreen();
-              },
-              routes: const [],
-            ),
-          ],
-        ),
       ]);
 }
