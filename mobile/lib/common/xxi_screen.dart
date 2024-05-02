@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
+import 'package:get_10101/features/trade/async_order_change_notifier.dart';
+import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -37,6 +39,7 @@ class _XXIScreenState extends State<XXIScreen> {
   Widget build(BuildContext context) {
     final recoverTaskStatus = context.watch<RecoverDlcChangeNotifier>().taskStatus;
     final rolloverTaskStatus = context.watch<RolloverChangeNotifier>().taskStatus;
+    final asyncTrade = context.watch<AsyncOrderChangeNotifier>().asyncTrade;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (recoverTaskStatus == TaskStatus.pending) {
@@ -58,6 +61,44 @@ class _XXIScreenState extends State<XXIScreen> {
             return TaskStatusDialog(title: "Catching up!", status: status, content: content);
           },
         );
+      }
+      if (asyncTrade != null) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            Order? asyncOrder = context.watch<AsyncOrderChangeNotifier>().asyncOrder;
+
+            TaskStatus status = TaskStatus.pending;
+            switch (asyncOrder?.state) {
+              case OrderState.open:
+              case OrderState.filling:
+                status = TaskStatus.pending;
+              case OrderState.failed:
+              case OrderState.rejected:
+                status = TaskStatus.failed;
+              case OrderState.filled:
+                status = TaskStatus.success;
+              case null:
+                status = TaskStatus.pending;
+            }
+
+            late Widget content;
+            switch (asyncTrade.orderReason) {
+              case OrderReason.expired:
+                content = const Text("Your position has been closed due to expiry.");
+              case OrderReason.liquidated:
+                content = const Text("Your position has been closed due to liquidation.");
+              case OrderReason.manual:
+                logger.e("A manual order should not appear as an async trade!");
+                content = Container();
+            }
+
+            return TaskStatusDialog(title: "Catching up!", status: status, content: content);
+          },
+        );
+
+        // remove the async trade from the change notifier state, marking that the dialog has been created.
+        context.read<AsyncOrderChangeNotifier>().removeAsyncTrade();
       }
     });
 
