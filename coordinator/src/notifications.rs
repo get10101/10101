@@ -1,6 +1,11 @@
+use crate::db;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::secp256k1::PublicKey;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use std::fmt::Display;
 use tokio::sync::mpsc;
 
@@ -29,22 +34,22 @@ impl Display for NotificationKind {
 
 #[derive(Debug, Clone)]
 pub struct Notification {
-    fcm_tokens: Vec<FcmToken>,
+    trader_ids: Vec<PublicKey>,
     notification_kind: NotificationKind,
 }
 
 impl Notification {
-    pub fn new(user_fcm_token: FcmToken, notification_kind: NotificationKind) -> Self {
+    pub fn new(trader_id: PublicKey, notification_kind: NotificationKind) -> Self {
         Self {
             notification_kind,
-            fcm_tokens: vec![user_fcm_token],
+            trader_ids: vec![trader_id],
         }
     }
 
-    pub fn new_batch(fcm_tokens: Vec<FcmToken>, notification_kind: NotificationKind) -> Self {
+    pub fn new_batch(trader_ids: Vec<PublicKey>, notification_kind: NotificationKind) -> Self {
         Self {
             notification_kind,
-            fcm_tokens,
+            trader_ids,
         }
     }
 }
@@ -59,7 +64,7 @@ impl NotificationService {
     ///
     /// If an empty string is passed in the constructor, the service will not send any notification.
     /// It will only log the notification that it would have sent.
-    pub fn new(fcm_api_key: String) -> Self {
+    pub fn new(fcm_api_key: String, pool: Pool<ConnectionManager<PgConnection>>) -> Self {
         if fcm_api_key.is_empty() {
             // Log it as error, as in production it should always be set
             tracing::error!("FCM API key is empty. No notifications will not be sent.");
@@ -72,10 +77,37 @@ impl NotificationService {
             let client = fcm::Client::new();
             async move {
                 while let Some(Notification {
-                    fcm_tokens,
+                    trader_ids,
                     notification_kind,
                 }) = notification_receiver.recv().await
                 {
+                    let result = tokio::task::spawn_blocking({
+                        let pool = pool.clone();
+                        move || {
+                            let mut conn = pool.get()?;
+                            let users = db::user::get_users(&mut conn, trader_ids)?;
+                            anyhow::Ok(users)
+                        }
+                    })
+                    .await
+                    .expect("task to complete");
+
+                    let users = match result {
+                        Ok(users) => users,
+                        Err(e) => {
+                            tracing::error!("Failed to fetch users. Error: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    let fcm_tokens = users
+                        .iter()
+                        .map(|user| user.fcm_token.clone())
+                        .filter(|token| !token.is_empty() && token != "unavailable")
+                        .map(FcmToken::new)
+                        .filter_map(Result::ok)
+                        .collect::<Vec<_>>();
+
                     for user_fcm_token in fcm_tokens {
                         tracing::info!(%notification_kind, %user_fcm_token, "Sending notification");
 

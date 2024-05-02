@@ -58,6 +58,7 @@ pub enum DlcMessageType {
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
+    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
@@ -97,6 +98,9 @@ impl TryFrom<&SerializedDlcMessage> for TenTenOneMessage {
             }
             DlcMessageType::RenewOffer => {
                 TenTenOneMessage::RenewOffer(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverOffer => {
+                TenTenOneMessage::RolloverOffer(serde_json::from_str(&serialized_msg.message)?)
             }
             DlcMessageType::RenewAccept => {
                 TenTenOneMessage::RenewAccept(serde_json::from_str(&serialized_msg.message)?)
@@ -150,6 +154,10 @@ impl TryFrom<&TenTenOneMessage> for SerializedDlcMessage {
             TenTenOneMessage::RenewOffer(renew_offer) => (
                 serde_json::to_string(&renew_offer)?,
                 DlcMessageType::RenewOffer,
+            ),
+            TenTenOneMessage::RolloverOffer(rollover_offer) => (
+                serde_json::to_string(&rollover_offer)?,
+                DlcMessageType::RolloverOffer,
             ),
             TenTenOneMessage::RenewAccept(renew_accept) => (
                 serde_json::to_string(&renew_accept)?,

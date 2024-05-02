@@ -1,6 +1,7 @@
 use crate::db;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
+use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -69,7 +70,8 @@ pub struct TraderMatchParams {
 pub fn start(
     node: Node,
     tx_orderbook_feed: broadcast::Sender<Message>,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    trade_notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<Notification>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> (RemoteHandle<()>, mpsc::Sender<NewOrderMessage>) {
@@ -80,6 +82,7 @@ pub fn start(
             tokio::spawn({
                 let tx_orderbook_feed = tx_orderbook_feed.clone();
                 let notifier = notifier.clone();
+                let trade_notifier = trade_notifier.clone();
                 let node = node.clone();
                 async move {
                     let new_order = new_order_msg.order;
@@ -99,6 +102,7 @@ pub fn start(
                             process_new_market_order(
                                 node,
                                 notifier.clone(),
+                                trade_notifier.clone(),
                                 new_order,
                                 network,
                                 oracle_pk,
@@ -117,7 +121,7 @@ pub fn start(
                     } {
                         // TODO(holzeis): the maker is currently not subscribed to the websocket
                         // api, hence it wouldn't receive the error message.
-                        if let Err(e) = notifier
+                        if let Err(e) = trade_notifier
                             .send(OrderbookMessage::TraderMessage {
                                 trader_id,
                                 message: TradeError { order_id, error },
@@ -177,7 +181,8 @@ pub async fn process_new_limit_order(
 // happen in a single transaction to ensure either all data or nothing is stored to the database.
 pub async fn process_new_market_order(
     node: Node,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<Notification>,
+    trade_notifier: mpsc::Sender<OrderbookMessage>,
     order: Order,
     network: Network,
     oracle_pk: XOnlyPublicKey,
@@ -266,16 +271,6 @@ pub async fn process_new_market_order(
 
         tracing::info!(%trader_id, order_id, "Notifying trader about match");
 
-        let message = match &order.order_reason {
-            OrderReason::Manual => Message::Match(match_param.filled_with.clone()),
-            OrderReason::Expired
-            | OrderReason::TraderLiquidated
-            | OrderReason::CoordinatorLiquidated => Message::AsyncMatch {
-                order: order.clone(),
-                filled_with: match_param.filled_with.clone(),
-            },
-        };
-
         let notification = match &order.order_reason {
             OrderReason::Expired => Some(NotificationKind::PositionExpired),
             OrderReason::TraderLiquidated => Some(NotificationKind::Custom {
@@ -289,32 +284,28 @@ pub async fn process_new_market_order(
             OrderReason::Manual => None,
         };
 
-        let msg = OrderbookMessage::TraderMessage {
-            trader_id,
-            message,
-            notification,
-        };
+        if let Some(notification) = notification {
+            // send user a push notification
+            notifier
+                .send(Notification::new(order.trader_id, notification))
+                .await
+                .with_context(|| {
+                    format!(
+                        "Failed to send push notification. trader_id = {}",
+                        order.trader_id
+                    )
+                })?;
+        }
 
-        let order_state = match notifier.send(msg).await {
-            Ok(()) => {
-                tracing::debug!(%trader_id, order_id, "Successfully notified trader");
-                OrderState::Matched
-            }
-            Err(e) => {
-                tracing::warn!(%trader_id, order_id, "Failed to send trader message: {e:#}");
-
-                if order.order_type == OrderType::Limit {
-                    // FIXME: The maker is currently not connected to the WebSocket so we can't
-                    // notify him about a trade. However, trades are always accepted by the
-                    // maker at the moment so in order to not have all limit orders in order
-                    // state `Match` we are setting the order to `Taken` even if we couldn't
-                    // notify the maker.
-
-                    OrderState::Taken
-                } else {
-                    OrderState::Matched
-                }
-            }
+        let order_state = if order.order_type == OrderType::Limit {
+            // FIXME: The maker is currently not connected to the WebSocket so we can't
+            // notify him about a trade. However, trades are always accepted by the
+            // maker at the moment so in order to not have all limit orders in order
+            // state `Match` we are setting the order to `Taken` even if we couldn't
+            // notify the maker.
+            OrderState::Taken
+        } else {
+            OrderState::Matched
         };
 
         tracing::debug!(%trader_id, order_id, "Updating the order state to {order_state:?}");
@@ -330,7 +321,7 @@ pub async fn process_new_market_order(
 
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
-        let trade_executor = TradeExecutor::new(node.clone(), notifier);
+        let trade_executor = TradeExecutor::new(node.clone(), trade_notifier);
 
         trade_executor
             .execute(&TradeAndChannelParams {

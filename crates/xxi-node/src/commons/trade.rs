@@ -123,6 +123,10 @@ pub struct FilledWith {
     /// The id of the order defined by the orderbook
     ///
     /// The identifier of the order as defined by the orderbook.
+    ///
+    /// TODO(holzeis): We might want to consider adding the order to the filled with struct. Having
+    /// this separated doesn't make much sense anymore since, the filled with is not separately
+    /// processed by the app anymore.
     pub order_id: Uuid,
 
     /// The expiry timestamp of the contract-to-be

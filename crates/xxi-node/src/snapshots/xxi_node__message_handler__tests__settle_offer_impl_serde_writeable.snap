@@ -1,0 +1,7 @@
+---
+source: crates/xxi-node/src/message_handler.rs
+expression: json_msg
+---
+Ok(
+    "{\"Message\":{\"SettleOffer\":{\"order\":{\"id\":\"00000000-0000-0000-0000-000000000000\",\"price\":0.0,\"leverage\":0.0,\"contract_symbol\":\"BtcUsd\",\"trader_id\":\"02d5aa8fce495f6301b466594af056a46104dcdc6d735ec4793aa43108854cbd4a\",\"direction\":\"Long\",\"quantity\":0.0,\"order_type\":\"Market\",\"timestamp\":\"1970-01-01T00:00:00Z\",\"expiry\":\"1970-01-01T00:00:00Z\",\"order_state\":\"Open\",\"order_reason\":\"Manual\",\"stable\":false},\"filled_with\":{\"order_id\":\"00000000-0000-0000-0000-000000000000\",\"expiry_timestamp\":[1970,1,0,0,0,0,0,0,0],\"oracle_pk\":\"cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115\",\"matches\":[]},\"settle_offer\":{\"channelId\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"counterPayout\":0,\"nextPerUpdatePoint\":\"02d5aa8fce495f6301b466594af056a46104dcdc6d735ec4793aa43108854cbd4a\",\"timestamp\":0,\"referenceId\":null}}}}",
+)

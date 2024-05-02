@@ -8,6 +8,8 @@ use crate::on_chain_wallet;
 use crate::storage::TenTenOneInMemoryStorage;
 use crate::tests::bitcoind::mine;
 use crate::tests::dummy_contract_input;
+use crate::tests::dummy_filled_with;
+use crate::tests::dummy_order;
 use crate::tests::init_tracing;
 use crate::tests::new_reference_id;
 use crate::tests::wait_until;
@@ -36,7 +38,8 @@ async fn can_open_and_settle_offchain() {
     let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
     coordinator
-        .propose_dlc_channel_update(
+        .propose_reopen_or_resize(
+            dummy_filled_with(),
             &coordinator_signed_channel.channel_id,
             contract_input,
             new_reference_id(),
@@ -455,7 +458,12 @@ async fn open_channel_and_position_and_settle_position(
     );
 
     coordinator
-        .propose_dlc_channel(contract_input, app.info.pubkey, new_reference_id())
+        .propose_dlc_channel(
+            dummy_filled_with(),
+            contract_input,
+            app.info.pubkey,
+            new_reference_id(),
+        )
         .await
         .unwrap();
 
@@ -575,6 +583,8 @@ async fn open_channel_and_position_and_settle_position(
 
     coordinator
         .propose_dlc_channel_collaborative_settlement(
+            dummy_order(),
+            dummy_filled_with(),
             &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
             new_reference_id(),

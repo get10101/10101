@@ -76,12 +76,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             .dlc_manager
             .on_dlc_message(&message.into(), to_secp_pk_29(node_id))?;
 
-        let response = match response {
-            Some(response) => Some(TenTenOneMessage::try_from(response)?),
-            None => None,
-        };
-
-        Ok(response)
+        Ok(response.map(TenTenOneMessage::build_from_response))
     }
 }
 

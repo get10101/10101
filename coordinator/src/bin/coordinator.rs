@@ -248,10 +248,10 @@ async fn main() -> Result<()> {
 
     let (tx_orderbook_feed, _rx) = broadcast::channel(100);
 
-    let notification_service = NotificationService::new(opts.fcm_api_key.clone());
+    let notification_service =
+        NotificationService::new(opts.fcm_api_key.clone(), node.pool.clone());
 
     let (_handle, auth_users_notifier) = spawn_delivering_messages_to_authenticated_users(
-        pool.clone(),
         notification_service.get_sender(),
         tx_user_feed.clone(),
     );
@@ -260,6 +260,7 @@ async fn main() -> Result<()> {
         node.clone(),
         tx_orderbook_feed.clone(),
         auth_users_notifier.clone(),
+        notification_service.get_sender(),
         network,
         node.inner.oracle_pubkey,
     );
@@ -273,7 +274,7 @@ async fn main() -> Result<()> {
     let _handle = rollover::monitor(
         pool.clone(),
         node_event_handler.subscribe(),
-        auth_users_notifier.clone(),
+        notification_service.get_sender(),
         network,
         node.clone(),
     );
@@ -331,8 +332,7 @@ async fn main() -> Result<()> {
     );
 
     let sender = notification_service.get_sender();
-    let notification_scheduler =
-        NotificationScheduler::new(sender, settings, network, node, auth_users_notifier);
+    let notification_scheduler = NotificationScheduler::new(sender, settings, network, node);
     tokio::spawn({
         let pool = pool.clone();
         let scheduler = notification_scheduler;

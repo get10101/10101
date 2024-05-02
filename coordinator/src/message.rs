@@ -1,13 +1,8 @@
-use crate::db::user;
-use crate::notifications::FcmToken;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
-use diesel::PgConnection;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
 use parking_lot::RwLock;
@@ -17,10 +12,9 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
-use tokio::task::spawn_blocking;
 use xxi_node::commons::Message;
 
-/// This value is arbitrarily set to 100 and defines theff message accepted in the message
+/// This value is arbitrarily set to 100 and defines the message accepted in the message
 /// channel buffer.
 const NOTIFICATION_BUFFER_SIZE: usize = 100;
 
@@ -41,7 +35,6 @@ pub struct NewUserMessage {
 }
 
 pub fn spawn_delivering_messages_to_authenticated_users(
-    pool: Pool<ConnectionManager<PgConnection>>,
     notification_sender: Sender<Notification>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
 ) -> (RemoteHandle<()>, Sender<OrderbookMessage>) {
@@ -76,7 +69,6 @@ pub fn spawn_delivering_messages_to_authenticated_users(
         async move {
             while let Some(notification) = receiver.recv().await {
                 if let Err(e) = process_orderbook_message(
-                    pool.clone(),
                     &authenticated_users,
                     &notification_sender,
                     notification,
@@ -98,15 +90,10 @@ pub fn spawn_delivering_messages_to_authenticated_users(
 }
 
 async fn process_orderbook_message(
-    pool: Pool<ConnectionManager<PgConnection>>,
     authenticated_users: &RwLock<HashMap<PublicKey, Sender<Message>>>,
     notification_sender: &Sender<Notification>,
     notification: OrderbookMessage,
 ) -> Result<()> {
-    let mut conn = spawn_blocking(move || pool.get())
-        .await
-        .expect("task to complete")?;
-
     match notification {
         OrderbookMessage::TraderMessage {
             trader_id,
@@ -133,16 +120,11 @@ async fn process_orderbook_message(
                 None => tracing::warn!(%trader_id, "Trader is not connected"),
             };
 
-            let user = user::by_id(&mut conn, trader_id.to_string())
-                .context("Failed to get user by ID")?;
-
-            if let (Some(notification_kind), Some(user)) = (notification, user) {
+            if let Some(notification_kind) = notification {
                 tracing::debug!(%trader_id, "Sending push notification to user");
 
-                let fcm_token = FcmToken::new(user.fcm_token)?;
-
                 notification_sender
-                    .send(Notification::new(fcm_token, notification_kind))
+                    .send(Notification::new(trader_id, notification_kind))
                     .await
                     .with_context(|| {
                         format!("Failed to send push notification to trader {trader_id}")

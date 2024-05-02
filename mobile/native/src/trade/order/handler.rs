@@ -27,9 +27,9 @@ use rust_decimal::prelude::ToPrimitive;
 use time::Duration;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::commons;
 use xxi_node::commons::ChannelOpeningParams;
 use xxi_node::commons::Direction;
-use xxi_node::commons::FilledWith;
 use xxi_node::node::signed_channel_state_name;
 
 const ORDER_OUTDATED_AFTER: Duration = Duration::minutes(5);
@@ -186,12 +186,12 @@ fn check_channel_state() -> Result<(), SubmitOrderError> {
 }
 
 pub(crate) fn async_order_filling(
-    order: xxi_node::commons::Order,
-    filled_with: FilledWith,
+    order: &commons::Order,
+    filled_with: &commons::FilledWith,
 ) -> Result<()> {
     let order_type = match order.order_type {
-        xxi_node::commons::OrderType::Market => OrderType::Market,
-        xxi_node::commons::OrderType::Limit => OrderType::Limit {
+        commons::OrderType::Market => OrderType::Market,
+        commons::OrderType::Limit => OrderType::Limit {
             price: order.price.to_f32().expect("to fit into f32"),
         },
     };
@@ -218,7 +218,7 @@ pub(crate) fn async_order_filling(
                 },
                 creation_timestamp: order.timestamp,
                 order_expiry_timestamp: order.expiry,
-                reason: order.order_reason.into(),
+                reason: order.order_reason.clone().into(),
                 stable: order.stable,
                 failure_reason: None,
             };

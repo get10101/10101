@@ -1,5 +1,3 @@
-use crate::db;
-use crate::notifications::FcmToken;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use crate::routes::AppState;
@@ -28,22 +26,6 @@ pub async fn post_push_campaign(
     let params = params.0;
     tracing::info!(?params, "Sending campaign with push notifications");
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    let users = db::user::get_users(&mut conn, params.node_ids)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to get users: {e:#}")))?;
-
-    let fcm_tokens = users
-        .iter()
-        .map(|user| user.fcm_token.clone())
-        .filter(|token| !token.is_empty() && token != "unavailable")
-        .map(FcmToken::new)
-        .filter_map(Result::ok)
-        .collect::<Vec<_>>();
-
     let notification_kind = NotificationKind::Custom {
         title: params.title.clone(),
         message: params.message.clone(),
@@ -52,7 +34,7 @@ pub async fn post_push_campaign(
     tracing::info!(
         params.title,
         params.message,
-        receivers = fcm_tokens.len(),
+        receivers = params.node_ids.len(),
         "Sending push notification campaign",
     );
 
@@ -62,7 +44,7 @@ pub async fn post_push_campaign(
         state
             .notification_sender
             .send(Notification::new_batch(
-                fcm_tokens.clone(),
+                params.clone().node_ids,
                 notification_kind,
             ))
             .await
@@ -75,6 +57,6 @@ pub async fn post_push_campaign(
         "Sending push notification campaign (title: {}, message: {} to {} users",
         params.title,
         params.message,
-        fcm_tokens.len(),
+        params.node_ids.len(),
     ))
 }

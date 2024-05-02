@@ -1,6 +1,5 @@
 use crate::commons::order::Order;
 use crate::commons::signature::Signature;
-use crate::commons::trade::FilledWith;
 use crate::commons::LiquidityOption;
 use crate::commons::NewLimitOrder;
 use crate::commons::ReferralStatus;
@@ -27,12 +26,6 @@ pub enum Message {
     Update(Order),
     InvalidAuthentication(String),
     Authenticated(TenTenOneConfig),
-    Match(FilledWith),
-    AsyncMatch {
-        order: Order,
-        filled_with: FilledWith,
-    },
-    Rollover(Option<String>),
     /// Message used to collaboratively revert DLC channels.
     DlcChannelCollaborativeRevert {
         channel_id: DlcChannelId,
@@ -117,15 +110,6 @@ impl Display for Message {
             }
             Message::Authenticated(_) => {
                 write!(f, "Authenticated")
-            }
-            Message::Match(_) => {
-                write!(f, "Match")
-            }
-            Message::AsyncMatch { .. } => {
-                write!(f, "AsyncMatch")
-            }
-            Message::Rollover(_) => {
-                write!(f, "Rollover")
             }
             Message::DlcChannelCollaborativeRevert { .. } => {
                 write!(f, "DlcChannelCollaborativeRevert")

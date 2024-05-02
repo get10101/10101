@@ -255,6 +255,7 @@ impl ToSql<Text, Sqlite> for MessageType {
             MessageType::SettleConfirm => "SettleConfirm",
             MessageType::SettleFinalize => "SettleFinalize",
             MessageType::RenewOffer => "RenewOffer",
+            MessageType::RolloverOffer => "RolloverOffer",
             MessageType::RenewAccept => "RenewAccept",
             MessageType::RenewConfirm => "RenewConfirm",
             MessageType::RenewFinalize => "RenewFinalize",

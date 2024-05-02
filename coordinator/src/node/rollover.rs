@@ -4,8 +4,8 @@ use crate::db::positions;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
 use crate::dlc_protocol::ProtocolId;
-use crate::message::OrderbookMessage;
 use crate::node::Node;
+use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use crate::position::models::PositionState;
 use anyhow::bail;
@@ -53,7 +53,7 @@ struct Rollover {
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     mut receiver: broadcast::Receiver<NodeEvent>,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<Notification>,
     network: Network,
     node: Node,
 ) -> RemoteHandle<()> {
@@ -156,7 +156,7 @@ impl Node {
     async fn check_if_eligible_for_rollover(
         &self,
         pool: Pool<ConnectionManager<PgConnection>>,
-        notifier: mpsc::Sender<OrderbookMessage>,
+        notifier: mpsc::Sender<Notification>,
         trader_id: PublicKey,
         network: Network,
     ) -> Result<()> {
@@ -195,12 +195,10 @@ impl Node {
         trader_id: PublicKey,
         expiry_timestamp: OffsetDateTime,
         network: Network,
-        notifier: &mpsc::Sender<OrderbookMessage>,
+        notifier: &mpsc::Sender<Notification>,
         notification: Option<NotificationKind>,
     ) -> Result<()> {
         let signed_channel = self.inner.get_signed_channel_by_trader_id(trader_id)?;
-
-        let contract_id = signed_channel.get_contract_id();
 
         if commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network)
             // not expired
@@ -212,16 +210,15 @@ impl Node {
                 return Ok(());
             }
 
-            tracing::debug!(%trader_id, "Notifying user about rollover");
+            tracing::debug!(%trader_id, "Push notifying user about rollover");
 
-            let message = OrderbookMessage::TraderMessage {
-                trader_id,
-                message: commons::Message::Rollover(contract_id.map(hex::encode)),
-                notification,
-            };
-
-            if let Err(e) = notifier.send(message).await {
-                tracing::debug!("Failed to notify trader. Error: {e:#}");
+            if let Some(notification) = notification {
+                if let Err(e) = notifier
+                    .send(Notification::new(trader_id, notification))
+                    .await
+                {
+                    tracing::warn!("Failed to push notify trader. Error: {e:#}");
+                }
             }
 
             if self.is_connected(trader_id) {
@@ -258,7 +255,7 @@ impl Node {
 
         let contract_id = self
             .inner
-            .propose_dlc_channel_update(dlc_channel_id, contract_input, protocol_id.into())
+            .propose_rollover(dlc_channel_id, contract_input, protocol_id.into())
             .await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());

@@ -1,5 +1,6 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::bitcoin_conversion::to_xonly_pk_29;
+use crate::commons;
 use crate::node::dlc_channel::send_dlc_message;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
@@ -35,6 +36,7 @@ use rand::distributions::Alphanumeric;
 use rand::thread_rng;
 use rand::Rng;
 use rand::RngCore;
+use secp256k1::PublicKey;
 use std::collections::HashMap;
 use std::env::temp_dir;
 use std::net::TcpListener;
@@ -446,4 +448,37 @@ pub fn new_reference_id() -> ReferenceId {
     array.copy_from_slice(bytes);
 
     array
+}
+
+pub fn dummy_order() -> commons::Order {
+    commons::Order {
+        id: Default::default(),
+        price: Default::default(),
+        leverage: 0.0,
+        contract_symbol: commons::ContractSymbol::BtcUsd,
+        trader_id: PublicKey::from_str(
+            "02d5aa8fce495f6301b466594af056a46104dcdc6d735ec4793aa43108854cbd4a",
+        )
+        .unwrap(),
+        direction: commons::Direction::Long,
+        quantity: Default::default(),
+        order_type: commons::OrderType::Market,
+        timestamp: OffsetDateTime::now_utc(),
+        expiry: OffsetDateTime::now_utc(),
+        order_state: commons::OrderState::Open,
+        order_reason: commons::OrderReason::Manual,
+        stable: false,
+    }
+}
+
+pub fn dummy_filled_with() -> commons::FilledWith {
+    commons::FilledWith {
+        order_id: Default::default(),
+        expiry_timestamp: OffsetDateTime::now_utc(),
+        oracle_pk: XOnlyPublicKey::from_str(
+            "cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779106cf1223c6fc5d7cd6fc115",
+        )
+        .unwrap(),
+        matches: vec![],
+    }
 }
