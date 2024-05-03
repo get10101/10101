@@ -256,7 +256,7 @@ async fn handle_orderbook_message(
                 execution_price,
             ) {
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::CollabRevert(TaskStatus::Failed),
+                    BackgroundTask::CollabRevert(TaskStatus::Failed(format!("{err:#}"))),
                 ));
                 tracing::error!("Could not collaboratively revert channel: {err:#}");
             } else {

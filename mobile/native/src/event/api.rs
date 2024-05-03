@@ -155,7 +155,7 @@ impl From<event::BackgroundTask> for BackgroundTask {
 #[derive(Clone)]
 pub enum TaskStatus {
     Pending,
-    Failed,
+    Failed(String),
     Success,
 }
 
@@ -163,7 +163,7 @@ impl From<event::TaskStatus> for TaskStatus {
     fn from(value: event::TaskStatus) -> Self {
         match value {
             event::TaskStatus::Pending => TaskStatus::Pending,
-            event::TaskStatus::Failed => TaskStatus::Failed,
+            event::TaskStatus::Failed(error) => TaskStatus::Failed(error),
             event::TaskStatus::Success => TaskStatus::Success,
         }
     }

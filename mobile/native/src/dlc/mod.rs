@@ -464,7 +464,7 @@ pub async fn full_sync_on_wallet_db_migration() {
                 tracing::error!("Full sync failed: {e:#}");
 
                 event::publish(&EventInternal::BackgroundNotification(
-                    event::BackgroundTask::FullSync(event::TaskStatus::Failed),
+                    event::BackgroundTask::FullSync(event::TaskStatus::Failed(format!("{e:#}"))),
                 ));
             }
         };

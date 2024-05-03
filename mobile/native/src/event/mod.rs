@@ -54,7 +54,7 @@ pub enum BackgroundTask {
 #[derive(Clone, Debug)]
 pub enum TaskStatus {
     Pending,
-    Failed,
+    Failed(String),
     Success,
 }
 

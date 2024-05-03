@@ -20,29 +20,37 @@ enum TaskStatus {
   failed,
   success;
 
-  static TaskStatus fromApi(bridge.TaskStatus taskStatus) {
-    switch (taskStatus) {
-      case bridge.TaskStatus.Pending:
-        return TaskStatus.pending;
-      case bridge.TaskStatus.Failed:
-        return TaskStatus.failed;
-      case bridge.TaskStatus.Success:
-        return TaskStatus.success;
+  static (TaskStatus, String?) fromApi(bridge.TaskStatus taskStatus) {
+    if (taskStatus is bridge.TaskStatus_Pending) {
+      return (TaskStatus.pending, null);
     }
+
+    if (taskStatus is bridge.TaskStatus_Success) {
+      return (TaskStatus.success, null);
+    }
+
+    if (taskStatus is bridge.TaskStatus_Failed) {
+      final error = taskStatus.field0;
+      return (TaskStatus.failed, error);
+    }
+
+    return (TaskStatus.pending, null);
   }
 
   static bridge.TaskStatus apiDummy() {
-    return bridge.TaskStatus.Pending;
+    return const bridge.TaskStatus_Pending();
   }
 }
 
 class Rollover {
   final TaskStatus taskStatus;
+  String? error;
 
-  Rollover({required this.taskStatus});
+  Rollover({required this.taskStatus, this.error});
 
   static Rollover fromApi(bridge.BackgroundTask_Rollover rollover) {
-    return Rollover(taskStatus: TaskStatus.fromApi(rollover.field0));
+    final (taskStatus, error) = TaskStatus.fromApi(rollover.field0);
+    return Rollover(taskStatus: taskStatus, error: error);
   }
 
   static bridge.BackgroundTask apiDummy() {
@@ -52,11 +60,13 @@ class Rollover {
 
 class RecoverDlc {
   final TaskStatus taskStatus;
+  String? error;
 
-  RecoverDlc({required this.taskStatus});
+  RecoverDlc({required this.taskStatus, this.error});
 
   static RecoverDlc fromApi(bridge.BackgroundTask_RecoverDlc recoverDlc) {
-    return RecoverDlc(taskStatus: TaskStatus.fromApi(recoverDlc.field0));
+    final (taskStatus, error) = TaskStatus.fromApi(recoverDlc.field0);
+    return RecoverDlc(taskStatus: taskStatus, error: error);
   }
 
   static bridge.BackgroundTask apiDummy() {
@@ -66,11 +76,13 @@ class RecoverDlc {
 
 class CollabRevert {
   final TaskStatus taskStatus;
+  String? error;
 
-  CollabRevert({required this.taskStatus});
+  CollabRevert({required this.taskStatus, this.error});
 
   static CollabRevert fromApi(bridge.BackgroundTask_CollabRevert collabRevert) {
-    return CollabRevert(taskStatus: TaskStatus.fromApi(collabRevert.field0));
+    final (taskStatus, error) = TaskStatus.fromApi(collabRevert.field0);
+    return CollabRevert(taskStatus: taskStatus, error: error);
   }
 
   static bridge.BackgroundTask apiDummy() {
@@ -80,11 +92,13 @@ class CollabRevert {
 
 class FullSync {
   final TaskStatus taskStatus;
+  String? error;
 
-  FullSync({required this.taskStatus});
+  FullSync({required this.taskStatus, this.error});
 
   static FullSync fromApi(bridge.BackgroundTask_FullSync fullSync) {
-    return FullSync(taskStatus: TaskStatus.fromApi(fullSync.field0));
+    final (taskStatus, error) = TaskStatus.fromApi(fullSync.field0);
+    return FullSync(taskStatus: taskStatus, error: error);
   }
 
   static bridge.BackgroundTask apiDummy() {
