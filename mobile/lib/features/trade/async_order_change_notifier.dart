@@ -3,25 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/application/event_service.dart';
 import 'package:get_10101/common/domain/background_task.dart';
-import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 
 class AsyncOrderChangeNotifier extends ChangeNotifier implements Subscriber {
-  late OrderService _orderService;
   Order? asyncOrder;
   AsyncTrade? asyncTrade;
-
-  Future<void> initialize() async {
-    Order? order = await _orderService.fetchAsyncOrder();
-
-    if (order != null) {
-      notifyListeners();
-    }
-  }
-
-  AsyncOrderChangeNotifier(OrderService orderService) {
-    _orderService = orderService;
-  }
 
   // call this function to mark that the async trade has been processed.
   void removeAsyncTrade() {

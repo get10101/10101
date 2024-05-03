@@ -334,10 +334,6 @@ pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
     db::get_orders_for_ui()
 }
 
-pub fn get_async_order() -> Result<Option<Order>> {
-    db::get_async_order()
-}
-
 pub fn check_open_orders() -> Result<()> {
     let open_orders = match maybe_get_open_orders() {
         Ok(orders_being_filled) => orders_being_filled,

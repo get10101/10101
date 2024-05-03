@@ -61,7 +61,7 @@ List<SingleChildWidget> createProviders() {
         create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
-    ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier(OrderService())),
+    ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RolloverChangeNotifier()),
     ChangeNotifierProvider(create: (context) => RecoverDlcChangeNotifier()),
     ChangeNotifierProvider(create: (context) => CollabRevertChangeNotifier()),
