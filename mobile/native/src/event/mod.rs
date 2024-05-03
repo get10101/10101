@@ -4,7 +4,6 @@ use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
-use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
 use rust_decimal::Decimal;
 use std::fmt;
@@ -44,7 +43,7 @@ pub enum EventInternal {
 
 #[derive(Clone, Debug)]
 pub enum BackgroundTask {
-    AsyncTrade(OrderReason),
+    AsyncTrade(TaskStatus),
     Rollover(TaskStatus),
     CollabRevert(TaskStatus),
     RecoverDlc(TaskStatus),

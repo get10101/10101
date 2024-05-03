@@ -140,6 +140,31 @@ pub enum TenTenOneMessage {
     CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer),
 }
 
+impl TenTenOneMessage {
+    /// Returns true if the message is a trade message. e.g. Reject, Rollover or Collaborative Close
+    /// Offer are not trade messages.
+    ///
+    /// FIXME(holzeis): This will also return true for any message past the offe rin case of a
+    /// rollover. We proobably need to add some hint on the message that this is due to a rollover.
+    pub fn is_trade(&self) -> bool {
+        matches!(
+            self,
+            TenTenOneMessage::Offer(_)
+                | TenTenOneMessage::Accept(_)
+                | TenTenOneMessage::Sign(_)
+                | TenTenOneMessage::RenewOffer(_)
+                | TenTenOneMessage::RenewAccept(_)
+                | TenTenOneMessage::RenewConfirm(_)
+                | TenTenOneMessage::RenewFinalize(_)
+                | TenTenOneMessage::RenewRevoke(_)
+                | TenTenOneMessage::SettleOffer(_)
+                | TenTenOneMessage::SettleAccept(_)
+                | TenTenOneMessage::SettleConfirm(_)
+                | TenTenOneMessage::SettleFinalize(_)
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenTenOneReject {
     pub reject: Reject,

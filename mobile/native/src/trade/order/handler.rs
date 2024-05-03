@@ -7,11 +7,11 @@ use crate::dlc::is_dlc_channel_confirmed;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
-use crate::trade::order::OrderReason;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
@@ -72,6 +72,11 @@ pub async fn submit_order(
     submit_order_internal(order, channel_opening_params)
         .await
         .inspect_err(report_error_to_coordinator)
+        .inspect_err(|e| {
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+            ))
+        })
 }
 
 pub async fn submit_order_internal(
@@ -124,7 +129,7 @@ pub async fn submit_order_internal(
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
 
     event::publish(&EventInternal::BackgroundNotification(
-        BackgroundTask::AsyncTrade(OrderReason::Manual),
+        BackgroundTask::AsyncTrade(TaskStatus::Pending),
     ));
 
     Ok(order.id)
@@ -312,6 +317,9 @@ pub(crate) fn order_failed(
     error: anyhow::Error,
 ) -> Result<()> {
     tracing::error!(?order_id, ?reason, "Failed to execute trade: {error:#}");
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{error:#}"))),
+    ));
 
     let order_id = match order_id {
         None => get_order_in_filling()?.map(|order| order.id),

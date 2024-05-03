@@ -3,9 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/background_task_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
-import 'package:get_10101/features/trade/async_order_change_notifier.dart';
-import 'package:get_10101/features/trade/domain/order.dart';
-import 'package:get_10101/features/trade/trade_dialog.dart';
+import 'package:get_10101/features/trade/error_details.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
@@ -40,7 +38,6 @@ class _XXIScreenState extends State<XXIScreen> {
   @override
   Widget build(BuildContext context) {
     final events = context.watch<BackgroundTaskChangeNotifier>().events;
-    final asyncTrade = context.watch<AsyncOrderChangeNotifier>().asyncTrade;
 
     final task = events.isEmpty ? null : events.peek;
 
@@ -51,64 +48,27 @@ class _XXIScreenState extends State<XXIScreen> {
         // only create a new dialog if there isn't an active task already.
         showDialog(
             context: context,
+            useRootNavigator: true,
+            barrierDismissible: false,
             builder: (context) {
               // watch task updates from within the dialog.
               final task = context.watch<BackgroundTaskChangeNotifier>().events.pop();
               if (activeTask != null && task.type != activeTask!.type) {
-                logger.w("Ignoring task event $task while $activeTask is still active!");
+                if (activeTask!.type == TaskType.recover && task.type == TaskType.asyncTrade) {
+                  // in case a trade protocol finishes we get an async trade task status update, but
+                  // there might have been a restart in between as why the recover task dialog is
+                  // shown. Since these two tasks are different we have to handle this case here
+                  // and only update the task status of the active task.
+                  activeTask!.status = task.status;
+                } else {
+                  logger.w("Ignoring task event $task while $activeTask is still active!");
+                }
               } else {
                 // update the active task to the last event received on the stack.
                 activeTask = task;
               }
-              return getTaskStatusDialog(task)!;
+              return getTaskStatusDialog(activeTask)!;
             });
-      } else if (asyncTrade != null) {
-        if (asyncTrade.orderReason == OrderReason.manual) {
-          showDialog(
-              context: context,
-              useRootNavigator: true,
-              barrierDismissible: false,
-              builder: (BuildContext context) {
-                return const TradeDialog();
-              });
-        } else {
-          showDialog(
-            context: context,
-            builder: (context) {
-              Order? asyncOrder = context.watch<AsyncOrderChangeNotifier>().asyncOrder;
-
-              TaskStatus status = TaskStatus.pending;
-              switch (asyncOrder?.state) {
-                case OrderState.open:
-                case OrderState.filling:
-                  status = TaskStatus.pending;
-                case OrderState.failed:
-                case OrderState.rejected:
-                  status = TaskStatus.failed;
-                case OrderState.filled:
-                  status = TaskStatus.success;
-                case null:
-                  status = TaskStatus.pending;
-              }
-
-              late Widget content;
-              switch (asyncTrade.orderReason) {
-                case OrderReason.expired:
-                  content = const Text("Your position has been closed due to expiry.");
-                case OrderReason.liquidated:
-                  content = const Text("Your position has been closed due to liquidation.");
-                case OrderReason.manual:
-                  logger.e("A manual order should not appear as an async trade!");
-                  content = Container();
-              }
-
-              return TaskStatusDialog(title: "Catching up!", status: status, content: content);
-            },
-          );
-        }
-
-        // remove the async trade from the change notifier state, marking that the dialog has been created.
-        context.read<AsyncOrderChangeNotifier>().removeAsyncTrade();
       }
     });
 
@@ -144,7 +104,24 @@ class _XXIScreenState extends State<XXIScreen> {
           status: task!.status,
           content: const Text("Recovering your dlc channel"),
           onClose: () => activeTask = null),
-      TaskType.asyncTrade || TaskType.unknown || null => null
+      TaskType.asyncTrade => TaskStatusDialog(
+          title: "Executing Order!",
+          status: task!.status,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              switch (task.status) {
+                TaskStatus.pending =>
+                  const Text("Please do not close the app while the trade is executed."),
+                TaskStatus.success => const Text("The order has been successfully executed!"),
+                TaskStatus.failed => const Text("Something went wrong!")
+              },
+              if (task.status == TaskStatus.failed && task.error != null)
+                ErrorDetails(details: task.error!)
+            ],
+          ),
+          onClose: () => activeTask = null),
+      TaskType.unknown || null => null
     };
   }
 

@@ -8,7 +8,6 @@ use crate::event::EventInternal;
 use crate::event::EventType;
 use crate::health::ServiceUpdate;
 use crate::trade::order::api::Order;
-use crate::trade::order::api::OrderReason;
 use crate::trade::position::api::Position;
 use core::convert::From;
 use flutter_rust_bridge::frb;
@@ -37,7 +36,7 @@ pub enum Event {
 #[derive(Clone)]
 pub enum BackgroundTask {
     /// The order book submitted an trade which was matched asynchronously
-    AsyncTrade(OrderReason),
+    AsyncTrade(TaskStatus),
     /// The order book submitted its intention to rollover the about to expire position.
     Rollover(TaskStatus),
     /// The app was started with a dlc channel in an intermediate state. This task is in pending
@@ -138,9 +137,7 @@ impl FlutterSubscriber {
 impl From<event::BackgroundTask> for BackgroundTask {
     fn from(value: event::BackgroundTask) -> Self {
         match value {
-            event::BackgroundTask::AsyncTrade(order_reason) => {
-                BackgroundTask::AsyncTrade(order_reason.into())
-            }
+            event::BackgroundTask::AsyncTrade(status) => BackgroundTask::AsyncTrade(status.into()),
             event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
             event::BackgroundTask::RecoverDlc(status) => BackgroundTask::RecoverDlc(status.into()),
             event::BackgroundTask::CollabRevert(status) => {

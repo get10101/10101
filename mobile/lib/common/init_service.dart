@@ -20,7 +20,6 @@ import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
-import 'package:get_10101/features/trade/async_order_change_notifier.dart';
 import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/domain/service_status.dart';
@@ -58,7 +57,6 @@ List<SingleChildWidget> createProviders() {
         create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
-    ChangeNotifierProvider(create: (context) => AsyncOrderChangeNotifier()),
     ChangeNotifierProvider(create: (context) => BackgroundTaskChangeNotifier()),
     ChangeNotifierProvider(create: (context) => TenTenOneConfigChangeNotifier(channelInfoService)),
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
@@ -82,18 +80,13 @@ void subscribeToNotifiers(BuildContext context) {
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
   final walletChangeNotifier = context.read<WalletChangeNotifier>();
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
-  final submitOrderChangeNotifier = context.read<SubmitOrderChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
-  final asyncOrderChangeNotifier = context.read<AsyncOrderChangeNotifier>();
   final backgroundTaskChangeNotifier = context.read<BackgroundTaskChangeNotifier>();
   final tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
   final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
-
-  eventService.subscribe(
-      submitOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
 
   eventService.subscribe(
       positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));
@@ -118,11 +111,6 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       serviceStatusNotifier, bridge.Event.serviceHealthUpdate(serviceUpdateApiDummy()));
-
-  eventService.subscribe(
-      asyncOrderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
-  eventService.subscribe(
-      asyncOrderChangeNotifier, bridge.Event.backgroundNotification(AsyncTrade.apiDummy()));
 
   eventService.subscribe(
       backgroundTaskChangeNotifier, bridge.Event.backgroundNotification(BackgroundTask.apiDummy()));

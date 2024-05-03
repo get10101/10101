@@ -46,6 +46,10 @@ class BackgroundTaskChangeNotifier extends ChangeNotifier implements Subscriber 
             BackgroundTask(type: TaskType.collaborativeRevert, status: taskStatus, error: error));
       }
 
+      if (event.field0 is bridge.BackgroundTask_AsyncTrade) {
+        events.push(BackgroundTask(type: TaskType.asyncTrade, status: taskStatus, error: error));
+      }
+
       notifyListeners();
     }
   }

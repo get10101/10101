@@ -204,8 +204,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
     GoRouter.of(context).pop();
     GoRouter.of(context).pop();
 
-    submitOrderChangeNotifier.submitPendingOrder(tradeValues, PositionAction.open,
-        channelOpeningParams: channelOpeningParams);
+    submitOrderChangeNotifier.submitOrder(tradeValues, channelOpeningParams: channelOpeningParams);
   }
 
   Wrap buildChildren(Direction direction, rust.TradeConstraints channelTradeConstraints,

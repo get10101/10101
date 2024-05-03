@@ -1,19 +1,4 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/features/trade/domain/order.dart';
-
-class AsyncTrade {
-  final OrderReason orderReason;
-
-  AsyncTrade({required this.orderReason});
-
-  static AsyncTrade fromApi(bridge.BackgroundTask_AsyncTrade asyncTrade) {
-    return AsyncTrade(orderReason: OrderReason.fromApi(asyncTrade.field0));
-  }
-
-  static bridge.BackgroundTask apiDummy() {
-    return bridge.BackgroundTask_AsyncTrade(OrderReason.apiDummy());
-  }
-}
 
 enum TaskType { rollover, asyncTrade, collaborativeRevert, fullSync, recover, unknown }
 
@@ -46,7 +31,7 @@ enum TaskStatus {
 
 class BackgroundTask {
   final TaskType type;
-  final TaskStatus status;
+  TaskStatus status;
 
   String? error;
 
@@ -76,7 +61,15 @@ class BackgroundTask {
     if (task is bridge.BackgroundTask_FullSync) {
       return TaskType.fullSync;
     }
+    if (task is bridge.BackgroundTask_AsyncTrade) {
+      return TaskType.asyncTrade;
+    }
 
     return TaskType.unknown;
+  }
+
+  @override
+  String toString() {
+    return "$type ($status)";
   }
 }

@@ -151,12 +151,18 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = tentenone_message_name(&msg);
-            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg) {
+            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg.clone()) {
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
                     "Failed to process incoming DLC message: {e:#}"
                 );
+
+                if msg.is_trade() {
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+                    ));
+                }
             }
         }
     }
@@ -322,9 +328,8 @@ impl Node {
                         )
                         .context("Failed to update position after DLC creation")?;
 
-                        // In case of a restart.
                         event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::RecoverDlc(TaskStatus::Success),
+                            BackgroundTask::AsyncTrade(TaskStatus::Success),
                         ));
                     }
                     // If there is no order in `Filling` we must be rolling over.
@@ -356,19 +361,8 @@ impl Node {
                 )
                 .context("Failed to update position after DLC creation")?;
 
-                // Sending always a recover dlc background notification success message here
-                // as we do not know if we might have reached this state after a restart.
-                // This event is only received by the UI at the moment indicating that the
-                // dialog can be closed. If the dialog is not open, this event would be
-                // simply ignored by the UI.
-                //
-                // FIXME(holzeis): We should not require that event and align the UI
-                // handling with waiting for an order execution in the happy case with
-                // waiting for an order execution after an in between restart. For now it
-                // was the easiest to go parallel to that implementation so that we don't
-                // have to touch it.
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    BackgroundTask::AsyncTrade(TaskStatus::Success),
                 ));
             }
             TenTenOneMessage::SettleConfirm(_) => {
@@ -379,9 +373,8 @@ impl Node {
                 update_position_after_dlc_closure(Some(filled_order))
                     .context("Failed to update position after DLC closure")?;
 
-                // In case of a restart.
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::RecoverDlc(TaskStatus::Success),
+                    BackgroundTask::AsyncTrade(TaskStatus::Success),
                 ));
             }
             TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
@@ -547,7 +540,7 @@ impl Node {
                 );
 
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::AsyncTrade(order_reason.into()),
+                    BackgroundTask::AsyncTrade(TaskStatus::Pending),
                 ));
 
                 order::handler::async_order_filling(&offer.order, &offer.filled_with)
