@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/domain/background_task.dart';
+import 'package:get_10101/common/full_sync_change_notifier.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/features/trade/async_order_change_notifier.dart';
@@ -40,6 +41,7 @@ class _XXIScreenState extends State<XXIScreen> {
     final recoverTaskStatus = context.watch<RecoverDlcChangeNotifier>().taskStatus;
     final rolloverTaskStatus = context.watch<RolloverChangeNotifier>().taskStatus;
     final asyncTrade = context.watch<AsyncOrderChangeNotifier>().asyncTrade;
+    final fullSyncTaskStatus = context.watch<FullSyncChangeNotifier>().taskStatus;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (recoverTaskStatus == TaskStatus.pending) {
@@ -99,6 +101,28 @@ class _XXIScreenState extends State<XXIScreen> {
 
         // remove the async trade from the change notifier state, marking that the dialog has been created.
         context.read<AsyncOrderChangeNotifier>().removeAsyncTrade();
+      }
+      if (fullSyncTaskStatus == TaskStatus.pending) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            TaskStatus status = context.watch<FullSyncChangeNotifier>().taskStatus;
+
+            Widget content;
+            switch (status) {
+              case TaskStatus.pending:
+                content = const Text("Waiting for on-chain sync to complete");
+              case TaskStatus.success:
+                content = const Text(
+                    "Full on-chain sync completed. If your balance is still incomplete, go to Wallet Settings to trigger further syncs.");
+              case TaskStatus.failed:
+                content = const Text(
+                    "Full on-chain sync failed. You can keep trying by shutting down the app and restarting.");
+            }
+
+            return TaskStatusDialog(title: "Full wallet sync", status: status, content: content);
+          },
+        );
       }
     });
 
