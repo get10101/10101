@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_10101/common/collab_revert_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/full_sync_change_notifier.dart';
 import 'package:get_10101/common/recover_dlc_change_notifier.dart';
@@ -42,6 +43,7 @@ class _XXIScreenState extends State<XXIScreen> {
     final rolloverTaskStatus = context.watch<RolloverChangeNotifier>().taskStatus;
     final asyncTrade = context.watch<AsyncOrderChangeNotifier>().asyncTrade;
     final fullSyncTaskStatus = context.watch<FullSyncChangeNotifier>().taskStatus;
+    final collabRevertTaskStatus = context.watch<CollabRevertChangeNotifier>().taskStatus;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (recoverTaskStatus == TaskStatus.pending) {
@@ -121,6 +123,17 @@ class _XXIScreenState extends State<XXIScreen> {
             }
 
             return TaskStatusDialog(title: "Full wallet sync", status: status, content: content);
+          },
+        );
+      }
+      if (collabRevertTaskStatus == TaskStatus.pending) {
+        showDialog(
+          context: context,
+          builder: (context) {
+            TaskStatus status = context.watch<CollabRevertChangeNotifier>().taskStatus;
+            late Widget content = const Text("Your channel has been closed collaboratively!");
+            return TaskStatusDialog(
+                title: "Collaborative Channel Close!", status: status, content: content);
           },
         );
       }
