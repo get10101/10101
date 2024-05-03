@@ -659,6 +659,9 @@ impl Node {
             }
             Err(e) => {
                 tracing::error!("Failed to accept dlc channel rollover offer. {e:#}");
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
+                ));
 
                 self.reject_renew_offer(&channel_id)?;
             }
