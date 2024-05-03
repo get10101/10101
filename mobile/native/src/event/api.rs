@@ -60,9 +60,6 @@ impl From<EventInternal> for Event {
             EventInternal::WalletInfoUpdateNotification(value) => {
                 Event::WalletInfoUpdateNotification(value)
             }
-            EventInternal::OrderFilledWith(_) => {
-                unreachable!("This internal event is not exposed to the UI")
-            }
             EventInternal::PositionUpdateNotification(position) => {
                 Event::PositionUpdateNotification(position.into())
             }
