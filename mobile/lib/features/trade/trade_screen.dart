@@ -12,7 +12,6 @@ import 'package:get_10101/features/trade/position_list_item.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
-import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/features/trade/trade_tabs.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -170,21 +169,10 @@ class TradeScreen extends StatelessWidget {
                                 direction: direction,
                                 channelOpeningParams: null,
                                 onConfirmation: () {
-                                  submitOrderChangeNotifier.closePosition(
-                                      position, tradeValues.price, tradeValues.fee);
-
-                                  // Return to the trade screen before submitting the pending order so that the dialog is displayed correctly
                                   GoRouter.of(context).pop();
 
-                                  // Show immediately the pending dialog, when submitting a market order.
-                                  // TODO(holzeis): We should only show the dialog once we've received a match.
-                                  showDialog(
-                                      context: context,
-                                      useRootNavigator: true,
-                                      barrierDismissible: false, // Prevent user from leaving
-                                      builder: (BuildContext context) {
-                                        return const TradeDialog();
-                                      });
+                                  submitOrderChangeNotifier.closePosition(
+                                      position, tradeValues.price, tradeValues.fee);
                                 },
                                 tradeAction: TradeAction.closePosition);
                           },

@@ -5,11 +5,13 @@ use crate::db::maybe_get_open_orders;
 use crate::dlc;
 use crate::dlc::is_dlc_channel_confirmed;
 use crate::event;
+use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
+use crate::trade::order::OrderReason;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
@@ -120,6 +122,10 @@ pub async fn submit_order_internal(
 
     set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
+
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::AsyncTrade(OrderReason::Manual),
+    ));
 
     Ok(order.id)
 }

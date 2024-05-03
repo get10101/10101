@@ -36,8 +36,7 @@ pub enum Event {
 #[frb]
 #[derive(Clone)]
 pub enum BackgroundTask {
-    /// The order book submitted an trade which was matched asynchronously while the app was
-    /// offline.
+    /// The order book submitted an trade which was matched asynchronously
     AsyncTrade(OrderReason),
     /// The order book submitted its intention to rollover the about to expire position.
     Rollover(TaskStatus),
