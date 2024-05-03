@@ -11,16 +11,17 @@ class TaskStatusDialog extends StatefulWidget {
   final Widget content;
   final String buttonText;
   final EdgeInsets insetPadding;
-  final String navigateToRoute;
+  final VoidCallback? onClose;
 
-  const TaskStatusDialog(
-      {super.key,
-      required this.title,
-      required this.status,
-      required this.content,
-      this.buttonText = "Close",
-      this.insetPadding = const EdgeInsets.all(50),
-      this.navigateToRoute = ""});
+  const TaskStatusDialog({
+    super.key,
+    required this.title,
+    required this.status,
+    required this.content,
+    this.onClose,
+    this.buttonText = "Close",
+    this.insetPadding = const EdgeInsets.all(50),
+  });
 
   @override
   State<TaskStatusDialog> createState() => _TaskStatusDialog();
@@ -71,8 +72,8 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
         onPressed: () {
           GoRouter.of(context).pop();
 
-          if (widget.navigateToRoute.isNotEmpty) {
-            GoRouter.of(context).go(widget.navigateToRoute);
+          if (widget.onClose != null) {
+            widget.onClose!();
           }
         },
         child: Text(widget.buttonText));

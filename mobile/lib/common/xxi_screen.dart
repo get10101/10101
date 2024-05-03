@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_10101/common/collab_revert_change_notifier.dart';
+import 'package:get_10101/common/background_task_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
-import 'package:get_10101/common/full_sync_change_notifier.dart';
-import 'package:get_10101/common/recover_dlc_change_notifier.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
 import 'package:get_10101/features/trade/async_order_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
-import 'package:get_10101/features/trade/rollover_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_dialog.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -28,6 +25,8 @@ class XXIScreen extends StatefulWidget {
 }
 
 class _XXIScreenState extends State<XXIScreen> {
+  BackgroundTask? activeTask;
+
   @override
   void initState() {
     final config = context.read<bridge.Config>();
@@ -40,34 +39,30 @@ class _XXIScreenState extends State<XXIScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final recoverTaskStatus = context.watch<RecoverDlcChangeNotifier>().taskStatus;
-    final rolloverTaskStatus = context.watch<RolloverChangeNotifier>().taskStatus;
+    final events = context.watch<BackgroundTaskChangeNotifier>().events;
     final asyncTrade = context.watch<AsyncOrderChangeNotifier>().asyncTrade;
-    final fullSyncTaskStatus = context.watch<FullSyncChangeNotifier>().taskStatus;
-    final collabRevertTaskStatus = context.watch<CollabRevertChangeNotifier>().taskStatus;
+
+    final task = events.isEmpty ? null : events.peek;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (recoverTaskStatus == TaskStatus.pending) {
+      final taskStatusDialog = getTaskStatusDialog(task);
+
+      if (taskStatusDialog != null && activeTask == null) {
+        // only create a new dialog if there isn't an active task already.
         showDialog(
-          context: context,
-          builder: (context) {
-            TaskStatus status = context.watch<RecoverDlcChangeNotifier>().taskStatus;
-            late Widget content = const Text("Recovering your dlc channel");
-            return TaskStatusDialog(title: "Catching up!", status: status, content: content);
-          },
-        );
-      }
-      if (rolloverTaskStatus == TaskStatus.pending) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            TaskStatus status = context.watch<RolloverChangeNotifier>().taskStatus;
-            late Widget content = const Text("Rolling over your position");
-            return TaskStatusDialog(title: "Catching up!", status: status, content: content);
-          },
-        );
-      }
-      if (asyncTrade != null) {
+            context: context,
+            builder: (context) {
+              // watch task updates from within the dialog.
+              final task = context.watch<BackgroundTaskChangeNotifier>().events.pop();
+              if (activeTask != null && task.type != activeTask!.type) {
+                logger.w("Ignoring task event $task while $activeTask is still active!");
+              } else {
+                // update the active task to the last event received on the stack.
+                activeTask = task;
+              }
+              return getTaskStatusDialog(task)!;
+            });
+      } else if (asyncTrade != null) {
         if (asyncTrade.orderReason == OrderReason.manual) {
           showDialog(
               context: context,
@@ -115,43 +110,42 @@ class _XXIScreenState extends State<XXIScreen> {
         // remove the async trade from the change notifier state, marking that the dialog has been created.
         context.read<AsyncOrderChangeNotifier>().removeAsyncTrade();
       }
-      if (fullSyncTaskStatus == TaskStatus.pending) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            TaskStatus status = context.watch<FullSyncChangeNotifier>().taskStatus;
-
-            Widget content;
-            switch (status) {
-              case TaskStatus.pending:
-                content = const Text("Waiting for on-chain sync to complete");
-              case TaskStatus.success:
-                content = const Text(
-                    "Full on-chain sync completed. If your balance is still incomplete, go to Wallet Settings to trigger further syncs.");
-              case TaskStatus.failed:
-                content = const Text(
-                    "Full on-chain sync failed. You can keep trying by shutting down the app and restarting.");
-            }
-
-            return TaskStatusDialog(title: "Full wallet sync", status: status, content: content);
-          },
-        );
-      }
-      if (collabRevertTaskStatus == TaskStatus.pending) {
-        showDialog(
-          context: context,
-          builder: (context) {
-            TaskStatus status = context.watch<CollabRevertChangeNotifier>().taskStatus;
-            late Widget content = const Text("Your channel has been closed collaboratively!");
-            return TaskStatusDialog(
-                title: "Collaborative Channel Close!", status: status, content: content);
-          },
-        );
-      }
     });
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark, child: Scaffold(body: widget.child));
+  }
+
+  TaskStatusDialog? getTaskStatusDialog(BackgroundTask? task) {
+    return switch (task?.type) {
+      TaskType.rollover => TaskStatusDialog(
+          title: "Rollover",
+          status: task!.status,
+          content: const Text("Rolling over your position"),
+          onClose: () => activeTask = null),
+      TaskType.collaborativeRevert => TaskStatusDialog(
+          title: "Collaborative Channel Close!",
+          status: task!.status,
+          content: const Text("Your channel has been closed collaboratively!"),
+          onClose: () => activeTask = null),
+      TaskType.fullSync => TaskStatusDialog(
+          title: "Full wallet sync",
+          status: task!.status,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text("Waiting for on-chain sync to complete"),
+            TaskStatus.success => const Text(
+                "Full on-chain sync completed. If your balance is still incomplete, go to Wallet Settings to trigger further syncs."),
+            TaskStatus.failed => const Text(
+                "Full on-chain sync failed. You can keep trying by shutting down the app and restarting.")
+          },
+          onClose: () => activeTask = null),
+      TaskType.recover => TaskStatusDialog(
+          title: "Catching up!",
+          status: task!.status,
+          content: const Text("Recovering your dlc channel"),
+          onClose: () => activeTask = null),
+      TaskType.asyncTrade || TaskType.unknown || null => null
+    };
   }
 
   /// Compare the version of the coordinator with the version of the app
