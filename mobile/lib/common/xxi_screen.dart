@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/background_task_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
-import 'package:get_10101/features/trade/error_details.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
@@ -89,18 +88,21 @@ class _XXIScreenState extends State<XXIScreen> {
   TaskStatusDialog? getTaskStatusDialog(BackgroundTask? task) {
     return switch (task?.type) {
       TaskType.rollover => TaskStatusDialog(
-          title: "Rollover",
-          status: task!.status,
-          content: const Text("Rolling over your position"),
+          task: task!,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Please don't close the app while your position is rolled over to the next week."),
+            TaskStatus.failed => const Text("Oops, something went wrong!"),
+            TaskStatus.success =>
+              const Text("Your position has been successfully rolled over to the next week."),
+          },
           onClose: () => activeTask = null),
       TaskType.collaborativeRevert => TaskStatusDialog(
-          title: "Collaborative Channel Close!",
-          status: task!.status,
+          task: task!,
           content: const Text("Your channel has been closed collaboratively!"),
           onClose: () => activeTask = null),
       TaskType.fullSync => TaskStatusDialog(
-          title: "Full wallet sync",
-          status: task!.status,
+          task: task!,
           content: switch (task.status) {
             TaskStatus.pending => const Text("Waiting for on-chain sync to complete"),
             TaskStatus.success => const Text(
@@ -110,26 +112,23 @@ class _XXIScreenState extends State<XXIScreen> {
           },
           onClose: () => activeTask = null),
       TaskType.recover => TaskStatusDialog(
-          title: "Catching up!",
-          status: task!.status,
-          content: const Text("Recovering your dlc channel"),
+          task: task!,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Looks like your app was closed before the dlc protocol finished. Please don't close the app while we recover your dlc channel."),
+            TaskStatus.failed =>
+              const Text("Oh snap! Something went wrong trying to recover your dlc channel."),
+            TaskStatus.success => const Text("Your dlc channel has been recovered successfully!"),
+          },
           onClose: () => activeTask = null),
       TaskType.asyncTrade => TaskStatusDialog(
-          title: "Executing Order!",
-          status: task!.status,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              switch (task.status) {
-                TaskStatus.pending =>
-                  const Text("Please do not close the app while the trade is executed."),
-                TaskStatus.success => const Text("The order has been successfully executed!"),
-                TaskStatus.failed => const Text("Something went wrong!")
-              },
-              if (task.status == TaskStatus.failed && task.error != null)
-                ErrorDetails(details: task.error!)
-            ],
-          ),
+          task: task!,
+          content: switch (task.status) {
+            TaskStatus.pending =>
+              const Text("Please do not close the app while the trade is executed."),
+            TaskStatus.success => const Text("The order has been successfully executed!"),
+            TaskStatus.failed => const Text("Oops, something went wrong!")
+          },
           onClose: () => activeTask = null),
       TaskType.unknown || null => null
     };

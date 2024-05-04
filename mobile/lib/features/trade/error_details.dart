@@ -12,65 +12,60 @@ class ErrorDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Error details:",
-            style: TextStyle(fontSize: 15),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(5.0),
-            child: SizedBox.square(
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(5, 25, 5, 10.0),
-                color: Colors.grey.shade300,
-                child: Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Error details",
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        SizedBox.square(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(5, 25, 5, 10.0),
+            color: Colors.grey.shade300,
+            child: Column(
+              children: [
+                Text(
+                  getPrettyJSONString(details),
+                  style: const TextStyle(fontSize: 15),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      getPrettyJSONString(details),
-                      style: const TextStyle(fontSize: 15),
+                    GestureDetector(
+                      child: const Icon(Icons.content_copy, size: 16),
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: details)).then((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Copied to clipboard"),
+                            ),
+                          );
+                        });
+                      },
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        GestureDetector(
-                          child: const Icon(Icons.content_copy, size: 16),
-                          onTap: () {
-                            Clipboard.setData(ClipboardData(text: details)).then((_) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Copied to clipboard"),
-                                ),
-                              );
-                            });
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            left: 8.0,
-                            right: 8.0,
-                          ),
-                          child: GestureDetector(
-                            child: const Icon(Icons.share, size: 16),
-                            onTap: () => Share.share(details),
-                          ),
-                        )
-                      ],
-                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 8.0,
+                        right: 8.0,
+                      ),
+                      child: GestureDetector(
+                        child: const Icon(Icons.share, size: 16),
+                        onTap: () => Share.share(details),
+                      ),
+                    )
                   ],
                 ),
-              ),
+              ],
             ),
           ),
-          ClickableHelpText(
-              text: "Please help us fix this issue and join our telegram group: ",
-              style: DefaultTextStyle.of(context).style),
-        ],
-      ),
+        ),
+        const SizedBox(height: 5),
+        ClickableHelpText(
+            text: "Please help us fix this issue and join our telegram group: ",
+            style: DefaultTextStyle.of(context).style),
+      ],
     );
   }
 }

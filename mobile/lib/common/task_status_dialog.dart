@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/background_task.dart';
+import 'package:get_10101/features/trade/error_details.dart';
 import 'package:go_router/go_router.dart';
 
 /// Define Animation Type
@@ -18,21 +19,15 @@ class AppAnim {
 }
 
 class TaskStatusDialog extends StatefulWidget {
-  final String title;
-  final TaskStatus status;
+  final BackgroundTask task;
   final Widget content;
-  final String buttonText;
-  final EdgeInsets insetPadding;
   final VoidCallback? onClose;
 
   const TaskStatusDialog({
     super.key,
-    required this.title,
-    required this.status,
+    required this.task,
     required this.content,
     this.onClose,
-    this.buttonText = "Close",
-    this.insetPadding = const EdgeInsets.all(50),
   });
 
   @override
@@ -52,7 +47,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
 
   @override
   Widget build(BuildContext context) {
-    bool isPending = widget.status == TaskStatus.pending;
+    bool isPending = widget.task.status == TaskStatus.pending;
 
     if (_timeout != null) {
       // cancel already running timeout timer if we receive a new update.
@@ -69,7 +64,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
     }
 
     Widget closeButton = SizedBox(
-      width: MediaQuery.of(context).size.width * 0.6,
+      width: MediaQuery.of(context).size.width * 0.65,
       child: ElevatedButton(
           onPressed: () {
             GoRouter.of(context).pop();
@@ -82,7 +77,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: EdgeInsets.zero,
               backgroundColor: tenTenOnePurple),
-          child: Text(widget.buttonText)),
+          child: const Text("Close")),
     );
 
     AlertDialog dialog = AlertDialog(
@@ -91,7 +86,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
         borderRadius: BorderRadius.circular(18.0),
       ),
       content: Container(
-        height: 330,
+        height: widget.task.status == TaskStatus.failed ? 450 : 330,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18.0),
@@ -109,7 +104,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
                 color: Colors.white,
               ),
               child: Image.asset(
-                switch (widget.status) {
+                switch (widget.task.status) {
                   TaskStatus.pending => AppAnim.loading,
                   TaskStatus.failed => AppAnim.error,
                   TaskStatus.success => AppAnim.success,
@@ -118,14 +113,19 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
               ),
             ),
             const SizedBox(height: 15),
-            buildTitle(widget.status),
+            buildTitle(widget.task.status),
             Padding(
                 padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
                 child: widget.content),
+            if (widget.task.status == TaskStatus.failed && widget.task.error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+                child: ErrorDetails(details: widget.task.error!),
+              ),
             const Spacer(),
             if (!isPending || timeout)
               Padding(
-                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0, bottom: 10.0),
+                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0, bottom: 15.0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -137,7 +137,6 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
           ],
         ),
       ),
-      insetPadding: widget.insetPadding,
     );
 
     // If pending, prevent use of back button
