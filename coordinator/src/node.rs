@@ -126,6 +126,9 @@ impl Node {
                     );
                 }
 
+                // TODO(holzeis): Send TradeError to user in case the coordinator failed to process
+                // the users message
+
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
