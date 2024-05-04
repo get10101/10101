@@ -86,7 +86,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
         borderRadius: BorderRadius.circular(18.0),
       ),
       content: Container(
-        height: widget.task.status == TaskStatus.failed ? 450 : 330,
+        height: widget.task.status == TaskStatus.failed ? 480 : 330,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18.0),
