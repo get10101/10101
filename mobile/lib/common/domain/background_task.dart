@@ -27,6 +27,18 @@ enum TaskStatus {
   static bridge.TaskStatus apiDummy() {
     return const bridge.TaskStatus_Pending();
   }
+
+  @override
+  String toString() {
+    switch (this) {
+      case TaskStatus.pending:
+        return "Pending";
+      case TaskStatus.failed:
+        return "Failed";
+      case TaskStatus.success:
+        return "Success";
+    }
+  }
 }
 
 class BackgroundTask {

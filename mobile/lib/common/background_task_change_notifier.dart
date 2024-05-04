@@ -31,26 +31,29 @@ class BackgroundTaskChangeNotifier extends ChangeNotifier implements Subscriber 
       final (taskStatus, error) = TaskStatus.fromApi(event.field0.field0);
       if (event.field0 is bridge.BackgroundTask_RecoverDlc) {
         events.push(BackgroundTask(type: TaskType.recover, status: taskStatus, error: error));
+        notifyListeners();
       }
 
       if (event.field0 is bridge.BackgroundTask_FullSync) {
         events.push(BackgroundTask(type: TaskType.fullSync, status: taskStatus, error: error));
+        notifyListeners();
       }
 
       if (event.field0 is bridge.BackgroundTask_Rollover) {
         events.push(BackgroundTask(type: TaskType.rollover, status: taskStatus, error: error));
+        notifyListeners();
       }
 
       if (event.field0 is bridge.BackgroundTask_CollabRevert) {
         events.push(
             BackgroundTask(type: TaskType.collaborativeRevert, status: taskStatus, error: error));
+        notifyListeners();
       }
 
       if (event.field0 is bridge.BackgroundTask_AsyncTrade) {
         events.push(BackgroundTask(type: TaskType.asyncTrade, status: taskStatus, error: error));
+        notifyListeners();
       }
-
-      notifyListeners();
     }
   }
 }

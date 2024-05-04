@@ -46,11 +46,21 @@ class _XXIScreenState extends State<XXIScreen> {
 
       if (taskStatusDialog != null && activeTask == null) {
         // only create a new dialog if there isn't an active task already.
-        showDialog(
+        showGeneralDialog(
             context: context,
             useRootNavigator: true,
             barrierDismissible: false,
-            builder: (context) {
+            transitionBuilder: (context, animation, __, child) {
+              final curvedValue = Curves.easeInOutBack.transform(animation.value) - 1.5;
+              return Transform(
+                transform: Matrix4.translationValues(0.0, curvedValue * 100, 0.0),
+                child: Opacity(
+                  opacity: animation.value,
+                  child: child,
+                ),
+              );
+            },
+            pageBuilder: (context, _, __) {
               // watch task updates from within the dialog.
               final task = context.watch<BackgroundTaskChangeNotifier>().events.pop();
               if (activeTask != null && task.type != activeTask!.type) {

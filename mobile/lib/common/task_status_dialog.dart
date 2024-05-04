@@ -1,9 +1,21 @@
 import 'dart:async';
 
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:go_router/go_router.dart';
+
+/// Define Animation Type
+class AppAnim {
+  /// Loading Animation
+  static const loading = 'assets/loading.gif';
+
+  /// Success Animation
+  static const success = 'assets/success.gif';
+
+  /// Error Animation
+  static const error = 'assets/error.gif';
+}
 
 class TaskStatusDialog extends StatefulWidget {
   final String title;
@@ -28,20 +40,12 @@ class TaskStatusDialog extends StatefulWidget {
 }
 
 class _TaskStatusDialog extends State<TaskStatusDialog> {
-  late final ConfettiController _confettiController;
   Timer? _timeout;
 
   bool timeout = false;
 
   @override
-  void initState() {
-    super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-  }
-
-  @override
   void dispose() {
-    _confettiController.dispose();
     _timeout?.cancel();
     super.dispose();
   }
@@ -64,68 +68,75 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
       });
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _confettiController.play();
-    });
+    Widget closeButton = SizedBox(
+      width: MediaQuery.of(context).size.width * 0.6,
+      child: ElevatedButton(
+          onPressed: () {
+            GoRouter.of(context).pop();
 
-    Widget closeButton = ElevatedButton(
-        onPressed: () {
-          GoRouter.of(context).pop();
-
-          if (widget.onClose != null) {
-            widget.onClose!();
-          }
-        },
-        child: Text(widget.buttonText));
+            if (widget.onClose != null) {
+              widget.onClose!();
+            }
+          },
+          style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: EdgeInsets.zero,
+              backgroundColor: tenTenOnePurple),
+          child: Text(widget.buttonText)),
+    );
 
     AlertDialog dialog = AlertDialog(
-      icon: (() {
-        switch (widget.status) {
-          case TaskStatus.pending:
-            return const Center(
-                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator()));
-          case TaskStatus.failed:
-            return const Icon(
-              Icons.cancel,
-              color: Colors.red,
-            );
-          case TaskStatus.success:
-            return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                  ),
-                  ConfettiWidget(
-                    confettiController: _confettiController,
-                    blastDirectionality: BlastDirectionality.explosive,
-                    maxBlastForce: 10,
-                    // set a lower max blast force
-                    minBlastForce: 9,
-                    // set a lower min blast force
-                    emissionFrequency: 0.00001,
-                    numberOfParticles: 20,
-                    // a lot of particles at once
-                    gravity: 0.2,
-                    shouldLoop: false,
-                  ),
-                ]);
-        }
-      })(),
-      title: Text("${widget.title} ${(() {
-        switch (widget.status) {
-          case TaskStatus.pending:
-            return "Pending";
-          case TaskStatus.success:
-            return "Success";
-          case TaskStatus.failed:
-            return "Failure";
-        }
-      })()}"),
-      content: widget.content,
-      actions: isPending && !timeout ? null : [closeButton],
+      contentPadding: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18.0),
+      ),
+      content: Container(
+        height: 330,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18.0),
+        ),
+        clipBehavior: Clip.antiAlias,
+        width: MediaQuery.of(context).size.shortestSide,
+        child: Column(
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            Container(
+              width: double.infinity,
+              height: 110,
+              clipBehavior: Clip.antiAlias,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+              ),
+              child: Image.asset(
+                switch (widget.status) {
+                  TaskStatus.pending => AppAnim.loading,
+                  TaskStatus.failed => AppAnim.error,
+                  TaskStatus.success => AppAnim.success,
+                },
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(height: 15),
+            buildTitle(widget.status),
+            Padding(
+                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+                child: widget.content),
+            const Spacer(),
+            if (!isPending || timeout)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0, bottom: 10.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    closeButton,
+                  ],
+                ),
+              )
+          ],
+        ),
+      ),
       insetPadding: widget.insetPadding,
     );
 
@@ -138,5 +149,20 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
     } else {
       return dialog;
     }
+  }
+
+  Widget buildTitle(title) {
+    return Visibility(
+      visible: title != null,
+      child: Text(
+        '$title',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 20.0,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 }
