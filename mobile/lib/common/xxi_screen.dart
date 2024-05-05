@@ -63,19 +63,11 @@ class _XXIScreenState extends State<XXIScreen> {
               // watch task updates from within the dialog.
               final task = context.watch<BackgroundTaskChangeNotifier>().events.pop();
               if (activeTask != null && task.type != activeTask!.type) {
-                if (activeTask!.type == TaskType.recover && task.type == TaskType.asyncTrade) {
-                  // in case a trade protocol finishes we get an async trade task status update, but
-                  // there might have been a restart in between as why the recover task dialog is
-                  // shown. Since these two tasks are different we have to handle this case here
-                  // and only update the task status of the active task.
-                  activeTask!.status = task.status;
-                } else {
-                  logger.w("Ignoring task event $task while $activeTask is still active!");
-                }
-              } else {
-                // update the active task to the last event received on the stack.
-                activeTask = task;
+                logger.w("Received another task event $task while $activeTask is still active!");
               }
+
+              // update the active task to the last event received on the stack.
+              activeTask = task;
               return getTaskStatusDialog(activeTask)!;
             });
       }
