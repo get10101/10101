@@ -154,7 +154,7 @@ impl DlcHandler {
             // Pending dlc channel offer not yet confirmed on-chain
 
             self.node
-                .reject_dlc_channel_offer(&offered_channel.get_temporary_id())
+                .reject_dlc_channel_offer(None, &offered_channel.get_temporary_id())
                 .context("Failed to reject pending dlc channel offer")?;
         }
 
@@ -184,7 +184,7 @@ impl DlcHandler {
                     ));
 
                     self.node
-                        .reject_settle_offer(channel_id)
+                        .reject_settle_offer(None, channel_id)
                         .context("Failed to reject pending settle offer")?;
 
                     event::publish(&EventInternal::BackgroundNotification(
@@ -207,7 +207,7 @@ impl DlcHandler {
                     ));
 
                     self.node
-                        .reject_renew_offer(channel_id)
+                        .reject_renew_offer(None, channel_id)
                         .context("Failed to reject pending renew offer")?;
 
                     event::publish(&EventInternal::BackgroundNotification(

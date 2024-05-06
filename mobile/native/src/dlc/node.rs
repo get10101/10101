@@ -31,6 +31,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::instrument;
+use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::commons;
 use xxi_node::commons::OrderReason;
@@ -467,7 +468,11 @@ impl Node {
     }
 
     #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
-    pub fn reject_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+    pub fn reject_dlc_channel_offer(
+        &self,
+        order_id: Option<Uuid>,
+        channel_id: &DlcChannelId,
+    ) -> Result<()> {
         tracing::warn!("Rejecting dlc channel offer!");
 
         let (reject, counterparty) = self
@@ -482,7 +487,7 @@ impl Node {
             })?;
 
         order::handler::order_failed(
-            None,
+            order_id,
             FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
             anyhow!("Failed to accept dlc channel offer"),
         )
@@ -498,6 +503,7 @@ impl Node {
     pub fn process_dlc_channel_offer(&self, offer: &TenTenOneOfferChannel) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
         self.set_order_to_filling(offer.filled_with.clone())?;
+        let order_id = offer.filled_with.order_id;
 
         let channel_id = offer.offer_channel.temporary_channel_id;
         match self
@@ -509,12 +515,15 @@ impl Node {
             Ok((accept_channel, _, _, node_id)) => {
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
-                    TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }),
+                    TenTenOneMessage::Accept(TenTenOneAcceptChannel {
+                        accept_channel,
+                        order_id: offer.filled_with.order_id,
+                    }),
                 )?;
             }
             Err(e) => {
                 tracing::error!("Failed to accept DLC channel offer: {e:#}");
-                self.reject_dlc_channel_offer(&channel_id)?;
+                self.reject_dlc_channel_offer(Some(order_id), &channel_id)?;
             }
         }
 
@@ -522,12 +531,16 @@ impl Node {
     }
 
     #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
-    pub fn reject_settle_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+    pub fn reject_settle_offer(
+        &self,
+        order_id: Option<Uuid>,
+        channel_id: &DlcChannelId,
+    ) -> Result<()> {
         tracing::warn!("Rejecting pending dlc channel collaborative settlement offer!");
         let (reject, counterparty) = self.inner.dlc_manager.reject_settle_offer(channel_id)?;
 
         order::handler::order_failed(
-            None,
+            order_id,
             FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
             anyhow!("Failed to accept settle offer"),
         )?;
@@ -569,13 +582,14 @@ impl Node {
             OrderReason::Manual => self.set_order_to_filling(offer.filled_with.clone())?,
         }
 
+        let order_id = offer.order.id;
         let channel_id = offer.settle_offer.channel_id;
         if let Err(e) = self
             .inner
-            .accept_dlc_channel_collaborative_settlement(&channel_id)
+            .accept_dlc_channel_collaborative_settlement(offer.filled_with.order_id, &channel_id)
         {
             tracing::error!("Failed to accept dlc channel collaborative settlement offer. {e:#}");
-            self.reject_settle_offer(&channel_id)?;
+            self.reject_settle_offer(Some(order_id), &channel_id)?;
         }
 
         Ok(())
@@ -597,13 +611,17 @@ impl Node {
     }
 
     #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
-    pub fn reject_renew_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+    pub fn reject_renew_offer(
+        &self,
+        order_id: Option<Uuid>,
+        channel_id: &DlcChannelId,
+    ) -> Result<()> {
         tracing::warn!("Rejecting dlc channel renew offer!");
 
         let (reject, counterparty) = self.inner.dlc_manager.reject_renew_offer(channel_id)?;
 
         order::handler::order_failed(
-            None,
+            order_id,
             FailureReason::InvalidDlcOffer(InvalidSubchannelOffer::Unacceptable),
             anyhow!("Failed to accept renew offer"),
         )?;
@@ -621,6 +639,7 @@ impl Node {
             offer.renew_offer.contract_info.get_closest_maturity_date() as i64,
         )?;
 
+        let order_id = offer.filled_with.order_id;
         self.set_order_to_filling(offer.filled_with.clone())?;
 
         let channel_id = offer.renew_offer.channel_id;
@@ -630,17 +649,32 @@ impl Node {
 
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
-                    TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }),
+                    TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
+                        renew_accept,
+                        order_id: offer.filled_with.order_id,
+                    }),
                 )?;
             }
             Err(e) => {
                 tracing::error!("Failed to accept dlc channel renew offer. {e:#}");
 
-                self.reject_renew_offer(&channel_id)?;
+                self.reject_renew_offer(Some(order_id), &channel_id)?;
             }
         };
 
         Ok(())
+    }
+
+    #[instrument(fields(channel_id = hex::encode(channel_id)),skip_all, err(Debug))]
+    pub fn reject_rollover_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+        tracing::warn!("Rejecting rollover offer!");
+
+        let (reject, counterparty) = self.inner.dlc_manager.reject_renew_offer(channel_id)?;
+
+        self.send_dlc_message(
+            to_secp_pk_30(counterparty),
+            TenTenOneMessage::Reject(TenTenOneReject { reject }),
+        )
     }
 
     #[instrument(fields(channel_id = hex::encode(offer.renew_offer.channel_id)),skip_all, err(Debug))]
@@ -670,7 +704,7 @@ impl Node {
                     BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
                 ));
 
-                self.reject_renew_offer(&channel_id)?;
+                self.reject_rollover_offer(&channel_id)?;
             }
         };
 

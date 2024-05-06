@@ -76,7 +76,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             .dlc_manager
             .on_dlc_message(&message.clone().into(), to_secp_pk_29(node_id))?;
 
-        Ok(response.map(|resp| TenTenOneMessage::build_from_response(resp, message.is_rollover())))
+        Ok(
+            response
+                .map(|resp| TenTenOneMessage::build_from_response(resp, message.get_order_id())),
+        )
     }
 }
 

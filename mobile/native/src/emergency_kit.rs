@@ -23,6 +23,7 @@ use dlc_messages::channel::SettleFinalize;
 use hex::FromHex;
 use lightning::ln::chan_utils::build_commitment_secret;
 use time::OffsetDateTime;
+use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_sk_29;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::message_handler::TenTenOneMessage;
@@ -154,10 +155,7 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         .get_signed_channel_by_trader_id(coordinator_pubkey)?;
 
     ensure!(
-        matches!(
-            signed_channel.state,
-            dlc_manager::channel::signed_channel::SignedChannelState::Settled { .. }
-        ),
+        matches!(signed_channel.state, SignedChannelState::Settled { .. }),
         "Signed channel state must be settled to resend settle finalize message!"
     );
 
@@ -172,6 +170,9 @@ pub fn resend_settle_finalize_message() -> Result<()> {
     ))?;
 
     let msg = TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
+        // this is not ideal, but the coordinator should be able to handle the scenario where the
+        // order is not known.
+        order_id: Uuid::default(),
         settle_finalize: SettleFinalize {
             channel_id: signed_channel.channel_id,
             prev_per_update_secret: to_secp_sk_29(prev_per_update_secret),

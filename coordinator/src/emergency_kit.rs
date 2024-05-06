@@ -5,6 +5,7 @@ use bitcoin_old::secp256k1::SecretKey;
 use dlc_manager::Signer;
 use dlc_messages::channel::RenewRevoke;
 use lightning::ln::chan_utils::build_commitment_secret;
+use uuid::Uuid;
 use xxi_node::message_handler::TenTenOneMessage;
 use xxi_node::message_handler::TenTenOneRenewRevoke;
 use xxi_node::node::event::NodeEvent;
@@ -26,6 +27,9 @@ impl Node {
         ))?;
 
         let msg = TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke {
+            // this is not ideal, but the app should be able to handle the scenario where the order
+            // is not known.
+            order_id: Uuid::default(),
             renew_revoke: RenewRevoke {
                 channel_id: signed_channel.channel_id,
                 per_update_secret: prev_per_update_secret,

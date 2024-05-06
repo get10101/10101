@@ -228,6 +228,7 @@ impl Node {
                         reference_id,
                         ..
                     },
+                ..
             })
             | TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize {
                 renew_finalize:
@@ -279,6 +280,7 @@ impl Node {
                         reference_id,
                         ..
                     },
+                ..
             }) => {
                 let channel_id_hex_string = hex::encode(channel_id);
 
@@ -333,10 +335,12 @@ impl Node {
                         reference_id,
                         ..
                     },
+                ..
             }) => {
                 let channel_id = match resp {
                     Some(TenTenOneMessage::Sign(TenTenOneSignChannel {
                         sign_channel: SignChannel { channel_id, .. },
+                        ..
                     })) => channel_id,
                     _ => *temporary_channel_id,
                 };
