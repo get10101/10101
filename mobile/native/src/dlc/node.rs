@@ -245,6 +245,15 @@ impl Node {
                                 ..
                             },
                         ..
+                    })
+                    | TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
+                        renew_offer:
+                            RenewOffer {
+                                channel_id,
+                                reference_id,
+                                ..
+                            },
+                        ..
                     }) => {
                         if let Err(e) = self.force_reject_offer(node_id, *channel_id, *reference_id)
                         {
