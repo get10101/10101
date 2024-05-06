@@ -17,6 +17,7 @@ use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use rust_decimal::Decimal;
+use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -141,7 +142,14 @@ pub fn subscribe(
                 tracing::warn!("Cannot update orderbook status: {e:#}");
             };
 
-            let retry_interval = WS_RECONNECT_TIMEOUT.mul_f32(round as f32);
+            // Retry at least every second. We do this as it the p2p connection is not debouncing,
+            // thus it could happen after a restart that the p2p connection is established, but the
+            // websocket connection is still waiting to retry. This could have implications when the
+            // coordinator returns an error on the websocket which the app is not ready to process.
+            //
+            // Note, this is the same issue for why we originally moved to 10101 Messages, we should
+            // think about a similar way to return protocol erros via the p2p connection.
+            let retry_interval = min(Duration::from_secs(1), WS_RECONNECT_TIMEOUT.mul_f32(round as f32));
             tracing::debug!(
                 ?retry_interval,
                 "Reconnecting to orderbook WS after timeout"
