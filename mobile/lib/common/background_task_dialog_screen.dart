@@ -12,16 +12,16 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:version/version.dart';
 
-class XXIScreen extends StatefulWidget {
+class BackgroundTaskDialogScreen extends StatefulWidget {
   final Widget child;
 
-  const XXIScreen({super.key, required this.child});
+  const BackgroundTaskDialogScreen({super.key, required this.child});
 
   @override
-  State<XXIScreen> createState() => _XXIScreenState();
+  State<BackgroundTaskDialogScreen> createState() => _BackgroundTaskDialogScreenState();
 }
 
-class _XXIScreenState extends State<XXIScreen> {
+class _BackgroundTaskDialogScreenState extends State<BackgroundTaskDialogScreen> {
   BackgroundTask? activeTask;
 
   @override

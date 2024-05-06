@@ -5,7 +5,7 @@ import 'package:get_10101/common/settings/emergency_kit_screen.dart';
 import 'package:get_10101/common/settings/user_screen.dart';
 import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/status_screen.dart';
-import 'package:get_10101/common/xxi_screen.dart';
+import 'package:get_10101/common/background_task_dialog_screen.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/welcome/error_screen.dart';
@@ -67,7 +67,7 @@ GoRouter createRoutes() {
                 )),
         ShellRoute(
             builder: (BuildContext context, GoRouterState state, Widget child) {
-              return XXIScreen(
+              return BackgroundTaskDialogScreen(
                 child: child,
               );
             },
