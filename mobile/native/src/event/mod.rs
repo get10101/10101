@@ -43,6 +43,8 @@ pub enum EventInternal {
 
 #[derive(Clone, Debug)]
 pub enum BackgroundTask {
+    Liquidate(TaskStatus),
+    Expire(TaskStatus),
     AsyncTrade(TaskStatus),
     Rollover(TaskStatus),
     CollabRevert(TaskStatus),

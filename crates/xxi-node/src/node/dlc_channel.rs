@@ -282,6 +282,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     pub fn accept_dlc_channel_collaborative_settlement(
         &self,
         order_id: Uuid,
+        order_reason: commons::OrderReason,
         channel_id: &DlcChannelId,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
@@ -296,6 +297,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             msg: TenTenOneMessage::SettleAccept(TenTenOneSettleAccept {
                 settle_accept,
                 order_id,
+                order_reason,
             }),
         });
 

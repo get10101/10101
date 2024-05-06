@@ -1,6 +1,15 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 
-enum TaskType { rollover, asyncTrade, collaborativeRevert, fullSync, recover, unknown }
+enum TaskType {
+  rollover,
+  asyncTrade,
+  expire,
+  liquidate,
+  collaborativeRevert,
+  fullSync,
+  recover,
+  unknown
+}
 
 enum TaskStatus {
   pending,
@@ -75,6 +84,12 @@ class BackgroundTask {
     }
     if (task is bridge.BackgroundTask_AsyncTrade) {
       return TaskType.asyncTrade;
+    }
+    if (task is bridge.BackgroundTask_Expire) {
+      return TaskType.expire;
+    }
+    if (task is bridge.BackgroundTask_Liquidate) {
+      return TaskType.liquidate;
     }
 
     return TaskType.unknown;

@@ -97,7 +97,13 @@ class _BackgroundTaskDialogScreenState extends State<BackgroundTaskDialogScreen>
           onClose: () => activeTask = null),
       TaskType.collaborativeRevert => TaskStatusDialog(
           task: task!,
-          content: const Text("Your channel has been closed collaboratively!"),
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Your DLC channel is closed collaboratively.\n\nPlease don't close the app while the channel is being closed."),
+            TaskStatus.failed => const Text(
+                "Oh snap! Something went wrong trying to collaboratively close your channel."),
+            TaskStatus.success => const Text("Your channel has been closed collaboratively."),
+          },
           onClose: () => activeTask = null),
       TaskType.fullSync => TaskStatusDialog(
           task: task!,
@@ -113,18 +119,42 @@ class _BackgroundTaskDialogScreenState extends State<BackgroundTaskDialogScreen>
           task: task!,
           content: switch (task.status) {
             TaskStatus.pending => const Text(
-                "Looks like your app was closed before the dlc protocol finished. Please don't close the app while we recover your dlc channel."),
+                "Looks like we lost the connection before the dlc protocol finished.\n\nPlease don't close the app while we recover your DLC channel."),
             TaskStatus.failed =>
-              const Text("Oh snap! Something went wrong trying to recover your dlc channel."),
-            TaskStatus.success => const Text("Your dlc channel has been recovered successfully!"),
+              const Text("Oh snap! Something went wrong trying to recover your DLC channel."),
+            TaskStatus.success => const Text("Your DLC channel has been recovered successfully!"),
           },
           onClose: () => activeTask = null),
       TaskType.asyncTrade => TaskStatusDialog(
           task: task!,
           content: switch (task.status) {
             TaskStatus.pending =>
-              const Text("Please do not close the app while the trade is executed."),
+              const Text("Please do not close the app while the order is executed."),
             TaskStatus.success => const Text("The order has been successfully executed!"),
+            TaskStatus.failed => const Text("Oops, something went wrong!")
+          },
+          onClose: () => activeTask = null),
+      TaskType.expire => TaskStatusDialog(
+          task: task!,
+          showSuccessTitle: false,
+          successAnim: AppAnim.info,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Your position is being closed due to expiry.\n\nPlease do not close the app while the order is executed."),
+            TaskStatus.success => const Text(
+                "Your position has been successfully closed due to expiry.\n\nRemember to open the app during rollover weekend to keep your position open!"),
+            TaskStatus.failed => const Text("Oops, something went wrong!")
+          },
+          onClose: () => activeTask = null),
+      TaskType.liquidate => TaskStatusDialog(
+          task: task!,
+          showSuccessTitle: false,
+          successAnim: AppAnim.info,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Your position got liquidated.\n\nPlease do not close the app while the order is executed."),
+            TaskStatus.success => const Text(
+                "Your position got liquidated due to not enough remaining collateral on the liquidated side."),
             TaskStatus.failed => const Text("Oops, something went wrong!")
           },
           onClose: () => activeTask = null),

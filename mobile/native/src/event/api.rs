@@ -37,6 +37,10 @@ pub enum Event {
 pub enum BackgroundTask {
     /// The order book submitted an trade which was matched asynchronously
     AsyncTrade(TaskStatus),
+    /// The coordinator expired the users trade
+    Expire(TaskStatus),
+    /// The order book liquidated the users trade
+    Liquidate(TaskStatus),
     /// The order book submitted its intention to rollover the about to expire position.
     Rollover(TaskStatus),
     /// The app was started with a dlc channel in an intermediate state. This task is in pending
@@ -138,6 +142,8 @@ impl From<event::BackgroundTask> for BackgroundTask {
     fn from(value: event::BackgroundTask) -> Self {
         match value {
             event::BackgroundTask::AsyncTrade(status) => BackgroundTask::AsyncTrade(status.into()),
+            event::BackgroundTask::Liquidate(status) => BackgroundTask::Liquidate(status.into()),
+            event::BackgroundTask::Expire(status) => BackgroundTask::Expire(status.into()),
             event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
             event::BackgroundTask::RecoverDlc(status) => BackgroundTask::RecoverDlc(status.into()),
             event::BackgroundTask::CollabRevert(status) => {

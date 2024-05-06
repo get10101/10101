@@ -12,6 +12,7 @@ use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
+use crate::trade::order::OrderReason;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
@@ -317,14 +318,28 @@ pub(crate) fn order_failed(
     error: anyhow::Error,
 ) -> Result<()> {
     tracing::error!(?order_id, ?reason, "Failed to execute trade: {error:#}");
-    event::publish(&EventInternal::BackgroundNotification(
-        BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{error:#}"))),
-    ));
 
-    let order_id = match order_id {
-        None => get_order_in_filling()?.map(|order| order.id),
-        Some(order_id) => Some(order_id),
+    let order = match order_id {
+        None => get_order_in_filling(),
+        Some(order_id) => db::get_order(order_id),
+    }?
+    .with_context(|| format!("Could not find order. order_id = {order_id:?}"))
+    .inspect_err(|e| {
+        event::publish(&EventInternal::BackgroundNotification(
+            BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+        ))
+    })?;
+
+    let task_status = TaskStatus::Failed(format!("{error:#}"));
+    let task = match order.reason {
+        OrderReason::Manual => BackgroundTask::AsyncTrade(task_status),
+        OrderReason::Expired => BackgroundTask::Expire(task_status),
+        OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
+            BackgroundTask::Expire(task_status)
+        }
     };
+
+    event::publish(&EventInternal::BackgroundNotification(task));
 
     if let Some(order_id) = order_id {
         set_order_to_failed_and_update_ui(order_id, reason, None)?;

@@ -583,10 +583,11 @@ async fn open_channel_and_position_and_settle_position(
 
     tracing::info!("DLC channel is on-chain");
 
+    let order = dummy_order();
     coordinator
         .propose_dlc_channel_collaborative_settlement(
-            dummy_order(),
-            dummy_filled_with(),
+            order.clone(),
+            filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
             new_reference_id(),
@@ -620,6 +621,7 @@ async fn open_channel_and_position_and_settle_position(
     tracing::debug!("Accepting settle offer and waiting for being settled...");
     app.accept_dlc_channel_collaborative_settlement(
         filled_with.order_id,
+        order.order_reason,
         &app_signed_channel.channel_id,
     )
     .unwrap();

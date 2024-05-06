@@ -141,7 +141,9 @@ impl Node {
                     let error = TradingError::Other(format!("{e:#}"));
                     async move {
                         let message = match msg.get_tentenone_message_type() {
-                            TenTenOneMessageType::Trade => {
+                            TenTenOneMessageType::Trade
+                            | TenTenOneMessageType::Expire
+                            | TenTenOneMessageType::Liquidate => {
                                 if let Some(order_id) = msg.get_order_id() {
                                     OrderbookMessage::TraderMessage {
                                         trader_id: to_secp_pk_30(node_id),

@@ -23,9 +23,9 @@ use dlc_messages::channel::SettleFinalize;
 use hex::FromHex;
 use lightning::ln::chan_utils::build_commitment_secret;
 use time::OffsetDateTime;
-use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_sk_29;
 use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::OrderReason;
 use xxi_node::message_handler::TenTenOneMessage;
 use xxi_node::message_handler::TenTenOneSettleFinalize;
 use xxi_node::node::event::NodeEvent;
@@ -169,10 +169,12 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         signed_channel.update_idx + 1,
     ))?;
 
+    // We assume the relevant order to be in filling.
+    let order = db::get_order_in_filling()?.context("Couldn't find order in filling")?;
+
     let msg = TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
-        // this is not ideal, but the coordinator should be able to handle the scenario where the
-        // order is not known.
-        order_id: Uuid::default(),
+        order_id: order.id,
+        order_reason: OrderReason::Manual,
         settle_finalize: SettleFinalize {
             channel_id: signed_channel.channel_id,
             prev_per_update_secret: to_secp_sk_29(prev_per_update_secret),

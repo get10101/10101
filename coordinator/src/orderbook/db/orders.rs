@@ -458,6 +458,7 @@ pub fn get_by_trader_id_and_state(
     orders::table
         .filter(orders::trader_id.eq(trader_id.to_string()))
         .filter(orders::order_state.eq(OrderState::from(order_state)))
+        .order_by(orders::timestamp.desc())
         .first::<Order>(conn)
         .map(OrderbookOrder::from)
         .optional()

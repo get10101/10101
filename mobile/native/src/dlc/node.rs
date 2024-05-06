@@ -158,28 +158,26 @@ impl Node {
 
         for (node_id, msg) in messages {
             let msg_name = tentenone_message_name(&msg);
-            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg.clone()) {
+            let msg_type = msg.get_tentenone_message_type();
+            if let Err(e) = self.process_dlc_message(to_secp_pk_30(node_id), msg) {
                 tracing::error!(
                     from = %node_id,
                     kind = %msg_name,
                     "Failed to process incoming DLC message: {e:#}"
                 );
 
-                match msg.get_tentenone_message_type() {
-                    TenTenOneMessageType::Trade => {
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
-                        ))
-                    }
-                    TenTenOneMessageType::Rollover => {
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
-                        ))
-                    }
+                let task_status = TaskStatus::Failed(format!("{e:#}"));
+                let task = match msg_type {
+                    TenTenOneMessageType::Trade => BackgroundTask::AsyncTrade(task_status),
+                    TenTenOneMessageType::Expire => BackgroundTask::Expire(task_status),
+                    TenTenOneMessageType::Liquidate => BackgroundTask::Liquidate(task_status),
+                    TenTenOneMessageType::Rollover => BackgroundTask::Rollover(task_status),
                     TenTenOneMessageType::Other => {
-                        tracing::warn!("Ignoring error received from coordinator unrelated to a trade or rollover.")
+                        tracing::warn!("Ignoring error received from coordinator unrelated to a trade or rollover.");
+                        continue;
                     }
-                }
+                };
+                event::publish(&EventInternal::BackgroundNotification(task));
             }
         }
     }
@@ -354,7 +352,7 @@ impl Node {
                     filled_order,
                     expiry_timestamp,
                 )
-                .context("Failed to update position after DLC creation")?;
+                .context("Failed to update position after DLC update")?;
 
                 event::publish(&EventInternal::BackgroundNotification(
                     BackgroundTask::AsyncTrade(TaskStatus::Success),
@@ -400,12 +398,17 @@ impl Node {
 
                 let filled_order = order::handler::order_filled(Some(order_id))?;
 
-                update_position_after_dlc_closure(filled_order)
+                update_position_after_dlc_closure(filled_order.clone())
                     .context("Failed to update position after DLC closure")?;
 
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::AsyncTrade(TaskStatus::Success),
-                ));
+                let task = match filled_order.reason.into() {
+                    OrderReason::Manual => BackgroundTask::AsyncTrade(TaskStatus::Success),
+                    OrderReason::Expired => BackgroundTask::Expire(TaskStatus::Success),
+                    OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
+                        BackgroundTask::Liquidate(TaskStatus::Success)
+                    }
+                };
+                event::publish(&EventInternal::BackgroundNotification(task));
             }
             TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
                 collaborative_close_offer: CollaborativeCloseOffer { channel_id, .. },
@@ -581,9 +584,13 @@ impl Node {
                     "Received an async match from orderbook. Reason: {order_reason:?}"
                 );
 
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::AsyncTrade(TaskStatus::Pending),
-                ));
+                let task = if order_reason == OrderReason::Expired {
+                    BackgroundTask::Expire(TaskStatus::Pending)
+                } else {
+                    BackgroundTask::Liquidate(TaskStatus::Pending)
+                };
+
+                event::publish(&EventInternal::BackgroundNotification(task));
 
                 order::handler::async_order_filling(&offer.order, &offer.filled_with)
                     .with_context(||
@@ -599,10 +606,11 @@ impl Node {
 
         let order_id = offer.order.id;
         let channel_id = offer.settle_offer.channel_id;
-        if let Err(e) = self
-            .inner
-            .accept_dlc_channel_collaborative_settlement(offer.filled_with.order_id, &channel_id)
-        {
+        if let Err(e) = self.inner.accept_dlc_channel_collaborative_settlement(
+            offer.filled_with.order_id,
+            order_reason,
+            &channel_id,
+        ) {
             tracing::error!("Failed to accept dlc channel collaborative settlement offer. {e:#}");
             self.reject_settle_offer(Some(order_id), &channel_id)?;
         }
