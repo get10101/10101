@@ -8,7 +8,6 @@ use crate::health::ServiceStatus;
 use crate::state;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
@@ -280,7 +279,7 @@ async fn handle_orderbook_message(
             order::handler::order_failed(
                 Some(order_id),
                 FailureReason::TradeResponse(error.to_string()),
-                anyhow!("Coordinator failed to execute trade: {error}"),
+                error.into(),
             )
             .context("Could not set order to failed")?;
         }
