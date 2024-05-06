@@ -285,29 +285,29 @@ pub(crate) fn order_filling(
 }
 
 /// Sets filling order to filled. Returns an error if no order in `Filling`
-pub(crate) fn order_filled() -> Result<Order> {
-    let maybe_order_filling = get_order_in_filling()?;
-    let (order_being_filled, execution_price, matching_fee) = match &maybe_order_filling {
-        Some(
-            order @ Order {
-                state:
-                    OrderState::Filling {
-                        execution_price,
-                        matching_fee,
-                    },
-                ..
-            },
-        ) => (order, execution_price, matching_fee),
-        Some(order) => bail!("Unexpected state: {:?}", order.state),
-        None => bail!("No order to mark as Filled"),
-    };
+pub(crate) fn order_filled(order_id: Option<Uuid>) -> Result<Order> {
+    let order = match order_id {
+        None => get_order_in_filling(),
+        Some(order_id) => db::get_order(order_id),
+    }?
+    .with_context(|| format!("Could not find order. order_id = {order_id:?}"))?;
 
-    let filled_order =
-        set_order_to_filled_and_update_ui(order_being_filled.id, *execution_price, *matching_fee)?;
+    let execution_price = order.execution_price();
+    let matching_fee = order.matching_fee();
 
-    tracing::debug!(order = ?filled_order, "Order filled");
+    if let (Some(execution_price), Some(matching_fee)) = (execution_price, matching_fee) {
+        let filled_order =
+            set_order_to_filled_and_update_ui(order.id, execution_price, matching_fee)?;
 
-    Ok(filled_order)
+        tracing::debug!(order = ?filled_order, "Order filled");
+
+        return Ok(filled_order);
+    }
+
+    tracing::warn!(
+        "Couldn't set order to filling due to missing execution price and / or matching fee"
+    );
+    Ok(order.clone())
 }
 
 /// Update the [`Order`]'s state to [`OrderState::Failed`].

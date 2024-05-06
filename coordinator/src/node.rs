@@ -1,6 +1,7 @@
 use crate::db;
 use crate::dlc_protocol;
 use crate::dlc_protocol::ProtocolId;
+use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
@@ -22,14 +23,19 @@ use dlc_messages::channel::SettleFinalize;
 use dlc_messages::channel::SignChannel;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 use xxi_node::bitcoin_conversion::to_secp_pk_29;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
+use xxi_node::commons::Message::RolloverError;
+use xxi_node::commons::Message::TradeError;
+use xxi_node::commons::TradingError;
 use xxi_node::dlc_message::DlcMessage;
 use xxi_node::dlc_message::SerializedDlcMessage;
 use xxi_node::message_handler::TenTenOneAcceptChannel;
 use xxi_node::message_handler::TenTenOneCollaborativeCloseOffer;
 use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneMessageType;
 use xxi_node::message_handler::TenTenOneReject;
 use xxi_node::message_handler::TenTenOneRenewFinalize;
 use xxi_node::message_handler::TenTenOneRolloverFinalize;
@@ -69,6 +75,7 @@ pub struct Node {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
     tx_position_feed: Sender<InternalPositionUpdateMessage>,
+    trade_notifier: mpsc::Sender<OrderbookMessage>,
 }
 
 impl Node {
@@ -84,6 +91,7 @@ impl Node {
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,
         tx_position_feed: Sender<InternalPositionUpdateMessage>,
+        trade_notifier: mpsc::Sender<OrderbookMessage>,
     ) -> Self {
         Self {
             inner,
@@ -91,6 +99,7 @@ impl Node {
             settings: Arc::new(RwLock::new(settings)),
             _running: Arc::new(running),
             tx_position_feed,
+            trade_notifier,
         }
     }
 
@@ -127,8 +136,39 @@ impl Node {
                     );
                 }
 
-                // TODO(holzeis): Send TradeError to user in case the coordinator failed to process
-                // the users message
+                tokio::spawn({
+                    let trade_notifier = self.trade_notifier.clone();
+                    let error = TradingError::Other(format!("{e:#}"));
+                    async move {
+                        let message = match msg.get_tentenone_message_type() {
+                            TenTenOneMessageType::Trade => {
+                                if let Some(order_id) = msg.get_order_id() {
+                                    OrderbookMessage::TraderMessage {
+                                        trader_id: to_secp_pk_30(node_id),
+                                        message: TradeError { order_id, error },
+                                        notification: None,
+                                    }
+                                } else {
+                                    tracing::warn!("Could not send trade error to user due to missing order id");
+                                    return;
+                                }
+                            }
+                            TenTenOneMessageType::Rollover => OrderbookMessage::TraderMessage {
+                                trader_id: to_secp_pk_30(node_id),
+                                message: RolloverError { error },
+                                notification: None,
+                            },
+                            TenTenOneMessageType::Other => {
+                                tracing::debug!("Not sending errors to the app unrelated to a trade or rollover.");
+                                return;
+                            }
+                        };
+
+                        if let Err(e) = trade_notifier.send(message).await {
+                            tracing::error!("Failed to send trade error to user. Error: {e:#}");
+                        }
+                    }
+                });
 
                 tracing::error!(
                     from = %node_id,

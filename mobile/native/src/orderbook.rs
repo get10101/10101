@@ -276,6 +276,12 @@ async fn handle_orderbook_message(
             )
             .context("Could not set order to failed")?;
         }
+        Message::RolloverError { error } => {
+            tracing::error!("Failed to rollover position: {error:#}");
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::Rollover(TaskStatus::Failed(format!("{error:#}"))),
+            ));
+        }
     };
 
     Ok(())

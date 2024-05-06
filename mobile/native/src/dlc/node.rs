@@ -40,6 +40,7 @@ use xxi_node::dlc_message::SerializedDlcMessage;
 use xxi_node::message_handler::TenTenOneAcceptChannel;
 use xxi_node::message_handler::TenTenOneCollaborativeCloseOffer;
 use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneMessageType;
 use xxi_node::message_handler::TenTenOneOfferChannel;
 use xxi_node::message_handler::TenTenOneReject;
 use xxi_node::message_handler::TenTenOneRenewAccept;
@@ -48,7 +49,9 @@ use xxi_node::message_handler::TenTenOneRenewRevoke;
 use xxi_node::message_handler::TenTenOneRolloverAccept;
 use xxi_node::message_handler::TenTenOneRolloverOffer;
 use xxi_node::message_handler::TenTenOneRolloverRevoke;
+use xxi_node::message_handler::TenTenOneSettleConfirm;
 use xxi_node::message_handler::TenTenOneSettleOffer;
+use xxi_node::message_handler::TenTenOneSignChannel;
 use xxi_node::node;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::rust_dlc_manager::DlcChannelId;
@@ -162,15 +165,20 @@ impl Node {
                     "Failed to process incoming DLC message: {e:#}"
                 );
 
-                if msg.is_trade() {
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
-                    ));
-                }
-                if msg.is_rollover() {
-                    event::publish(&EventInternal::BackgroundNotification(
-                        BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
-                    ));
+                match msg.get_tentenone_message_type() {
+                    TenTenOneMessageType::Trade => {
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+                        ))
+                    }
+                    TenTenOneMessageType::Rollover => {
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
+                        ))
+                    }
+                    TenTenOneMessageType::Other => {
+                        tracing::warn!("Ignoring error received from coordinator unrelated to a trade or rollover.")
+                    }
                 }
             }
         }
@@ -323,10 +331,14 @@ impl Node {
 
                 self.process_rollover_offer(&offer)?;
             }
-            TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke }) => {
+            TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke {
+                renew_revoke,
+                order_id,
+            }) => {
                 let channel_id_hex = hex::encode(renew_revoke.channel_id);
 
                 tracing::info!(
+                    order_id = %order_id,
                     channel_id = %channel_id_hex,
                     "Finished renew protocol"
                 );
@@ -335,7 +347,7 @@ impl Node {
                     .inner
                     .get_expiry_for_confirmed_dlc_channel(&renew_revoke.channel_id)?;
 
-                let filled_order = db::get_order_in_filling()?
+                let filled_order = order::handler::order_filled(Some(order_id))
                     .context("Cannot mark order as filled for confirmed DLC")?;
 
                 update_position_after_dlc_channel_creation_or_update(
@@ -362,12 +374,15 @@ impl Node {
                     BackgroundTask::Rollover(TaskStatus::Success),
                 ));
             }
-            TenTenOneMessage::Sign(signed) => {
+            TenTenOneMessage::Sign(TenTenOneSignChannel {
+                order_id,
+                sign_channel,
+            }) => {
                 let expiry_timestamp = self
                     .inner
-                    .get_expiry_for_confirmed_dlc_channel(&signed.sign_channel.channel_id)?;
+                    .get_expiry_for_confirmed_dlc_channel(&sign_channel.channel_id)?;
 
-                let filled_order = order::handler::order_filled()
+                let filled_order = order::handler::order_filled(Some(order_id))
                     .context("Cannot mark order as filled for confirmed DLC")?;
 
                 update_position_after_dlc_channel_creation_or_update(
@@ -380,12 +395,12 @@ impl Node {
                     BackgroundTask::AsyncTrade(TaskStatus::Success),
                 ));
             }
-            TenTenOneMessage::SettleConfirm(_) => {
+            TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { order_id, .. }) => {
                 tracing::debug!("Position based on DLC channel is being closed");
 
-                let filled_order = order::handler::order_filled()?;
+                let filled_order = order::handler::order_filled(Some(order_id))?;
 
-                update_position_after_dlc_closure(Some(filled_order))
+                update_position_after_dlc_closure(filled_order)
                     .context("Failed to update position after DLC closure")?;
 
                 event::publish(&EventInternal::BackgroundNotification(

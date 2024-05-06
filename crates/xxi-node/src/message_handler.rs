@@ -146,37 +146,37 @@ pub enum TenTenOneMessage {
     CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer),
 }
 
-impl TenTenOneMessage {
-    /// Returns true if the message is a trade message. e.g. Reject, Rollover or Collaborative Close
-    /// Offer are not trade messages.
-    pub fn is_trade(&self) -> bool {
-        matches!(
-            self,
-            TenTenOneMessage::Offer(_)
-                | TenTenOneMessage::Accept(_)
-                | TenTenOneMessage::Sign(_)
-                | TenTenOneMessage::RenewOffer(_)
-                | TenTenOneMessage::RenewAccept(_)
-                | TenTenOneMessage::RenewConfirm(_)
-                | TenTenOneMessage::RenewFinalize(_)
-                | TenTenOneMessage::RenewRevoke(_)
-                | TenTenOneMessage::SettleOffer(_)
-                | TenTenOneMessage::SettleAccept(_)
-                | TenTenOneMessage::SettleConfirm(_)
-                | TenTenOneMessage::SettleFinalize(_)
-        )
-    }
+pub enum TenTenOneMessageType {
+    /// open channel, open, close or resize a position
+    Trade,
+    /// rollover
+    Rollover,
+    /// reject or close channel
+    Other,
+}
 
-    /// Returns true if the message is a rollover message.
-    pub fn is_rollover(&self) -> bool {
-        matches!(
-            self,
+impl TenTenOneMessage {
+    pub fn get_tentenone_message_type(&self) -> TenTenOneMessageType {
+        match self {
+            TenTenOneMessage::Offer(_)
+            | TenTenOneMessage::Accept(_)
+            | TenTenOneMessage::Sign(_)
+            | TenTenOneMessage::RenewOffer(_)
+            | TenTenOneMessage::RenewAccept(_)
+            | TenTenOneMessage::RenewConfirm(_)
+            | TenTenOneMessage::RenewFinalize(_)
+            | TenTenOneMessage::RenewRevoke(_)
+            | TenTenOneMessage::SettleOffer(_)
+            | TenTenOneMessage::SettleAccept(_)
+            | TenTenOneMessage::SettleConfirm(_)
+            | TenTenOneMessage::SettleFinalize(_) => TenTenOneMessageType::Trade,
             TenTenOneMessage::RolloverOffer(_)
-                | TenTenOneMessage::RolloverAccept(_)
-                | TenTenOneMessage::RolloverConfirm(_)
-                | TenTenOneMessage::RolloverFinalize(_)
-                | TenTenOneMessage::RolloverRevoke(_)
-        )
+            | TenTenOneMessage::RolloverAccept(_)
+            | TenTenOneMessage::RolloverConfirm(_)
+            | TenTenOneMessage::RolloverFinalize(_)
+            | TenTenOneMessage::RolloverRevoke(_) => TenTenOneMessageType::Rollover,
+            _ => TenTenOneMessageType::Other,
+        }
     }
 }
 
