@@ -32,6 +32,7 @@ use xxi_node::message_handler::TenTenOneCollaborativeCloseOffer;
 use xxi_node::message_handler::TenTenOneMessage;
 use xxi_node::message_handler::TenTenOneReject;
 use xxi_node::message_handler::TenTenOneRenewFinalize;
+use xxi_node::message_handler::TenTenOneRolloverFinalize;
 use xxi_node::message_handler::TenTenOneSettleFinalize;
 use xxi_node::message_handler::TenTenOneSignChannel;
 use xxi_node::node;
@@ -154,8 +155,9 @@ impl Node {
     /// - Any message that has already been processed will be skipped.
     ///
     /// Offers such as [`TenTenOneMessage::Offer`], [`TenTenOneMessage::SettleOffer`],
-    /// [`TenTenOneMessage::CollaborativeCloseOffer`] and [`TenTenOneMessage::RenewOffer`] are
-    /// automatically accepted. Unless the maturity date of the offer is already outdated.
+    /// [`TenTenOneMessage::RolloverOffer`], [`TenTenOneMessage::CollaborativeCloseOffer`] and
+    /// [`TenTenOneMessage::RenewOffer`] are automatically accepted. Unless the maturity date of
+    /// the offer is already outdated.
     ///
     /// FIXME(holzeis): This function manipulates different data objects from different data sources
     /// and should use a transaction to make all changes atomic. Not doing so risks ending up in an
@@ -226,11 +228,15 @@ impl Node {
                         reference_id,
                         ..
                     },
+            })
+            | TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize {
+                renew_finalize:
+                    RenewFinalize {
+                        channel_id,
+                        reference_id,
+                        ..
+                    },
             }) => {
-                // TODO: Receiving this message used to be specific to rolling over, but we
-                // now use the renew protocol for all (non-closing)
-                // trades beyond the first one.
-
                 let channel_id_hex_string = hex::encode(channel_id);
 
                 let reference_id = match reference_id {

@@ -132,20 +132,21 @@ pub enum TenTenOneMessage {
     SettleConfirm(TenTenOneSettleConfirm),
     SettleFinalize(TenTenOneSettleFinalize),
     RenewOffer(TenTenOneRenewOffer),
-    RolloverOffer(TenTenOneRolloverOffer),
     RenewAccept(TenTenOneRenewAccept),
     RenewConfirm(TenTenOneRenewConfirm),
     RenewFinalize(TenTenOneRenewFinalize),
     RenewRevoke(TenTenOneRenewRevoke),
+    RolloverOffer(TenTenOneRolloverOffer),
+    RolloverAccept(TenTenOneRolloverAccept),
+    RolloverConfirm(TenTenOneRolloverConfirm),
+    RolloverFinalize(TenTenOneRolloverFinalize),
+    RolloverRevoke(TenTenOneRolloverRevoke),
     CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer),
 }
 
 impl TenTenOneMessage {
     /// Returns true if the message is a trade message. e.g. Reject, Rollover or Collaborative Close
     /// Offer are not trade messages.
-    ///
-    /// FIXME(holzeis): This will also return true for any message past the offe rin case of a
-    /// rollover. We proobably need to add some hint on the message that this is due to a rollover.
     pub fn is_trade(&self) -> bool {
         matches!(
             self,
@@ -161,6 +162,18 @@ impl TenTenOneMessage {
                 | TenTenOneMessage::SettleAccept(_)
                 | TenTenOneMessage::SettleConfirm(_)
                 | TenTenOneMessage::SettleFinalize(_)
+        )
+    }
+
+    /// Returns true if the message is a rollover message.
+    pub fn is_rollover(&self) -> bool {
+        matches!(
+            self,
+            TenTenOneMessage::RolloverOffer(_)
+                | TenTenOneMessage::RolloverAccept(_)
+                | TenTenOneMessage::RolloverConfirm(_)
+                | TenTenOneMessage::RolloverFinalize(_)
+                | TenTenOneMessage::RolloverRevoke(_)
         )
     }
 }
@@ -214,11 +227,6 @@ pub struct TenTenOneRenewOffer {
     pub renew_offer: RenewOffer,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct TenTenOneRolloverOffer {
-    pub renew_offer: RenewOffer,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenTenOneRenewAccept {
     pub renew_accept: RenewAccept,
@@ -236,6 +244,31 @@ pub struct TenTenOneRenewFinalize {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenTenOneRenewRevoke {
+    pub renew_revoke: RenewRevoke,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverOffer {
+    pub renew_offer: RenewOffer,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverAccept {
+    pub renew_accept: RenewAccept,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverConfirm {
+    pub renew_confirm: RenewConfirm,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverFinalize {
+    pub renew_finalize: RenewFinalize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRolloverRevoke {
     pub renew_revoke: RenewRevoke,
 }
 
@@ -411,11 +444,15 @@ pub fn tentenone_message_name(msg: &TenTenOneMessage) -> String {
         TenTenOneMessage::SettleConfirm(_) => "SettleConfirm",
         TenTenOneMessage::SettleFinalize(_) => "SettleFinalize",
         TenTenOneMessage::RenewOffer(_) => "RenewOffer",
-        TenTenOneMessage::RolloverOffer(_) => "RolloverOffer",
         TenTenOneMessage::RenewAccept(_) => "RenewAccept",
         TenTenOneMessage::RenewConfirm(_) => "RenewConfirm",
         TenTenOneMessage::RenewFinalize(_) => "RenewFinalize",
         TenTenOneMessage::RenewRevoke(_) => "RenewRevoke",
+        TenTenOneMessage::RolloverOffer(_) => "RolloverOffer",
+        TenTenOneMessage::RolloverAccept(_) => "RolloverAccept",
+        TenTenOneMessage::RolloverConfirm(_) => "RolloverConfirm",
+        TenTenOneMessage::RolloverFinalize(_) => "RolloverFinalize",
+        TenTenOneMessage::RolloverRevoke(_) => "RolloverRevoke",
         TenTenOneMessage::CollaborativeCloseOffer(_) => "CollaborativeCloseOffer",
         TenTenOneMessage::Reject(_) => "Reject",
     };
@@ -428,7 +465,7 @@ impl TenTenOneMessage {
     /// an offer so if an offer is passed the function will panic. This is most likely not a future
     /// proof solution as we'd might want to enrich the response with 10101 metadata as well. If
     /// that happens we will have to rework this part.
-    pub fn build_from_response(message: Message) -> Self {
+    pub fn build_from_response(message: Message, is_rollover: bool) -> Self {
         match message {
             Message::Channel(ChannelMessage::Accept(accept_channel)) => {
                 TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel })
@@ -444,6 +481,18 @@ impl TenTenOneMessage {
             }
             Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)) => {
                 TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { settle_finalize })
+            }
+            Message::Channel(ChannelMessage::RenewAccept(renew_accept)) if is_rollover => {
+                TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept })
+            }
+            Message::Channel(ChannelMessage::RenewConfirm(renew_confirm)) if is_rollover => {
+                TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm { renew_confirm })
+            }
+            Message::Channel(ChannelMessage::RenewFinalize(renew_finalize)) if is_rollover => {
+                TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize { renew_finalize })
+            }
+            Message::Channel(ChannelMessage::RenewRevoke(renew_revoke)) if is_rollover => {
+                TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { renew_revoke })
             }
             Message::Channel(ChannelMessage::RenewAccept(renew_accept)) => {
                 TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept })
@@ -507,6 +556,18 @@ impl TenTenOneMessage {
             | TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
                 renew_offer: RenewOffer { reference_id, .. },
             })
+            | TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept {
+                renew_accept: RenewAccept { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm {
+                renew_confirm: RenewConfirm { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize {
+                renew_finalize: RenewFinalize { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke {
+                renew_revoke: RenewRevoke { reference_id, .. },
+            })
             | TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
                 renew_accept: RenewAccept { reference_id, .. },
             })
@@ -563,9 +624,6 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer, .. }) => {
                 ChannelMessage::RenewOffer(renew_offer)
             }
-            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }) => {
-                ChannelMessage::RenewOffer(renew_offer)
-            }
             TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }) => {
                 ChannelMessage::RenewAccept(renew_accept)
             }
@@ -576,6 +634,21 @@ impl From<TenTenOneMessage> for ChannelMessage {
                 ChannelMessage::RenewFinalize(renew_finalize)
             }
             TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke }) => {
+                ChannelMessage::RenewRevoke(renew_revoke)
+            }
+            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }) => {
+                ChannelMessage::RenewOffer(renew_offer)
+            }
+            TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }) => {
+                ChannelMessage::RenewAccept(renew_accept)
+            }
+            TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm { renew_confirm }) => {
+                ChannelMessage::RenewConfirm(renew_confirm)
+            }
+            TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize { renew_finalize }) => {
+                ChannelMessage::RenewFinalize(renew_finalize)
+            }
+            TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { renew_revoke }) => {
                 ChannelMessage::RenewRevoke(renew_revoke)
             }
             TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
@@ -661,11 +734,15 @@ impl_type_writeable_for_enum!(TenTenOneMessage,
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
-    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
     RenewRevoke,
+    RolloverOffer,
+    RolloverAccept,
+    RolloverConfirm,
+    RolloverFinalize,
+    RolloverRevoke,
     CollaborativeCloseOffer
 });
 
@@ -678,11 +755,15 @@ impl_dlc_writeable!(TenTenOneSettleAccept, { (settle_accept, writeable) });
 impl_dlc_writeable!(TenTenOneSettleConfirm, { (settle_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneSettleFinalize, { (settle_finalize, writeable) });
 impl_dlc_writeable!(TenTenOneRenewOffer, { (filled_with, writeable), (renew_offer, writeable) });
-impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable) });
 impl_dlc_writeable!(TenTenOneRenewAccept, { (renew_accept, writeable) });
 impl_dlc_writeable!(TenTenOneRenewConfirm, { (renew_confirm, writeable) });
 impl_dlc_writeable!(TenTenOneRenewFinalize, { (renew_finalize, writeable) });
 impl_dlc_writeable!(TenTenOneRenewRevoke, { (renew_revoke, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverAccept, { (renew_accept, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverConfirm, { (renew_confirm, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverFinalize, { (renew_finalize, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverRevoke, { (renew_revoke, writeable) });
 impl_dlc_writeable!(TenTenOneCollaborativeCloseOffer, {
     (collaborative_close_offer, writeable)
 });
@@ -696,11 +777,23 @@ impl_type!(SETTLE_CHANNEL_ACCEPT_TYPE, TenTenOneSettleAccept, 43008);
 impl_type!(SETTLE_CHANNEL_CONFIRM_TYPE, TenTenOneSettleConfirm, 43010);
 impl_type!(SETTLE_CHANNEL_FINALIZE_TYPE, TenTenOneSettleFinalize, 43012);
 impl_type!(RENEW_CHANNEL_OFFER_TYPE, TenTenOneRenewOffer, 43014);
-impl_type!(ROLLOVER_CHANNEL_OFFER_TYPE, TenTenOneRolloverOffer, 43028);
 impl_type!(RENEW_CHANNEL_ACCEPT_TYPE, TenTenOneRenewAccept, 43016);
 impl_type!(RENEW_CHANNEL_CONFIRM_TYPE, TenTenOneRenewConfirm, 43018);
 impl_type!(RENEW_CHANNEL_FINALIZE_TYPE, TenTenOneRenewFinalize, 43020);
 impl_type!(RENEW_CHANNEL_REVOKE_TYPE, TenTenOneRenewRevoke, 43026);
+impl_type!(ROLLOVER_CHANNEL_OFFER_TYPE, TenTenOneRolloverOffer, 43028);
+impl_type!(ROLLOVER_CHANNEL_ACCEPT_TYPE, TenTenOneRolloverAccept, 43030);
+impl_type!(
+    ROLLOVER_CHANNEL_CONFIRM_TYPE,
+    TenTenOneRolloverConfirm,
+    43032
+);
+impl_type!(
+    ROLLOVER_CHANNEL_FINALIZE_TYPE,
+    TenTenOneRolloverFinalize,
+    43034
+);
+impl_type!(ROLLOVER_CHANNEL_REVOKE_TYPE, TenTenOneRolloverRevoke, 43036);
 impl_type!(
     COLLABORATIVE_CLOSE_OFFER_TYPE,
     TenTenOneCollaborativeCloseOffer,
@@ -726,11 +819,15 @@ fn read_tentenone_message<R: ::std::io::Read>(
         (SETTLE_CHANNEL_CONFIRM_TYPE, SettleConfirm),
         (SETTLE_CHANNEL_FINALIZE_TYPE, SettleFinalize),
         (RENEW_CHANNEL_OFFER_TYPE, RenewOffer),
-        (ROLLOVER_CHANNEL_OFFER_TYPE, RolloverOffer),
         (RENEW_CHANNEL_ACCEPT_TYPE, RenewAccept),
         (RENEW_CHANNEL_CONFIRM_TYPE, RenewConfirm),
         (RENEW_CHANNEL_FINALIZE_TYPE, RenewFinalize),
         (RENEW_CHANNEL_REVOKE_TYPE, RenewRevoke),
+        (ROLLOVER_CHANNEL_OFFER_TYPE, RolloverOffer),
+        (ROLLOVER_CHANNEL_ACCEPT_TYPE, RolloverAccept),
+        (ROLLOVER_CHANNEL_CONFIRM_TYPE, RolloverConfirm),
+        (ROLLOVER_CHANNEL_FINALIZE_TYPE, RolloverFinalize),
+        (ROLLOVER_CHANNEL_REVOKE_TYPE, RolloverRevoke),
         (COLLABORATIVE_CLOSE_OFFER_TYPE, CollaborativeCloseOffer)
     )
 }

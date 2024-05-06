@@ -43,7 +43,10 @@ use xxi_node::message_handler::TenTenOneOfferChannel;
 use xxi_node::message_handler::TenTenOneReject;
 use xxi_node::message_handler::TenTenOneRenewAccept;
 use xxi_node::message_handler::TenTenOneRenewOffer;
+use xxi_node::message_handler::TenTenOneRenewRevoke;
+use xxi_node::message_handler::TenTenOneRolloverAccept;
 use xxi_node::message_handler::TenTenOneRolloverOffer;
+use xxi_node::message_handler::TenTenOneRolloverRevoke;
 use xxi_node::message_handler::TenTenOneSettleOffer;
 use xxi_node::node;
 use xxi_node::node::event::NodeEvent;
@@ -161,6 +164,11 @@ impl Node {
                 if msg.is_trade() {
                     event::publish(&EventInternal::BackgroundNotification(
                         BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+                    ));
+                }
+                if msg.is_rollover() {
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::Rollover(TaskStatus::Failed(format!("{e:#}"))),
                     ));
                 }
             }
@@ -314,8 +322,8 @@ impl Node {
 
                 self.process_rollover_offer(&offer)?;
             }
-            TenTenOneMessage::RenewRevoke(revoke) => {
-                let channel_id_hex = hex::encode(revoke.renew_revoke.channel_id);
+            TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke }) => {
+                let channel_id_hex = hex::encode(renew_revoke.channel_id);
 
                 tracing::info!(
                     channel_id = %channel_id_hex,
@@ -324,37 +332,34 @@ impl Node {
 
                 let expiry_timestamp = self
                     .inner
-                    .get_expiry_for_confirmed_dlc_channel(&revoke.renew_revoke.channel_id)?;
+                    .get_expiry_for_confirmed_dlc_channel(&renew_revoke.channel_id)?;
 
-                match db::get_order_in_filling()? {
-                    Some(_) => {
-                        let filled_order = order::handler::order_filled()
-                            .context("Cannot mark order as filled for confirmed DLC")?;
+                let filled_order = db::get_order_in_filling()?
+                    .context("Cannot mark order as filled for confirmed DLC")?;
 
-                        update_position_after_dlc_channel_creation_or_update(
-                            filled_order,
-                            expiry_timestamp,
-                        )
-                        .context("Failed to update position after DLC creation")?;
+                update_position_after_dlc_channel_creation_or_update(
+                    filled_order,
+                    expiry_timestamp,
+                )
+                .context("Failed to update position after DLC creation")?;
 
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::AsyncTrade(TaskStatus::Success),
-                        ));
-                    }
-                    // If there is no order in `Filling` we must be rolling over.
-                    None => {
-                        tracing::info!(
-                            channel_id = %channel_id_hex,
-                            "Finished rolling over position"
-                        );
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::AsyncTrade(TaskStatus::Success),
+                ));
+            }
+            TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { renew_revoke }) => {
+                let channel_id_hex = hex::encode(renew_revoke.channel_id);
 
-                        position::handler::set_position_state(PositionState::Open)?;
+                tracing::info!(
+                    channel_id = %channel_id_hex,
+                    "Finished rollover protocol"
+                );
 
-                        event::publish(&EventInternal::BackgroundNotification(
-                            BackgroundTask::Rollover(TaskStatus::Success),
-                        ));
-                    }
-                };
+                position::handler::set_position_state(PositionState::Open)?;
+
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::Rollover(TaskStatus::Success),
+                ));
             }
             TenTenOneMessage::Sign(signed) => {
                 let expiry_timestamp = self
@@ -656,7 +661,7 @@ impl Node {
 
                 self.send_dlc_message(
                     to_secp_pk_30(node_id),
-                    TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }),
+                    TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }),
                 )?;
             }
             Err(e) => {

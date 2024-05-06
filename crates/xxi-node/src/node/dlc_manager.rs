@@ -74,9 +74,9 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
     ) -> Result<Option<TenTenOneMessage>> {
         let response = self
             .dlc_manager
-            .on_dlc_message(&message.into(), to_secp_pk_29(node_id))?;
+            .on_dlc_message(&message.clone().into(), to_secp_pk_29(node_id))?;
 
-        Ok(response.map(TenTenOneMessage::build_from_response))
+        Ok(response.map(|resp| TenTenOneMessage::build_from_response(resp, message.is_rollover())))
     }
 }
 
