@@ -12,12 +12,10 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::watch;
-use xxi_node::commons::TradeParams;
 
 pub struct Senders {
     wallet_info: watch::Sender<Option<WalletInfo>>,
     order: watch::Sender<Option<Order>>,
-    order_filled: watch::Sender<Option<Box<TradeParams>>>,
     position: watch::Sender<Option<Position>>,
     /// Init messages are simple strings
     init_msg: watch::Sender<Option<String>>,
@@ -32,7 +30,6 @@ pub struct Senders {
 pub struct TestSubscriber {
     wallet_info: watch::Receiver<Option<WalletInfo>>,
     order: watch::Receiver<Option<Order>>,
-    order_filled: watch::Receiver<Option<Box<TradeParams>>>,
     position: watch::Receiver<Option<Position>>,
     init_msg: watch::Receiver<Option<String>>,
     ask_price: watch::Receiver<Option<Decimal>>,
@@ -46,7 +43,6 @@ impl TestSubscriber {
     pub async fn new() -> (Self, ThreadSafeSenders) {
         let (wallet_info_tx, wallet_info_rx) = watch::channel(None);
         let (order_tx, order_rx) = watch::channel(None);
-        let (order_filled_tx, order_filled_rx) = watch::channel(None);
         let (position_tx, position_rx) = watch::channel(None);
         let (init_msg_tx, init_msg_rx) = watch::channel(None);
         let (ask_prices_tx, ask_prices_rx) = watch::channel(None);
@@ -57,7 +53,6 @@ impl TestSubscriber {
         let senders = Senders {
             wallet_info: wallet_info_tx,
             order: order_tx,
-            order_filled: order_filled_tx,
             position: position_tx,
             init_msg: init_msg_tx,
             ask_price: ask_prices_tx,
@@ -83,7 +78,6 @@ impl TestSubscriber {
 
         let subscriber = Self {
             wallet_info: wallet_info_rx,
-            order_filled: order_filled_rx,
             order: order_rx,
             position: position_rx,
             init_msg: init_msg_rx,
@@ -102,10 +96,6 @@ impl TestSubscriber {
 
     pub fn order(&self) -> Option<Order> {
         self.order.borrow().as_ref().cloned()
-    }
-
-    pub fn order_filled(&self) -> Option<Box<TradeParams>> {
-        self.order_filled.borrow().as_ref().cloned()
     }
 
     pub fn position(&self) -> Option<Position> {
@@ -173,9 +163,6 @@ impl Senders {
             }
             native::event::EventInternal::WalletInfoUpdateNotification(wallet_info) => {
                 self.wallet_info.send(Some(wallet_info.clone()))?;
-            }
-            native::event::EventInternal::OrderFilledWith(order_filled) => {
-                self.order_filled.send(Some(order_filled.clone()))?;
             }
             native::event::EventInternal::PositionUpdateNotification(position) => {
                 self.position.send(Some(position.clone()))?;

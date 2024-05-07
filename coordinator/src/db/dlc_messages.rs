@@ -32,11 +32,15 @@ pub(crate) enum MessageType {
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
-    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
     RenewRevoke,
+    RolloverOffer,
+    RolloverAccept,
+    RolloverConfirm,
+    RolloverFinalize,
+    RolloverRevoke,
     CollaborativeCloseOffer,
     Reject,
 }
@@ -103,11 +107,15 @@ impl From<xxi_node::dlc_message::DlcMessageType> for MessageType {
             xxi_node::dlc_message::DlcMessageType::SettleConfirm => Self::SettleConfirm,
             xxi_node::dlc_message::DlcMessageType::SettleFinalize => Self::SettleFinalize,
             xxi_node::dlc_message::DlcMessageType::RenewOffer => Self::RenewOffer,
-            xxi_node::dlc_message::DlcMessageType::RolloverOffer => Self::RolloverOffer,
             xxi_node::dlc_message::DlcMessageType::RenewAccept => Self::RenewAccept,
             xxi_node::dlc_message::DlcMessageType::RenewConfirm => Self::RenewConfirm,
             xxi_node::dlc_message::DlcMessageType::RenewFinalize => Self::RenewFinalize,
             xxi_node::dlc_message::DlcMessageType::RenewRevoke => Self::RenewRevoke,
+            xxi_node::dlc_message::DlcMessageType::RolloverOffer => Self::RolloverOffer,
+            xxi_node::dlc_message::DlcMessageType::RolloverAccept => Self::RolloverAccept,
+            xxi_node::dlc_message::DlcMessageType::RolloverConfirm => Self::RolloverConfirm,
+            xxi_node::dlc_message::DlcMessageType::RolloverFinalize => Self::RolloverFinalize,
+            xxi_node::dlc_message::DlcMessageType::RolloverRevoke => Self::RolloverRevoke,
             xxi_node::dlc_message::DlcMessageType::CollaborativeCloseOffer => {
                 Self::CollaborativeCloseOffer
             }
@@ -139,11 +147,17 @@ impl From<MessageType> for xxi_node::dlc_message::DlcMessageType {
             MessageType::SettleConfirm => xxi_node::dlc_message::DlcMessageType::SettleConfirm,
             MessageType::SettleFinalize => xxi_node::dlc_message::DlcMessageType::SettleFinalize,
             MessageType::RenewOffer => xxi_node::dlc_message::DlcMessageType::RenewOffer,
-            MessageType::RolloverOffer => xxi_node::dlc_message::DlcMessageType::RolloverOffer,
             MessageType::RenewAccept => xxi_node::dlc_message::DlcMessageType::RenewAccept,
             MessageType::RenewConfirm => xxi_node::dlc_message::DlcMessageType::RenewConfirm,
             MessageType::RenewFinalize => xxi_node::dlc_message::DlcMessageType::RenewFinalize,
             MessageType::RenewRevoke => xxi_node::dlc_message::DlcMessageType::RenewRevoke,
+            MessageType::RolloverOffer => xxi_node::dlc_message::DlcMessageType::RolloverOffer,
+            MessageType::RolloverAccept => xxi_node::dlc_message::DlcMessageType::RolloverAccept,
+            MessageType::RolloverConfirm => xxi_node::dlc_message::DlcMessageType::RolloverConfirm,
+            MessageType::RolloverFinalize => {
+                xxi_node::dlc_message::DlcMessageType::RolloverFinalize
+            }
+            MessageType::RolloverRevoke => xxi_node::dlc_message::DlcMessageType::RolloverRevoke,
             MessageType::CollaborativeCloseOffer => {
                 xxi_node::dlc_message::DlcMessageType::CollaborativeCloseOffer
             }

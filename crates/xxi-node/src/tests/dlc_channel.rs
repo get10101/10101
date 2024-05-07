@@ -37,9 +37,10 @@ async fn can_open_and_settle_offchain() {
     let oracle_pk = *coordinator.oracle_pk().first().unwrap();
     let contract_input = dummy_contract_input(15_000, 5_000, oracle_pk, None);
 
+    let filled_with = dummy_filled_with();
     coordinator
         .propose_reopen_or_resize(
-            dummy_filled_with(),
+            filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             contract_input,
             new_reference_id(),
@@ -69,7 +70,7 @@ async fn can_open_and_settle_offchain() {
     .await
     .unwrap();
 
-    app.accept_dlc_channel_update(&app_signed_channel.channel_id)
+    app.accept_dlc_channel_update(filled_with.order_id, &app_signed_channel.channel_id)
         .unwrap();
 
     wait_until(Duration::from_secs(10), || async {
@@ -457,9 +458,10 @@ async fn open_channel_and_position_and_settle_position(
         fee_rate_sats_per_vbyte,
     );
 
+    let filled_with = dummy_filled_with();
     coordinator
         .propose_dlc_channel(
-            dummy_filled_with(),
+            filled_with.clone(),
             contract_input,
             app.info.pubkey,
             new_reference_id(),
@@ -486,7 +488,7 @@ async fn open_channel_and_position_and_settle_position(
     .await
     .unwrap();
 
-    app.accept_dlc_channel_offer(&offered_channel.temporary_channel_id)
+    app.accept_dlc_channel_offer(filled_with.order_id, &offered_channel.temporary_channel_id)
         .unwrap();
 
     let coordinator_signed_channel = wait_until(Duration::from_secs(30), || async {
@@ -581,10 +583,11 @@ async fn open_channel_and_position_and_settle_position(
 
     tracing::info!("DLC channel is on-chain");
 
+    let order = dummy_order();
     coordinator
         .propose_dlc_channel_collaborative_settlement(
-            dummy_order(),
-            dummy_filled_with(),
+            order.clone(),
+            filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
             new_reference_id(),
@@ -616,8 +619,12 @@ async fn open_channel_and_position_and_settle_position(
     .unwrap();
 
     tracing::debug!("Accepting settle offer and waiting for being settled...");
-    app.accept_dlc_channel_collaborative_settlement(&app_signed_channel.channel_id)
-        .unwrap();
+    app.accept_dlc_channel_collaborative_settlement(
+        filled_with.order_id,
+        order.order_reason,
+        &app_signed_channel.channel_id,
+    )
+    .unwrap();
 
     app.event_handler.publish(NodeEvent::SendLastDlcMessage {
         peer: coordinator.info.pubkey,

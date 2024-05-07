@@ -8,7 +8,6 @@ use crate::health::ServiceStatus;
 use crate::state;
 use crate::trade::order;
 use crate::trade::order::FailureReason;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::SecretKey;
@@ -35,7 +34,8 @@ use xxi_node::commons::OrderState;
 use xxi_node::commons::OrderbookRequest;
 use xxi_node::commons::Signature;
 
-const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
+// Set to the same timeout as the p2p connection reconnect
+const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub fn subscribe(
     secret_key: SecretKey,
@@ -65,7 +65,6 @@ pub fn subscribe(
             Some(fcm_token)
         };
 
-        let mut round = 1;
         loop {
             let url = url.clone();
             let fcm_token = fcm_token.clone();
@@ -127,8 +126,6 @@ pub fn subscribe(
                         }
                     }
 
-                    round = 1;
-
                     // abort handler on sending messages over a lost websocket connection.
                     handle.abort();
                 }
@@ -141,13 +138,18 @@ pub fn subscribe(
                 tracing::warn!("Cannot update orderbook status: {e:#}");
             };
 
-            let retry_interval = WS_RECONNECT_TIMEOUT.mul_f32(round as f32);
+            // Retry at least every second. We do this as it the p2p connection is not debouncing,
+            // thus it could happen after a restart that the p2p connection is established, but the
+            // websocket connection is still waiting to retry. This could have implications when the
+            // coordinator returns an error on the websocket which the app is not ready to process.
+            //
+            // Note, this is the same issue for why we originally moved to 10101 Messages, we should
+            // think about a similar way to return protocol errors via the p2p connection.
             tracing::debug!(
-                ?retry_interval,
+                ?WS_RECONNECT_TIMEOUT,
                 "Reconnecting to orderbook WS after timeout"
             );
-            tokio::time::sleep(retry_interval).await;
-            round *= 2;
+            tokio::time::sleep(WS_RECONNECT_TIMEOUT).await;
         }
     });
 
@@ -256,7 +258,7 @@ async fn handle_orderbook_message(
                 execution_price,
             ) {
                 event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::CollabRevert(TaskStatus::Failed),
+                    BackgroundTask::CollabRevert(TaskStatus::Failed(format!("{err:#}"))),
                 ));
                 tracing::error!("Could not collaboratively revert channel: {err:#}");
             } else {
@@ -272,9 +274,15 @@ async fn handle_orderbook_message(
             order::handler::order_failed(
                 Some(order_id),
                 FailureReason::TradeResponse(error.to_string()),
-                anyhow!("Coordinator failed to execute trade: {error}"),
+                error.into(),
             )
             .context("Could not set order to failed")?;
+        }
+        Message::RolloverError { error } => {
+            tracing::error!("Failed to rollover position: {error:#}");
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::Rollover(TaskStatus::Failed(format!("{error:#}"))),
+            ));
         }
     };
 

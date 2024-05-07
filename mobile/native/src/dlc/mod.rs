@@ -464,7 +464,7 @@ pub async fn full_sync_on_wallet_db_migration() {
                 tracing::error!("Full sync failed: {e:#}");
 
                 event::publish(&EventInternal::BackgroundNotification(
-                    event::BackgroundTask::FullSync(event::TaskStatus::Failed),
+                    event::BackgroundTask::FullSync(event::TaskStatus::Failed(format!("{e:#}"))),
                 ));
             }
         };
@@ -820,7 +820,7 @@ fn update_state_after_collab_revert(
         }
     };
 
-    let filled_order = match order::handler::order_filled() {
+    let filled_order = match order::handler::order_filled(None) {
         Ok(order) => order,
         Err(_) => {
             let order = Order {
@@ -847,14 +847,14 @@ fn update_state_after_collab_revert(
         }
     };
 
-    position::handler::update_position_after_dlc_closure(Some(filled_order))?;
+    position::handler::update_position_after_dlc_closure(filled_order)?;
 
     let node = node.inner.clone();
 
     node.dlc_manager
         .get_store()
         .upsert_channel(
-            dlc_manager::channel::Channel::CollaborativelyClosed(ClosedChannel {
+            Channel::CollaborativelyClosed(ClosedChannel {
                 counter_party: signed_channel.counter_party,
                 temporary_channel_id: signed_channel.temporary_channel_id,
                 channel_id: signed_channel.channel_id,

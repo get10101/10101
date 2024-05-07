@@ -147,7 +147,7 @@ pub fn update_position_after_dlc_channel_creation_or_update(
 }
 
 /// Delete a position after closing a DLC channel.
-pub fn update_position_after_dlc_closure(filled_order: Option<Order>) -> Result<()> {
+pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
     tracing::debug!(?filled_order, "Removing position after DLC channel closure");
 
     let position = match db::get_positions()?.as_slice() {
@@ -162,29 +162,27 @@ pub fn update_position_after_dlc_closure(filled_order: Option<Order>) -> Result<
         }
     };
 
-    if let Some(filled_order) = filled_order {
-        tracing::debug!(
-            ?position,
-            ?filled_order,
-            "Calculating closing trades for position"
+    tracing::debug!(
+        ?position,
+        ?filled_order,
+        "Calculating closing trades for position"
+    );
+
+    // After closing the DLC channel we do not need to update the position's expiry anymore.
+    let expiry = position.expiry;
+    let (new_position, trades) = position.apply_order(filled_order, expiry)?;
+
+    tracing::debug!(?trades, "Calculated closing trades");
+
+    if let Some(new_position) = new_position {
+        tracing::warn!(
+            ?new_position,
+            "Expected computed position to vanish after applying closing order"
         );
+    }
 
-        // After closing the DLC channel we do not need to update the position's expiry anymore.
-        let expiry = position.expiry;
-        let (new_position, trades) = position.apply_order(filled_order, expiry)?;
-
-        tracing::debug!(?trades, "Calculated closing trades");
-
-        if let Some(new_position) = new_position {
-            tracing::warn!(
-                ?new_position,
-                "Expected computed position to vanish after applying closing order"
-            );
-        }
-
-        for trade in trades {
-            db::insert_trade(trade)?;
-        }
+    for trade in trades {
+        db::insert_trade(trade)?;
     }
 
     db::delete_positions()?;

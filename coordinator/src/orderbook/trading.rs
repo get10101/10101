@@ -97,13 +97,13 @@ pub fn start(
                         "Processing new order",
                     );
 
-                    if let Err(error) = match new_order.order_type {
+                    if let Err(error) = match &new_order.order_type {
                         OrderType::Market => {
                             process_new_market_order(
                                 node,
                                 notifier.clone(),
                                 trade_notifier.clone(),
-                                new_order,
+                                &new_order,
                                 network,
                                 oracle_pk,
                                 channel_opening_params
@@ -114,22 +114,25 @@ pub fn start(
                             process_new_limit_order(
                                 node,
                                 tx_orderbook_feed,
-                                new_order,
+                                new_order.clone(),
                             )
                             .await
                         }
                     } {
-                        // TODO(holzeis): the maker is currently not subscribed to the websocket
-                        // api, hence it wouldn't receive the error message.
-                        if let Err(e) = trade_notifier
-                            .send(OrderbookMessage::TraderMessage {
-                                trader_id,
-                                message: TradeError { order_id, error },
-                                notification: None,
-                            })
-                            .await
-                        {
-                            tracing::error!(%trader_id, %order_id, "Failed to send trade error. Error: {e:#}");
+
+                        if new_order.order_reason == OrderReason::Manual {
+                            // TODO(holzeis): the maker is currently not subscribed to the websocket
+                            // api, hence it wouldn't receive the error message.
+                            if let Err(e) = trade_notifier
+                                .send(OrderbookMessage::TraderMessage {
+                                    trader_id,
+                                    message: TradeError { order_id, error },
+                                    notification: None,
+                                })
+                                .await
+                            {
+                                tracing::error!(%trader_id, %order_id, "Failed to send trade error. Error: {e:#}");
+                            }
                         }
                     }
                 }
@@ -183,7 +186,7 @@ pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<Notification>,
     trade_notifier: mpsc::Sender<OrderbookMessage>,
-    order: Order,
+    order: &Order,
     network: Network,
     oracle_pk: XOnlyPublicKey,
     channel_opening_params: Option<ChannelOpeningParams>,
@@ -229,7 +232,7 @@ pub async fn process_new_market_order(
         %fee_discount, total_fee_percent = %fee_percent, "Fee discount calculated");
 
     let matched_orders = match match_order(
-        &order,
+        order,
         opposite_direction_limit_orders,
         network,
         oracle_pk,

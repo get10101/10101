@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get_10101/backend.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/color.dart';
-import 'package:get_10101/util/compare_coordinator_version.dart';
 import 'package:get_10101/common/init_service.dart';
 import 'package:get_10101/common/routes.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
@@ -43,15 +41,9 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
 
     WidgetsBinding.instance.addObserver(this);
 
-    final config = context.read<bridge.Config>();
     _router = createRoutes();
 
     subscribeToNotifiers(context);
-
-    // TODO(holzeis): check if we can do this without the addPostFrameCallback
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await compareCoordinatorVersion(config);
-    });
   }
 
   @override

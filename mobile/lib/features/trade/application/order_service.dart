@@ -47,14 +47,4 @@ class OrderService {
 
     return orders;
   }
-
-  Future<Order?> fetchAsyncOrder() async {
-    rust.Order? order = await rust.api.getAsyncOrder();
-
-    if (order == null) {
-      return null;
-    }
-
-    return Order.fromApi(order);
-  }
 }

@@ -103,10 +103,9 @@ pub enum OrderState {
     ///
     /// In order to reach this state the orderbook must have provided trade params to start trade
     /// execution, and the trade execution failed; i.e. it did not result in setting up a DLC.
-    /// For the MVP there won't be a retry mechanism, so this is treated as a final state.
-    /// This is a final state.
     Failed {
         execution_price: Option<f32>,
+        matching_fee: Option<Amount>,
         reason: FailureReason,
     },
 
@@ -227,9 +226,12 @@ impl Order {
     /// This returns the matching fee once known
     pub fn matching_fee(&self) -> Option<Amount> {
         match self.state {
-            OrderState::Filling { matching_fee, .. } | OrderState::Filled { matching_fee, .. } => {
-                Some(matching_fee)
-            }
+            OrderState::Filling { matching_fee, .. }
+            | OrderState::Filled { matching_fee, .. }
+            | OrderState::Failed {
+                matching_fee: Some(matching_fee),
+                ..
+            } => Some(matching_fee),
             _ => None,
         }
     }

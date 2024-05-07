@@ -1,18 +1,14 @@
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:get_10101/features/trade/domain/order.dart';
 
-class AsyncTrade {
-  final OrderReason orderReason;
-
-  AsyncTrade({required this.orderReason});
-
-  static AsyncTrade fromApi(bridge.BackgroundTask_AsyncTrade asyncTrade) {
-    return AsyncTrade(orderReason: OrderReason.fromApi(asyncTrade.field0));
-  }
-
-  static bridge.BackgroundTask apiDummy() {
-    return bridge.BackgroundTask_AsyncTrade(OrderReason.apiDummy());
-  }
+enum TaskType {
+  rollover,
+  asyncTrade,
+  expire,
+  liquidate,
+  collaborativeRevert,
+  fullSync,
+  recover,
+  unknown
 }
 
 enum TaskStatus {
@@ -20,74 +16,87 @@ enum TaskStatus {
   failed,
   success;
 
-  static TaskStatus fromApi(bridge.TaskStatus taskStatus) {
-    switch (taskStatus) {
-      case bridge.TaskStatus.Pending:
-        return TaskStatus.pending;
-      case bridge.TaskStatus.Failed:
-        return TaskStatus.failed;
-      case bridge.TaskStatus.Success:
-        return TaskStatus.success;
+  static (TaskStatus, String?) fromApi(dynamic taskStatus) {
+    if (taskStatus is bridge.TaskStatus_Pending) {
+      return (TaskStatus.pending, null);
     }
+
+    if (taskStatus is bridge.TaskStatus_Success) {
+      return (TaskStatus.success, null);
+    }
+
+    if (taskStatus is bridge.TaskStatus_Failed) {
+      final error = taskStatus.field0;
+      return (TaskStatus.failed, error);
+    }
+
+    return (TaskStatus.pending, null);
   }
 
   static bridge.TaskStatus apiDummy() {
-    return bridge.TaskStatus.Pending;
+    return const bridge.TaskStatus_Pending();
+  }
+
+  @override
+  String toString() {
+    switch (this) {
+      case TaskStatus.pending:
+        return "Pending";
+      case TaskStatus.failed:
+        return "Failed";
+      case TaskStatus.success:
+        return "Success";
+    }
   }
 }
 
-class Rollover {
-  final TaskStatus taskStatus;
+class BackgroundTask {
+  final TaskType type;
+  TaskStatus status;
 
-  Rollover({required this.taskStatus});
+  String? error;
 
-  static Rollover fromApi(bridge.BackgroundTask_Rollover rollover) {
-    return Rollover(taskStatus: TaskStatus.fromApi(rollover.field0));
-  }
+  BackgroundTask({required this.type, required this.status, this.error});
 
   static bridge.BackgroundTask apiDummy() {
     return bridge.BackgroundTask_Rollover(TaskStatus.apiDummy());
   }
-}
 
-class RecoverDlc {
-  final TaskStatus taskStatus;
+  static BackgroundTask fromApi(bridge.BackgroundTask task) {
+    final taskType = getTaskType(task);
 
-  RecoverDlc({required this.taskStatus});
-
-  static RecoverDlc fromApi(bridge.BackgroundTask_RecoverDlc recoverDlc) {
-    return RecoverDlc(taskStatus: TaskStatus.fromApi(recoverDlc.field0));
+    final (taskStatus, error) = TaskStatus.fromApi(task.field0);
+    return BackgroundTask(type: taskType, status: taskStatus, error: error);
   }
 
-  static bridge.BackgroundTask apiDummy() {
-    return bridge.BackgroundTask_RecoverDlc(TaskStatus.apiDummy());
-  }
-}
+  static TaskType getTaskType(bridge.BackgroundTask task) {
+    if (task is bridge.BackgroundTask_RecoverDlc) {
+      return TaskType.recover;
+    }
+    if (task is bridge.BackgroundTask_Rollover) {
+      return TaskType.rollover;
+    }
+    if (task is bridge.BackgroundTask_CollabRevert) {
+      return TaskType.collaborativeRevert;
+    }
+    if (task is bridge.BackgroundTask_FullSync) {
+      return TaskType.fullSync;
+    }
+    if (task is bridge.BackgroundTask_AsyncTrade) {
+      return TaskType.asyncTrade;
+    }
+    if (task is bridge.BackgroundTask_Expire) {
+      return TaskType.expire;
+    }
+    if (task is bridge.BackgroundTask_Liquidate) {
+      return TaskType.liquidate;
+    }
 
-class CollabRevert {
-  final TaskStatus taskStatus;
-
-  CollabRevert({required this.taskStatus});
-
-  static CollabRevert fromApi(bridge.BackgroundTask_CollabRevert collabRevert) {
-    return CollabRevert(taskStatus: TaskStatus.fromApi(collabRevert.field0));
-  }
-
-  static bridge.BackgroundTask apiDummy() {
-    return bridge.BackgroundTask_CollabRevert(TaskStatus.apiDummy());
-  }
-}
-
-class FullSync {
-  final TaskStatus taskStatus;
-
-  FullSync({required this.taskStatus});
-
-  static FullSync fromApi(bridge.BackgroundTask_FullSync fullSync) {
-    return FullSync(taskStatus: TaskStatus.fromApi(fullSync.field0));
+    return TaskType.unknown;
   }
 
-  static bridge.BackgroundTask apiDummy() {
-    return bridge.BackgroundTask_FullSync(TaskStatus.apiDummy());
+  @override
+  String toString() {
+    return "$type ($status)";
   }
 }

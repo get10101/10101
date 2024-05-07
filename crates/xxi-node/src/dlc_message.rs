@@ -58,11 +58,15 @@ pub enum DlcMessageType {
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
-    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
     RenewRevoke,
+    RolloverOffer,
+    RolloverAccept,
+    RolloverConfirm,
+    RolloverFinalize,
+    RolloverRevoke,
     CollaborativeCloseOffer,
     Reject,
 }
@@ -99,9 +103,6 @@ impl TryFrom<&SerializedDlcMessage> for TenTenOneMessage {
             DlcMessageType::RenewOffer => {
                 TenTenOneMessage::RenewOffer(serde_json::from_str(&serialized_msg.message)?)
             }
-            DlcMessageType::RolloverOffer => {
-                TenTenOneMessage::RolloverOffer(serde_json::from_str(&serialized_msg.message)?)
-            }
             DlcMessageType::RenewAccept => {
                 TenTenOneMessage::RenewAccept(serde_json::from_str(&serialized_msg.message)?)
             }
@@ -113,6 +114,21 @@ impl TryFrom<&SerializedDlcMessage> for TenTenOneMessage {
             }
             DlcMessageType::RenewRevoke => {
                 TenTenOneMessage::RenewRevoke(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverOffer => {
+                TenTenOneMessage::RolloverOffer(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverAccept => {
+                TenTenOneMessage::RolloverAccept(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverConfirm => {
+                TenTenOneMessage::RolloverConfirm(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverFinalize => {
+                TenTenOneMessage::RolloverFinalize(serde_json::from_str(&serialized_msg.message)?)
+            }
+            DlcMessageType::RolloverRevoke => {
+                TenTenOneMessage::RolloverRevoke(serde_json::from_str(&serialized_msg.message)?)
             }
             DlcMessageType::CollaborativeCloseOffer => TenTenOneMessage::CollaborativeCloseOffer(
                 serde_json::from_str(&serialized_msg.message)?,
@@ -155,10 +171,6 @@ impl TryFrom<&TenTenOneMessage> for SerializedDlcMessage {
                 serde_json::to_string(&renew_offer)?,
                 DlcMessageType::RenewOffer,
             ),
-            TenTenOneMessage::RolloverOffer(rollover_offer) => (
-                serde_json::to_string(&rollover_offer)?,
-                DlcMessageType::RolloverOffer,
-            ),
             TenTenOneMessage::RenewAccept(renew_accept) => (
                 serde_json::to_string(&renew_accept)?,
                 DlcMessageType::RenewAccept,
@@ -182,6 +194,26 @@ impl TryFrom<&TenTenOneMessage> for SerializedDlcMessage {
             TenTenOneMessage::Reject(reject) => {
                 (serde_json::to_string(&reject)?, DlcMessageType::Reject)
             }
+            TenTenOneMessage::RolloverOffer(rollover_offer) => (
+                serde_json::to_string(&rollover_offer)?,
+                DlcMessageType::RolloverOffer,
+            ),
+            TenTenOneMessage::RolloverAccept(rollover_accept) => (
+                serde_json::to_string(&rollover_accept)?,
+                DlcMessageType::RolloverAccept,
+            ),
+            TenTenOneMessage::RolloverConfirm(rollover_confirm) => (
+                serde_json::to_string(&rollover_confirm)?,
+                DlcMessageType::RolloverConfirm,
+            ),
+            TenTenOneMessage::RolloverFinalize(rollover_finalize) => (
+                serde_json::to_string(&rollover_finalize)?,
+                DlcMessageType::RolloverFinalize,
+            ),
+            TenTenOneMessage::RolloverRevoke(rollover_revoke) => (
+                serde_json::to_string(&rollover_revoke)?,
+                DlcMessageType::RolloverRevoke,
+            ),
         };
 
         Ok(Self {

@@ -8,7 +8,6 @@ use crate::event::EventInternal;
 use crate::event::EventType;
 use crate::health::ServiceUpdate;
 use crate::trade::order::api::Order;
-use crate::trade::order::api::OrderReason;
 use crate::trade::position::api::Position;
 use core::convert::From;
 use flutter_rust_bridge::frb;
@@ -36,9 +35,12 @@ pub enum Event {
 #[frb]
 #[derive(Clone)]
 pub enum BackgroundTask {
-    /// The order book submitted an trade which was matched asynchronously while the app was
-    /// offline.
-    AsyncTrade(OrderReason),
+    /// The order book submitted an trade which was matched asynchronously
+    AsyncTrade(TaskStatus),
+    /// The coordinator expired the users trade
+    Expire(TaskStatus),
+    /// The order book liquidated the users trade
+    Liquidate(TaskStatus),
     /// The order book submitted its intention to rollover the about to expire position.
     Rollover(TaskStatus),
     /// The app was started with a dlc channel in an intermediate state. This task is in pending
@@ -60,9 +62,6 @@ impl From<EventInternal> for Event {
             }
             EventInternal::WalletInfoUpdateNotification(value) => {
                 Event::WalletInfoUpdateNotification(value)
-            }
-            EventInternal::OrderFilledWith(_) => {
-                unreachable!("This internal event is not exposed to the UI")
             }
             EventInternal::PositionUpdateNotification(position) => {
                 Event::PositionUpdateNotification(position.into())
@@ -142,9 +141,9 @@ impl FlutterSubscriber {
 impl From<event::BackgroundTask> for BackgroundTask {
     fn from(value: event::BackgroundTask) -> Self {
         match value {
-            event::BackgroundTask::AsyncTrade(order_reason) => {
-                BackgroundTask::AsyncTrade(order_reason.into())
-            }
+            event::BackgroundTask::AsyncTrade(status) => BackgroundTask::AsyncTrade(status.into()),
+            event::BackgroundTask::Liquidate(status) => BackgroundTask::Liquidate(status.into()),
+            event::BackgroundTask::Expire(status) => BackgroundTask::Expire(status.into()),
             event::BackgroundTask::Rollover(status) => BackgroundTask::Rollover(status.into()),
             event::BackgroundTask::RecoverDlc(status) => BackgroundTask::RecoverDlc(status.into()),
             event::BackgroundTask::CollabRevert(status) => {
@@ -159,7 +158,7 @@ impl From<event::BackgroundTask> for BackgroundTask {
 #[derive(Clone)]
 pub enum TaskStatus {
     Pending,
-    Failed,
+    Failed(String),
     Success,
 }
 
@@ -167,7 +166,7 @@ impl From<event::TaskStatus> for TaskStatus {
     fn from(value: event::TaskStatus) -> Self {
         match value {
             event::TaskStatus::Pending => TaskStatus::Pending,
-            event::TaskStatus::Failed => TaskStatus::Failed,
+            event::TaskStatus::Failed(error) => TaskStatus::Failed(error),
             event::TaskStatus::Success => TaskStatus::Success,
         }
     }

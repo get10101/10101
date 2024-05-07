@@ -25,6 +25,7 @@ use lightning::ln::chan_utils::build_commitment_secret;
 use time::OffsetDateTime;
 use xxi_node::bitcoin_conversion::to_secp_sk_29;
 use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::OrderReason;
 use xxi_node::message_handler::TenTenOneMessage;
 use xxi_node::message_handler::TenTenOneSettleFinalize;
 use xxi_node::node::event::NodeEvent;
@@ -154,10 +155,7 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         .get_signed_channel_by_trader_id(coordinator_pubkey)?;
 
     ensure!(
-        matches!(
-            signed_channel.state,
-            dlc_manager::channel::signed_channel::SignedChannelState::Settled { .. }
-        ),
+        matches!(signed_channel.state, SignedChannelState::Settled { .. }),
         "Signed channel state must be settled to resend settle finalize message!"
     );
 
@@ -171,7 +169,12 @@ pub fn resend_settle_finalize_message() -> Result<()> {
         signed_channel.update_idx + 1,
     ))?;
 
+    // We assume the relevant order to be in filling.
+    let order = db::get_order_in_filling()?.context("Couldn't find order in filling")?;
+
     let msg = TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
+        order_id: order.id,
+        order_reason: OrderReason::Manual,
         settle_finalize: SettleFinalize {
             channel_id: signed_channel.channel_id,
             prev_per_update_secret: to_secp_sk_29(prev_per_update_secret),

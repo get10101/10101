@@ -41,6 +41,9 @@ pub enum Message {
         order_id: Uuid,
         error: TradingError,
     },
+    RolloverError {
+        error: TradingError,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Error, Debug, PartialEq)]
@@ -116,6 +119,9 @@ impl Display for Message {
             }
             Message::TradeError { .. } => {
                 write!(f, "TradeError")
+            }
+            Message::RolloverError { .. } => {
+                write!(f, "RolloverError")
             }
         }
     }

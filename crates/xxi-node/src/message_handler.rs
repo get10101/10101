@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_pk_30;
 use crate::commons::FilledWith;
 use crate::commons::Order;
+use crate::commons::OrderReason;
 use crate::node::event::NodeEvent;
 use crate::node::event::NodeEventHandler;
 use anyhow::Result;
@@ -53,8 +54,10 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::fmt::Display;
 use std::io::Cursor;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::Mutex;
+use uuid::Uuid;
 
 /// TenTenOneMessageHandler is used to send and receive messages through the custom
 /// message handling mechanism of the LDK. It also handles message segmentation
@@ -132,12 +135,65 @@ pub enum TenTenOneMessage {
     SettleConfirm(TenTenOneSettleConfirm),
     SettleFinalize(TenTenOneSettleFinalize),
     RenewOffer(TenTenOneRenewOffer),
-    RolloverOffer(TenTenOneRolloverOffer),
     RenewAccept(TenTenOneRenewAccept),
     RenewConfirm(TenTenOneRenewConfirm),
     RenewFinalize(TenTenOneRenewFinalize),
     RenewRevoke(TenTenOneRenewRevoke),
+    RolloverOffer(TenTenOneRolloverOffer),
+    RolloverAccept(TenTenOneRolloverAccept),
+    RolloverConfirm(TenTenOneRolloverConfirm),
+    RolloverFinalize(TenTenOneRolloverFinalize),
+    RolloverRevoke(TenTenOneRolloverRevoke),
     CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer),
+}
+
+pub enum TenTenOneMessageType {
+    /// open channel, open, close or resize a position
+    Trade,
+    // expired position
+    Expire,
+    // liquidated position
+    Liquidate,
+    /// rollover position
+    Rollover,
+    /// reject or close channel
+    Other,
+}
+
+impl TenTenOneMessage {
+    pub fn get_tentenone_message_type(&self) -> TenTenOneMessageType {
+        match self {
+            TenTenOneMessage::Offer(_)
+            | TenTenOneMessage::Accept(_)
+            | TenTenOneMessage::Sign(_)
+            | TenTenOneMessage::RenewOffer(_)
+            | TenTenOneMessage::RenewAccept(_)
+            | TenTenOneMessage::RenewConfirm(_)
+            | TenTenOneMessage::RenewFinalize(_)
+            | TenTenOneMessage::RenewRevoke(_) => TenTenOneMessageType::Trade,
+            TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
+                order: Order { order_reason, .. },
+                ..
+            })
+            | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { order_reason, .. })
+            | TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { order_reason, .. })
+            | TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { order_reason, .. }) => {
+                match order_reason {
+                    OrderReason::Manual => TenTenOneMessageType::Trade,
+                    OrderReason::Expired => TenTenOneMessageType::Expire,
+                    OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
+                        TenTenOneMessageType::Liquidate
+                    }
+                }
+            }
+            TenTenOneMessage::RolloverOffer(_)
+            | TenTenOneMessage::RolloverAccept(_)
+            | TenTenOneMessage::RolloverConfirm(_)
+            | TenTenOneMessage::RolloverFinalize(_)
+            | TenTenOneMessage::RolloverRevoke(_) => TenTenOneMessageType::Rollover,
+            _ => TenTenOneMessageType::Other,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,11 +209,13 @@ pub struct TenTenOneOfferChannel {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenTenOneAcceptChannel {
+    pub order_id: Uuid,
     pub accept_channel: AcceptChannel,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TenTenOneSignChannel {
+    pub order_id: Uuid,
     pub sign_channel: SignChannel,
 }
 
@@ -168,18 +226,24 @@ pub struct TenTenOneSettleOffer {
     pub settle_offer: SettleOffer,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneSettleAccept {
+    pub order_reason: OrderReason,
+    pub order_id: Uuid,
     pub settle_accept: SettleAccept,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneSettleConfirm {
+    pub order_reason: OrderReason,
+    pub order_id: Uuid,
     pub settle_confirm: SettleConfirm,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneSettleFinalize {
+    pub order_reason: OrderReason,
+    pub order_id: Uuid,
     pub settle_finalize: SettleFinalize,
 }
 
@@ -189,28 +253,52 @@ pub struct TenTenOneRenewOffer {
     pub renew_offer: RenewOffer,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRenewAccept {
+    pub order_id: Uuid,
+    pub renew_accept: RenewAccept,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRenewConfirm {
+    pub order_id: Uuid,
+    pub renew_confirm: RenewConfirm,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRenewFinalize {
+    pub order_id: Uuid,
+    pub renew_finalize: RenewFinalize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TenTenOneRenewRevoke {
+    pub order_id: Uuid,
+    pub renew_revoke: RenewRevoke,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TenTenOneRolloverOffer {
     pub renew_offer: RenewOffer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TenTenOneRenewAccept {
+pub struct TenTenOneRolloverAccept {
     pub renew_accept: RenewAccept,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TenTenOneRenewConfirm {
+pub struct TenTenOneRolloverConfirm {
     pub renew_confirm: RenewConfirm,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TenTenOneRenewFinalize {
+pub struct TenTenOneRolloverFinalize {
     pub renew_finalize: RenewFinalize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TenTenOneRenewRevoke {
+pub struct TenTenOneRolloverRevoke {
     pub renew_revoke: RenewRevoke,
 }
 
@@ -386,11 +474,15 @@ pub fn tentenone_message_name(msg: &TenTenOneMessage) -> String {
         TenTenOneMessage::SettleConfirm(_) => "SettleConfirm",
         TenTenOneMessage::SettleFinalize(_) => "SettleFinalize",
         TenTenOneMessage::RenewOffer(_) => "RenewOffer",
-        TenTenOneMessage::RolloverOffer(_) => "RolloverOffer",
         TenTenOneMessage::RenewAccept(_) => "RenewAccept",
         TenTenOneMessage::RenewConfirm(_) => "RenewConfirm",
         TenTenOneMessage::RenewFinalize(_) => "RenewFinalize",
         TenTenOneMessage::RenewRevoke(_) => "RenewRevoke",
+        TenTenOneMessage::RolloverOffer(_) => "RolloverOffer",
+        TenTenOneMessage::RolloverAccept(_) => "RolloverAccept",
+        TenTenOneMessage::RolloverConfirm(_) => "RolloverConfirm",
+        TenTenOneMessage::RolloverFinalize(_) => "RolloverFinalize",
+        TenTenOneMessage::RolloverRevoke(_) => "RolloverRevoke",
         TenTenOneMessage::CollaborativeCloseOffer(_) => "CollaborativeCloseOffer",
         TenTenOneMessage::Reject(_) => "Reject",
     };
@@ -403,50 +495,163 @@ impl TenTenOneMessage {
     /// an offer so if an offer is passed the function will panic. This is most likely not a future
     /// proof solution as we'd might want to enrich the response with 10101 metadata as well. If
     /// that happens we will have to rework this part.
-    pub fn build_from_response(message: Message) -> Self {
-        match message {
-            Message::Channel(ChannelMessage::Accept(accept_channel)) => {
-                TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel })
+    pub fn build_from_response(
+        message: Message,
+        order_id: Option<Uuid>,
+        order_reason: Option<OrderReason>,
+    ) -> Result<Self> {
+        let msg = match (message, order_id) {
+            (Message::Channel(ChannelMessage::Accept(accept_channel)), Some(order_id)) => {
+                TenTenOneMessage::Accept(TenTenOneAcceptChannel {
+                    accept_channel,
+                    order_id,
+                })
             }
-            Message::Channel(ChannelMessage::Sign(sign_channel)) => {
-                TenTenOneMessage::Sign(TenTenOneSignChannel { sign_channel })
+            (Message::Channel(ChannelMessage::Sign(sign_channel)), Some(order_id)) => {
+                TenTenOneMessage::Sign(TenTenOneSignChannel {
+                    sign_channel,
+                    order_id,
+                })
             }
-            Message::Channel(ChannelMessage::SettleAccept(settle_accept)) => {
-                TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept })
+            (Message::Channel(ChannelMessage::SettleAccept(settle_accept)), Some(order_id)) => {
+                TenTenOneMessage::SettleAccept(TenTenOneSettleAccept {
+                    settle_accept,
+                    order_id,
+                    order_reason: order_reason.expect("to be some"),
+                })
             }
-            Message::Channel(ChannelMessage::SettleConfirm(settle_confirm)) => {
-                TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { settle_confirm })
+            (Message::Channel(ChannelMessage::SettleConfirm(settle_confirm)), Some(order_id)) => {
+                TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm {
+                    settle_confirm,
+                    order_id,
+                    order_reason: order_reason.expect("to be some"),
+                })
             }
-            Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)) => {
-                TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { settle_finalize })
+            (Message::Channel(ChannelMessage::SettleFinalize(settle_finalize)), Some(order_id)) => {
+                TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
+                    settle_finalize,
+                    order_id,
+                    order_reason: order_reason.expect("to be some"),
+                })
             }
-            Message::Channel(ChannelMessage::RenewAccept(renew_accept)) => {
-                TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept })
+            (Message::Channel(ChannelMessage::RenewAccept(renew_accept)), None) => {
+                TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept })
             }
-            Message::Channel(ChannelMessage::RenewConfirm(renew_confirm)) => {
-                TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm { renew_confirm })
+            (Message::Channel(ChannelMessage::RenewConfirm(renew_confirm)), None) => {
+                TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm { renew_confirm })
             }
-            Message::Channel(ChannelMessage::RenewFinalize(renew_finalize)) => {
-                TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize { renew_finalize })
+            (Message::Channel(ChannelMessage::RenewFinalize(renew_finalize)), None) => {
+                TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize { renew_finalize })
             }
-            Message::Channel(ChannelMessage::RenewRevoke(renew_revoke)) => {
-                TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke })
+            (Message::Channel(ChannelMessage::RenewRevoke(renew_revoke)), None) => {
+                TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { renew_revoke })
             }
-            Message::Channel(ChannelMessage::CollaborativeCloseOffer(
-                collaborative_close_offer,
-            )) => TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
+            (Message::Channel(ChannelMessage::RenewAccept(renew_accept)), Some(order_id)) => {
+                TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
+                    renew_accept,
+                    order_id,
+                })
+            }
+            (Message::Channel(ChannelMessage::RenewConfirm(renew_confirm)), Some(order_id)) => {
+                TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm {
+                    renew_confirm,
+                    order_id,
+                })
+            }
+            (Message::Channel(ChannelMessage::RenewFinalize(renew_finalize)), Some(order_id)) => {
+                TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize {
+                    renew_finalize,
+                    order_id,
+                })
+            }
+            (Message::Channel(ChannelMessage::RenewRevoke(renew_revoke)), Some(order_id)) => {
+                TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke {
+                    renew_revoke,
+                    order_id,
+                })
+            }
+            (
+                Message::Channel(ChannelMessage::CollaborativeCloseOffer(
+                    collaborative_close_offer,
+                )),
+                None,
+            ) => TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
                 collaborative_close_offer,
             }),
-            Message::Channel(ChannelMessage::Reject(reject)) => {
+            (Message::Channel(ChannelMessage::Reject(reject)), None) => {
                 TenTenOneMessage::Reject(TenTenOneReject { reject })
             }
-            Message::OnChain(_)
-            | Message::SubChannel(_)
-            | Message::Channel(ChannelMessage::RenewOffer(_))
-            | Message::Channel(ChannelMessage::SettleOffer(_))
-            | Message::Channel(ChannelMessage::Offer(_)) => {
+            (_, _) => {
                 unreachable!()
             }
+        };
+
+        Ok(msg)
+    }
+
+    pub fn get_order_id(&self) -> Option<Uuid> {
+        match self {
+            TenTenOneMessage::Offer(TenTenOneOfferChannel {
+                filled_with: FilledWith { order_id, .. },
+                ..
+            })
+            | TenTenOneMessage::Accept(TenTenOneAcceptChannel { order_id, .. })
+            | TenTenOneMessage::Sign(TenTenOneSignChannel { order_id, .. })
+            | TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
+                order: Order { id: order_id, .. },
+                ..
+            })
+            | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { order_id, .. })
+            | TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { order_id, .. })
+            | TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { order_id, .. })
+            | TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
+                filled_with: FilledWith { order_id, .. },
+                ..
+            })
+            | TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { order_id, .. })
+            | TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm { order_id, .. })
+            | TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize { order_id, .. })
+            | TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { order_id, .. }) => {
+                Some(*order_id)
+            }
+            TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { .. })
+            | TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { .. })
+            | TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm { .. })
+            | TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize { .. })
+            | TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { .. })
+            | TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
+                ..
+            })
+            | TenTenOneMessage::Reject(TenTenOneReject { .. }) => None,
+        }
+    }
+
+    pub fn get_order_reason(&self) -> Option<OrderReason> {
+        match self {
+            TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
+                order: Order { order_reason, .. },
+                ..
+            })
+            | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { order_reason, .. })
+            | TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { order_reason, .. })
+            | TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { order_reason, .. }) => {
+                Some(order_reason.clone())
+            }
+            TenTenOneMessage::Offer(_)
+            | TenTenOneMessage::Accept(_)
+            | TenTenOneMessage::Sign(_)
+            | TenTenOneMessage::RenewOffer(_)
+            | TenTenOneMessage::RenewAccept(_)
+            | TenTenOneMessage::RenewConfirm(_)
+            | TenTenOneMessage::RenewFinalize(_)
+            | TenTenOneMessage::RenewRevoke(_)
+            | TenTenOneMessage::RolloverOffer(_)
+            | TenTenOneMessage::RolloverAccept(_)
+            | TenTenOneMessage::RolloverConfirm(_)
+            | TenTenOneMessage::RolloverFinalize(_)
+            | TenTenOneMessage::RolloverRevoke(_)
+            | TenTenOneMessage::CollaborativeCloseOffer(_)
+            | TenTenOneMessage::Reject(_) => None,
         }
     }
 
@@ -458,9 +663,11 @@ impl TenTenOneMessage {
             })
             | TenTenOneMessage::Accept(TenTenOneAcceptChannel {
                 accept_channel: AcceptChannel { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::Sign(TenTenOneSignChannel {
                 sign_channel: SignChannel { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::SettleOffer(TenTenOneSettleOffer {
                 settle_offer: SettleOffer { reference_id, .. },
@@ -468,12 +675,15 @@ impl TenTenOneMessage {
             })
             | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept {
                 settle_accept: SettleAccept { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm {
                 settle_confirm: SettleConfirm { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
                 settle_finalize: SettleFinalize { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::RenewOffer(TenTenOneRenewOffer {
                 renew_offer: RenewOffer { reference_id, .. },
@@ -482,17 +692,33 @@ impl TenTenOneMessage {
             | TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer {
                 renew_offer: RenewOffer { reference_id, .. },
             })
+            | TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept {
+                renew_accept: RenewAccept { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm {
+                renew_confirm: RenewConfirm { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize {
+                renew_finalize: RenewFinalize { reference_id, .. },
+            })
+            | TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke {
+                renew_revoke: RenewRevoke { reference_id, .. },
+            })
             | TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
                 renew_accept: RenewAccept { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm {
                 renew_confirm: RenewConfirm { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize {
                 renew_finalize: RenewFinalize { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke {
                 renew_revoke: RenewRevoke { reference_id, .. },
+                ..
             })
             | TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
                 collaborative_close_offer: CollaborativeCloseOffer { reference_id, .. },
@@ -517,40 +743,52 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::Offer(TenTenOneOfferChannel { offer_channel, .. }) => {
                 ChannelMessage::Offer(offer_channel)
             }
-            TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }) => {
+            TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel, .. }) => {
                 ChannelMessage::Accept(accept_channel)
             }
-            TenTenOneMessage::Sign(TenTenOneSignChannel { sign_channel }) => {
+            TenTenOneMessage::Sign(TenTenOneSignChannel { sign_channel, .. }) => {
                 ChannelMessage::Sign(sign_channel)
             }
             TenTenOneMessage::SettleOffer(TenTenOneSettleOffer { settle_offer, .. }) => {
                 ChannelMessage::SettleOffer(settle_offer)
             }
-            TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept }) => {
+            TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept, .. }) => {
                 ChannelMessage::SettleAccept(settle_accept)
             }
-            TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { settle_confirm }) => {
+            TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { settle_confirm, .. }) => {
                 ChannelMessage::SettleConfirm(settle_confirm)
             }
-            TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { settle_finalize }) => {
-                ChannelMessage::SettleFinalize(settle_finalize)
-            }
+            TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize {
+                settle_finalize, ..
+            }) => ChannelMessage::SettleFinalize(settle_finalize),
             TenTenOneMessage::RenewOffer(TenTenOneRenewOffer { renew_offer, .. }) => {
                 ChannelMessage::RenewOffer(renew_offer)
+            }
+            TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept, .. }) => {
+                ChannelMessage::RenewAccept(renew_accept)
+            }
+            TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm { renew_confirm, .. }) => {
+                ChannelMessage::RenewConfirm(renew_confirm)
+            }
+            TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize { renew_finalize, .. }) => {
+                ChannelMessage::RenewFinalize(renew_finalize)
+            }
+            TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke, .. }) => {
+                ChannelMessage::RenewRevoke(renew_revoke)
             }
             TenTenOneMessage::RolloverOffer(TenTenOneRolloverOffer { renew_offer }) => {
                 ChannelMessage::RenewOffer(renew_offer)
             }
-            TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }) => {
+            TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }) => {
                 ChannelMessage::RenewAccept(renew_accept)
             }
-            TenTenOneMessage::RenewConfirm(TenTenOneRenewConfirm { renew_confirm }) => {
+            TenTenOneMessage::RolloverConfirm(TenTenOneRolloverConfirm { renew_confirm }) => {
                 ChannelMessage::RenewConfirm(renew_confirm)
             }
-            TenTenOneMessage::RenewFinalize(TenTenOneRenewFinalize { renew_finalize }) => {
+            TenTenOneMessage::RolloverFinalize(TenTenOneRolloverFinalize { renew_finalize }) => {
                 ChannelMessage::RenewFinalize(renew_finalize)
             }
-            TenTenOneMessage::RenewRevoke(TenTenOneRenewRevoke { renew_revoke }) => {
+            TenTenOneMessage::RolloverRevoke(TenTenOneRolloverRevoke { renew_revoke }) => {
                 ChannelMessage::RenewRevoke(renew_revoke)
             }
             TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
@@ -559,6 +797,20 @@ impl From<TenTenOneMessage> for ChannelMessage {
             TenTenOneMessage::Reject(TenTenOneReject { reject }) => ChannelMessage::Reject(reject),
         }
     }
+}
+
+/// Writes an uuid to the given writer.
+pub fn write_uuid<W: Writer>(
+    uuid: &Uuid,
+    writer: &mut W,
+) -> std::result::Result<(), ::std::io::Error> {
+    write_string(&uuid.to_string(), writer)
+}
+
+/// Reads an uuid from the given reader.
+pub fn read_uuid<R: ::std::io::Read>(reader: &mut R) -> std::result::Result<Uuid, DecodeError> {
+    let uuid = read_string(reader)?;
+    Uuid::from_str(&uuid).map_err(|_| DecodeError::InvalidValue)
 }
 
 macro_rules! impl_type_writeable_for_enum {
@@ -636,28 +888,36 @@ impl_type_writeable_for_enum!(TenTenOneMessage,
     SettleConfirm,
     SettleFinalize,
     RenewOffer,
-    RolloverOffer,
     RenewAccept,
     RenewConfirm,
     RenewFinalize,
     RenewRevoke,
+    RolloverOffer,
+    RolloverAccept,
+    RolloverConfirm,
+    RolloverFinalize,
+    RolloverRevoke,
     CollaborativeCloseOffer
 });
 
 impl_dlc_writeable!(TenTenOneReject, { (reject, writeable) });
 impl_dlc_writeable!(TenTenOneOfferChannel, { (filled_with, writeable), (offer_channel, writeable) });
-impl_dlc_writeable!(TenTenOneAcceptChannel, { (accept_channel, writeable) });
-impl_dlc_writeable!(TenTenOneSignChannel, { (sign_channel, writeable) });
+impl_dlc_writeable!(TenTenOneAcceptChannel, { (order_id, {cb_writeable, write_uuid, read_uuid}), (accept_channel, writeable) });
+impl_dlc_writeable!(TenTenOneSignChannel, { (order_id, {cb_writeable, write_uuid, read_uuid}), (sign_channel, writeable) });
 impl_dlc_writeable!(TenTenOneSettleOffer, { (order, writeable), (filled_with, writeable), (settle_offer, writeable) });
-impl_dlc_writeable!(TenTenOneSettleAccept, { (settle_accept, writeable) });
-impl_dlc_writeable!(TenTenOneSettleConfirm, { (settle_confirm, writeable) });
-impl_dlc_writeable!(TenTenOneSettleFinalize, { (settle_finalize, writeable) });
+impl_dlc_writeable!(TenTenOneSettleAccept, { (order_id, {cb_writeable, write_uuid, read_uuid}), (order_reason, writeable), (settle_accept, writeable) });
+impl_dlc_writeable!(TenTenOneSettleConfirm, { (order_id, {cb_writeable, write_uuid, read_uuid}), (order_reason, writeable), (settle_confirm, writeable) });
+impl_dlc_writeable!(TenTenOneSettleFinalize, { (order_id, {cb_writeable, write_uuid, read_uuid}), (order_reason, writeable), (settle_finalize, writeable) });
 impl_dlc_writeable!(TenTenOneRenewOffer, { (filled_with, writeable), (renew_offer, writeable) });
+impl_dlc_writeable!(TenTenOneRenewAccept, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_accept, writeable) });
+impl_dlc_writeable!(TenTenOneRenewConfirm, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_confirm, writeable) });
+impl_dlc_writeable!(TenTenOneRenewFinalize, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_finalize, writeable) });
+impl_dlc_writeable!(TenTenOneRenewRevoke, { (order_id, {cb_writeable, write_uuid, read_uuid}), (renew_revoke, writeable) });
 impl_dlc_writeable!(TenTenOneRolloverOffer, { (renew_offer, writeable) });
-impl_dlc_writeable!(TenTenOneRenewAccept, { (renew_accept, writeable) });
-impl_dlc_writeable!(TenTenOneRenewConfirm, { (renew_confirm, writeable) });
-impl_dlc_writeable!(TenTenOneRenewFinalize, { (renew_finalize, writeable) });
-impl_dlc_writeable!(TenTenOneRenewRevoke, { (renew_revoke, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverAccept, { (renew_accept, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverConfirm, { (renew_confirm, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverFinalize, { (renew_finalize, writeable) });
+impl_dlc_writeable!(TenTenOneRolloverRevoke, { (renew_revoke, writeable) });
 impl_dlc_writeable!(TenTenOneCollaborativeCloseOffer, {
     (collaborative_close_offer, writeable)
 });
@@ -671,11 +931,23 @@ impl_type!(SETTLE_CHANNEL_ACCEPT_TYPE, TenTenOneSettleAccept, 43008);
 impl_type!(SETTLE_CHANNEL_CONFIRM_TYPE, TenTenOneSettleConfirm, 43010);
 impl_type!(SETTLE_CHANNEL_FINALIZE_TYPE, TenTenOneSettleFinalize, 43012);
 impl_type!(RENEW_CHANNEL_OFFER_TYPE, TenTenOneRenewOffer, 43014);
-impl_type!(ROLLOVER_CHANNEL_OFFER_TYPE, TenTenOneRolloverOffer, 43028);
 impl_type!(RENEW_CHANNEL_ACCEPT_TYPE, TenTenOneRenewAccept, 43016);
 impl_type!(RENEW_CHANNEL_CONFIRM_TYPE, TenTenOneRenewConfirm, 43018);
 impl_type!(RENEW_CHANNEL_FINALIZE_TYPE, TenTenOneRenewFinalize, 43020);
 impl_type!(RENEW_CHANNEL_REVOKE_TYPE, TenTenOneRenewRevoke, 43026);
+impl_type!(ROLLOVER_CHANNEL_OFFER_TYPE, TenTenOneRolloverOffer, 43028);
+impl_type!(ROLLOVER_CHANNEL_ACCEPT_TYPE, TenTenOneRolloverAccept, 43030);
+impl_type!(
+    ROLLOVER_CHANNEL_CONFIRM_TYPE,
+    TenTenOneRolloverConfirm,
+    43032
+);
+impl_type!(
+    ROLLOVER_CHANNEL_FINALIZE_TYPE,
+    TenTenOneRolloverFinalize,
+    43034
+);
+impl_type!(ROLLOVER_CHANNEL_REVOKE_TYPE, TenTenOneRolloverRevoke, 43036);
 impl_type!(
     COLLABORATIVE_CLOSE_OFFER_TYPE,
     TenTenOneCollaborativeCloseOffer,
@@ -684,6 +956,7 @@ impl_type!(
 
 impl_serde_writeable!(Order);
 impl_serde_writeable!(FilledWith);
+impl_serde_writeable!(OrderReason);
 
 fn read_tentenone_message<R: ::std::io::Read>(
     msg_type: u16,
@@ -701,11 +974,15 @@ fn read_tentenone_message<R: ::std::io::Read>(
         (SETTLE_CHANNEL_CONFIRM_TYPE, SettleConfirm),
         (SETTLE_CHANNEL_FINALIZE_TYPE, SettleFinalize),
         (RENEW_CHANNEL_OFFER_TYPE, RenewOffer),
-        (ROLLOVER_CHANNEL_OFFER_TYPE, RolloverOffer),
         (RENEW_CHANNEL_ACCEPT_TYPE, RenewAccept),
         (RENEW_CHANNEL_CONFIRM_TYPE, RenewConfirm),
         (RENEW_CHANNEL_FINALIZE_TYPE, RenewFinalize),
         (RENEW_CHANNEL_REVOKE_TYPE, RenewRevoke),
+        (ROLLOVER_CHANNEL_OFFER_TYPE, RolloverOffer),
+        (ROLLOVER_CHANNEL_ACCEPT_TYPE, RolloverAccept),
+        (ROLLOVER_CHANNEL_CONFIRM_TYPE, RolloverConfirm),
+        (ROLLOVER_CHANNEL_FINALIZE_TYPE, RolloverFinalize),
+        (ROLLOVER_CHANNEL_REVOKE_TYPE, RolloverRevoke),
         (COLLABORATIVE_CLOSE_OFFER_TYPE, CollaborativeCloseOffer)
     )
 }

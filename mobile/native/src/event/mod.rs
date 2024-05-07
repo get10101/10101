@@ -4,14 +4,12 @@ use crate::event::event_hub::get;
 use crate::event::subscriber::Subscriber;
 use crate::health::ServiceUpdate;
 use crate::trade::order::Order;
-use crate::trade::order::OrderReason;
 use crate::trade::position::Position;
 use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::TenTenOneConfig;
-use xxi_node::commons::TradeParams;
 
 mod event_hub;
 
@@ -32,8 +30,6 @@ pub enum EventInternal {
     Log(String),
     OrderUpdateNotification(Order),
     WalletInfoUpdateNotification(WalletInfo),
-    // TODO: this doesn't seem to be used anymore
-    OrderFilledWith(Box<TradeParams>),
     PositionUpdateNotification(Position),
     PositionCloseNotification(ContractSymbol),
     AskPriceUpdateNotification(Decimal),
@@ -47,7 +43,9 @@ pub enum EventInternal {
 
 #[derive(Clone, Debug)]
 pub enum BackgroundTask {
-    AsyncTrade(OrderReason),
+    Liquidate(TaskStatus),
+    Expire(TaskStatus),
+    AsyncTrade(TaskStatus),
     Rollover(TaskStatus),
     CollabRevert(TaskStatus),
     RecoverDlc(TaskStatus),
@@ -57,7 +55,7 @@ pub enum BackgroundTask {
 #[derive(Clone, Debug)]
 pub enum TaskStatus {
     Pending,
-    Failed,
+    Failed(String),
     Success,
 }
 
@@ -68,7 +66,6 @@ impl fmt::Display for EventInternal {
             EventInternal::Log(_) => "Log",
             EventInternal::OrderUpdateNotification(_) => "OrderUpdateNotification",
             EventInternal::WalletInfoUpdateNotification(_) => "WalletInfoUpdateNotification",
-            EventInternal::OrderFilledWith(_) => "OrderFilledWith",
             EventInternal::PositionUpdateNotification(_) => "PositionUpdateNotification",
             EventInternal::PositionCloseNotification(_) => "PositionCloseNotification",
             EventInternal::ServiceHealthUpdate(_) => "ServiceHealthUpdate",
@@ -92,7 +89,6 @@ impl From<EventInternal> for EventType {
             EventInternal::WalletInfoUpdateNotification(_) => {
                 EventType::WalletInfoUpdateNotification
             }
-            EventInternal::OrderFilledWith(_) => EventType::OrderFilledWith,
             EventInternal::PositionUpdateNotification(_) => EventType::PositionUpdateNotification,
             EventInternal::PositionCloseNotification(_) => EventType::PositionClosedNotification,
             EventInternal::ServiceHealthUpdate(_) => EventType::ServiceHealthUpdate,

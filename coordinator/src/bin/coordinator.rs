@@ -153,6 +153,15 @@ async fn main() -> Result<()> {
 
     let running = node.start(dlc_event_receiver)?;
 
+    let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
+
+    let notification_service = NotificationService::new(opts.fcm_api_key.clone(), pool.clone());
+
+    let (_handle, auth_users_notifier) = spawn_delivering_messages_to_authenticated_users(
+        notification_service.get_sender(),
+        tx_user_feed.clone(),
+    );
+
     // an internal channel to send updates about our position
     let (tx_position_feed, _rx) = broadcast::channel::<InternalPositionUpdateMessage>(100);
 
@@ -162,6 +171,7 @@ async fn main() -> Result<()> {
         pool.clone(),
         settings.to_node_settings(),
         tx_position_feed.clone(),
+        auth_users_notifier.clone(),
     );
 
     // TODO: Pass the tokio metrics into Prometheus
@@ -244,17 +254,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let (tx_user_feed, _rx) = broadcast::channel::<NewUserMessage>(100);
-
     let (tx_orderbook_feed, _rx) = broadcast::channel(100);
-
-    let notification_service =
-        NotificationService::new(opts.fcm_api_key.clone(), node.pool.clone());
-
-    let (_handle, auth_users_notifier) = spawn_delivering_messages_to_authenticated_users(
-        notification_service.get_sender(),
-        tx_user_feed.clone(),
-    );
 
     let (_handle, trading_sender) = trading::start(
         node.clone(),

@@ -69,6 +69,8 @@ async fn reject_offer() {
     // give the coordinator some time to process the reject message, before submitting the next
     // order.
     tokio::time::sleep(Duration::from_secs(5)).await;
+
+    tracing::info!("Retry channel opening order");
     submit_channel_opening_order(order.clone(), 0, 0);
 
     // Assert that the order was posted

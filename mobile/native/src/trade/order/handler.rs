@@ -5,11 +5,14 @@ use crate::db::maybe_get_open_orders;
 use crate::dlc;
 use crate::dlc::is_dlc_channel_confirmed;
 use crate::event;
+use crate::event::BackgroundTask;
 use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::report_error_to_coordinator;
 use crate::trade::order::orderbook_client::OrderbookClient;
 use crate::trade::order::FailureReason;
 use crate::trade::order::Order;
+use crate::trade::order::OrderReason;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
@@ -70,6 +73,11 @@ pub async fn submit_order(
     submit_order_internal(order, channel_opening_params)
         .await
         .inspect_err(report_error_to_coordinator)
+        .inspect_err(|e| {
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+            ))
+        })
 }
 
 pub async fn submit_order_internal(
@@ -120,6 +128,10 @@ pub async fn submit_order_internal(
 
     set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
+
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::AsyncTrade(TaskStatus::Pending),
+    ));
 
     Ok(order.id)
 }
@@ -274,29 +286,29 @@ pub(crate) fn order_filling(
 }
 
 /// Sets filling order to filled. Returns an error if no order in `Filling`
-pub(crate) fn order_filled() -> Result<Order> {
-    let maybe_order_filling = get_order_in_filling()?;
-    let (order_being_filled, execution_price, matching_fee) = match &maybe_order_filling {
-        Some(
-            order @ Order {
-                state:
-                    OrderState::Filling {
-                        execution_price,
-                        matching_fee,
-                    },
-                ..
-            },
-        ) => (order, execution_price, matching_fee),
-        Some(order) => bail!("Unexpected state: {:?}", order.state),
-        None => bail!("No order to mark as Filled"),
-    };
+pub(crate) fn order_filled(order_id: Option<Uuid>) -> Result<Order> {
+    let order = match order_id {
+        None => get_order_in_filling(),
+        Some(order_id) => db::get_order(order_id),
+    }?
+    .with_context(|| format!("Could not find order. order_id = {order_id:?}"))?;
 
-    let filled_order =
-        set_order_to_filled_and_update_ui(order_being_filled.id, *execution_price, *matching_fee)?;
+    let execution_price = order.execution_price();
+    let matching_fee = order.matching_fee();
 
-    tracing::debug!(order = ?filled_order, "Order filled");
+    if let (Some(execution_price), Some(matching_fee)) = (execution_price, matching_fee) {
+        let filled_order =
+            set_order_to_filled_and_update_ui(order.id, execution_price, matching_fee)?;
 
-    Ok(filled_order)
+        tracing::debug!(order = ?filled_order, "Order filled");
+
+        return Ok(filled_order);
+    }
+
+    tracing::warn!(
+        "Couldn't set order to filling due to missing execution price and / or matching fee"
+    );
+    Ok(order.clone())
 }
 
 /// Update the [`Order`]'s state to [`OrderState::Failed`].
@@ -307,10 +319,27 @@ pub(crate) fn order_failed(
 ) -> Result<()> {
     tracing::error!(?order_id, ?reason, "Failed to execute trade: {error:#}");
 
-    let order_id = match order_id {
-        None => get_order_in_filling()?.map(|order| order.id),
-        Some(order_id) => Some(order_id),
+    let order = match order_id {
+        None => get_order_in_filling(),
+        Some(order_id) => db::get_order(order_id),
+    }?
+    .with_context(|| format!("Could not find order. order_id = {order_id:?}"))
+    .inspect_err(|e| {
+        event::publish(&EventInternal::BackgroundNotification(
+            BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
+        ))
+    })?;
+
+    let task_status = TaskStatus::Failed(format!("{error:#}"));
+    let task = match order.reason {
+        OrderReason::Manual => BackgroundTask::AsyncTrade(task_status),
+        OrderReason::Expired => BackgroundTask::Expire(task_status),
+        OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
+            BackgroundTask::Expire(task_status)
+        }
     };
+
+    event::publish(&EventInternal::BackgroundNotification(task));
 
     if let Some(order_id) = order_id {
         set_order_to_failed_and_update_ui(order_id, reason, None)?;
@@ -332,10 +361,6 @@ pub(crate) fn order_failed(
 
 pub async fn get_orders_for_ui() -> Result<Vec<Order>> {
     db::get_orders_for_ui()
-}
-
-pub fn get_async_order() -> Result<Option<Order>> {
-    db::get_async_order()
 }
 
 pub fn check_open_orders() -> Result<()> {

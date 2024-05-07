@@ -35,6 +35,7 @@ use dlc_manager::ReferenceId;
 use dlc_manager::Storage;
 use time::OffsetDateTime;
 use tokio::task::spawn_blocking;
+use uuid::Uuid;
 
 impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send + 'static>
     Node<D, S, N>
@@ -109,7 +110,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     }
 
     #[cfg(test)]
-    pub fn accept_dlc_channel_offer(&self, channel_id: &DlcChannelId) -> Result<()> {
+    pub fn accept_dlc_channel_offer(
+        &self,
+        order_id: Uuid,
+        channel_id: &DlcChannelId,
+    ) -> Result<()> {
         use crate::message_handler::TenTenOneAcceptChannel;
 
         let channel_id_hex = hex::encode(channel_id);
@@ -121,7 +126,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counter_party),
-            msg: TenTenOneMessage::Accept(TenTenOneAcceptChannel { accept_channel }),
+            msg: TenTenOneMessage::Accept(TenTenOneAcceptChannel {
+                accept_channel,
+                order_id,
+            }),
         });
 
         Ok(())
@@ -273,6 +281,8 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
     pub fn accept_dlc_channel_collaborative_settlement(
         &self,
+        order_id: Uuid,
+        order_reason: commons::OrderReason,
         channel_id: &DlcChannelId,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
@@ -284,7 +294,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counterparty_pk),
-            msg: TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { settle_accept }),
+            msg: TenTenOneMessage::SettleAccept(TenTenOneSettleAccept {
+                settle_accept,
+                order_id,
+                order_reason,
+            }),
         });
 
         Ok(())
@@ -399,7 +413,11 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
     /// channel update offer from the the counterparty.
     // The accept code has diverged on the app side (hence the #[cfg(test)]). Another hint that we
     // should delete most of this crate soon.
-    pub fn accept_dlc_channel_update(&self, channel_id: &DlcChannelId) -> Result<()> {
+    pub fn accept_dlc_channel_update(
+        &self,
+        order_id: Uuid,
+        channel_id: &DlcChannelId,
+    ) -> Result<()> {
         use crate::message_handler::TenTenOneRenewAccept;
 
         let channel_id_hex = hex::encode(channel_id);
@@ -412,7 +430,10 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             &self.dlc_message_handler,
             &self.peer_manager,
             to_secp_pk_30(counter_party),
-            TenTenOneMessage::RenewAccept(TenTenOneRenewAccept { renew_accept }),
+            TenTenOneMessage::RenewAccept(TenTenOneRenewAccept {
+                renew_accept,
+                order_id,
+            }),
         );
 
         Ok(())
