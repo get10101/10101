@@ -46,15 +46,34 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
 
   bool timeout = false;
 
+  Image? coverImage;
+
   @override
   void dispose() {
-    _timeout?.cancel();
     super.dispose();
+    _timeout?.cancel();
+
+    // we need to evict the image cache to ensure that the gif is re-run next time.
+    coverImage?.image.evict();
   }
 
   @override
   Widget build(BuildContext context) {
     bool isPending = widget.task.status == TaskStatus.pending;
+
+    // we need to evict the image cache to ensure that the gif is re-run next time.
+    coverImage?.image.evict();
+
+    coverImage = Image.asset(
+      widget.successAnim != null && widget.task.status == TaskStatus.success
+          ? widget.successAnim!
+          : switch (widget.task.status) {
+              TaskStatus.pending => AppAnim.loading,
+              TaskStatus.failed => AppAnim.error,
+              TaskStatus.success => AppAnim.success,
+            },
+      fit: BoxFit.cover,
+    );
 
     if (_timeout != null) {
       // cancel already running timeout timer if we receive a new update.
@@ -109,16 +128,7 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
               decoration: const BoxDecoration(
                 color: Colors.white,
               ),
-              child: Image.asset(
-                widget.successAnim != null && widget.task.status == TaskStatus.success
-                    ? widget.successAnim!
-                    : switch (widget.task.status) {
-                        TaskStatus.pending => AppAnim.loading,
-                        TaskStatus.failed => AppAnim.error,
-                        TaskStatus.success => AppAnim.success,
-                      },
-                fit: BoxFit.cover,
-              ),
+              child: coverImage,
             ),
             const SizedBox(height: 15),
             if (widget.showSuccessTitle) buildTitle(widget.task.status),
