@@ -16,7 +16,6 @@ use futures::SinkExt;
 use futures::TryStreamExt;
 use parking_lot::Mutex;
 use rust_decimal::Decimal;
-use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -35,7 +34,8 @@ use xxi_node::commons::OrderState;
 use xxi_node::commons::OrderbookRequest;
 use xxi_node::commons::Signature;
 
-const WS_RECONNECT_TIMEOUT: Duration = Duration::from_millis(200);
+// Set to the same timeout as the p2p connection reconnect
+const WS_RECONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub fn subscribe(
     secret_key: SecretKey,
@@ -65,7 +65,6 @@ pub fn subscribe(
             Some(fcm_token)
         };
 
-        let mut round = 1;
         loop {
             let url = url.clone();
             let fcm_token = fcm_token.clone();
@@ -127,8 +126,6 @@ pub fn subscribe(
                         }
                     }
 
-                    round = 1;
-
                     // abort handler on sending messages over a lost websocket connection.
                     handle.abort();
                 }
@@ -147,14 +144,12 @@ pub fn subscribe(
             // coordinator returns an error on the websocket which the app is not ready to process.
             //
             // Note, this is the same issue for why we originally moved to 10101 Messages, we should
-            // think about a similar way to return protocol erros via the p2p connection.
-            let retry_interval = min(Duration::from_secs(1), WS_RECONNECT_TIMEOUT.mul_f32(round as f32));
+            // think about a similar way to return protocol errors via the p2p connection.
             tracing::debug!(
-                ?retry_interval,
+                ?WS_RECONNECT_TIMEOUT,
                 "Reconnecting to orderbook WS after timeout"
             );
-            tokio::time::sleep(retry_interval).await;
-            round *= 2;
+            tokio::time::sleep(WS_RECONNECT_TIMEOUT).await;
         }
     });
 
