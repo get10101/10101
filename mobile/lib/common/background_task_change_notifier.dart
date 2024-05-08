@@ -7,7 +7,7 @@ import 'package:get_10101/logger/logger.dart';
 class Stack<E> {
   final _list = <E>[];
 
-  void push(E value) => _list.add(value);
+  void push(E value) => _list.insert(0, value);
 
   E pop() => _list.removeLast();
 

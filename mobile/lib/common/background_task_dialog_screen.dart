@@ -64,7 +64,13 @@ class _BackgroundTaskDialogScreenState extends State<BackgroundTaskDialogScreen>
             pageBuilder: (context, _, __) {
               // watch task updates from within the dialog.
               try {
-                final task = context.watch<BackgroundTaskChangeNotifier>().events.pop();
+                final events = context.watch<BackgroundTaskChangeNotifier>().events;
+                var task = events.pop();
+                while (events.isNotEmpty) {
+                  // we might have received very fast events. In that case we pop until we are at
+                  // the latest event.
+                  task = events.pop();
+                }
                 if (activeTask != null && task.type != activeTask!.type) {
                   logger.w("Received another task event $task while $activeTask is still active!");
                 }
