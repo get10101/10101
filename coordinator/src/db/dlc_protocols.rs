@@ -113,6 +113,9 @@ pub(crate) fn get_dlc_protocol(
 
     let protocol = dlc_protocol::DlcProtocol {
         id: dlc_protocol.protocol_id.into(),
+        previous_id: dlc_protocol
+            .previous_protocol_id
+            .map(|previous_id| previous_id.into()),
         timestamp: dlc_protocol.timestamp,
         channel_id: DlcChannelId::from_hex(&dlc_protocol.channel_id).expect("valid dlc channel id"),
         contract_id: dlc_protocol
@@ -132,7 +135,7 @@ pub(crate) fn set_dlc_protocol_state_to_failed(
 ) -> QueryResult<()> {
     let affected_rows = diesel::update(dlc_protocols::table)
         .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
-        .set((dlc_protocols::protocol_state.eq(DlcProtocolState::Failed),))
+        .set(dlc_protocols::protocol_state.eq(DlcProtocolState::Failed))
         .execute(conn)?;
 
     if affected_rows == 0 {

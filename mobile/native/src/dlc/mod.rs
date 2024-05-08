@@ -652,7 +652,9 @@ pub async fn close_channel(is_force_close: bool) -> Result<()> {
 
     node.inner
         .close_dlc_channel(channel_details.channel_id, is_force_close)
-        .await
+        .await?;
+
+    Ok(())
 }
 
 pub fn get_signed_dlc_channels() -> Result<Vec<SignedChannel>> {

@@ -285,8 +285,7 @@ async fn main() -> Result<()> {
         network,
     );
 
-    node.spawn_shadow_dlc_channels_task();
-    node.spawn_watch_closing_channels();
+    node.spawn_watch_dlc_channel_events_task();
 
     tokio::spawn({
         let node = node.clone();

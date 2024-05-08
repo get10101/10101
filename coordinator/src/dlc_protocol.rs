@@ -104,6 +104,7 @@ impl From<ProtocolId> for Uuid {
 
 pub struct DlcProtocol {
     pub id: ProtocolId,
+    pub previous_id: Option<ProtocolId>,
     pub timestamp: OffsetDateTime,
     pub channel_id: DlcChannelId,
     pub contract_id: Option<ContractId>,
@@ -348,7 +349,10 @@ impl DlcProtocolExecutor {
                         channel_id,
                     )
                 }
-                DlcProtocolType::Close { .. } | DlcProtocolType::ForceClose { .. } => {
+                DlcProtocolType::Close { .. } => {
+                    self.finish_close_channel_dlc_protocol(conn, trader_id, protocol_id, channel_id)
+                }
+                DlcProtocolType::ForceClose { .. } => {
                     debug_assert!(false, "Finishing unexpected dlc protocol types");
                     Ok(())
                 }
@@ -599,6 +603,19 @@ impl DlcProtocolExecutor {
 
         db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)?;
         Ok(())
+    }
+
+    /// Completes the rollover dlc protocol as successful and updates the 10101 meta data
+    /// accordingly in a single database transaction.
+    fn finish_close_channel_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trader: &PublicKey,
+        protocol_id: ProtocolId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        tracing::debug!(%trader, %protocol_id, "Finalizing channel close");
+        db::dlc_protocols::set_dlc_protocol_state_to_success(conn, protocol_id, None, channel_id)
     }
 }
 

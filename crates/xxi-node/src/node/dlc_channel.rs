@@ -140,7 +140,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         &self,
         channel_id: DlcChannelId,
         is_force_close: bool,
-    ) -> Result<()> {
+    ) -> Result<ReferenceId> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(
@@ -161,7 +161,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 .await?
         }
 
-        Ok(())
+        Ok(reference_id)
     }
 
     fn force_close_dlc_channel(
