@@ -18,7 +18,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Amount;
 use bitcoin::Network;
-use bitcoin_old::hashes::hex::ToHex;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
@@ -30,7 +29,6 @@ use dlc_manager::payout_curve::PayoutPoint;
 use dlc_manager::payout_curve::PolynomialPayoutCurvePiece;
 use dlc_manager::payout_curve::RoundingInterval;
 use dlc_manager::payout_curve::RoundingIntervals;
-use dlc_manager::ReferenceId;
 use futures::Future;
 use rand::distributions::Alphanumeric;
 use rand::thread_rng;
@@ -48,7 +46,6 @@ use std::sync::Arc;
 use std::sync::Once;
 use std::time::Duration;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 mod bitcoind;
 mod dlc_channel;
@@ -435,19 +432,6 @@ fn dummy_contract_input(
             },
         }],
     }
-}
-
-pub fn new_reference_id() -> ReferenceId {
-    let uuid = Uuid::new_v4();
-    let hex = uuid.as_simple().to_hex();
-    let bytes = hex.as_bytes();
-
-    debug_assert!(bytes.len() == 32, "length must be exactly 32 bytes");
-
-    let mut array = [0u8; 32];
-    array.copy_from_slice(bytes);
-
-    array
 }
 
 pub fn dummy_order() -> commons::Order {

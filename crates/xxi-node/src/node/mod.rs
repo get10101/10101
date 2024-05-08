@@ -55,6 +55,7 @@ pub mod peer_manager;
 
 pub use crate::message_handler::tentenone_message_name;
 pub use ::dlc_manager as rust_dlc_manager;
+use ::dlc_manager::ReferenceId;
 pub use dlc_manager::signed_channel_state_name;
 pub use dlc_manager::DlcManager;
 use lightning::ln::peer_handler::ErroringMessageHandler;
@@ -64,6 +65,7 @@ pub use oracle::OracleInfo;
 use secp256k1_zkp::SECP256K1;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
+use uuid::Uuid;
 
 /// A node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
@@ -424,4 +426,17 @@ impl Display for NodeInfo {
 
         format!("{scheme}://{}@{}", self.pubkey, self.address).fmt(f)
     }
+}
+
+pub fn new_reference_id() -> ReferenceId {
+    let uuid = Uuid::new_v4();
+    let hex = hex::encode(uuid.as_simple().as_ref());
+    let bytes = hex.as_bytes();
+
+    debug_assert!(bytes.len() == 32, "length must be exactly 32 bytes");
+
+    let mut array = [0u8; 32];
+    array.copy_from_slice(bytes);
+
+    array
 }

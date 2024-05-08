@@ -1,6 +1,7 @@
 use crate::bitcoin_conversion::to_secp_pk_29;
 use crate::node::dlc_channel::estimated_dlc_channel_fee_reserve;
 use crate::node::event::NodeEvent;
+use crate::node::new_reference_id;
 use crate::node::InMemoryStore;
 use crate::node::Node;
 use crate::node::RunningNode;
@@ -11,7 +12,6 @@ use crate::tests::dummy_contract_input;
 use crate::tests::dummy_filled_with;
 use crate::tests::dummy_order;
 use crate::tests::init_tracing;
-use crate::tests::new_reference_id;
 use crate::tests::wait_until;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;

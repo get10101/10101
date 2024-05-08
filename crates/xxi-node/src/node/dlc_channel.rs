@@ -10,6 +10,7 @@ use crate::message_handler::TenTenOneRolloverOffer;
 use crate::message_handler::TenTenOneSettleAccept;
 use crate::message_handler::TenTenOneSettleOffer;
 use crate::node::event::NodeEvent;
+use crate::node::new_reference_id;
 use crate::node::Node;
 use crate::node::Storage as LnDlcStorage;
 use crate::on_chain_wallet::BdkStorage;
@@ -152,17 +153,22 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             .get_signed_dlc_channel(|channel| channel.channel_id == channel_id)?
             .context("DLC channel to close not found")?;
 
+        let reference_id = new_reference_id();
         if is_force_close {
-            self.force_close_dlc_channel(channel)?;
+            self.force_close_dlc_channel(channel, Some(reference_id))?;
         } else {
-            self.propose_dlc_channel_collaborative_close(channel)
+            self.propose_dlc_channel_collaborative_close(channel, Some(reference_id))
                 .await?
         }
 
         Ok(())
     }
 
-    fn force_close_dlc_channel(&self, channel: SignedChannel) -> Result<()> {
+    fn force_close_dlc_channel(
+        &self,
+        channel: SignedChannel,
+        reference_id: Option<ReferenceId>,
+    ) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_hex = hex::encode(channel_id);
 
@@ -172,12 +178,16 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         );
 
         self.dlc_manager
-            .force_close_channel(&channel_id, channel.reference_id)?;
+            .force_close_channel(&channel_id, reference_id)?;
         Ok(())
     }
 
     /// Close a DLC channel on-chain collaboratively, if there is no open position.
-    async fn propose_dlc_channel_collaborative_close(&self, channel: SignedChannel) -> Result<()> {
+    async fn propose_dlc_channel_collaborative_close(
+        &self,
+        channel: SignedChannel,
+        reference_id: Option<ReferenceId>,
+    ) -> Result<()> {
         let counterparty = channel.counter_party;
 
         match channel.state {
@@ -196,7 +206,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                             .offer_collaborative_close(
                                 &channel.channel_id,
                                 counter_payout,
-                                channel.reference_id,
+                                reference_id,
                             )
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
