@@ -70,6 +70,10 @@ pub async fn submit_order(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
 ) -> Result<Uuid, SubmitOrderError> {
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::AsyncTrade(TaskStatus::Pending),
+    ));
+
     submit_order_internal(order, channel_opening_params)
         .await
         .inspect_err(report_error_to_coordinator)
@@ -128,10 +132,6 @@ pub async fn submit_order_internal(
 
     set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
-
-    event::publish(&EventInternal::BackgroundNotification(
-        BackgroundTask::AsyncTrade(TaskStatus::Pending),
-    ));
 
     Ok(order.id)
 }
