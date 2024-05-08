@@ -8,6 +8,7 @@ enum TaskType {
   collaborativeRevert,
   fullSync,
   recover,
+  closeChannel,
   unknown
 }
 

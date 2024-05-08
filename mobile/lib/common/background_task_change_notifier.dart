@@ -64,6 +64,11 @@ class BackgroundTaskChangeNotifier extends ChangeNotifier implements Subscriber 
         events.push(BackgroundTask(type: TaskType.liquidate, status: taskStatus, error: error));
         notifyListeners();
       }
+
+      if (event.field0 is bridge.BackgroundTask_CloseChannel) {
+        events.push(BackgroundTask(type: TaskType.closeChannel, status: taskStatus, error: error));
+        notifyListeners();
+      }
     }
   }
 }

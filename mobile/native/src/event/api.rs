@@ -50,6 +50,8 @@ pub enum BackgroundTask {
     CollabRevert(TaskStatus),
     /// The app is performing a full sync of the on-chain wallet.
     FullSync(TaskStatus),
+    /// The app is closing its dlc channel
+    CloseChannel(TaskStatus),
 }
 
 impl From<EventInternal> for Event {
@@ -150,6 +152,9 @@ impl From<event::BackgroundTask> for BackgroundTask {
                 BackgroundTask::CollabRevert(status.into())
             }
             event::BackgroundTask::FullSync(status) => BackgroundTask::FullSync(status.into()),
+            event::BackgroundTask::CloseChannel(status) => {
+                BackgroundTask::CloseChannel(status.into())
+            }
         }
     }
 }

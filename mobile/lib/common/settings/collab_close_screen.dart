@@ -4,7 +4,6 @@ import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
-import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:provider/provider.dart';
@@ -106,10 +105,7 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                           ),
                           onConfirmation: () async {
                             final messenger = ScaffoldMessenger.of(context);
-                            rust.api
-                                .closeChannel()
-                                .then((value) => GoRouter.of(context).go(WalletScreen.route))
-                                .catchError((e) {
+                            rust.api.closeChannel().catchError((e) {
                               showSnackBar(
                                 messenger,
                                 e.toString(),

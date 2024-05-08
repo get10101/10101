@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/background_task_change_notifier.dart';
 import 'package:get_10101/common/domain/background_task.dart';
 import 'package:get_10101/common/task_status_dialog.dart';
+import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/logger/logger.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:convert';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -158,6 +160,22 @@ class _BackgroundTaskDialogScreenState extends State<BackgroundTaskDialogScreen>
             TaskStatus.failed => const Text("Oops, something went wrong!")
           },
           onClose: () => activeTask = null),
+      TaskType.closeChannel => TaskStatusDialog(
+          task: task!,
+          content: switch (task.status) {
+            TaskStatus.pending => const Text(
+                "Your channel is getting closed collaboratively.\n\nPlease do not close the app while the order is executed."),
+            TaskStatus.success => const Text(
+                "Your channel has been closed collaboratively.\n\nIf you don't see your funds as incoming on-chain transaction, try to run a full-sync (Settings > Wallet Settings)"),
+            TaskStatus.failed => const Text("Oops, something went wrong!")
+          },
+          onClose: () {
+            activeTask = null;
+            // we need to delay routing a bit as we might still be processing the addPostFrameCallback.
+            Future.delayed(const Duration(milliseconds: 250), () {
+              GoRouter.of(context).go(WalletScreen.route);
+            });
+          }),
       TaskType.unknown || null => null
     };
   }
