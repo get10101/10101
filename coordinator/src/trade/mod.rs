@@ -378,7 +378,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &temporary_channel_id,
             DlcProtocolType::open_channel(trade_params, protocol_id),
         )?;
@@ -557,7 +557,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &channel.get_id(),
             DlcProtocolType::open_position(trade_params, protocol_id),
         )?;
@@ -730,7 +730,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &channel.get_id(),
             DlcProtocolType::resize_position(trade_params, protocol_id, realized_pnl),
         )?;
@@ -886,7 +886,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &contract_id,
+            Some(&contract_id),
             &channel.get_id(),
             DlcProtocolType::settle(trade_params, protocol_id),
         )?;

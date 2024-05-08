@@ -92,10 +92,11 @@ impl Node {
             // confirmations.
             DlcChannelEvent::Closed(_) | DlcChannelEvent::CounterClosed(_) => {
                 let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
+                let contract_id = &dlc_protocol.contract_id.context("Missing contract id")?;
                 let trader_id = dlc_protocol.trader;
                 let contract = self
                     .inner
-                    .get_contract_by_id(&dlc_protocol.contract_id)?
+                    .get_contract_by_id(contract_id)?
                     .context("Missing contract")?;
 
                 let position = db::positions::Position::get_position_by_trader(

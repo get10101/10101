@@ -68,7 +68,7 @@ pub(crate) struct DlcProtocol {
     pub protocol_id: Uuid,
     pub previous_protocol_id: Option<Uuid>,
     pub channel_id: String,
-    pub contract_id: String,
+    pub contract_id: Option<String>,
     pub protocol_state: DlcProtocolState,
     pub trader_pubkey: String,
     pub timestamp: OffsetDateTime,
@@ -115,7 +115,9 @@ pub(crate) fn get_dlc_protocol(
         id: dlc_protocol.protocol_id.into(),
         timestamp: dlc_protocol.timestamp,
         channel_id: DlcChannelId::from_hex(&dlc_protocol.channel_id).expect("valid dlc channel id"),
-        contract_id: ContractId::from_hex(&dlc_protocol.contract_id).expect("valid contract id"),
+        contract_id: dlc_protocol
+            .contract_id
+            .map(|cid| ContractId::from_hex(cid).expect("valid contract id")),
         trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
         protocol_state: dlc_protocol.protocol_state.into(),
         protocol_type,
@@ -143,14 +145,14 @@ pub(crate) fn set_dlc_protocol_state_to_failed(
 pub(crate) fn set_dlc_protocol_state_to_success(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
-    contract_id: &ContractId,
+    contract_id: Option<&ContractId>,
     channel_id: &DlcChannelId,
 ) -> QueryResult<()> {
     let affected_rows = diesel::update(dlc_protocols::table)
         .filter(dlc_protocols::protocol_id.eq(protocol_id.to_uuid()))
         .set((
             dlc_protocols::protocol_state.eq(DlcProtocolState::Success),
-            dlc_protocols::contract_id.eq(hex::encode(contract_id)),
+            dlc_protocols::contract_id.eq(contract_id.map(hex::encode)),
             dlc_protocols::channel_id.eq(hex::encode(channel_id)),
         ))
         .execute(conn)?;
@@ -166,7 +168,7 @@ pub(crate) fn create(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
     previous_protocol_id: Option<ProtocolId>,
-    contract_id: &ContractId,
+    contract_id: Option<&ContractId>,
     channel_id: &DlcChannelId,
     protocol_type: dlc_protocol::DlcProtocolType,
     trader: &PublicKey,
@@ -175,7 +177,7 @@ pub(crate) fn create(
         .values(&(
             dlc_protocols::protocol_id.eq(protocol_id.to_uuid()),
             dlc_protocols::previous_protocol_id.eq(previous_protocol_id.map(|ppid| ppid.to_uuid())),
-            dlc_protocols::contract_id.eq(hex::encode(contract_id)),
+            dlc_protocols::contract_id.eq(contract_id.map(hex::encode)),
             dlc_protocols::channel_id.eq(hex::encode(channel_id)),
             dlc_protocols::protocol_state.eq(DlcProtocolState::Pending),
             dlc_protocols::trader_pubkey.eq(trader.to_string()),

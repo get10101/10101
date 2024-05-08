@@ -262,7 +262,7 @@ impl Node {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &contract_id,
+            Some(&contract_id),
             dlc_channel_id,
             DlcProtocolType::Rollover {
                 trader: rollover.counterparty_pubkey,

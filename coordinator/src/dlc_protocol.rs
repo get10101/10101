@@ -106,7 +106,7 @@ pub struct DlcProtocol {
     pub id: ProtocolId,
     pub timestamp: OffsetDateTime,
     pub channel_id: DlcChannelId,
-    pub contract_id: ContractId,
+    pub contract_id: Option<ContractId>,
     pub trader: PublicKey,
     pub protocol_state: DlcProtocolState,
     pub protocol_type: DlcProtocolType,
@@ -247,7 +247,7 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: &ContractId,
+        contract_id: Option<&ContractId>,
         channel_id: &DlcChannelId,
         protocol_type: DlcProtocolType,
     ) -> Result<()> {
@@ -325,15 +325,14 @@ impl DlcProtocolExecutor {
                     )
                 }
                 DlcProtocolType::Settle { trade_params } => {
-                    let settled_contract = &dlc_protocol.contract_id;
-
+                    let settled_contract = dlc_protocol.contract_id;
                     self.finish_close_trade_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
                         // If the contract got settled, we do not get a new contract id, hence we
                         // copy the contract id of the settled contract.
-                        settled_contract,
+                        settled_contract.as_ref(),
                         channel_id,
                     )
                 }
@@ -395,7 +394,7 @@ impl DlcProtocolExecutor {
         conn: &mut PgConnection,
         trade_params: &TradeParams,
         protocol_id: ProtocolId,
-        settled_contract: &ContractId,
+        settled_contract: Option<&ContractId>,
         channel_id: &DlcChannelId,
     ) -> QueryResult<()> {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
@@ -501,7 +500,7 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
@@ -547,7 +546,7 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
@@ -594,7 +593,7 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
