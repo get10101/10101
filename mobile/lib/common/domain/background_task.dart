@@ -62,39 +62,6 @@ class BackgroundTask {
     return bridge.BackgroundTask_Rollover(TaskStatus.apiDummy());
   }
 
-  static BackgroundTask fromApi(bridge.BackgroundTask task) {
-    final taskType = getTaskType(task);
-
-    final (taskStatus, error) = TaskStatus.fromApi(task.field0);
-    return BackgroundTask(type: taskType, status: taskStatus, error: error);
-  }
-
-  static TaskType getTaskType(bridge.BackgroundTask task) {
-    if (task is bridge.BackgroundTask_RecoverDlc) {
-      return TaskType.recover;
-    }
-    if (task is bridge.BackgroundTask_Rollover) {
-      return TaskType.rollover;
-    }
-    if (task is bridge.BackgroundTask_CollabRevert) {
-      return TaskType.collaborativeRevert;
-    }
-    if (task is bridge.BackgroundTask_FullSync) {
-      return TaskType.fullSync;
-    }
-    if (task is bridge.BackgroundTask_AsyncTrade) {
-      return TaskType.asyncTrade;
-    }
-    if (task is bridge.BackgroundTask_Expire) {
-      return TaskType.expire;
-    }
-    if (task is bridge.BackgroundTask_Liquidate) {
-      return TaskType.liquidate;
-    }
-
-    return TaskType.unknown;
-  }
-
   @override
   String toString() {
     return "$type ($status)";
