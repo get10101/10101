@@ -173,11 +173,11 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
       TradeAction.closePosition => RichText(
           text: TextSpan(
               text:
-                  '\nBy confirming, a market order will be created. Once the order is matched, your position will be closed.',
+                  'By confirming, a market order will be created. Once the order is matched, your position will be closed.',
               style: DefaultTextStyle.of(context).style)),
       TradeAction.openChannel || TradeAction.trade => RichText(
           text: TextSpan(
-            text: '\nBy confirming, a market order will be created. Once the order is matched, ',
+            text: 'By confirming, a market order will be created. Once the order is matched, ',
             style: DefaultTextStyle.of(context).style,
             children: <TextSpan>[
               TextSpan(
@@ -188,7 +188,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
         ),
       TradeAction.reducePosition => RichText(
           text: TextSpan(
-            text: '\nBy confirming, a market order will be created reducing your position to ',
+            text: 'By confirming, a market order will be created reducing your position to ',
             style: DefaultTextStyle.of(context).style,
             children: <TextSpan>[
               TextSpan(
@@ -200,7 +200,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
       TradeAction.changeDirection => RichText(
           text: TextSpan(
             text:
-                '\nBy confirming, a market order will be created changing the direction of your position to ',
+                'By confirming, a market order will be created changing the direction of your position to ',
             style: DefaultTextStyle.of(context).style,
             children: <TextSpan>[
               TextSpan(
@@ -315,20 +315,22 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
             description,
             const Spacer(),
             ConfirmationSlider(
               key: sliderKey,
-              text: "Swipe to confirm ${direction.nameU}",
-              textStyle: TextStyle(color: color),
-              height: 40,
+              text: "Swipe to confirm",
+              textStyle: TextStyle(fontSize: 18, color: color),
+              height: 50,
+              width: MediaQuery.of(context).size.width * 0.9,
               foregroundColor: color,
               sliderButtonContent: Container(
                 key: sliderButtonKey,
                 child: const Icon(
                   Icons.chevron_right,
                   color: Colors.white,
-                  size: 20,
+                  size: 25,
                 ),
               ),
               onConfirmation: onConfirmation,

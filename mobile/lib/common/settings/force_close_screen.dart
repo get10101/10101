@@ -82,12 +82,13 @@ class _ForceCloseScreenState extends State<ForceCloseScreen> {
                     child: ConfirmationSlider(
                         text: "Swipe to force-close",
                         textStyle: const TextStyle(color: Colors.black87, fontSize: 18),
-                        height: 40,
+                        height: 50,
+                        width: MediaQuery.of(context).size.width * 0.9,
                         foregroundColor: Colors.red,
                         sliderButtonContent: const Icon(
                           Icons.chevron_right,
                           color: Colors.white,
-                          size: 20,
+                          size: 25,
                         ),
                         onConfirmation: () async {
                           final messenger = ScaffoldMessenger.of(context);

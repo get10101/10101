@@ -97,12 +97,13 @@ class _CollabCloseScreenState extends State<CollabCloseScreen> {
                       child: ConfirmationSlider(
                           text: "Swipe to collab-close",
                           textStyle: const TextStyle(color: Colors.black87, fontSize: 18),
-                          height: 40,
+                          width: MediaQuery.of(context).size.width * 0.9,
+                          height: 50,
                           foregroundColor: tenTenOnePurple,
                           sliderButtonContent: const Icon(
                             Icons.chevron_right,
                             color: Colors.white,
-                            size: 20,
+                            size: 25,
                           ),
                           onConfirmation: () async {
                             final messenger = ScaffoldMessenger.of(context);
