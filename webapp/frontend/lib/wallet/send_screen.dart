@@ -6,6 +6,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/text_input_field.dart';
 import 'package:get_10101/change_notifier/wallet_change_notifier.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:provider/provider.dart';
 
 class SendScreen extends StatefulWidget {
@@ -132,7 +133,9 @@ class _SendScreenState extends State<SendScreen> {
 
                                   showSnackBar(messenger, "Payment has been sent.");
                                 } catch (e) {
-                                  showSnackBar(messenger, "Failed to send payment. $e");
+                                  logger.e("Failed to send payment ${e.toString()}");
+                                  showSnackBar(
+                                      messenger, "Failed to send payment. ${e.toString()}");
                                 }
                               }
                             : null,
