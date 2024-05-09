@@ -1,7 +1,6 @@
 use crate::db;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
-use crate::dlc_protocol::ProtocolId;
 use crate::node::Node;
 use crate::position::models::PositionState;
 use anyhow::bail;
@@ -32,6 +31,7 @@ use tokio::sync::broadcast::error::RecvError;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_txid_30;
 use xxi_node::node::event::NodeEvent;
+use xxi_node::node::ProtocolId;
 use xxi_node::storage::DlcChannelEvent;
 
 pub enum DlcChannelState {
@@ -68,17 +68,15 @@ impl Node {
         is_force_close: bool,
     ) -> Result<()> {
         let channel = self.inner.get_dlc_channel_by_id(&channel_id)?;
-        let previous_id = channel.get_reference_id();
-        let previous_id = match previous_id {
-            Some(previous_id) => Some(ProtocolId::try_from(previous_id)?),
-            None => None,
-        };
+        let previous_id = channel
+            .get_reference_id()
+            .map(ProtocolId::try_from)
+            .transpose()?;
 
-        let reference_id = self
+        let protocol_id = self
             .inner
             .close_dlc_channel(channel_id, is_force_close)
             .await?;
-        let protocol_id = ProtocolId::try_from(reference_id)?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
         protocol_executor.start_dlc_protocol(

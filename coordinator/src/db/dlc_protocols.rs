@@ -1,6 +1,5 @@
 use crate::db;
 use crate::dlc_protocol;
-use crate::dlc_protocol::ProtocolId;
 use crate::schema::dlc_protocols;
 use crate::schema::sql_types::ProtocolStateType;
 use crate::schema::sql_types::ProtocolTypeType;
@@ -21,6 +20,7 @@ use std::any::TypeId;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::node::ProtocolId;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression, Eq, Hash)]
 #[diesel(sql_type = ProtocolStateType)]

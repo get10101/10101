@@ -1,7 +1,6 @@
 use crate::db;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
-use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
@@ -45,6 +44,7 @@ use xxi_node::message_handler::TenTenOneSignChannel;
 use xxi_node::node;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::tentenone_message_name;
+use xxi_node::node::ProtocolId;
 use xxi_node::node::RunningNode;
 
 pub mod channel;
@@ -580,11 +580,10 @@ impl Node {
         let protocol_id = close_offer.reference_id.context("Missing reference id")?;
         let protocol_id = ProtocolId::try_from(protocol_id)?;
 
-        let previous_id = channel.get_reference_id();
-        let previous_id = match previous_id {
-            Some(previous_id) => Some(ProtocolId::try_from(previous_id)?),
-            None => None,
-        };
+        let previous_id = channel
+            .get_reference_id()
+            .map(ProtocolId::try_from)
+            .transpose()?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
         protocol_executor.start_dlc_protocol(

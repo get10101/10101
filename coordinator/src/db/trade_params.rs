@@ -1,5 +1,4 @@
 use crate::dlc_protocol;
-use crate::dlc_protocol::ProtocolId;
 use crate::orderbook::db::custom_types::Direction;
 use crate::schema::trade_params;
 use bitcoin::secp256k1::PublicKey;
@@ -14,6 +13,7 @@ use diesel::RunQueryDsl;
 use std::str::FromStr;
 use uuid::Uuid;
 use xxi_node::commons;
+use xxi_node::node::ProtocolId;
 
 #[derive(Queryable, Debug)]
 #[diesel(table_name = trade_params)]
