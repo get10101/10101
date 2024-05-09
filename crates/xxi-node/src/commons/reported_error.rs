@@ -6,4 +6,5 @@ use serde::Serialize;
 pub struct ReportedError {
     pub trader_pk: PublicKey,
     pub msg: String,
+    pub version: Option<String>,
 }

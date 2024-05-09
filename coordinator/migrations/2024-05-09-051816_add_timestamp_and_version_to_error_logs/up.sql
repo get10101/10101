@@ -1,0 +1,5 @@
+-- Your SQL goes here
+ALTER TABLE reported_errors
+    ADD COLUMN timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE reported_errors
+    ADD COLUMN version TEXT NOT NULL DEFAULT '<2.3.1';
