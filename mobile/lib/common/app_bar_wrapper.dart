@@ -4,6 +4,7 @@ import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/features/trade/contract_symbol_icon.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/main.dart';
 import 'package:go_router/go_router.dart';
 
 class AppBarWrapper extends StatelessWidget {
@@ -30,7 +31,7 @@ class AppBarWrapper extends StatelessWidget {
       child: AppBar(
           centerTitle: true,
           elevation: 0,
-          backgroundColor: const Color(0xFFFAFAFA),
+          backgroundColor: appBackgroundColor,
           iconTheme: const IconThemeData(color: tenTenOnePurple, size: appBarHeight - 8.0),
           leading: leadingButton,
           title: location == TradeScreen.route

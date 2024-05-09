@@ -1,4 +1,3 @@
-import 'package:candlesticks/candlesticks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
@@ -11,15 +10,12 @@ import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/model.dart';
-@GenerateNiceMocks([MockSpec<CandlestickService>()])
-import 'package:get_10101/features/trade/application/candlestick_service.dart';
 @GenerateNiceMocks([MockSpec<OrderService>()])
 import 'package:get_10101/features/trade/application/order_service.dart';
 @GenerateNiceMocks([MockSpec<PositionService>()])
 import 'package:get_10101/features/trade/application/position_service.dart';
 @GenerateNiceMocks([MockSpec<TradeValuesService>()])
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
-import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -82,7 +78,6 @@ void main() {
   MockTradeValuesService tradeValueService = MockTradeValuesService();
   MockChannelInfoService channelConstraintsService = MockChannelInfoService();
   MockWalletService walletService = MockWalletService();
-  MockCandlestickService candlestickService = MockCandlestickService();
   MockDlcChannelService dlcChannelService = MockDlcChannelService();
   MockOrderService orderService = MockOrderService();
 
@@ -128,17 +123,6 @@ void main() {
             maintenanceMarginRate: 0.1,
             orderMatchingFeeRate: 0.003));
 
-    when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
-      return getDummyCandles(1000);
-    });
-    when(candlestickService.fetchCandles(1)).thenAnswer((_) async {
-      return getDummyCandles(1);
-    });
-
-    CandlestickChangeNotifier candlestickChangeNotifier =
-        CandlestickChangeNotifier(candlestickService);
-    candlestickChangeNotifier.initialize();
-
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 
     WalletChangeNotifier walletChangeNotifier = WalletChangeNotifier(walletService);
@@ -168,7 +152,6 @@ void main() {
       ChangeNotifierProvider(create: (context) => positionChangeNotifier),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
-      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
       ChangeNotifierProvider(create: (context) => configChangeNotifier),
       ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
@@ -255,20 +238,9 @@ void main() {
 
     when(dlcChannelService.getEstimatedFundingTxFee()).thenReturn((Amount(300)));
 
-    when(candlestickService.fetchCandles(1000)).thenAnswer((_) async {
-      return getDummyCandles(1000);
-    });
-    when(candlestickService.fetchCandles(1)).thenAnswer((_) async {
-      return getDummyCandles(1);
-    });
-
     when(dlcChannelService.getDlcChannels()).thenAnswer((_) async {
       return List.filled(1, DlcChannel(id: "foo", state: ChannelState.signed));
     });
-
-    CandlestickChangeNotifier candlestickChangeNotifier =
-        CandlestickChangeNotifier(candlestickService);
-    candlestickChangeNotifier.initialize();
 
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
 
@@ -300,7 +272,6 @@ void main() {
       ChangeNotifierProvider(create: (context) => positionChangeNotifier),
       ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
       ChangeNotifierProvider(create: (context) => walletChangeNotifier),
-      ChangeNotifierProvider(create: (context) => candlestickChangeNotifier),
       ChangeNotifierProvider(create: (context) => configChangeNotifier),
       ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
     ], child: const TestWrapperWithTradeTheme(child: TradeScreen())));
@@ -331,19 +302,4 @@ void main() {
 
     verify(orderService.submitMarketOrder(any, any, any, any, any)).called(1);
   });
-}
-
-List<Candle> getDummyCandles(int amount) {
-  List<Candle> candles = List.empty(growable: true);
-  for (int i = 0; i < amount; i++) {
-    candles.add(Candle(
-      date: DateTime.now(),
-      close: 23.000,
-      high: 24.000,
-      low: 22.000,
-      open: 22.000,
-      volume: 23.000,
-    ));
-  }
-  return candles;
 }

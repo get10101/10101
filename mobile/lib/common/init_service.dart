@@ -6,7 +6,6 @@ import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/tentenone_config.dart';
 import 'package:get_10101/features/brag/meme_service.dart';
-import 'package:get_10101/features/trade/candlestick_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
@@ -16,7 +15,6 @@ import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
-import 'package:get_10101/features/trade/application/candlestick_service.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/position_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
@@ -53,8 +51,6 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
-    ChangeNotifierProvider(
-        create: (context) => CandlestickChangeNotifier(const CandlestickService()).initialize()),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
     ChangeNotifierProvider(create: (context) => BackgroundTaskChangeNotifier()),
