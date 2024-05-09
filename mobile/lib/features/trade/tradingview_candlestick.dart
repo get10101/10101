@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,6 +24,8 @@ class _TradingViewCandlestickState extends State<TradingViewCandlestick> {
   late String html = """<html lang="en"><body><p>Tradingview chart not found</p></body></html>""";
   // this url doesn't matter, it just has to exist
   final baseUrl = WebUri("https://10101.finance/");
+
+  static bool enabled() => Platform.isAndroid || Platform.isIOS;
 
   @override
   void initState() {
@@ -90,37 +94,39 @@ class _TradingViewCandlestickState extends State<TradingViewCandlestick> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        InAppWebView(
-          key: webViewKey,
-          onWebViewCreated: (controller) {
-            webViewController = controller;
-            webViewController!.loadData(data: html, baseUrl: baseUrl, historyUrl: baseUrl);
-          },
-          shouldOverrideUrlLoading: (controller, navigationAction) async {
-            var uri = navigationAction.request.url!;
+    return enabled()
+        ? Stack(
+            children: [
+              InAppWebView(
+                key: webViewKey,
+                onWebViewCreated: (controller) {
+                  webViewController = controller;
+                  webViewController!.loadData(data: html, baseUrl: baseUrl, historyUrl: baseUrl);
+                },
+                shouldOverrideUrlLoading: (controller, navigationAction) async {
+                  var uri = navigationAction.request.url!;
 
-            if (uri.toString().startsWith("https://www.tradingview.com/chart")) {
-              // this is the link to the external chart, we want to open this in an external window
-              if (await canLaunchUrl(uri)) {
-                // Launch the App
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                // and cancel the request
-                return NavigationActionPolicy.CANCEL;
-              }
-            }
+                  if (uri.toString().startsWith("https://www.tradingview.com/chart")) {
+                    // this is the link to the external chart, we want to open this in an external window
+                    if (await canLaunchUrl(uri)) {
+                      // Launch the App
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      // and cancel the request
+                      return NavigationActionPolicy.CANCEL;
+                    }
+                  }
 
-            return NavigationActionPolicy.ALLOW;
-          },
-          onProgressChanged: (controller, progress) {
-            setState(() {
-              this.progress = progress / 100;
-            });
-          },
-        ),
-        progress < 1.0 ? LinearProgressIndicator(value: progress) : Container(),
-      ],
-    );
+                  return NavigationActionPolicy.ALLOW;
+                },
+                onProgressChanged: (controller, progress) {
+                  setState(() {
+                    this.progress = progress / 100;
+                  });
+                },
+              ),
+              progress < 1.0 ? LinearProgressIndicator(value: progress) : Container(),
+            ],
+          )
+        : const Text("Platform not supported");
   }
 }
