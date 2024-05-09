@@ -11,8 +11,6 @@ use bitcoin::Amount;
 use bitcoin::ScriptBuf;
 use bitcoin::Txid;
 use bitcoin_old::Transaction;
-use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
@@ -25,6 +23,7 @@ use dlc_manager::contract::ClosedContract;
 use dlc_manager::contract::Contract;
 use dlc_manager::contract::PreClosedContract;
 use dlc_manager::DlcChannelId;
+use dlc_manager::ReferenceId;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::error::RecvError;
@@ -101,19 +100,10 @@ impl Node {
                 loop {
                     match receiver.recv().await {
                         Ok(NodeEvent::DlcChannelEvent { dlc_channel_event }) => {
-                            if let Err(e) = node.shadow_dlc_channel(dlc_channel_event) {
+                            if let Err(e) = node.process_dlc_channel_event(dlc_channel_event) {
                                 tracing::error!(
                                     ?dlc_channel_event,
                                     "Failed to process DLC channel event. Error: {e:#}"
-                                );
-                            }
-
-                            if let Err(e) =
-                                node.check_for_dlc_channel_closures(dlc_channel_event).await
-                            {
-                                tracing::error!(
-                                    ?dlc_channel_event,
-                                    "Failed to run check for dlc channel closures. Error: {e:}"
                                 );
                             }
                         }
@@ -134,7 +124,7 @@ impl Node {
         });
     }
 
-    pub fn shadow_dlc_channel(&self, dlc_channel_event: DlcChannelEvent) -> Result<()> {
+    pub fn process_dlc_channel_event(&self, dlc_channel_event: DlcChannelEvent) -> Result<()> {
         let mut conn = self.pool.get()?;
 
         let protocol_id = match dlc_channel_event.get_reference_id() {
@@ -238,29 +228,7 @@ impl Node {
                     claim_transaction.map(|tx| to_txid_30(tx.txid())),
                 )?;
             }
-            DlcChannelEvent::Closing(_) => {
-                let buffer_transaction = match channel {
-                    Channel::Signed(SignedChannel {
-                        state:
-                            SignedChannelState::Closing {
-                                buffer_transaction, ..
-                            },
-                        ..
-                    }) => buffer_transaction,
-                    Channel::Closing(ClosingChannel {
-                        buffer_transaction, ..
-                    }) => buffer_transaction,
-                    channel => {
-                        bail!("DLC channel in unexpected state. dlc_channel = {channel:?}")
-                    }
-                };
-
-                db::dlc_channels::set_channel_force_closing(
-                    &mut conn,
-                    &channel.get_id(),
-                    to_txid_30(buffer_transaction.txid()),
-                )?;
-            }
+            DlcChannelEvent::Closing(_) => self.handle_closing_event(&mut conn, channel)?,
             DlcChannelEvent::ClosedPunished(_) => {
                 let punish_txid = match channel {
                     Channel::ClosedPunished(ClosedPunishedChannel { punish_txid, .. }) => {
@@ -294,25 +262,11 @@ impl Node {
                     to_txid_30(close_transaction.txid()),
                 )?;
             }
-            DlcChannelEvent::Closed(_)
-            | DlcChannelEvent::CounterClosed(_)
-            | DlcChannelEvent::CollaborativelyClosed(_) => {
-                let close_txid = match channel {
-                    Channel::Closed(ClosedChannel { closing_txid, .. }) => closing_txid,
-                    Channel::CounterClosed(ClosedChannel { closing_txid, .. }) => closing_txid,
-                    Channel::CollaborativelyClosed(ClosedChannel { closing_txid, .. }) => {
-                        closing_txid
-                    }
-                    channel => {
-                        bail!("DLC channel in unexpected state. dlc_channel = {channel:?}")
-                    }
-                };
-
-                db::dlc_channels::set_channel_collab_closed(
-                    &mut conn,
-                    &channel.get_id(),
-                    to_txid_30(*close_txid),
-                )?;
+            DlcChannelEvent::Closed(_) | DlcChannelEvent::CounterClosed(_) => {
+                self.handle_force_closed_event(&mut conn, channel, protocol_id)?
+            }
+            DlcChannelEvent::CollaborativelyClosed(_) => {
+                self.handle_collaboratively_closed_event(&mut conn, channel, protocol_id)?
             }
             DlcChannelEvent::FailedAccept(_) | DlcChannelEvent::FailedSign(_) => {
                 let protocol_id = ProtocolId::try_from(protocol_id)?;
@@ -337,146 +291,160 @@ impl Node {
         Ok(())
     }
 
-    /// Checks if the dlc channel got closed and updates a potential open position or dlc protocol.
-    ///
-    /// If the dlc channel is closing the position will be set to `Closing`, if the dlc channel is
-    /// closed or counter closed the closing position will be set to closed with a closing price
-    /// (from the attestation and a trader realized pnl calculated from the cet payout and the
-    /// last trader reserve)
-    ///
-    /// If the dlc channel is `CollaborativelyClosed` we finish the corresponding dlc_protocol.
-    async fn check_for_dlc_channel_closures(
-        &self,
-        dlc_channel_event: DlcChannelEvent,
-    ) -> Result<()> {
-        let mut conn = self.pool.get()?;
+    fn handle_closing_event(&self, conn: &mut PgConnection, channel: &Channel) -> Result<()> {
+        // If a channel is set to closing it means the buffer transaction got broadcasted,
+        // which will only happen if the channel got force closed while the
+        // user had an open position.
+        let trader_id = channel.get_counter_party_id();
 
-        let reference_id = dlc_channel_event.get_reference_id().with_context(|| format!("Can't process dlc channel event without reference id. dlc_channel_event = {dlc_channel_event:?}"))?;
-        let protocol_id = ProtocolId::try_from(reference_id)?;
-
-        match dlc_channel_event {
-            // If a channel is set to closing it means the buffer transaction got broadcasted, which
-            // will only happen if the channel got force closed while the user had an open position.
-            DlcChannelEvent::Closing(_) => {
-                let channel = &self.inner.get_dlc_channel_by_reference_id(reference_id)?;
-                let trader_id = channel.get_counter_party_id();
-
-                // we do not know the price yet, since we have to wait for the position to expire.
-                if db::positions::Position::set_open_position_to_closing(
-                    &mut conn,
-                    &to_secp_pk_30(trader_id),
-                    None,
-                )? > 0
-                {
-                    tracing::info!(%trader_id, "Set open position to closing after the dlc channel got force closed.");
-                }
-            }
-            // A dlc channel is set to `Closed` or `CounterClosed` if the CET got broadcasted. The
-            // underlying contract is either `PreClosed` or `Closed` depending on the CET
-            // confirmations.
-            DlcChannelEvent::Closed(_) | DlcChannelEvent::CounterClosed(_) => {
-                let dlc_protocol = db::dlc_protocols::get_dlc_protocol(&mut conn, protocol_id)?;
-                let contract_id = &dlc_protocol.contract_id.context("Missing contract id")?;
-                let trader_id = dlc_protocol.trader;
-                let contract = self
-                    .inner
-                    .get_contract_by_id(contract_id)?
-                    .context("Missing contract")?;
-
-                let position = db::positions::Position::get_position_by_trader(
-                    &mut conn,
-                    trader_id,
-                    /* the closing price doesn't matter here. */
-                    vec![PositionState::Closing { closing_price: 0.0 }],
-                )?
-                .with_context(|| {
-                    format!("Couldn't find closing position for trader. trader_id = {trader_id}")
-                })?;
-
-                let (closing_price, trader_realized_pnl_sat) = match contract {
-                    Contract::PreClosed(PreClosedContract {
-                        // We assume a closed contract does always have an attestation
-                        attestations: Some(attestations),
-                        signed_cet,
-                        ..
-                    })
-                    | Contract::Closed(ClosedContract {
-                        // We assume a closed contract does always have an attestation
-                        attestations: Some(attestations),
-                        signed_cet: Some(signed_cet),
-                        ..
-                    }) => {
-                        let trader_realized_pnl_sat = self.calculate_trader_realized_pnl_from_cet(
-                            &mut conn,
-                            &dlc_protocol.channel_id,
-                            signed_cet,
-                        )?;
-
-                        let closing_price = Decimal::from_str_radix(
-                            &attestations
-                                .first()
-                                .context("at least one attestation")?
-                                .outcomes
-                                .join(""),
-                            2,
-                        )?;
-
-                        (closing_price, trader_realized_pnl_sat)
-                    }
-                    contract => {
-                        bail!("Contract in unexpected state. Expected PreClosed or Closed Got: {:?}, trader_id = {trader_id}", contract)
-                    }
-                };
-
-                tracing::debug!(
-                    ?position,
-                    %trader_id,
-                    "Finalize closing position after force closure",
-                );
-
-                if db::positions::Position::set_position_to_closed_with_pnl(
-                    &mut conn,
-                    position.id,
-                    trader_realized_pnl_sat,
-                    closing_price,
-                )? > 0
-                {
-                    tracing::info!(%trader_id, "Set closing position to closed after the dlc channel got force closed.");
-                } else {
-                    tracing::warn!(%trader_id, "Failed to set closing position to closed after the dlc channel got force closed.");
-                }
-            }
-            DlcChannelEvent::CollaborativelyClosed(_) => {
-                let channel = &self.inner.get_dlc_channel_by_reference_id(reference_id)?;
-                let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-                protocol_executor.finish_dlc_protocol(
-                    protocol_id,
-                    &to_secp_pk_30(channel.get_counter_party_id()),
-                    None,
-                    &channel.get_id(),
-                    self.tx_position_feed.clone(),
-                )?;
-            }
-            DlcChannelEvent::Offered(_)
-            | DlcChannelEvent::Accepted(_)
-            | DlcChannelEvent::Established(_)
-            | DlcChannelEvent::SettledOffered(_)
-            | DlcChannelEvent::SettledReceived(_)
-            | DlcChannelEvent::SettledAccepted(_)
-            | DlcChannelEvent::SettledConfirmed(_)
-            | DlcChannelEvent::Settled(_)
-            | DlcChannelEvent::SettledClosing(_)
-            | DlcChannelEvent::RenewOffered(_)
-            | DlcChannelEvent::RenewAccepted(_)
-            | DlcChannelEvent::RenewConfirmed(_)
-            | DlcChannelEvent::RenewFinalized(_)
-            | DlcChannelEvent::CollaborativeCloseOffered(_)
-            | DlcChannelEvent::ClosedPunished(_)
-            | DlcChannelEvent::FailedAccept(_)
-            | DlcChannelEvent::FailedSign(_)
-            | DlcChannelEvent::Cancelled(_)
-            | DlcChannelEvent::Deleted(_) => {} // ignored
+        // we do not know the price yet, since we have to wait for the position to expire.
+        if db::positions::Position::set_open_position_to_closing(
+            conn,
+            &to_secp_pk_30(trader_id),
+            None,
+        )? > 0
+        {
+            tracing::info!(%trader_id, "Set open position to closing after the dlc channel got force closed.");
         }
+
+        let buffer_transaction = match channel {
+            Channel::Signed(SignedChannel {
+                state:
+                    SignedChannelState::Closing {
+                        buffer_transaction, ..
+                    },
+                ..
+            }) => buffer_transaction,
+            Channel::Closing(ClosingChannel {
+                buffer_transaction, ..
+            }) => buffer_transaction,
+            channel => {
+                bail!("DLC channel in unexpected state. dlc_channel = {channel:?}")
+            }
+        };
+
+        db::dlc_channels::set_channel_force_closing(
+            conn,
+            &channel.get_id(),
+            to_txid_30(buffer_transaction.txid()),
+        )?;
+
+        Ok(())
+    }
+
+    fn handle_force_closed_event(
+        &self,
+        conn: &mut PgConnection,
+        channel: &Channel,
+        reference_id: ReferenceId,
+    ) -> Result<()> {
+        let protocol_id = ProtocolId::try_from(reference_id)?;
+        let dlc_protocol = db::dlc_protocols::get_dlc_protocol(conn, protocol_id)?;
+        let contract_id = &dlc_protocol.contract_id.context("Missing contract id")?;
+        let trader_id = dlc_protocol.trader;
+        let contract = self
+            .inner
+            .get_contract_by_id(contract_id)?
+            .context("Missing contract")?;
+
+        let position = db::positions::Position::get_position_by_trader(
+            conn,
+            trader_id,
+            /* the closing price doesn't matter here. */
+            vec![PositionState::Closing { closing_price: 0.0 }],
+        )?
+        .with_context(|| {
+            format!("Couldn't find closing position for trader. trader_id = {trader_id}")
+        })?;
+
+        let (closing_price, trader_realized_pnl_sat) = match contract {
+            Contract::PreClosed(PreClosedContract {
+                // We assume a closed contract does always have an attestation
+                attestations: Some(attestations),
+                signed_cet,
+                ..
+            })
+            | Contract::Closed(ClosedContract {
+                // We assume a closed contract does always have an attestation
+                attestations: Some(attestations),
+                signed_cet: Some(signed_cet),
+                ..
+            }) => {
+                let trader_realized_pnl_sat = self.calculate_trader_realized_pnl_from_cet(
+                    conn,
+                    &dlc_protocol.channel_id,
+                    signed_cet,
+                )?;
+
+                let closing_price = Decimal::from_str_radix(
+                    &attestations
+                        .first()
+                        .context("at least one attestation")?
+                        .outcomes
+                        .join(""),
+                    2,
+                )?;
+
+                (closing_price, trader_realized_pnl_sat)
+            }
+            contract => {
+                bail!("Contract in unexpected state. Expected PreClosed or Closed Got: {:?}, trader_id = {trader_id}", contract)
+            }
+        };
+
+        tracing::debug!(
+            ?position,
+            %trader_id,
+            "Finalize closing position after force closure",
+        );
+
+        if db::positions::Position::set_position_to_closed_with_pnl(
+            conn,
+            position.id,
+            trader_realized_pnl_sat,
+            closing_price,
+        )? > 0
+        {
+            tracing::info!(%trader_id, "Set closing position to closed after the dlc channel got force closed.");
+        } else {
+            tracing::warn!(%trader_id, "Failed to set closing position to closed after the dlc channel got force closed.");
+        }
+
+        let close_txid = match channel {
+            Channel::Closed(ClosedChannel { closing_txid, .. }) => closing_txid,
+            Channel::CounterClosed(ClosedChannel { closing_txid, .. }) => closing_txid,
+            channel => {
+                bail!("DLC channel in unexpected state. dlc_channel = {channel:?}")
+            }
+        };
+
+        db::dlc_channels::set_channel_closed(conn, &channel.get_id(), to_txid_30(*close_txid))?;
+        Ok(())
+    }
+
+    fn handle_collaboratively_closed_event(
+        &self,
+        conn: &mut PgConnection,
+        channel: &Channel,
+        reference_id: ReferenceId,
+    ) -> Result<()> {
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.finish_dlc_protocol(
+            ProtocolId::try_from(reference_id)?,
+            &to_secp_pk_30(channel.get_counter_party_id()),
+            None,
+            &channel.get_id(),
+            self.tx_position_feed.clone(),
+        )?;
+
+        let close_txid = match channel {
+            Channel::CollaborativelyClosed(ClosedChannel { closing_txid, .. }) => closing_txid,
+            channel => {
+                bail!("DLC channel in unexpected state. dlc_channel = {channel:?}")
+            }
+        };
+
+        db::dlc_channels::set_channel_closed(conn, &channel.get_id(), to_txid_30(*close_txid))?;
 
         Ok(())
     }
@@ -486,7 +454,7 @@ impl Node {
     /// 2. Subtract the trader reserve sats from the trader payout
     fn calculate_trader_realized_pnl_from_cet(
         &self,
-        conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+        conn: &mut PgConnection,
         channel_id: &DlcChannelId,
         signed_cet: Transaction,
     ) -> Result<i64> {

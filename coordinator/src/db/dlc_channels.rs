@@ -191,7 +191,7 @@ pub(crate) fn set_channel_collab_closing(
         .execute(conn)
 }
 
-pub(crate) fn set_channel_collab_closed(
+pub(crate) fn set_channel_closed(
     conn: &mut PgConnection,
     channel_id: &DlcChannelId,
     close_txid: Txid,
