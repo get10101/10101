@@ -389,6 +389,8 @@ diesel::table! {
         id -> Int4,
         trader_pubkey -> Text,
         error -> Text,
+        timestamp -> Timestamptz,
+        version -> Text,
     }
 }
 

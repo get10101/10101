@@ -5,6 +5,8 @@ use crate::state::get_or_create_tokio_runtime;
 use reqwest::Url;
 
 pub fn report_error_to_coordinator<E: ToString>(error: &E) {
+    let version = env!("CARGO_PKG_VERSION").to_string();
+
     let client = reqwest_client();
     let pk = get_node().inner.info.pubkey;
 
@@ -23,6 +25,7 @@ pub fn report_error_to_coordinator<E: ToString>(error: &E) {
                     .json(&xxi_node::commons::ReportedError {
                         trader_pk: pk,
                         msg: error_string,
+                        version: Some(version),
                     })
                     .send()
                     .await
