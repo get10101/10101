@@ -34,8 +34,11 @@ class WalletService {
         headers: <String, String>{
           'Content-Type': 'application/json; charset=UTF-8',
         },
-        body: jsonEncode(
-            <String, dynamic>{'address': address, 'amount': amount.sats, 'feeRate': feeRate}));
+        body: jsonEncode(<String, dynamic>{
+          'address': address,
+          'amount': amount.sats,
+          'fee_rate': feeRate.feeRate
+        }));
 
     if (response.statusCode != 200) {
       throw FlutterError(response.body);
