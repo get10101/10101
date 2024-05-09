@@ -7,7 +7,7 @@ import 'package:get_10101/logger/logger.dart';
 class Stack<E> {
   final _list = <E>[];
 
-  void push(E value) => _list.add(value);
+  void push(E value) => _list.insert(0, value);
 
   E pop() => _list.removeLast();
 
@@ -62,6 +62,11 @@ class BackgroundTaskChangeNotifier extends ChangeNotifier implements Subscriber 
 
       if (event.field0 is bridge.BackgroundTask_Liquidate) {
         events.push(BackgroundTask(type: TaskType.liquidate, status: taskStatus, error: error));
+        notifyListeners();
+      }
+
+      if (event.field0 is bridge.BackgroundTask_CloseChannel) {
+        events.push(BackgroundTask(type: TaskType.closeChannel, status: taskStatus, error: error));
         notifyListeners();
       }
     }

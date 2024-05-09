@@ -1,6 +1,5 @@
 use crate::collaborative_revert;
 use crate::db;
-use crate::dlc_protocol::ProtocolId;
 use crate::parse_dlc_channel_id;
 use crate::referrals;
 use crate::routes::AppState;
@@ -42,6 +41,7 @@ use xxi_node::bitcoin_conversion::to_secp_pk_30;
 use xxi_node::bitcoin_conversion::to_txid_30;
 use xxi_node::commons;
 use xxi_node::commons::CollaborativeRevertCoordinatorRequest;
+use xxi_node::node::ProtocolId;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Balance {
@@ -298,7 +298,6 @@ pub async fn close_channel(
 
     state
         .node
-        .inner
         .close_dlc_channel(channel_id, params.force.unwrap_or_default())
         .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;

@@ -50,6 +50,7 @@ pub enum BackgroundTask {
     CollabRevert(TaskStatus),
     RecoverDlc(TaskStatus),
     FullSync(TaskStatus),
+    CloseChannel(TaskStatus),
 }
 
 #[derive(Clone, Debug)]

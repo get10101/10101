@@ -1,6 +1,6 @@
 use crate::db;
 use crate::dlc_protocol;
-use crate::dlc_protocol::ProtocolId;
+use crate::dlc_protocol::DlcProtocolType;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
@@ -44,6 +44,7 @@ use xxi_node::message_handler::TenTenOneSignChannel;
 use xxi_node::node;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::tentenone_message_name;
+use xxi_node::node::ProtocolId;
 use xxi_node::node::RunningNode;
 
 pub mod channel;
@@ -74,7 +75,7 @@ pub struct Node {
     _running: Arc<RunningNode>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
-    tx_position_feed: Sender<InternalPositionUpdateMessage>,
+    pub tx_position_feed: Sender<InternalPositionUpdateMessage>,
     trade_notifier: mpsc::Sender<OrderbookMessage>,
 }
 
@@ -224,8 +225,6 @@ impl Node {
             "Received message"
         );
 
-        self.verify_collab_close_offer(&node_id, msg)?;
-
         let inbound_msg = {
             let mut conn = self.pool.get()?;
             let serialized_inbound_message = SerializedDlcMessage::try_from(msg)?;
@@ -238,6 +237,8 @@ impl Node {
                 None => inbound_msg,
             }
         };
+
+        self.verify_collab_close_offer(&node_id, msg)?;
 
         let resp = self
             .inner
@@ -364,7 +365,7 @@ impl Node {
                 tracing::info!(
                     channel_id = hex::encode(close_offer.channel_id),
                     node_id = node_id.to_string(),
-                    "Received an offer to collaboratively close a channel"
+                    "Accepting offer to collaboratively close a channel"
                 );
 
                 self.inner
@@ -575,6 +576,23 @@ impl Node {
             }
             _ => {}
         };
+
+        let protocol_id = close_offer.reference_id.context("Missing reference id")?;
+        let protocol_id = ProtocolId::try_from(protocol_id)?;
+
+        let previous_id = channel
+            .get_reference_id()
+            .map(ProtocolId::try_from)
+            .transpose()?;
+
+        let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
+        protocol_executor.start_dlc_protocol(
+            protocol_id,
+            previous_id,
+            None,
+            &channel.get_id(),
+            DlcProtocolType::Close { trader: *node_id },
+        )?;
 
         Ok(())
     }

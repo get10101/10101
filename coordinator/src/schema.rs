@@ -203,7 +203,7 @@ diesel::table! {
         protocol_id -> Uuid,
         previous_protocol_id -> Nullable<Uuid>,
         channel_id -> Text,
-        contract_id -> Text,
+        contract_id -> Nullable<Text>,
         protocol_state -> ProtocolStateType,
         trader_pubkey -> Text,
         timestamp -> Timestamptz,

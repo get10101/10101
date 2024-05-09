@@ -1,4 +1,3 @@
-use crate::dlc_protocol::ProtocolId;
 use crate::node::channel;
 use crate::schema::dlc_channels;
 use crate::schema::sql_types::DlcChannelStateType;
@@ -24,6 +23,7 @@ use std::any::TypeId;
 use std::str::FromStr;
 use time::OffsetDateTime;
 use uuid::Uuid;
+use xxi_node::node::ProtocolId;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromSqlRow, AsExpression)]
 #[diesel(sql_type = DlcChannelStateType)]
@@ -191,7 +191,7 @@ pub(crate) fn set_channel_collab_closing(
         .execute(conn)
 }
 
-pub(crate) fn set_channel_collab_closed(
+pub(crate) fn set_channel_closed(
     conn: &mut PgConnection,
     channel_id: &DlcChannelId,
     close_txid: Txid,

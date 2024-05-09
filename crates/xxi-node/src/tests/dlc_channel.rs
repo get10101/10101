@@ -3,6 +3,7 @@ use crate::node::dlc_channel::estimated_dlc_channel_fee_reserve;
 use crate::node::event::NodeEvent;
 use crate::node::InMemoryStore;
 use crate::node::Node;
+use crate::node::ProtocolId;
 use crate::node::RunningNode;
 use crate::on_chain_wallet;
 use crate::storage::TenTenOneInMemoryStorage;
@@ -11,7 +12,6 @@ use crate::tests::dummy_contract_input;
 use crate::tests::dummy_filled_with;
 use crate::tests::dummy_order;
 use crate::tests::init_tracing;
-use crate::tests::new_reference_id;
 use crate::tests::wait_until;
 use bitcoin::Amount;
 use dlc_manager::channel::signed_channel::SignedChannel;
@@ -43,7 +43,7 @@ async fn can_open_and_settle_offchain() {
             filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             contract_input,
-            new_reference_id(),
+            ProtocolId::new(),
         )
         .await
         .unwrap();
@@ -464,7 +464,7 @@ async fn open_channel_and_position_and_settle_position(
             filled_with.clone(),
             contract_input,
             app.info.pubkey,
-            new_reference_id(),
+            ProtocolId::new(),
         )
         .await
         .unwrap();
@@ -590,7 +590,7 @@ async fn open_channel_and_position_and_settle_position(
             filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,
-            new_reference_id(),
+            ProtocolId::new(),
         )
         .await
         .unwrap();

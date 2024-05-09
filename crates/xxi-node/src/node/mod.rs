@@ -36,6 +36,7 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::str::from_utf8;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -55,6 +56,7 @@ pub mod peer_manager;
 
 pub use crate::message_handler::tentenone_message_name;
 pub use ::dlc_manager as rust_dlc_manager;
+use ::dlc_manager::ReferenceId;
 pub use dlc_manager::signed_channel_state_name;
 pub use dlc_manager::DlcManager;
 use lightning::ln::peer_handler::ErroringMessageHandler;
@@ -64,6 +66,7 @@ pub use oracle::OracleInfo;
 use secp256k1_zkp::SECP256K1;
 pub use storage::InMemoryStore;
 pub use storage::Storage;
+use uuid::Uuid;
 
 /// A node.
 pub struct Node<D: BdkStorage, S: TenTenOneStorage, N: Storage> {
@@ -423,5 +426,78 @@ impl Display for NodeInfo {
         let scheme = if self.is_ws { "ws" } else { "tcp" };
 
         format!("{scheme}://{}@{}", self.pubkey, self.address).fmt(f)
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct ProtocolId(Uuid);
+
+impl ProtocolId {
+    pub fn new() -> Self {
+        ProtocolId(Uuid::new_v4())
+    }
+
+    pub fn to_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl Default for ProtocolId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Display for ProtocolId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.to_string().fmt(f)
+    }
+}
+
+impl From<ProtocolId> for ReferenceId {
+    fn from(value: ProtocolId) -> Self {
+        let uuid = value.to_uuid();
+
+        // 16 bytes.
+        let uuid_bytes = uuid.as_bytes();
+
+        // 32-digit hex string.
+        let hex = hex::encode(uuid_bytes);
+
+        // Derived `ReferenceId`: 32-bytes.
+        let hex_bytes = hex.as_bytes();
+
+        let mut array = [0u8; 32];
+        array.copy_from_slice(hex_bytes);
+
+        array
+    }
+}
+
+impl TryFrom<ReferenceId> for ProtocolId {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ReferenceId) -> Result<Self> {
+        // 32-digit hex string.
+        let hex = from_utf8(&value)?;
+
+        // 16 bytes.
+        let uuid_bytes = hex::decode(hex)?;
+
+        let uuid = Uuid::from_slice(&uuid_bytes)?;
+
+        Ok(ProtocolId(uuid))
+    }
+}
+
+impl From<Uuid> for ProtocolId {
+    fn from(value: Uuid) -> Self {
+        ProtocolId(value)
+    }
+}
+
+impl From<ProtocolId> for Uuid {
+    fn from(value: ProtocolId) -> Self {
+        value.0
     }
 }

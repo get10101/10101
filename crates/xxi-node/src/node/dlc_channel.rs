@@ -11,6 +11,7 @@ use crate::message_handler::TenTenOneSettleAccept;
 use crate::message_handler::TenTenOneSettleOffer;
 use crate::node::event::NodeEvent;
 use crate::node::Node;
+use crate::node::ProtocolId;
 use crate::node::Storage as LnDlcStorage;
 use crate::on_chain_wallet::BdkStorage;
 use crate::storage::TenTenOneStorage;
@@ -45,7 +46,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         filled_with: commons::FilledWith,
         contract_input: ContractInput,
         counterparty: PublicKey,
-        protocol_id: ReferenceId,
+        protocol_id: ProtocolId,
     ) -> Result<(ContractId, DlcChannelId)> {
         tracing::info!(
             trader_id = %counterparty,
@@ -89,7 +90,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let offer_channel = dlc_manager.offer_channel(
                     &contract_input,
                     to_secp_pk_29(counterparty),
-                    Some(protocol_id),
+                    Some(protocol_id.into()),
                 )?;
 
                 let temporary_contract_id = offer_channel.temporary_contract_id;
@@ -139,7 +140,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         &self,
         channel_id: DlcChannelId,
         is_force_close: bool,
-    ) -> Result<()> {
+    ) -> Result<ProtocolId> {
         let channel_id_hex = hex::encode(channel_id);
 
         tracing::info!(
@@ -152,17 +153,22 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
             .get_signed_dlc_channel(|channel| channel.channel_id == channel_id)?
             .context("DLC channel to close not found")?;
 
+        let protocol_id = ProtocolId::new();
         if is_force_close {
-            self.force_close_dlc_channel(channel)?;
+            self.force_close_dlc_channel(channel, protocol_id)?;
         } else {
-            self.propose_dlc_channel_collaborative_close(channel)
+            self.propose_dlc_channel_collaborative_close(channel, protocol_id)
                 .await?
         }
 
-        Ok(())
+        Ok(protocol_id)
     }
 
-    fn force_close_dlc_channel(&self, channel: SignedChannel) -> Result<()> {
+    fn force_close_dlc_channel(
+        &self,
+        channel: SignedChannel,
+        protocol_id: ProtocolId,
+    ) -> Result<()> {
         let channel_id = channel.channel_id;
         let channel_id_hex = hex::encode(channel_id);
 
@@ -172,12 +178,16 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         );
 
         self.dlc_manager
-            .force_close_channel(&channel_id, channel.reference_id)?;
+            .force_close_channel(&channel_id, Some(protocol_id.into()))?;
         Ok(())
     }
 
     /// Close a DLC channel on-chain collaboratively, if there is no open position.
-    async fn propose_dlc_channel_collaborative_close(&self, channel: SignedChannel) -> Result<()> {
+    async fn propose_dlc_channel_collaborative_close(
+        &self,
+        channel: SignedChannel,
+        protocol_id: ProtocolId,
+    ) -> Result<()> {
         let counterparty = channel.counter_party;
 
         match channel.state {
@@ -196,7 +206,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                             .offer_collaborative_close(
                                 &channel.channel_id,
                                 counter_payout,
-                                channel.reference_id,
+                                Some(protocol_id.into()),
                             )
                             .context(
                                 "Could not propose to collaboratively close the dlc channel.",
@@ -232,7 +242,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         filled_with: commons::FilledWith,
         channel_id: &DlcChannelId,
         accept_settlement_amount: u64,
-        protocol_id: ReferenceId,
+        protocol_id: ProtocolId,
     ) -> Result<()> {
         let channel_id_hex = hex::encode(channel_id);
 
@@ -250,7 +260,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let (settle_offer, counterparty) = dlc_manager.settle_offer(
                     &channel_id,
                     accept_settlement_amount,
-                    Some(protocol_id),
+                    Some(protocol_id.into()),
                 )?;
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {
@@ -311,7 +321,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         filled_with: commons::FilledWith,
         dlc_channel_id: &DlcChannelId,
         contract_input: ContractInput,
-        protocol_id: ReferenceId,
+        protocol_id: ProtocolId,
     ) -> Result<ContractId> {
         tracing::info!(channel_id = %hex::encode(dlc_channel_id), "Proposing a DLC channel reopen or resize");
         spawn_blocking({
@@ -326,7 +336,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                     &dlc_channel_id,
                     counter_payout,
                     &contract_input,
-                    Some(protocol_id),
+                    Some(protocol_id.into()),
                 )?;
 
                 event_handler.publish(NodeEvent::StoreDlcMessage {

@@ -16,6 +16,9 @@ pub use crate::dlc_channel::SignedChannelState;
 use crate::emergency_kit;
 use crate::event;
 use crate::event::api::FlutterSubscriber;
+use crate::event::BackgroundTask;
+use crate::event::EventInternal;
+use crate::event::TaskStatus;
 use crate::health;
 use crate::logger;
 use crate::max_quantity::max_quantity;
@@ -41,6 +44,7 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::channel;
@@ -511,7 +515,26 @@ pub fn get_new_address() -> Result<String> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn close_channel() -> Result<()> {
-    dlc::close_channel(false).await
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::CloseChannel(TaskStatus::Pending),
+    ));
+
+    let fail = |e: &anyhow::Error| {
+        event::publish(&EventInternal::BackgroundNotification(
+            BackgroundTask::CloseChannel(TaskStatus::Failed(format!("{e:#}"))),
+        ))
+    };
+
+    dlc::close_channel(false).await.inspect_err(fail)?;
+    // wait a bit so that the sync can find the the broadcasted transaction.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    dlc::refresh_wallet_info().await.inspect_err(fail)?;
+
+    event::publish(&EventInternal::BackgroundNotification(
+        BackgroundTask::CloseChannel(TaskStatus::Success),
+    ));
+
+    Ok(())
 }
 
 #[tokio::main(flavor = "current_thread")]

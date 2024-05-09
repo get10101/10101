@@ -413,6 +413,10 @@ impl Node {
             TenTenOneMessage::CollaborativeCloseOffer(TenTenOneCollaborativeCloseOffer {
                 collaborative_close_offer: CollaborativeCloseOffer { channel_id, .. },
             }) => {
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::CloseChannel(TaskStatus::Pending),
+                ));
+
                 let channel_id_hex_string = hex::encode(channel_id);
                 tracing::info!(
                     channel_id = channel_id_hex_string,
@@ -422,7 +426,16 @@ impl Node {
 
                 // TODO(bonomat): we should verify that the proposed amount is acceptable
                 self.inner
-                    .accept_dlc_channel_collaborative_close(&channel_id)?;
+                    .accept_dlc_channel_collaborative_close(&channel_id)
+                    .inspect_err(|e| {
+                        event::publish(&EventInternal::BackgroundNotification(
+                            BackgroundTask::CloseChannel(TaskStatus::Failed(format!("{e:#}"))),
+                        ))
+                    })?;
+
+                event::publish(&EventInternal::BackgroundNotification(
+                    BackgroundTask::CloseChannel(TaskStatus::Success),
+                ));
             }
             _ => (),
         }

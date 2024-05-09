@@ -3,7 +3,6 @@ use crate::db;
 use crate::db::positions;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
-use crate::dlc_protocol::ProtocolId;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
@@ -37,6 +36,7 @@ use xxi_node::bitcoin_conversion::to_xonly_pk_30;
 use xxi_node::commons;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::node::event::NodeEvent;
+use xxi_node::node::ProtocolId;
 
 #[derive(Debug, Clone)]
 struct Rollover {
@@ -262,7 +262,7 @@ impl Node {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &contract_id,
+            Some(&contract_id),
             dlc_channel_id,
             DlcProtocolType::Rollover {
                 trader: rollover.counterparty_pubkey,

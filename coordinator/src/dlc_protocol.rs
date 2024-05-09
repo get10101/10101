@@ -14,99 +14,23 @@ use diesel::Connection;
 use diesel::PgConnection;
 use diesel::QueryResult;
 use dlc_manager::ContractId;
-use dlc_manager::ReferenceId;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::str::from_utf8;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::Sender;
-use uuid::Uuid;
 use xxi_node::cfd::calculate_pnl;
 use xxi_node::commons;
 use xxi_node::commons::Direction;
 use xxi_node::node::rust_dlc_manager::DlcChannelId;
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct ProtocolId(Uuid);
-
-impl ProtocolId {
-    pub fn new() -> Self {
-        ProtocolId(Uuid::new_v4())
-    }
-
-    pub fn to_uuid(&self) -> Uuid {
-        self.0
-    }
-}
-
-impl Default for ProtocolId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Display for ProtocolId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.0.to_string().fmt(f)
-    }
-}
-
-impl From<ProtocolId> for ReferenceId {
-    fn from(value: ProtocolId) -> Self {
-        let uuid = value.to_uuid();
-
-        // 16 bytes.
-        let uuid_bytes = uuid.as_bytes();
-
-        // 32-digit hex string.
-        let hex = hex::encode(uuid_bytes);
-
-        // Derived `ReferenceId`: 32-bytes.
-        let hex_bytes = hex.as_bytes();
-
-        let mut array = [0u8; 32];
-        array.copy_from_slice(hex_bytes);
-
-        array
-    }
-}
-
-impl TryFrom<ReferenceId> for ProtocolId {
-    type Error = anyhow::Error;
-
-    fn try_from(value: ReferenceId) -> Result<Self> {
-        // 32-digit hex string.
-        let hex = from_utf8(&value)?;
-
-        // 16 bytes.
-        let uuid_bytes = hex::decode(hex)?;
-
-        let uuid = Uuid::from_slice(&uuid_bytes)?;
-
-        Ok(ProtocolId(uuid))
-    }
-}
-
-impl From<Uuid> for ProtocolId {
-    fn from(value: Uuid) -> Self {
-        ProtocolId(value)
-    }
-}
-
-impl From<ProtocolId> for Uuid {
-    fn from(value: ProtocolId) -> Self {
-        value.0
-    }
-}
+use xxi_node::node::ProtocolId;
 
 pub struct DlcProtocol {
     pub id: ProtocolId,
+    pub previous_id: Option<ProtocolId>,
     pub timestamp: OffsetDateTime,
     pub channel_id: DlcChannelId,
-    pub contract_id: ContractId,
+    pub contract_id: Option<ContractId>,
     pub trader: PublicKey,
     pub protocol_state: DlcProtocolState,
     pub protocol_type: DlcProtocolType,
@@ -247,7 +171,7 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: &ContractId,
+        contract_id: Option<&ContractId>,
         channel_id: &DlcChannelId,
         protocol_type: DlcProtocolType,
     ) -> Result<()> {
@@ -325,15 +249,14 @@ impl DlcProtocolExecutor {
                     )
                 }
                 DlcProtocolType::Settle { trade_params } => {
-                    let settled_contract = &dlc_protocol.contract_id;
-
+                    let settled_contract = dlc_protocol.contract_id;
                     self.finish_close_trade_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
                         // If the contract got settled, we do not get a new contract id, hence we
                         // copy the contract id of the settled contract.
-                        settled_contract,
+                        settled_contract.as_ref(),
                         channel_id,
                     )
                 }
@@ -349,7 +272,10 @@ impl DlcProtocolExecutor {
                         channel_id,
                     )
                 }
-                DlcProtocolType::Close { .. } | DlcProtocolType::ForceClose { .. } => {
+                DlcProtocolType::Close { .. } => {
+                    self.finish_close_channel_dlc_protocol(conn, trader_id, protocol_id, channel_id)
+                }
+                DlcProtocolType::ForceClose { .. } => {
                     debug_assert!(false, "Finishing unexpected dlc protocol types");
                     Ok(())
                 }
@@ -395,7 +321,7 @@ impl DlcProtocolExecutor {
         conn: &mut PgConnection,
         trade_params: &TradeParams,
         protocol_id: ProtocolId,
-        settled_contract: &ContractId,
+        settled_contract: Option<&ContractId>,
         channel_id: &DlcChannelId,
     ) -> QueryResult<()> {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
@@ -501,7 +427,7 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
@@ -547,7 +473,7 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
@@ -594,12 +520,24 @@ impl DlcProtocolExecutor {
         db::dlc_protocols::set_dlc_protocol_state_to_success(
             conn,
             protocol_id,
-            contract_id,
+            Some(contract_id),
             channel_id,
         )?;
 
         db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)?;
         Ok(())
+    }
+
+    /// Completes the collab close dlc protocol as successful
+    fn finish_close_channel_dlc_protocol(
+        &self,
+        conn: &mut PgConnection,
+        trader: &PublicKey,
+        protocol_id: ProtocolId,
+        channel_id: &DlcChannelId,
+    ) -> QueryResult<()> {
+        tracing::debug!(%trader, %protocol_id, "Finalizing channel close");
+        db::dlc_protocols::set_dlc_protocol_state_to_success(conn, protocol_id, None, channel_id)
     }
 }
 

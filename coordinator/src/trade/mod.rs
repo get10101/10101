@@ -3,7 +3,6 @@ use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
-use crate::dlc_protocol::ProtocolId;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
@@ -52,6 +51,7 @@ use xxi_node::commons::TradeAndChannelParams;
 use xxi_node::commons::TradeParams;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::signed_channel_state_name;
+use xxi_node::node::ProtocolId;
 
 pub mod models;
 pub mod websocket;
@@ -369,7 +369,7 @@ impl TradeExecutor {
                 trade_params.filled_with.clone(),
                 contract_input,
                 trade_params.pubkey,
-                protocol_id.into(),
+                protocol_id,
             )
             .await
             .context("Could not propose DLC channel")?;
@@ -378,7 +378,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             None,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &temporary_channel_id,
             DlcProtocolType::open_channel(trade_params, protocol_id),
         )?;
@@ -548,7 +548,7 @@ impl TradeExecutor {
                 trade_params.filled_with.clone(),
                 &dlc_channel_id,
                 contract_input,
-                protocol_id.into(),
+                protocol_id,
             )
             .await
             .context("Could not propose reopen DLC channel update")?;
@@ -557,7 +557,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &channel.get_id(),
             DlcProtocolType::open_position(trade_params, protocol_id),
         )?;
@@ -721,7 +721,7 @@ impl TradeExecutor {
                 trade_params.filled_with.clone(),
                 &dlc_channel_id,
                 contract_input,
-                protocol_id.into(),
+                protocol_id,
             )
             .await
             .context("Could not propose resize DLC channel update")?;
@@ -730,7 +730,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &temporary_contract_id,
+            Some(&temporary_contract_id),
             &channel.get_id(),
             DlcProtocolType::resize_position(trade_params, protocol_id, realized_pnl),
         )?;
@@ -878,7 +878,7 @@ impl TradeExecutor {
                 trade_params.filled_with.clone(),
                 &channel_id,
                 settlement_amount_trader,
-                protocol_id.into(),
+                protocol_id,
             )
             .await?;
 
@@ -886,7 +886,7 @@ impl TradeExecutor {
         protocol_executor.start_dlc_protocol(
             protocol_id,
             previous_id,
-            &contract_id,
+            Some(&contract_id),
             &channel.get_id(),
             DlcProtocolType::settle(trade_params, protocol_id),
         )?;
