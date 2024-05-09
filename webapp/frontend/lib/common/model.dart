@@ -239,6 +239,8 @@ class FeeRate implements Formattable {
     FeeRate(double.parse(value));
   }
 
+  double get feeRate => _feeRate;
+
   @override
   String formatted() {
     return _feeRate.toString();
