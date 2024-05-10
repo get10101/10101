@@ -113,7 +113,6 @@ pub fn start(
                         }
                         OrderType::Limit => {
                             process_new_limit_order(
-                                node,
                                 tx_orderbook_feed,
                                 new_order.clone(),
                             )
@@ -150,29 +149,9 @@ pub fn start(
 }
 
 pub async fn process_new_limit_order(
-    node: Node,
     tx_orderbook_feed: broadcast::Sender<Message>,
     order: Order,
 ) -> Result<(), TradingError> {
-    let mut conn = spawn_blocking(move || node.pool.get())
-        .await
-        .expect("task to complete")
-        .map_err(|e| anyhow!("{e:#}"))?;
-
-    // Before processing any match we set all expired limit orders to failed, to ensure they do not
-    // get matched.
-    //
-    // TODO(holzeis): Orders should probably not have an expiry, but should either be replaced or
-    // deleted if not wanted anymore.
-    // TODO: I don't think this is necessary anymore. We are manually deleting orders now.
-    let expired_limit_orders =
-        orders::set_expired_limit_orders_to_expired(&mut conn).map_err(|e| anyhow!("{e:#}"))?;
-    for expired_limit_order in expired_limit_orders {
-        tx_orderbook_feed
-            .send(Message::DeleteOrder(expired_limit_order.id))
-            .context("Could not update price feed")?;
-    }
-
     tx_orderbook_feed
         .send(Message::NewOrder(order))
         .map_err(|e| anyhow!(e))
