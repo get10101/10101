@@ -27,6 +27,7 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
+use xxi_node::commons;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 use xxi_node::commons::FilledWith;
@@ -277,7 +278,7 @@ pub async fn process_new_market_order(
         let notification = match &order.order_reason {
             OrderReason::Expired => Some(NotificationKind::PositionExpired),
             OrderReason::TraderLiquidated => Some(NotificationKind::Custom {
-                title: "Woops, you got liquidated 💸".to_string(),
+                title: "Oops, you got liquidated 💸".to_string(),
                 message: "Open your app to execute the liquidation".to_string(),
             }),
             OrderReason::CoordinatorLiquidated => Some(NotificationKind::Custom {
@@ -362,7 +363,6 @@ pub async fn process_new_market_order(
 /// The caller is expected to provide a list of `opposite_direction_orders` of [`OrderType::Limit`]
 /// and opposite [`Direction`] to the `market_order`. We nevertheless ensure that this is the case
 /// to be on the safe side.
-
 fn match_order(
     market_order: &Order,
     opposite_direction_orders: Vec<Order>,
@@ -403,8 +403,7 @@ fn match_order(
         return Ok(None);
     }
 
-    let expiry_timestamp =
-        xxi_node::commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
+    let expiry_timestamp = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
     let matches = matched_orders
         .iter()

@@ -346,9 +346,9 @@ diesel::table! {
 
     orders (id) {
         id -> Int4,
-        trader_order_id -> Uuid,
+        order_id -> Uuid,
         price -> Float4,
-        trader_id -> Text,
+        trader_pubkey -> Text,
         direction -> DirectionType,
         quantity -> Float4,
         timestamp -> Timestamptz,
@@ -505,6 +505,7 @@ diesel::table! {
         direction -> DirectionType,
         matching_fee -> Int8,
         trader_pnl_sat -> Nullable<Int8>,
+        order_id -> Nullable<Uuid>,
     }
 }
 
@@ -525,6 +526,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         order_matching_fee_sat -> Int8,
         trader_realized_pnl_sat -> Nullable<Int8>,
+        order_id -> Nullable<Uuid>,
     }
 }
 
