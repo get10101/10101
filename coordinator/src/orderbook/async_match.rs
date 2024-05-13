@@ -1,6 +1,6 @@
 use crate::check_version::check_version;
 use crate::db;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -31,7 +31,7 @@ use xxi_node::node::event::NodeEvent;
 pub fn monitor(
     node: Node,
     mut receiver: broadcast::Receiver<NodeEvent>,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<TraderMessage>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
 ) -> RemoteHandle<()> {
@@ -77,7 +77,7 @@ pub fn monitor(
 /// Checks if there are any pending matches
 async fn process_pending_match(
     node: Node,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<TraderMessage>,
     trader_id: PublicKey,
     network: Network,
     oracle_pk: XOnlyPublicKey,

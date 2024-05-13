@@ -1,6 +1,6 @@
 use crate::db;
 use crate::db::positions::Position;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::storage::NodeStorage;
 use crate::notifications::NotificationKind;
 use crate::position;
@@ -56,7 +56,7 @@ pub async fn propose_collaborative_revert(
         >,
     >,
     pool: Pool<ConnectionManager<PgConnection>>,
-    sender: mpsc::Sender<OrderbookMessage>,
+    sender: mpsc::Sender<TraderMessage>,
     channel_id: DlcChannelId,
     fee_rate_sats_vb: u64,
     trader_amount_sats: u64,
@@ -130,7 +130,7 @@ pub async fn propose_collaborative_revert(
     };
 
     sender
-        .send(OrderbookMessage::TraderMessage {
+        .send(TraderMessage {
             trader_id: to_secp_pk_30(peer_id),
             message: Message::DlcChannelCollaborativeRevert {
                 channel_id,

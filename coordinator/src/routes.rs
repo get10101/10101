@@ -9,7 +9,7 @@ use crate::leaderboard::LeaderBoard;
 use crate::leaderboard::LeaderBoardCategory;
 use crate::leaderboard::LeaderBoardQueryParams;
 use crate::message::NewUserMessage;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::invoice;
 use crate::node::Node;
 use crate::notifications::Notification;
@@ -108,7 +108,7 @@ pub struct AppState {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub node_alias: String,
-    pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    pub auth_users_notifier: mpsc::Sender<TraderMessage>,
     pub notification_sender: mpsc::Sender<Notification>,
     pub user_backup: SledBackup,
     pub secp: Secp256k1<VerifyOnly>,
@@ -125,7 +125,7 @@ pub fn router(
     tx_orderbook_feed: broadcast::Sender<Message>,
     tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-    auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    auth_users_notifier: mpsc::Sender<TraderMessage>,
     notification_sender: mpsc::Sender<Notification>,
     user_backup: SledBackup,
     lnd_bridge: LndBridge,

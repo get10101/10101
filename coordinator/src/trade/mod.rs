@@ -4,7 +4,7 @@ use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::funding_fee::funding_fee_from_funding_fee_events;
 use crate::funding_fee::get_outstanding_funding_fee_events;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
@@ -105,7 +105,7 @@ enum ResizeAction {
 
 pub struct TradeExecutor {
     node: Node,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<TraderMessage>,
 }
 
 /// The funds the trader will need to provide to open a DLC channel with the coordinator.
@@ -121,7 +121,7 @@ enum TraderRequiredLiquidity {
 }
 
 impl TradeExecutor {
-    pub fn new(node: Node, notifier: mpsc::Sender<OrderbookMessage>) -> Self {
+    pub fn new(node: Node, notifier: mpsc::Sender<TraderMessage>) -> Self {
         Self { node, notifier }
     }
 
@@ -161,7 +161,7 @@ impl TradeExecutor {
                             tracing::error!(%trader_id, %order_id, "Failed to cancel hodl invoice. Error: {e:#}");
                         }
 
-                        let message = OrderbookMessage::TraderMessage {
+                        let message = TraderMessage {
                             trader_id,
                             message: Message::TradeError {
                                 order_id,
@@ -205,7 +205,7 @@ impl TradeExecutor {
                     tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
                 };
 
-                let message = OrderbookMessage::TraderMessage {
+                let message = TraderMessage {
                     trader_id,
                     message: Message::TradeError {
                         order_id,

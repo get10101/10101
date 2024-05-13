@@ -1,6 +1,6 @@
 use crate::db::collaborative_reverts;
 use crate::message::NewUserMessage;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use anyhow::bail;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
@@ -20,7 +20,7 @@ use xxi_node::commons::Message;
 pub fn monitor(
     pool: Pool<ConnectionManager<PgConnection>>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<TraderMessage>,
     network: Network,
 ) -> RemoteHandle<()> {
     let mut user_feed = tx_user_feed.subscribe();
@@ -73,7 +73,7 @@ pub fn monitor(
 /// Checks if there are any pending collaborative reverts
 async fn process_pending_collaborative_revert(
     pool: Pool<ConnectionManager<PgConnection>>,
-    notifier: mpsc::Sender<OrderbookMessage>,
+    notifier: mpsc::Sender<TraderMessage>,
     trader_id: PublicKey,
     network: Network,
 ) -> Result<()> {
@@ -98,7 +98,7 @@ async fn process_pending_collaborative_revert(
 
             // Sending no optional push notification as this is only executed if the user just
             // registered on the websocket. So we can assume that the user is still online.
-            let msg = OrderbookMessage::TraderMessage {
+            let msg = TraderMessage {
                 trader_id,
                 message: Message::DlcChannelCollaborativeRevert {
                     channel_id: revert.channel_id,

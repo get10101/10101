@@ -1,5 +1,5 @@
 use crate::db;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
@@ -71,7 +71,7 @@ pub struct TraderMatchParams {
 pub fn start(
     node: Node,
     tx_orderbook_feed: broadcast::Sender<Message>,
-    trade_notifier: mpsc::Sender<OrderbookMessage>,
+    trade_notifier: mpsc::Sender<TraderMessage>,
     notifier: mpsc::Sender<Notification>,
     network: Network,
     oracle_pk: XOnlyPublicKey,
@@ -124,7 +124,7 @@ pub fn start(
                             // TODO(holzeis): the maker is currently not subscribed to the websocket
                             // api, hence it wouldn't receive the error message.
                             if let Err(e) = trade_notifier
-                                .send(OrderbookMessage::TraderMessage {
+                                .send(TraderMessage {
                                     trader_id,
                                     message: TradeError { order_id, error },
                                     notification: None,
@@ -165,7 +165,7 @@ pub async fn process_new_limit_order(
 pub async fn process_new_market_order(
     node: Node,
     notifier: mpsc::Sender<Notification>,
-    trade_notifier: mpsc::Sender<OrderbookMessage>,
+    trade_notifier: mpsc::Sender<TraderMessage>,
     order: &Order,
     network: Network,
     oracle_pk: XOnlyPublicKey,

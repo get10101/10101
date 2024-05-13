@@ -1,5 +1,5 @@
 use crate::db;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::notifications::NotificationKind;
 use bitcoin::Amount;
 use diesel::r2d2::ConnectionManager;
@@ -16,7 +16,7 @@ use xxi_node::commons::Message;
 /// Watches a hodl invoice with the given r_hash
 pub fn spawn_invoice_watch(
     pool: Pool<ConnectionManager<PgConnection>>,
-    trader_sender: mpsc::Sender<OrderbookMessage>,
+    trader_sender: mpsc::Sender<TraderMessage>,
     lnd_bridge: LndBridge,
     invoice_params: commons::HodlInvoiceParams,
 ) {
@@ -79,7 +79,7 @@ pub fn spawn_invoice_watch(
                     }
                     InvoiceState::Accepted => {
                         tracing::info!(%trader_pubkey, r_hash, "Pending hodl invoice has been accepted.");
-                        if let Err(e) = trader_sender.send(OrderbookMessage::TraderMessage {
+                        if let Err(e) = trader_sender.send(TraderMessage {
                             trader_id: trader_pubkey,
                             message: Message::LnPaymentReceived {
                                 r_hash: r_hash.clone(),
