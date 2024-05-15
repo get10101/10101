@@ -174,55 +174,58 @@ GoRouter createRoutes() {
                       },
                     )
                   ]),
-              ShellRoute(
-                navigatorKey: shellNavigatorKey,
+              StatefulShellRoute.indexedStack(
                 builder: (BuildContext context, GoRouterState state, Widget child) {
                   return ScaffoldWithNavBar(
                     child: child,
                   );
                 },
-                routes: <RouteBase>[
-                  GoRoute(
-                    path: WalletScreen.route,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const WalletScreen();
-                    },
-                    routes: <RouteBase>[
-                      GoRoute(
-                        path: SendOnChainScreen.subRouteName,
-                        // Use root navigator so the screen overlays the application shell
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (BuildContext context, GoRouterState state) {
-                          return SendOnChainScreen(destination: state.extra as OnChainAddress);
-                        },
-                      ),
-                      GoRoute(
-                        path: ReceiveScreen.subRouteName,
-                        // Use root navigator so the screen overlays the application shell
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (BuildContext context, GoRouterState state) {
-                          if (state.extra != null) {
-                            return ReceiveScreen(walletType: state.extra as WalletType);
-                          }
-                          return const ReceiveScreen();
-                        },
-                      ),
-                      GoRoute(
-                        path: ScannerScreen.subRouteName,
-                        parentNavigatorKey: rootNavigatorKey,
-                        builder: (BuildContext context, GoRouterState state) {
-                          return const ScannerScreen();
-                        },
-                      ),
-                    ],
-                  ),
-                  GoRoute(
-                    path: TradeScreen.route,
-                    builder: (BuildContext context, GoRouterState state) {
-                      return const TradeScreen();
-                    },
-                    routes: const [],
-                  ),
+                branches: <StatefulShellBranch>[
+                  StatefulShellBranch(routes: [
+                    GoRoute(
+                      path: WalletScreen.route,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const WalletScreen();
+                      },
+                      routes: <RouteBase>[
+                        GoRoute(
+                          path: SendOnChainScreen.subRouteName,
+                          // Use root navigator so the screen overlays the application shell
+                          parentNavigatorKey: rootNavigatorKey,
+                          builder: (BuildContext context, GoRouterState state) {
+                            return SendOnChainScreen(destination: state.extra as OnChainAddress);
+                          },
+                        ),
+                        GoRoute(
+                          path: ReceiveScreen.subRouteName,
+                          // Use root navigator so the screen overlays the application shell
+                          parentNavigatorKey: rootNavigatorKey,
+                          builder: (BuildContext context, GoRouterState state) {
+                            if (state.extra != null) {
+                              return ReceiveScreen(walletType: state.extra as WalletType);
+                            }
+                            return const ReceiveScreen();
+                          },
+                        ),
+                        GoRoute(
+                          path: ScannerScreen.subRouteName,
+                          parentNavigatorKey: rootNavigatorKey,
+                          builder: (BuildContext context, GoRouterState state) {
+                            return const ScannerScreen();
+                          },
+                        ),
+                      ],
+                    ),
+                  ]),
+                  StatefulShellBranch(routes: [
+                    GoRoute(
+                      path: TradeScreen.route,
+                      builder: (BuildContext context, GoRouterState state) {
+                        return const TradeScreen();
+                      },
+                      routes: const [],
+                    ),
+                  ])
                 ],
               ),
             ]),
