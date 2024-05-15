@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/bitcoin_balance_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
-import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:get_10101/features/wallet/balance_row.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/wallet_change_notifier.dart';
@@ -22,30 +22,11 @@ class Balance extends StatelessWidget {
       total = total.add(position.getAmountWithUnrealizedPnl());
     }
 
-    var (leading, balance) = getFormattedBalance(total.toInt);
-
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(leading,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 28.0,
-                    fontWeight: FontWeight.bold,
-                  )),
-              Text(balance,
-                  style: const TextStyle(
-                    color: Colors.black87,
-                    fontSize: 28.0,
-                    fontWeight: FontWeight.bold,
-                  )),
-              const Icon(Icons.currency_bitcoin, size: 28, color: tenTenOnePurple),
-            ],
-          ),
+          BitcoinBalanceField(bitcoinBalance: total),
           const SizedBox(
             height: 20,
           ),
