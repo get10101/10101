@@ -213,6 +213,10 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
         base_weight_wu: u64,
         lock_utxos: bool,
     ) -> Result<Vec<dlc_manager::Utxo>, dlc_manager::error::Error> {
+        if amount == 0 {
+            return Ok(Vec::new());
+        }
+
         let network = self.on_chain_wallet.network();
 
         let fee_rate = fee_rate.expect("always set by rust-dlc");

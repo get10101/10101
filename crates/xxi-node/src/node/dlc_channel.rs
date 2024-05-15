@@ -47,6 +47,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         contract_input: ContractInput,
         counterparty: PublicKey,
         protocol_id: ProtocolId,
+        fee_config: dlc::FeeConfig,
     ) -> Result<(ContractId, DlcChannelId)> {
         tracing::info!(
             trader_id = %counterparty,
@@ -90,6 +91,7 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
                 let offer_channel = dlc_manager.offer_channel(
                     &contract_input,
                     to_secp_pk_29(counterparty),
+                    fee_config,
                     Some(protocol_id.into()),
                 )?;
 
@@ -122,8 +124,9 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
 
         tracing::info!(channel_id = %channel_id_hex, "Accepting DLC channel offer");
 
-        let (accept_channel, _channel_id, _contract_id, counter_party) =
-            self.dlc_manager.accept_channel(channel_id)?;
+        let (accept_channel, _channel_id, _contract_id, counter_party) = self
+            .dlc_manager
+            .accept_channel(channel_id, dlc::FeeConfig::EvenSplit)?;
 
         self.event_handler.publish(NodeEvent::SendDlcMessage {
             peer: to_secp_pk_30(counter_party),
