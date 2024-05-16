@@ -131,7 +131,6 @@ pub async fn submit_order_internal(
         return Err(SubmitOrderError::Orderbook(err));
     }
 
-    set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     update_position_after_order_submitted(&order).map_err(SubmitOrderError::Storage)?;
 
     Ok(order.id)
