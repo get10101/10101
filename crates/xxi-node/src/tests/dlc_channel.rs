@@ -465,6 +465,7 @@ async fn open_channel_and_position_and_settle_position(
             contract_input,
             app.info.pubkey,
             ProtocolId::new(),
+            dlc::FeeConfig::EvenSplit,
         )
         .await
         .unwrap();

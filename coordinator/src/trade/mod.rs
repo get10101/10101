@@ -58,6 +58,8 @@ pub mod websocket;
 
 enum TradeAction {
     OpenDlcChannel,
+    #[allow(dead_code)]
+    OpenSingleFundedChannel,
     OpenPosition {
         channel_id: DlcChannelId,
         own_payout: u64,
@@ -96,6 +98,18 @@ enum ResizeAction {
 pub struct TradeExecutor {
     node: Node,
     notifier: mpsc::Sender<OrderbookMessage>,
+}
+
+/// The funds the trader will need to provide to open a DLC channel with the coordinator.
+///
+/// We can extend this enum with a `ForTradeCost` variant to denote that the trader has to pay for
+/// everything except for transaction fees.
+enum TraderRequiredLiquidity {
+    /// Pay for margin, collateral reserve, order-matching fees and transaction fees.
+    ForTradeCostAndTxFees,
+    /// Do not pay for anything. The trader has probably paid in a different way e.g. using
+    /// Lightning.
+    None,
 }
 
 impl TradeExecutor {
@@ -212,6 +226,26 @@ impl TradeExecutor {
                     collateral_reserve_coordinator,
                     collateral_reserve_trader,
                     is_stable_order,
+                    TraderRequiredLiquidity::ForTradeCostAndTxFees,
+                )
+                .await
+                .context("Failed to open DLC channel")?;
+            }
+            TradeAction::OpenSingleFundedChannel => {
+                let collateral_reserve_coordinator = params
+                    .coordinator_reserve
+                    .context("Missing coordinator collateral reserve")?;
+                let collateral_reserve_trader = params
+                    .trader_reserve
+                    .context("Missing trader collateral reserve")?;
+
+                self.open_dlc_channel(
+                    &mut connection,
+                    &params.trade_params,
+                    collateral_reserve_coordinator,
+                    collateral_reserve_trader,
+                    is_stable_order,
+                    TraderRequiredLiquidity::None,
                 )
                 .await
                 .context("Failed to open DLC channel")?;
@@ -270,6 +304,7 @@ impl TradeExecutor {
         collateral_reserve_coordinator: Amount,
         collateral_reserve_trader: Amount,
         stable: bool,
+        trader_required_utxos: TraderRequiredLiquidity,
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
 
@@ -337,11 +372,29 @@ impl TradeExecutor {
         // coordinator.
         let event_id = format!("{contract_symbol}{maturity_time}");
 
+        let (offer_collateral, accept_collateral, fee_config) = match trader_required_utxos {
+            TraderRequiredLiquidity::ForTradeCostAndTxFees => (
+                margin_coordinator + collateral_reserve_coordinator.to_sat(),
+                margin_trader + collateral_reserve_trader + order_matching_fee,
+                dlc::FeeConfig::EvenSplit,
+            ),
+            TraderRequiredLiquidity::None => (
+                margin_coordinator
+                    + collateral_reserve_coordinator.to_sat()
+                    + margin_trader
+                    + collateral_reserve_trader
+                    // If the trader doesn't bring their own UTXOs, including the order matching fee
+                    // is not strictly necessary, but it's simpler to do so.
+                    + order_matching_fee,
+                0,
+                dlc::FeeConfig::AllOffer,
+            ),
+        };
+
         let contract_input = ContractInput {
-            offer_collateral: margin_coordinator + collateral_reserve_coordinator.to_sat(),
-            // The accept party has do bring additional collateral to pay for the
-            // `order_matching_fee`.
-            accept_collateral: margin_trader + collateral_reserve_trader + order_matching_fee,
+            offer_collateral,
+
+            accept_collateral,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
                 contract_descriptor,
@@ -370,6 +423,7 @@ impl TradeExecutor {
                 contract_input,
                 trade_params.pubkey,
                 protocol_id,
+                fee_config,
             )
             .await
             .context("Could not propose DLC channel")?;

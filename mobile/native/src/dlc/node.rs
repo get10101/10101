@@ -540,7 +540,14 @@ impl Node {
         match self
             .inner
             .dlc_manager
-            .accept_channel(&channel_id)
+            .accept_channel(
+                &channel_id,
+                offer
+                    .offer_channel
+                    .fee_config
+                    .map(dlc::FeeConfig::from)
+                    .unwrap_or(dlc::FeeConfig::EvenSplit),
+            )
             .map_err(anyhow::Error::new)
         {
             Ok((accept_channel, _, _, node_id)) => {

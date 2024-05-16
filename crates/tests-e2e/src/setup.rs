@@ -157,7 +157,17 @@ impl TestSetup {
         // Wait for coordinator to open position.
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-        setup.bitcoind.mine(NB_CONFIRMATIONS as u16).await.unwrap();
+        if NB_CONFIRMATIONS == 0 {
+            // No confirmations are required to get the channel/contract `Confirmed`, but the change
+            // output won't be added to the on-chain balance until we get one confirmation because
+            // of https://github.com/get10101/10101/issues/2286.
+            //
+            // We need to know about funding transaction change outputs so that we can accurately
+            // assert on on-chain balance changes after DLC channels are closed on-chain.
+            setup.bitcoind.mine(1).await.unwrap();
+        } else {
+            setup.bitcoind.mine(NB_CONFIRMATIONS as u16).await.unwrap();
+        }
 
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
