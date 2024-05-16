@@ -87,36 +87,37 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             onDoubleTap:
                 config.network == "regtest" ? () => setState(() => _faucet = !_faucet) : null,
             child: Center(
-              child: _faucet
-                  ? Column(
-                      children: [
-                        const SizedBox(height: 125),
-                        OutlinedButton(
-                          onPressed: _isPayInvoiceButtonDisabled
-                              ? null
-                              : () async {
-                                  setState(() => _isPayInvoiceButtonDisabled = true);
-                                  final faucetService = context.read<FaucetService>();
-                                  faucetService
-                                      .payInvoiceWithFaucet(rawInvoice(), amount)
-                                      .catchError((error) {
-                                    setState(() => _isPayInvoiceButtonDisabled = false);
-                                    showSnackBar(ScaffoldMessenger.of(context), error.toString());
-                                  }).then((value) => context.go(WalletScreen.route));
-                                },
-                          style: ElevatedButton.styleFrom(
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                child: _faucet
+                    ? Column(
+                        children: [
+                          const SizedBox(height: 125),
+                          OutlinedButton(
+                            onPressed: _isPayInvoiceButtonDisabled
+                                ? null
+                                : () async {
+                                    setState(() => _isPayInvoiceButtonDisabled = true);
+                                    final faucetService = context.read<FaucetService>();
+                                    faucetService
+                                        .payInvoiceWithFaucet(rawInvoice(), amount)
+                                        .catchError((error) {
+                                      setState(() => _isPayInvoiceButtonDisabled = false);
+                                      showSnackBar(ScaffoldMessenger.of(context), error.toString());
+                                    }).then((value) => context.go(WalletScreen.route));
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                            ),
+                            child: const Text("Pay with 10101 faucet"),
                           ),
-                          child: const Text("Pay with 10101 faucet"),
-                        ),
-                        const SizedBox(height: 125),
-                      ],
-                    )
-                  : CustomQrCode(
-                      data: rawInvoice(),
-                      embeddedImagePath: "assets/10101_logo_icon_white_background.png"),
-            ),
+                          const SizedBox(height: 125),
+                        ],
+                      )
+                    : CustomQrCode(
+                        data: rawInvoice(),
+                        embeddedImage:
+                            const AssetImage("assets/10101_logo_icon_white_background.png"),
+                      )),
           ),
         ),
         Container(

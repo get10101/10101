@@ -17,16 +17,17 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
 
   SubmitOrderChangeNotifier(this.orderService);
 
-  submitOrder(TradeValues tradeValues, {ChannelOpeningParams? channelOpeningParams}) async {
+  Future<void> submitOrder(TradeValues tradeValues,
+      {ChannelOpeningParams? channelOpeningParams}) async {
     try {
       if (channelOpeningParams != null) {
         // TODO(holzeis): The coordinator leverage should not be hard coded here.
         final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
 
         final coordinatorReserve =
-            max(0, channelOpeningParams.coordinatorCollateral.sub(coordinatorCollateral).sats);
+            max(0, channelOpeningParams.coordinatorReserve.sub(coordinatorCollateral).sats);
         final traderReserve =
-            max(0, channelOpeningParams.traderCollateral.sub(tradeValues.margin!).sats);
+            max(0, channelOpeningParams.traderReserve.sub(tradeValues.margin!).sats);
 
         await orderService.submitChannelOpeningMarketOrder(
             tradeValues.leverage,
@@ -42,6 +43,33 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
       }
     } on FfiException catch (exception) {
       logger.e("Failed to submit order: $exception");
+    }
+  }
+
+  Future<String> submitUnfundedOrder(
+      TradeValues tradeValues, ChannelOpeningParams channelOpeningParams) async {
+    try {
+      // TODO(holzeis): The coordinator leverage should not be hard coded here.
+      final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
+
+      final coordinatorReserve =
+          max(0, channelOpeningParams.coordinatorReserve.sub(coordinatorCollateral).sats);
+      final traderReserve =
+          max(0, channelOpeningParams.traderReserve.sub(tradeValues.margin!).sats);
+
+      return orderService.submitUnfundedChannelOpeningMarketOrder(
+        tradeValues.leverage,
+        tradeValues.contracts,
+        ContractSymbol.btcusd,
+        tradeValues.direction,
+        false,
+        Amount(coordinatorReserve),
+        Amount(traderReserve),
+        tradeValues.margin!,
+      );
+    } on FfiException catch (exception) {
+      logger.e("Failed to submit order: $exception");
+      rethrow;
     }
   }
 

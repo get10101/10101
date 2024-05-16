@@ -39,8 +39,16 @@ pub enum EventInternal {
     BackgroundNotification(BackgroundTask),
     SpendableOutputs,
     DlcChannelEvent(DlcChannel),
+    FundingChannelNotification(FundingChannelTask),
 }
 
+#[derive(Clone, Debug)]
+pub enum FundingChannelTask {
+    Pending,
+    Funded,
+    Failed(String),
+    OrderCreated(String),
+}
 #[derive(Clone, Debug)]
 pub enum BackgroundTask {
     Liquidate(TaskStatus),
@@ -76,6 +84,7 @@ impl fmt::Display for EventInternal {
             EventInternal::DlcChannelEvent(_) => "DlcChannelEvent",
             EventInternal::AskPriceUpdateNotification(_) => "AskPriceUpdateNotification",
             EventInternal::BidPriceUpdateNotification(_) => "BidPriceUpdateNotification",
+            EventInternal::FundingChannelNotification(_) => "FundingChannelNotification",
         }
         .fmt(f)
     }
@@ -99,6 +108,7 @@ impl From<EventInternal> for EventType {
             EventInternal::DlcChannelEvent(_) => EventType::DlcChannelEvent,
             EventInternal::AskPriceUpdateNotification(_) => EventType::AskPriceUpdateNotification,
             EventInternal::BidPriceUpdateNotification(_) => EventType::BidPriceUpdateNotification,
+            EventInternal::FundingChannelNotification(_) => EventType::FundingChannelNotification,
         }
     }
 }
@@ -124,4 +134,5 @@ pub enum EventType {
     DlcChannelEvent,
     AskPriceUpdateNotification,
     BidPriceUpdateNotification,
+    FundingChannelNotification,
 }

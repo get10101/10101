@@ -8,7 +8,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/usd_text_field.dart';
-import 'package:get_10101/features/trade/channel_configuration.dart';
+import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/value_data_row.dart';
@@ -153,22 +153,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                       switch (tradeAction) {
                         case TradeAction.openChannel:
                           {
-                            final tradeValues =
-                                context.read<TradeValuesChangeNotifier>().fromDirection(direction);
-                            channelConfiguration(
-                              context: context,
-                              tradeValues: tradeValues,
-                              onConfirmation: (ChannelOpeningParams channelOpeningParams) {
-                                tradeBottomSheetConfirmation(
-                                  context: context,
-                                  direction: direction,
-                                  tradeAction: tradeAction,
-                                  onConfirmation: () => onConfirmation(
-                                      submitOrderChangeNotifier, tradeValues, channelOpeningParams),
-                                  channelOpeningParams: channelOpeningParams,
-                                );
-                              },
-                            );
+                            Navigator.pop(context);
+
+                            GoRouter.of(context).go(ChannelConfigurationScreen.route,
+                                extra: {"direction": direction});
                             break;
                           }
                         case TradeAction.trade:

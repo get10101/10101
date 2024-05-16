@@ -29,10 +29,12 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
+use crate::unfunded_orders;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
+use bitcoin::Address;
 use bitcoin::Amount;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -44,6 +46,7 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -513,6 +516,10 @@ pub fn get_new_address() -> Result<String> {
     dlc::get_new_address()
 }
 
+pub fn get_unused_address() -> Result<String> {
+    dlc::get_unused_address()
+}
+
 #[tokio::main(flavor = "current_thread")]
 pub async fn close_channel() -> Result<()> {
     event::publish(&EventInternal::BackgroundNotification(
@@ -894,4 +901,26 @@ impl From<xxi_node::commons::ReferralStatus> for ReferralStatus {
 /// Returns true if the user has at least a single trade in his db
 pub fn has_traded_once() -> Result<SyncReturn<bool>> {
     Ok(SyncReturn(!db::get_all_trades()?.is_empty()))
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn submit_unfunded_channel_opening_order(
+    funding_address: String,
+    order: NewOrder,
+    coordinator_reserve: u64,
+    trader_reserve: u64,
+    estimated_margin: u64,
+) -> Result<()> {
+    let funding_address = Address::from_str(funding_address.as_str())?.assume_checked();
+
+    unfunded_orders::submit_unfunded_wallet_channel_opening_order(
+        funding_address,
+        order,
+        coordinator_reserve,
+        trader_reserve,
+        estimated_margin + trader_reserve,
+    )
+    .await?;
+
+    Ok(())
 }

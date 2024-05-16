@@ -191,6 +191,9 @@ impl Senders {
             native::event::EventInternal::DlcChannelEvent(_) => {
                 // ignored
             }
+            native::event::EventInternal::FundingChannelNotification(_) => {
+                // ignored
+            }
         }
         Ok(())
     }

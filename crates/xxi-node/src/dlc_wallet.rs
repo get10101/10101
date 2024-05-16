@@ -258,6 +258,8 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
             value: amount,
         };
 
+        let available_candidates = candidates.iter().map(|can| can.value).sum::<u64>();
+
         let mut coin_selector = CoinSelector::new(&candidates, base_weight_wu as u32);
 
         let dust_limit = 0;
@@ -280,7 +282,7 @@ impl<D: BdkStorage, S: TenTenOneStorage, N> dlc_manager::Wallet for DlcWallet<D,
             .run_bnb(metric, COIN_SELECTION_MAX_ROUNDS)
             .map_err(|e| {
                 dlc_manager::error::Error::WalletError(
-                    (format!("Wallet does not hold enough UTXOs to cover amount {amount} with fee rate {fee_rate}. {e:#}")).into(),
+                    (format!("Wallet does not hold enough UTXOs to cover amount {amount} sats with fee rate {fee_rate} sats/vbyte because we only have {available_candidates} sats. {e:#}")).into(),
                 )
             })?;
 

@@ -393,7 +393,6 @@ impl TradeExecutor {
 
         let contract_input = ContractInput {
             offer_collateral,
-
             accept_collateral,
             fee_rate,
             contract_infos: vec![ContractInputInfo {
