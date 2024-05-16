@@ -108,6 +108,7 @@ pub async fn submit_order_internal(
     let url = Url::parse(&url).expect("correct URL");
     let orderbook_client = OrderbookClient::new(url);
 
+    set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     if let Err(err) = orderbook_client
         .post_new_market_order(order.clone().into(), channel_opening_params)
         .await
