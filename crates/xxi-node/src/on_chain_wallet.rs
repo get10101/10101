@@ -299,7 +299,7 @@ where
         amount_sat_or_drain: u64,
         fee_config: FeeConfig,
     ) -> Result<Transaction> {
-        if amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
+        if amount_sat_or_drain > 0 && amount_sat_or_drain.is_dust(&recipient.script_pubkey()) {
             bail!("Send amount below dust: {amount_sat_or_drain} sat");
         }
 
