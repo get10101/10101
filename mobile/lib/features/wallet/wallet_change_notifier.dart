@@ -27,7 +27,6 @@ class WalletChangeNotifier extends ChangeNotifier implements Subscriber {
     this.walletInfo = walletInfo;
     syncing = false;
 
-    logger.t('Successfully synced payment history');
     super.notifyListeners();
   }
 
