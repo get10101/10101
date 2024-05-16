@@ -1,6 +1,6 @@
 [package]
 name = "webapp"
-version = "2.4.0"
+version = "2.4.1"
 build = "build.rs"
 edition = "2021"
 
