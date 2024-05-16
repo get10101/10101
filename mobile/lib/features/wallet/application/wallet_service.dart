@@ -72,7 +72,7 @@ class WalletService {
   Future<String> sendOnChainPayment(Destination destination, Amount? amount,
       {FeeConfig? feeConfig}) {
     var feeConfigApi = feeConfig!.toAPI();
-    var sats = amount!.sats;
+    var sats = amount?.sats ?? 0;
     var address = destination.raw;
     logger.i("Sending payment of $amount to $address with fee $feeConfigApi");
 
