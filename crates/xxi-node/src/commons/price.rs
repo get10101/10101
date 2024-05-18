@@ -42,7 +42,6 @@ pub fn best_current_price(current_orders: &[Order]) -> Prices {
         prices.insert(
             symbol,
             BestPrice {
-                // TODO(holzeis):
                 bid: best_bid_price(current_orders, symbol),
                 ask: best_ask_price(current_orders, symbol),
             },
