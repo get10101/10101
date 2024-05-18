@@ -319,7 +319,6 @@ async fn main() -> Result<()> {
         pool.clone(),
         settings.clone(),
         exporter,
-        opts.p2p_announcement_addresses(),
         NODE_ALIAS,
         trading_sender,
         tx_orderbook_feed,

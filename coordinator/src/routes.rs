@@ -57,7 +57,6 @@ use bitcoin::secp256k1::VerifyOnly;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use lightning::ln::msgs::SocketAddress;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook::delete_order;
 use orderbook::get_order;
@@ -104,7 +103,6 @@ pub struct AppState {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
-    pub announcement_addresses: Vec<SocketAddress>,
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     pub notification_sender: mpsc::Sender<Notification>,
@@ -118,7 +116,6 @@ pub fn router(
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
     exporter: PrometheusExporter,
-    announcement_addresses: Vec<SocketAddress>,
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_orderbook_feed: broadcast::Sender<Message>,
@@ -139,7 +136,6 @@ pub fn router(
         tx_user_feed,
         trading_sender,
         exporter,
-        announcement_addresses,
         node_alias: node_alias.to_string(),
         auth_users_notifier,
         notification_sender,
