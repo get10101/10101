@@ -7,7 +7,6 @@ pub mod dlc_channels;
 pub mod dlc_messages;
 pub mod dlc_protocols;
 pub mod last_outbound_dlc_message;
-pub mod liquidity;
 pub mod liquidity_options;
 pub mod polls;
 pub mod positions;
