@@ -349,12 +349,12 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                       }
                     }),
                 const SizedBox(width: 55),
+                const Spacer(),
                 Selector<TradeValuesChangeNotifier, Amount>(
                     selector: (_, provider) =>
                         provider.orderMatchingFee(direction) ?? Amount.zero(),
                     builder: (context, fee, child) {
-                      return Flexible(
-                          child: ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:"));
+                      return ValueDataRow(type: ValueType.amount, value: fee, label: "Fee:");
                     }),
               ],
             ),
