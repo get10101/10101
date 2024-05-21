@@ -31,7 +31,8 @@ const _buy = "buy";
 const _sell = "sell";
 const _positions = "positions";
 const _orders = "orders";
-const _configureChannel = "configure_channel";
+const _confirmationButton = "confirmation_button";
+const _confirmationSlider = "confirmation_slider";
 const _openChannel = "open_channel";
 
 const tradeScreenTabsOrders = Key(_trade + _tabs + _orders);
@@ -45,9 +46,6 @@ const tradeScreenBottomSheetTabsSell = Key(_trade + _bottomSheet + _tabs + _sell
 
 const tradeScreenBottomSheetButtonBuy = Key(_trade + _bottomSheet + _button + _buy);
 const tradeScreenBottomSheetButtonSell = Key(_trade + _bottomSheet + _button + _sell);
-
-const tradeScreenBottomSheetChannelConfigurationConfirmButton =
-    Key(_trade + _bottomSheet + _configureChannel);
 
 const tradeScreenBottomSheetConfirmationConfigureChannelSlider =
     Key(_trade + _bottomSheet + _confirmSheet + _channelConfig + _slider + _openChannel);
@@ -65,3 +63,24 @@ const tradeScreenBottomSheetConfirmationSliderButtonSell =
 const tabStable = Key(_tabs + _stable);
 const tabWallet = Key(_tabs + _wallet);
 const tabTrade = Key(_tabs + _trade);
+
+const _ask = "ask";
+const _bid = "bid";
+const _marketPrice = "marketPrice";
+const _quantityInput = "quantityInput";
+const _marginField = "marginField";
+
+const tradeScreenAskPrice = Key(_trade + _tabs + _ask);
+const tradeScreenBidPrice = Key(_trade + _tabs + _bid);
+
+const tradeButtonSheetMarketPrice = Key(_trade + _tabs + _bottomSheet + _marketPrice);
+const tradeButtonSheetQuantityInput = Key(_trade + _tabs + _bottomSheet + _quantityInput);
+const tradeButtonSheetMarginField = Key(_trade + _tabs + _bottomSheet + _marginField);
+
+const tradeScreenBottomSheetChannelConfigurationConfirmButton =
+    Key(_trade + _channelConfig + _confirmationButton);
+
+const tradeScreenBottomSheetChannelConfigurationConfirmSlider =
+    Key(_trade + _channelConfig + _confirmationSlider);
+const tradeScreenBottomSheetChannelConfigurationFundWithWalletCheckBox =
+    Key(_trade + _channelConfig + _confirmationSlider);

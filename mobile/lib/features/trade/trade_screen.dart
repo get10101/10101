@@ -61,6 +61,7 @@ class TradeScreen extends StatelessWidget {
                     return provider.getAskPrice();
                   }, builder: (context, price, child) {
                     return LatestPriceWidget(
+                      innerKey: tradeScreenAskPrice,
                       label: "Latest Ask: ",
                       price: Usd.fromDouble(price ?? 0.0),
                     );
@@ -69,6 +70,7 @@ class TradeScreen extends StatelessWidget {
                     return provider.getBidPrice();
                   }, builder: (context, price, child) {
                     return LatestPriceWidget(
+                      innerKey: tradeScreenBidPrice,
                       label: "Latest Bid: ",
                       price: Usd.fromDouble(price ?? 0.0),
                     );
@@ -261,12 +263,15 @@ class TradeScreen extends StatelessWidget {
 class LatestPriceWidget extends StatelessWidget {
   final Usd price;
   final String label;
+  final Key innerKey;
 
-  const LatestPriceWidget({super.key, required this.price, required this.label});
+  const LatestPriceWidget(
+      {super.key, required this.price, required this.label, required this.innerKey});
 
   @override
   Widget build(BuildContext context) {
     return RichText(
+      key: innerKey,
       text: TextSpan(
         text: label,
         style: DefaultTextStyle.of(context).style,

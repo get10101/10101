@@ -22,6 +22,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -231,6 +232,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
             selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
             builder: (context, price, child) {
               return UsdTextField(
+                key: tradeButtonSheetMarketPrice,
                 value: Usd.fromDouble(price),
                 label: "Market Price (USD)",
               );
@@ -240,6 +242,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
           children: [
             Flexible(
                 child: AmountInputField(
+              key: tradeButtonSheetQuantityInput,
               controller: quantityController,
               suffixIcon: TextButton(
                 onPressed: () {
@@ -302,6 +305,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                         provider.fromDirection(direction).margin ?? Amount.zero(),
                     builder: (context, margin, child) {
                       return AmountTextField(
+                        key: tradeButtonSheetMarginField,
                         value: margin,
                         label: "Margin (sats)",
                       );

@@ -383,6 +383,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                       mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Checkbox(
+                          key: tradeScreenBottomSheetChannelConfigurationFundWithWalletCheckBox,
                           value: useInnerWallet,
                           onChanged: fundWithWalletEnabled
                               ? (bool? value) {
@@ -442,6 +443,7 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                       child: Padding(
                         padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
                         child: ConfirmationSlider(
+                          key: tradeScreenBottomSheetChannelConfigurationConfirmSlider,
                           text: "Swipe to confirm ${widget.tradeValues.direction.nameU}",
                           textStyle: TextStyle(color: confirmationSliderColor),
                           height: 40,
