@@ -115,14 +115,6 @@ impl Rollover {
             .first()
             .context("oracle announcement to exist on signed contract")?;
 
-        let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-            oracle_announcement.oracle_event.event_maturity_epoch as i64,
-        )?;
-
-        if expiry_timestamp < OffsetDateTime::now_utc() {
-            bail!("Cannot rollover an expired position");
-        }
-
         let margin_coordinator = offered_contract.offer_params.collateral;
         let margin_trader = offered_contract.total_collateral - margin_coordinator;
 
@@ -377,16 +369,6 @@ mod tests {
         assert_eq!(contract_input.accept_collateral, margin_trader);
         assert_eq!(contract_input.offer_collateral, margin_coordinator);
         assert_eq!(contract_input.contract_infos.len(), 1);
-    }
-
-    #[test]
-    fn test_rollover_expired_position() {
-        let expiry_timestamp = OffsetDateTime::now_utc().unix_timestamp() - 10_000;
-        assert!(Rollover::new(
-            Contract::Confirmed(dummy_signed_contract(200, 100, expiry_timestamp as u32)),
-            Network::Bitcoin
-        )
-        .is_err())
     }
 
     fn dummy_signed_contract(
