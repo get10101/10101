@@ -36,4 +36,5 @@ pub use report_error::report_error_to_coordinator;
     unused_qualifications
 )]
 mod bridge_generated;
+mod hodl_invoice;
 mod position;

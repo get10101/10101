@@ -20,6 +20,7 @@ use crate::event::BackgroundTask;
 use crate::event::EventInternal;
 use crate::event::TaskStatus;
 use crate::health;
+use crate::hodl_invoice;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
@@ -923,4 +924,9 @@ pub async fn submit_unfunded_channel_opening_order(
     .await?;
 
     Ok(())
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn get_hodl_invoice_from_coordinator(amount: u64) -> Result<String> {
+    hodl_invoice::get_hodl_invoice_from_coordinator(Amount::from_sat(amount)).await
 }

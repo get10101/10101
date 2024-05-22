@@ -8,9 +8,12 @@ description = "A bridge to the lnd api."
 anyhow = "1"
 async-stream = "0.3"
 futures = "0.3"
+hex = { version = "0.4.3", features = ["default"] }
+rand = "0.8.5"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha256 = "1.5.0"
 tokio = { version = "1", features = ["macros", "time", "tracing"] }
 tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
 tracing = "0.1"
