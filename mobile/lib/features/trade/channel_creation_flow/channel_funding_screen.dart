@@ -37,7 +37,7 @@ class ChannelFundingScreen extends StatelessWidget {
   }
 }
 
-enum FundinType {
+enum FundingType {
   lightning,
   onchain,
   unified,
@@ -55,7 +55,7 @@ class ChannelFunding extends StatefulWidget {
 }
 
 class _ChannelFunding extends State<ChannelFunding> {
-  FundinType selectedBox = FundinType.onchain;
+  FundingType selectedBox = FundingType.onchain;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +69,7 @@ class _ChannelFunding extends State<ChannelFunding> {
       dimension: 300,
     );
 
-    if (selectedBox != FundinType.onchain) {
+    if (selectedBox != FundingType.onchain) {
       qcCodeContent = "Follow us on Twitter for news: @get10101";
 
       qrCode = CustomQrCode(
@@ -250,10 +250,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "Unified",
             image: const Icon(BitcoinIcons.bitcoin_circle_outline),
-            isSelected: selectedBox == FundinType.unified,
+            isSelected: selectedBox == FundingType.unified,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.unified;
+                selectedBox = FundingType.unified;
               });
             },
           ),
@@ -262,10 +262,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "Lightning",
             image: const Icon(BitcoinIcons.lightning_outline),
-            isSelected: selectedBox == FundinType.lightning,
+            isSelected: selectedBox == FundingType.lightning,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.lightning;
+                selectedBox = FundingType.lightning;
               });
             },
           ),
@@ -274,10 +274,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "On-chain",
             image: const Icon(BitcoinIcons.link_outline),
-            isSelected: selectedBox == FundinType.onchain,
+            isSelected: selectedBox == FundingType.onchain,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.onchain;
+                selectedBox = FundingType.onchain;
               });
             },
           ),
@@ -286,10 +286,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "External",
             image: const Icon(BitcoinIcons.wallet),
-            isSelected: selectedBox == FundinType.external,
+            isSelected: selectedBox == FundingType.external,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.external;
+                selectedBox = FundingType.external;
               });
             },
           ),
@@ -298,7 +298,7 @@ class _ChannelFunding extends State<ChannelFunding> {
     );
   }
 
-  Column buildInfoBox(FundingChannelTaskStatus? value, FundinType selectedBox) {
+  Column buildInfoBox(FundingChannelTaskStatus? value, FundingType selectedBox) {
     String transactionStatusText = "Waiting for payment...";
     String transactionStatusInformationText =
         "Please wait. If you leave now, your position won’t be opened when the funds arrive.";
@@ -306,7 +306,7 @@ class _ChannelFunding extends State<ChannelFunding> {
     Widget loadingWidget = Container();
 
     switch (selectedBox) {
-      case FundinType.onchain:
+      case FundingType.onchain:
         switch (value) {
           case null:
           case FundingChannelTaskStatus.pending:
