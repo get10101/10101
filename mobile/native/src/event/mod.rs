@@ -40,6 +40,7 @@ pub enum EventInternal {
     SpendableOutputs,
     DlcChannelEvent(DlcChannel),
     FundingChannelNotification(FundingChannelTask),
+    LnPaymentReceived,
 }
 
 #[derive(Clone, Debug)]
@@ -85,6 +86,7 @@ impl fmt::Display for EventInternal {
             EventInternal::AskPriceUpdateNotification(_) => "AskPriceUpdateNotification",
             EventInternal::BidPriceUpdateNotification(_) => "BidPriceUpdateNotification",
             EventInternal::FundingChannelNotification(_) => "FundingChannelNotification",
+            EventInternal::LnPaymentReceived => "LnPaymentReceived",
         }
         .fmt(f)
     }
@@ -109,6 +111,7 @@ impl From<EventInternal> for EventType {
             EventInternal::AskPriceUpdateNotification(_) => EventType::AskPriceUpdateNotification,
             EventInternal::BidPriceUpdateNotification(_) => EventType::BidPriceUpdateNotification,
             EventInternal::FundingChannelNotification(_) => EventType::FundingChannelNotification,
+            EventInternal::LnPaymentReceived => EventType::LnPaymentReceived,
         }
     }
 }
@@ -123,9 +126,7 @@ pub enum EventType {
     PositionUpdateNotification,
     PositionClosedNotification,
     ChannelReady,
-    PaymentClaimed,
-    PaymentSent,
-    PaymentFailed,
+    LnPaymentReceived,
     ServiceHealthUpdate,
     ChannelStatusUpdate,
     BackgroundNotification,

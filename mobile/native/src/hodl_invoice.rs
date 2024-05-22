@@ -7,8 +7,14 @@ use bitcoin::Amount;
 use reqwest::Url;
 use xxi_node::commons;
 
-pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<String> {
-    // TODO: store the preimage in the node so that we can remember it
+pub struct HodlInvoice {
+    pub payment_request: String,
+    pub pre_image: String,
+    pub r_hash: String,
+    pub amt_sats: Amount,
+}
+
+pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<HodlInvoice> {
     let pre_image = commons::create_pre_image();
 
     let client = reqwest_client();
@@ -19,7 +25,7 @@ pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<String>
     let invoice_params = commons::HodlInvoiceParams {
         trader_pubkey: get_node_pubkey(),
         amt_sats: amount.to_sat(),
-        r_hash: pre_image.hash,
+        r_hash: pre_image.hash.clone(),
     };
     let invoice_params = commons::SignedValue::new(invoice_params, get_node_key())?;
 
@@ -31,5 +37,11 @@ pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<String>
         .error_for_status()?;
 
     let payment_request = response.json::<String>().await?;
-    Ok(payment_request)
+    let hodl_invoice = HodlInvoice {
+        payment_request,
+        pre_image: pre_image.get_base64_encoded_pre_image(),
+        r_hash: pre_image.hash,
+        amt_sats: Default::default(),
+    };
+    Ok(hodl_invoice)
 }

@@ -1,16 +1,16 @@
 import 'dart:math';
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
-import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
-import 'package:get_10101/features/trade/domain/leverage.dart';
-import 'package:get_10101/logger/logger.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/application/trade_values_service.dart';
+import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/features/trade/domain/contract_symbol.dart';
+import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
 import 'package:get_10101/features/trade/domain/trade_values.dart';
+import 'package:get_10101/logger/logger.dart';
 
 class SubmitOrderChangeNotifier extends ChangeNotifier {
   final OrderService orderService;
@@ -46,7 +46,7 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
     }
   }
 
-  Future<String> submitUnfundedOrder(
+  Future<ExternalFunding> submitUnfundedOrder(
       TradeValues tradeValues, ChannelOpeningParams channelOpeningParams) async {
     try {
       // TODO(holzeis): The coordinator leverage should not be hard coded here.

@@ -1,31 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/background_task_dialog_screen.dart';
 import 'package:get_10101/common/global_keys.dart';
+import 'package:get_10101/common/scaffold_with_nav_bar.dart';
+import 'package:get_10101/common/settings/app_info_screen.dart';
 import 'package:get_10101/common/settings/channel_screen.dart';
+import 'package:get_10101/common/settings/collab_close_screen.dart';
 import 'package:get_10101/common/settings/emergency_kit_screen.dart';
+import 'package:get_10101/common/settings/force_close_screen.dart';
+import 'package:get_10101/common/settings/seed_screen.dart';
+import 'package:get_10101/common/settings/settings_screen.dart';
+import 'package:get_10101/common/settings/share_logs_screen.dart';
 import 'package:get_10101/common/settings/user_screen.dart';
 import 'package:get_10101/common/settings/wallet_settings.dart';
 import 'package:get_10101/common/status_screen.dart';
-import 'package:get_10101/common/background_task_dialog_screen.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_funding_screen.dart';
-import 'package:get_10101/features/wallet/domain/destination.dart';
-import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
-import 'package:get_10101/features/welcome/error_screen.dart';
-import 'package:get_10101/features/welcome/loading_screen.dart';
-import 'package:get_10101/common/scaffold_with_nav_bar.dart';
-import 'package:get_10101/common/settings/app_info_screen.dart';
-import 'package:get_10101/common/settings/collab_close_screen.dart';
-import 'package:get_10101/common/settings/force_close_screen.dart';
-import 'package:get_10101/common/settings/settings_screen.dart';
-import 'package:get_10101/common/settings/share_logs_screen.dart';
-import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/receive_screen.dart';
 import 'package:get_10101/features/wallet/scanner_screen.dart';
-import 'package:get_10101/features/welcome/seed_import_screen.dart';
-import 'package:get_10101/common/settings/seed_screen.dart';
+import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/features/welcome/error_screen.dart';
+import 'package:get_10101/features/welcome/loading_screen.dart';
+import 'package:get_10101/features/welcome/onboarding.dart';
+import 'package:get_10101/features/welcome/seed_import_screen.dart';
 import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:go_router/go_router.dart';
 
@@ -242,7 +243,7 @@ GoRouter createRoutes() {
                       final data = state.extra! as Map<String, dynamic>;
                       return ChannelFundingScreen(
                         amount: data["amount"],
-                        address: data["address"],
+                        funding: data["funding"] as ExternalFunding,
                       );
                     },
                     routes: const [],

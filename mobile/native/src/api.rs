@@ -18,27 +18,29 @@ use crate::event;
 use crate::event::api::FlutterSubscriber;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
+use crate::event::FundingChannelTask;
 use crate::event::TaskStatus;
 use crate::health;
 use crate::hodl_invoice;
 use crate::logger;
 use crate::max_quantity::max_quantity;
 use crate::polls;
+use crate::state::get_node;
 use crate::trade::order;
 use crate::trade::order::api::NewOrder;
 use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
-use crate::unfunded_orders;
+use crate::watcher;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
-use bitcoin::Address;
 use bitcoin::Amount;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
+use futures::FutureExt;
 use lightning::chain::chaininterface::ConfirmationTarget as LnConfirmationTarget;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -47,7 +49,6 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -904,29 +905,88 @@ pub fn has_traded_once() -> Result<SyncReturn<bool>> {
     Ok(SyncReturn(!db::get_all_trades()?.is_empty()))
 }
 
+pub struct ExternalFunding {
+    pub bitcoin_address: String,
+    pub payment_request: String,
+}
+
 #[tokio::main(flavor = "current_thread")]
 pub async fn submit_unfunded_channel_opening_order(
-    funding_address: String,
     order: NewOrder,
     coordinator_reserve: u64,
     trader_reserve: u64,
     estimated_margin: u64,
-) -> Result<()> {
-    let funding_address = Address::from_str(funding_address.as_str())?.assume_checked();
+) -> Result<ExternalFunding> {
+    let node = get_node();
+    let bitcoin_address = node.inner.get_new_address()?;
+    let funding_amount = Amount::from_sat(estimated_margin + trader_reserve);
+    let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount).await?;
 
-    unfunded_orders::submit_unfunded_wallet_channel_opening_order(
-        funding_address,
-        order,
-        coordinator_reserve,
-        trader_reserve,
-        estimated_margin + trader_reserve,
-    )
-    .await?;
+    let runtime = crate::state::get_or_create_tokio_runtime()?;
+    let (future, remote_handle) = runtime.spawn({
+        let bitcoin_address = bitcoin_address.clone();
+        async move {
+            event::publish(&EventInternal::FundingChannelNotification(
+                FundingChannelTask::Pending,
+            ));
 
-    Ok(())
-}
+            // we must only create the order on either event. If the bitcoin address is funded we cancel the watch for the lightning invoice and vice versa.
+            tokio::select! {
+                _ = watcher::watch_funding_address(bitcoin_address.clone(), funding_amount) => {
+                    // received bitcoin payment.
+                    tracing::info!(%bitcoin_address, %funding_amount, "Found funding amount on bitcoin address.")
+                }
+                _ = watcher::watch_lightning_payment() => {
+                    // received lightning payment.
+                    tracing::info!(%funding_amount, "Found lighting payment.")
+                }
+            }
 
-#[tokio::main(flavor = "current_thread")]
-pub async fn get_hodl_invoice_from_coordinator(amount: u64) -> Result<String> {
-    hodl_invoice::get_hodl_invoice_from_coordinator(Amount::from_sat(amount)).await
+            event::publish(&EventInternal::FundingChannelNotification(
+                FundingChannelTask::Funded,
+            ));
+
+            tracing::debug!(
+                coordinator_reserve,
+                %funding_amount,
+                "Creating new order with values {order:?}"
+            );
+
+            match order::handler::submit_order(
+                order.into(),
+                Some(ChannelOpeningParams {
+                    coordinator_reserve: Amount::from_sat(coordinator_reserve),
+                    trader_reserve: Amount::from_sat(trader_reserve),
+                }),
+            )
+                .await
+                .map_err(anyhow::Error::new)
+                .map(|id| id.to_string())
+            {
+                Ok(order_id) => {
+                    tracing::info!(order_id, "Order created");
+                    event::publish(&EventInternal::FundingChannelNotification(
+                        FundingChannelTask::OrderCreated(order_id),
+                    ));
+                }
+                Err(error) => {
+                    tracing::error!("Failed at submitting order {error:?}");
+                    event::publish(&EventInternal::FundingChannelNotification(
+                        FundingChannelTask::Failed("Failed at posting the order".to_string()),
+                    ));
+                }
+            };
+        }
+    }).remote_handle();
+
+    // We need to store the handle which will drop any old handler if present.
+    node.watcher_handle.lock().replace(remote_handle);
+
+    // Only now we can spawn the future, as otherwise we might have two competing handlers
+    runtime.spawn(future);
+
+    Ok(ExternalFunding {
+        bitcoin_address: bitcoin_address.to_string(),
+        payment_request: hodl_invoice.payment_request,
+    })
 }

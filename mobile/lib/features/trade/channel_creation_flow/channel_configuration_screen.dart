@@ -9,6 +9,7 @@ import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_funding_screen.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/custom_framed_container.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/fee_expansion_widget.dart';
@@ -419,9 +420,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                             ChannelOpeningParams(
                                                 coordinatorReserve: counterpartyCollateral,
                                                 traderReserve: ownTotalCollateral))
-                                        .then((address) {
+                                        .then((ExternalFunding funding) {
                                       GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
-                                        "address": address,
+                                        "funding": funding,
                                         "amount": totalAmountToBeFunded
                                       });
                                     }).onError((error, stackTrace) {

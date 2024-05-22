@@ -8,6 +8,7 @@ import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/funding_channel_task_change_notifier.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -20,19 +21,19 @@ class ChannelFundingScreen extends StatelessWidget {
   static const route = "${ChannelConfigurationScreen.route}/$subRouteName";
   static const subRouteName = "fund_tx";
   final Amount amount;
-  final String address;
+  final ExternalFunding funding;
 
   const ChannelFundingScreen({
     super.key,
     required this.amount,
-    required this.address,
+    required this.funding,
   });
 
   @override
   Widget build(BuildContext context) {
     return ChannelFunding(
       amount: amount,
-      address: address,
+      funding: funding,
     );
   }
 }
@@ -46,9 +47,9 @@ enum FundingType {
 
 class ChannelFunding extends StatefulWidget {
   final Amount amount;
-  final String address;
+  final ExternalFunding funding;
 
-  const ChannelFunding({super.key, required this.amount, required this.address});
+  const ChannelFunding({super.key, required this.amount, required this.funding});
 
   @override
   State<ChannelFunding> createState() => _ChannelFunding();
@@ -59,27 +60,26 @@ class _ChannelFunding extends State<ChannelFunding> {
 
   @override
   Widget build(BuildContext context) {
-    String address = widget.address;
-    // TODO: creating a bip21 qr code should be generic once we support other desposit methods
-    String qcCodeContent = "bitcoin:$address?amount=${widget.amount.btc.toString()}";
-
-    var qrCode = CustomQrCode(
-      data: qcCodeContent,
-      embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
-      dimension: 300,
-    );
-
-    if (selectedBox != FundingType.onchain) {
-      qcCodeContent = "Follow us on Twitter for news: @get10101";
-
-      qrCode = CustomQrCode(
-        data: qcCodeContent,
-        embeddedImage: const AssetImage("assets/coming_soon.png"),
-        embeddedImageSizeHeight: 350,
-        embeddedImageSizeWidth: 350,
-        dimension: 300,
-      );
-    }
+    final qrCode = switch (selectedBox) {
+      FundingType.lightning => CustomQrCode(
+          data: widget.funding.paymentRequest,
+          embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
+          dimension: 300,
+        ),
+      FundingType.onchain => CustomQrCode(
+          // TODO: creating a bip21 qr code should be generic once we support other desposit methods
+          data: "bitcoin:${widget.funding.bitcoinAddress}?amount=${widget.amount.btc.toString()}",
+          embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
+          dimension: 300,
+        ),
+      FundingType.unified || FundingType.external => const CustomQrCode(
+          data: "https://x.com/get10101",
+          embeddedImage: AssetImage("assets/coming_soon.png"),
+          embeddedImageSizeHeight: 350,
+          embeddedImageSizeWidth: 350,
+          dimension: 300,
+        )
+    };
 
     return Scaffold(
       body: SafeArea(
@@ -137,7 +137,7 @@ class _ChannelFunding extends State<ChannelFunding> {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       border: Border.all(color: Colors.grey, width: 1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(10),
                       shape: BoxShape.rectangle,
                     ),
                     child: Center(
@@ -161,9 +161,9 @@ class _ChannelFunding extends State<ChannelFunding> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              Clipboard.setData(ClipboardData(text: qcCodeContent)).then((_) {
-                                showSnackBar(ScaffoldMessenger.of(context),
-                                    "Address copied: $qcCodeContent");
+                              Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
+                                showSnackBar(
+                                    ScaffoldMessenger.of(context), "Copied: ${qrCode.data}");
                               });
                             },
                             child: Padding(
@@ -179,13 +179,13 @@ class _ChannelFunding extends State<ChannelFunding> {
                                   padding: const EdgeInsets.only(left: 10.0, right: 10.0),
                                   child: GestureDetector(
                                     onTap: () {
-                                      Clipboard.setData(ClipboardData(text: address)).then((_) {
+                                      Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
                                         showSnackBar(ScaffoldMessenger.of(context),
-                                            "Address copied: $address");
+                                            "Copied: ${qrCode.data}");
                                       });
                                     },
                                     child: Text(
-                                      address,
+                                      qrCode.data,
                                       style: const TextStyle(fontSize: 14),
                                       textAlign: TextAlign.center,
                                       maxLines: 1,

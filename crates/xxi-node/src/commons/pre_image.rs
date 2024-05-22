@@ -1,9 +1,17 @@
+use base64::engine::general_purpose;
+use base64::Engine;
 use rand::Rng;
 use sha256::digest;
 
 pub struct PreImage {
     pub pre_image: [u8; 32],
     pub hash: String,
+}
+
+impl PreImage {
+    pub fn get_base64_encoded_pre_image(&self) -> String {
+        general_purpose::URL_SAFE.encode(self.pre_image)
+    }
 }
 
 pub fn create_pre_image() -> PreImage {

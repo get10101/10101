@@ -5,6 +5,18 @@ import 'package:get_10101/features/trade/domain/leverage.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/ffi.dart' as rust;
 
+class ExternalFunding {
+  final String bitcoinAddress;
+  final String paymentRequest;
+
+  const ExternalFunding({required this.bitcoinAddress, required this.paymentRequest});
+
+  static ExternalFunding fromApi(rust.ExternalFunding funding) {
+    return ExternalFunding(
+        bitcoinAddress: funding.bitcoinAddress, paymentRequest: funding.paymentRequest);
+  }
+}
+
 class OrderService {
   Future<String> submitMarketOrder(Leverage leverage, Usd quantity, ContractSymbol contractSymbol,
       Direction direction, bool stable) async {
@@ -43,7 +55,7 @@ class OrderService {
 
   // starts a process to watch for funding an address before creating the order
   // returns the address to watch for
-  Future<String> submitUnfundedChannelOpeningMarketOrder(
+  Future<ExternalFunding> submitUnfundedChannelOpeningMarketOrder(
       Leverage leverage,
       Usd quantity,
       ContractSymbol contractSymbol,
@@ -60,15 +72,13 @@ class OrderService {
         orderType: const rust.OrderType.market(),
         stable: stable);
 
-    var address = await rust.api.getNewAddress();
-
-    await rust.api.submitUnfundedChannelOpeningOrder(
-        fundingAddress: address,
+    final funding = await rust.api.submitUnfundedChannelOpeningOrder(
         order: order,
         coordinatorReserve: coordinatorReserve.sats,
         traderReserve: traderReserve.sats,
         estimatedMargin: margin.sats);
-    return address;
+
+    return ExternalFunding.fromApi(funding);
   }
 
   Future<List<Order>> fetchOrders() async {

@@ -10,6 +10,7 @@ description = "A common library for the 10101 node"
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1.71"
 axum = { version = "0.6", features = ["ws"], optional = true }
+base64 = "0.22.1"
 bdk = { version = "1.0.0-alpha.6", features = ["std"] }
 bdk_coin_select = "0.2.0"
 bdk_esplora = { version = "0.8.0" }

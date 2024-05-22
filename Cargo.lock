@@ -5413,6 +5413,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum 0.6.20",
+ "base64 0.22.1",
  "bdk",
  "bdk_coin_select",
  "bdk_esplora",

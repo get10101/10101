@@ -31,6 +31,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::task::JoinError;
 use tracing::instrument;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
@@ -76,7 +77,8 @@ pub struct Node {
     // good enough
     pub pending_usdp_invoices: Arc<parking_lot::Mutex<HashSet<bitcoin_old::hashes::sha256::Hash>>>,
 
-    pub unfunded_order_handle: Arc<parking_lot::Mutex<Option<RemoteHandle<()>>>>,
+    #[allow(clippy::type_complexity)]
+    pub watcher_handle: Arc<parking_lot::Mutex<Option<RemoteHandle<Result<(), JoinError>>>>>,
 }
 
 impl Node {
@@ -94,7 +96,7 @@ impl Node {
             inner: node,
             _running: Arc::new(running),
             pending_usdp_invoices: Arc::new(Default::default()),
-            unfunded_order_handle: Arc::new(Default::default()),
+            watcher_handle: Arc::new(Default::default()),
         }
     }
 }

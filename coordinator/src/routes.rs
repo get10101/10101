@@ -552,6 +552,7 @@ fn parse_offset_datetime(date_str: String) -> Result<Option<OffsetDateTime>> {
     Ok(Some(date_time))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_leaderboard(
     State(state): State<Arc<AppState>>,
     params: Query<LeaderBoardQueryParams>,
@@ -593,6 +594,7 @@ pub async fn get_leaderboard(
     }))
 }
 
+#[instrument(skip_all, err(Debug))]
 async fn post_error(
     State(state): State<Arc<AppState>>,
     app_error: Json<ReportedError>,
@@ -608,6 +610,7 @@ async fn post_error(
     Ok(())
 }
 
+#[instrument(skip_all, err(Debug))]
 async fn create_invoice(
     State(state): State<Arc<AppState>>,
     Json(invoice_params): Json<SignedValue<commons::HodlInvoiceParams>>,
@@ -630,7 +633,11 @@ async fn create_invoice(
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     // watch for the created hodl invoice
-    invoice::spawn_invoice_watch(state.lnd_bridge.clone(), invoice_params);
+    invoice::spawn_invoice_watch(
+        state.tx_orderbook_feed.clone(),
+        state.lnd_bridge.clone(),
+        invoice_params,
+    );
 
     Ok(Json(response.payment_request))
 }
