@@ -38,3 +38,4 @@ pub use report_error::report_error_to_coordinator;
 mod bridge_generated;
 mod hodl_invoice;
 mod position;
+mod unfunded_channel_opening_order;
