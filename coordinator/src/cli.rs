@@ -71,6 +71,18 @@ pub struct Opts {
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
     )]
     pub oracle_pubkey: String,
+
+    /// The endpoint of the lnd rest api
+    #[clap(long, default_value = "localhost:18080")]
+    pub lnd_endpoint: String,
+
+    /// Defines the macaroon to be used for the lnd http api.
+    #[clap(long, default_value = "")]
+    pub macaroon: String,
+
+    /// If enabled the coordinator will try to connect to lnd via https, wss.
+    #[clap(short, long)]
+    pub secure_lnd: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]

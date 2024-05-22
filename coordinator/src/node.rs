@@ -49,6 +49,7 @@ use xxi_node::node::RunningNode;
 
 pub mod channel;
 pub mod expired_positions;
+pub mod invoice;
 pub mod liquidated_positions;
 pub mod rollover;
 pub mod storage;

@@ -77,6 +77,13 @@ impl User {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HodlInvoiceParams {
+    pub trader_pubkey: PublicKey,
+    pub amt_sats: u64,
+    pub r_hash: String,
+}
+
 pub fn referral_from_pubkey(public_key: PublicKey) -> String {
     let referral_code = public_key
         .to_string()

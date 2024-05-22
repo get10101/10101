@@ -10,6 +10,7 @@ use crate::leaderboard::LeaderBoardCategory;
 use crate::leaderboard::LeaderBoardQueryParams;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
+use crate::node::invoice;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::orderbook::trading::NewOrderMessage;
@@ -35,6 +36,7 @@ use admin::resend_renew_revoke_message;
 use admin::roll_back_dlc_channel;
 use admin::rollover;
 use admin::update_settings;
+use anyhow::Result;
 use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::Path;
@@ -57,6 +59,8 @@ use bitcoin::secp256k1::VerifyOnly;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
+use lnd_bridge::InvoiceParams;
+use lnd_bridge::LndBridge;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook::delete_order;
 use orderbook::get_order;
@@ -86,6 +90,7 @@ use xxi_node::commons::PollAnswers;
 use xxi_node::commons::RegisterParams;
 use xxi_node::commons::ReportedError;
 use xxi_node::commons::Restore;
+use xxi_node::commons::SignedValue;
 use xxi_node::commons::UpdateUsernameParams;
 use xxi_node::node::NodeInfo;
 
@@ -108,6 +113,7 @@ pub struct AppState {
     pub notification_sender: mpsc::Sender<Notification>,
     pub user_backup: SledBackup,
     pub secp: Secp256k1<VerifyOnly>,
+    pub lnd_bridge: LndBridge,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -124,6 +130,7 @@ pub fn router(
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     notification_sender: mpsc::Sender<Notification>,
     user_backup: SledBackup,
+    lnd_bridge: LndBridge,
 ) -> Router {
     let secp = Secp256k1::verification_only();
 
@@ -141,6 +148,7 @@ pub fn router(
         notification_sender,
         user_backup,
         secp,
+        lnd_bridge,
     });
 
     Router::new()
@@ -159,6 +167,7 @@ pub fn router(
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route("/api/orderbook/orders/:order_id", get(get_order))
         .route("/api/orderbook/websocket", get(websocket_handler))
+        .route("/api/invoice", post(create_invoice))
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
@@ -533,7 +542,7 @@ async fn restore(
     Ok(Json(backup))
 }
 
-fn parse_offset_datetime(date_str: String) -> anyhow::Result<Option<OffsetDateTime>> {
+fn parse_offset_datetime(date_str: String) -> Result<Option<OffsetDateTime>> {
     if date_str.is_empty() {
         return Ok(None);
     }
@@ -597,4 +606,31 @@ async fn post_error(
         .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
 
     Ok(())
+}
+
+async fn create_invoice(
+    State(state): State<Arc<AppState>>,
+    Json(invoice_params): Json<SignedValue<commons::HodlInvoiceParams>>,
+) -> Result<Json<String>, AppError> {
+    invoice_params
+        .verify(&state.secp, &invoice_params.value.trader_pubkey)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    let invoice_params = invoice_params.value;
+
+    let response = state
+        .lnd_bridge
+        .create_invoice(InvoiceParams {
+            value: invoice_params.amt_sats,
+            memo: "Fund your 10101 position".to_string(),
+            expiry: 10 * 60, // 10 minutes
+            hash: invoice_params.clone().r_hash,
+        })
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    // watch for the created hodl invoice
+    invoice::spawn_invoice_watch(state.lnd_bridge.clone(), invoice_params);
+
+    Ok(Json(response.payment_request))
 }

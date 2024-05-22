@@ -29,6 +29,7 @@ use coordinator::trade::websocket::InternalPositionUpdateMessage;
 use diesel::r2d2;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use lnd_bridge::LndBridge;
 use rand::thread_rng;
 use rand::RngCore;
 use std::backtrace::Backtrace;
@@ -82,6 +83,13 @@ async fn main() -> Result<()> {
     let address = opts.p2p_address;
     let http_address = opts.http_address;
     let network = opts.network();
+    let oracle_infos = opts
+        .get_oracle_infos()
+        .into_iter()
+        .map(|o| o.into())
+        .collect();
+
+    let lnd_bridge = LndBridge::new(opts.lnd_endpoint, opts.macaroon, opts.secure_lnd);
 
     logger::init_tracing(LevelFilter::DEBUG, opts.json, opts.tokio_console)?;
 
@@ -136,10 +144,7 @@ async fn main() -> Result<()> {
         seed,
         ephemeral_randomness,
         settings.xxi.clone(),
-        opts.get_oracle_infos()
-            .into_iter()
-            .map(|o| o.into())
-            .collect(),
+        oracle_infos,
         XOnlyPublicKey::from_str(&opts.oracle_pubkey).expect("valid public key"),
         node_event_handler.clone(),
         dlc_event_sender,
@@ -327,6 +332,7 @@ async fn main() -> Result<()> {
         auth_users_notifier.clone(),
         notification_service.get_sender(),
         user_backup,
+        lnd_bridge,
     );
 
     let sender = notification_service.get_sender();
