@@ -414,23 +414,23 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                         "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
 
                                     await submitOrderChangeNotifier
-                                  .submitUnfundedOrder(
-                                  widget.tradeValues,
-                                  ChannelOpeningParams(
-                                      coordinatorReserve: counterpartyCollateral,
-                                      traderReserve: ownTotalCollateral))
-                                  .then((address) {
-                                GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
-                                  "address": address,
-                                  "amount": totalAmountToBeFunded
-                                });
-                              }).onError((error, stackTrace) {
-                                logger.e("Failed at submitting unfunded order $error");
-                                final messenger = ScaffoldMessenger.of(context);
-                                showSnackBar(
-                                    messenger, "Failed creating order ${error.toString()}");
-                              });
-                            }
+                                        .submitUnfundedOrder(
+                                            widget.tradeValues,
+                                            ChannelOpeningParams(
+                                                coordinatorReserve: counterpartyCollateral,
+                                                traderReserve: ownTotalCollateral))
+                                        .then((address) {
+                                      GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
+                                        "address": address,
+                                        "amount": totalAmountToBeFunded
+                                      });
+                                    }).onError((error, stackTrace) {
+                                      logger.e("Failed at submitting unfunded order $error");
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      showSnackBar(
+                                          messenger, "Failed creating order ${error.toString()}");
+                                    });
+                                  }
                                 : null,
                             style: ElevatedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(50),
@@ -466,9 +466,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                   "");
                               submitOrderChangeNotifier
                                   .submitOrder(widget.tradeValues,
-                                  channelOpeningParams: ChannelOpeningParams(
-                                      coordinatorReserve: counterpartyCollateral,
-                                      traderReserve: ownTotalCollateral))
+                                      channelOpeningParams: ChannelOpeningParams(
+                                          coordinatorReserve: counterpartyCollateral,
+                                          traderReserve: ownTotalCollateral))
                                   .onError((error, stackTrace) {
                                 logger.e("Failed creating new channel due to $error");
                                 final messenger = ScaffoldMessenger.of(context);
