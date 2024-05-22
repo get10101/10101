@@ -366,7 +366,6 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                   value: ownTotalCollateral,
                                   label: 'Channel size'),
                               FeeExpansionTile(
-                                  label: "Fee*",
                                   value: totalFee,
                                   orderMatchingFee: orderMatchingFee,
                                   fundingTxFee: fundingTxFee,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/value_data_row.dart';
 
 class FeeExpansionTile extends StatefulWidget {
-  final String label;
   final Amount value;
   final Amount orderMatchingFee;
   final Amount fundingTxFee;
@@ -11,7 +11,6 @@ class FeeExpansionTile extends StatefulWidget {
 
   const FeeExpansionTile({
     super.key,
-    required this.label,
     required this.value,
     required this.orderMatchingFee,
     required this.fundingTxFee,
@@ -64,12 +63,23 @@ class _FeeExpansionTileState extends State<FeeExpansionTile> with SingleTickerPr
       children: [
         GestureDetector(
           onTap: _toggleExpand,
-          child: ValueDataRow(type: ValueType.amount, value: widget.value, label: 'Fee*'),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                const Text("Fee"),
+                const SizedBox(width: 2),
+                Icon(_isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 22, color: Colors.black)
+              ]),
+              AmountText(amount: widget.value)
+            ],
+          ),
         ),
         SizeTransition(
           sizeFactor: _expandAnimation,
           child: Container(
-            padding: const EdgeInsets.only(top: 4.0, left: 8.0, right: 8),
+            padding: const EdgeInsets.only(top: 0.0, left: 8.0, right: 0),
             color: Colors.grey[100], // You can change this to match your design
             child: SingleChildScrollView(
               child: GestureDetector(
