@@ -34,7 +34,7 @@ reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust-bitcoin-coin-selection = { version = "0.1.0", features = ["rand"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1"
-secp256k1 = { version = "0.27.0", features = ["serde"] }
+secp256k1 = { version = "0.27.0", features = ["global-context", "serde"] }
 secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = "1.0.147"
 serde_json = "1.0"
