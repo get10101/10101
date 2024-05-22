@@ -94,7 +94,7 @@ tradeBottomSheetConfirmation(
                     sliderKey: sliderKey,
                     onConfirmation: onConfirmation,
                     tradeAction: tradeAction,
-                    traderCollateral: channelOpeningParams?.traderCollateral,
+                    traderCollateral: channelOpeningParams?.traderReserve,
                     channelFeeReserve: channelFeeReserve,
                     fundingTxFee: fundingTxFee,
                   )),

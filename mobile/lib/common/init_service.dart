@@ -4,7 +4,9 @@ import 'package:get_10101/common/background_task_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
+import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/tentenone_config.dart';
+import 'package:get_10101/common/funding_channel_task_change_notifier.dart';
 import 'package:get_10101/features/brag/meme_service.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -54,6 +56,7 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
     ChangeNotifierProvider(create: (context) => BackgroundTaskChangeNotifier()),
+    ChangeNotifierProvider(create: (context) => FundingChannelChangeNotifier()),
     ChangeNotifierProvider(create: (context) => TenTenOneConfigChangeNotifier(channelInfoService)),
     ChangeNotifierProvider(create: (context) => PollChangeNotifier(pollService)),
     Provider(create: (context) => config),
@@ -78,6 +81,7 @@ void subscribeToNotifiers(BuildContext context) {
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
   final serviceStatusNotifier = context.read<ServiceStatusNotifier>();
   final backgroundTaskChangeNotifier = context.read<BackgroundTaskChangeNotifier>();
+  final fundingChannelChangeNotifier = context.read<FundingChannelChangeNotifier>();
   final tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
   final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
@@ -110,6 +114,9 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       backgroundTaskChangeNotifier, bridge.Event.backgroundNotification(BackgroundTask.apiDummy()));
+
+  eventService.subscribe(fundingChannelChangeNotifier,
+      bridge.Event.fundingChannelNotification(FundingChannelTaskStatus.apiDummy()));
 
   eventService.subscribe(
       tentenoneConfigChangeNotifier, bridge.Event.authenticated(TenTenOneConfig.apiDummy()));

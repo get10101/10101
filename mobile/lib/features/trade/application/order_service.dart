@@ -41,6 +41,36 @@ class OrderService {
         traderReserve: traderReserve.sats);
   }
 
+  // starts a process to watch for funding an address before creating the order
+  // returns the address to watch for
+  Future<String> submitUnfundedChannelOpeningMarketOrder(
+      Leverage leverage,
+      Usd quantity,
+      ContractSymbol contractSymbol,
+      Direction direction,
+      bool stable,
+      Amount coordinatorReserve,
+      Amount traderReserve,
+      Amount margin) async {
+    rust.NewOrder order = rust.NewOrder(
+        leverage: leverage.leverage,
+        quantity: quantity.asDouble(),
+        contractSymbol: contractSymbol.toApi(),
+        direction: direction.toApi(),
+        orderType: const rust.OrderType.market(),
+        stable: stable);
+
+    var address = await rust.api.getNewAddress();
+
+    await rust.api.submitUnfundedChannelOpeningOrder(
+        fundingAddress: address,
+        order: order,
+        coordinatorReserve: coordinatorReserve.sats,
+        traderReserve: traderReserve.sats,
+        estimatedMargin: margin.sats);
+    return address;
+  }
+
   Future<List<Order>> fetchOrders() async {
     List<rust.Order> apiOrders = await rust.api.getOrders();
     List<Order> orders = apiOrders.map((order) => Order.fromApi(order)).toList();

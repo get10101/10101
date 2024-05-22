@@ -8,6 +8,7 @@ import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/custom_qr_code.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
@@ -22,7 +23,6 @@ import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ReceiveScreen extends StatefulWidget {
@@ -87,54 +87,37 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             onDoubleTap:
                 config.network == "regtest" ? () => setState(() => _faucet = !_faucet) : null,
             child: Center(
-              child: _faucet
-                  ? Column(
-                      children: [
-                        const SizedBox(height: 125),
-                        OutlinedButton(
-                          onPressed: _isPayInvoiceButtonDisabled
-                              ? null
-                              : () async {
-                                  setState(() => _isPayInvoiceButtonDisabled = true);
-                                  final faucetService = context.read<FaucetService>();
-                                  faucetService
-                                      .payInvoiceWithFaucet(rawInvoice(), amount)
-                                      .catchError((error) {
-                                    setState(() => _isPayInvoiceButtonDisabled = false);
-                                    showSnackBar(ScaffoldMessenger.of(context), error.toString());
-                                  }).then((value) => context.go(WalletScreen.route));
-                                },
-                          style: ElevatedButton.styleFrom(
-                            shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                child: _faucet
+                    ? Column(
+                        children: [
+                          const SizedBox(height: 125),
+                          OutlinedButton(
+                            onPressed: _isPayInvoiceButtonDisabled
+                                ? null
+                                : () async {
+                                    setState(() => _isPayInvoiceButtonDisabled = true);
+                                    final faucetService = context.read<FaucetService>();
+                                    faucetService
+                                        .payInvoiceWithFaucet(rawInvoice(), amount)
+                                        .catchError((error) {
+                                      setState(() => _isPayInvoiceButtonDisabled = false);
+                                      showSnackBar(ScaffoldMessenger.of(context), error.toString());
+                                    }).then((value) => context.go(WalletScreen.route));
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                            ),
+                            child: const Text("Pay with 10101 faucet"),
                           ),
-                          child: const Text("Pay with 10101 faucet"),
-                        ),
-                        const SizedBox(height: 125),
-                      ],
-                    )
-                  : SizedBox.square(
-                      dimension: 350,
-                      child: QrImageView(
+                          const SizedBox(height: 125),
+                        ],
+                      )
+                    : CustomQrCode(
                         data: rawInvoice(),
-                        eyeStyle: const QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: Colors.black,
-                        ),
-                        dataModuleStyle: const QrDataModuleStyle(
-                          dataModuleShape: QrDataModuleShape.square,
-                          color: Colors.black,
-                        ),
                         embeddedImage:
-                            const AssetImage('assets/10101_logo_icon_white_background.png'),
-                        embeddedImageStyle: const QrEmbeddedImageStyle(
-                          size: Size(50, 50),
-                        ),
-                        version: QrVersions.auto,
-                        padding: const EdgeInsets.all(5),
-                      ),
-                    ),
-            ),
+                            const AssetImage("assets/10101_logo_icon_white_background.png"),
+                      )),
           ),
         ),
         Container(

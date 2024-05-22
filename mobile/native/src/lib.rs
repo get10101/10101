@@ -12,6 +12,7 @@ pub mod logger;
 pub mod schema;
 pub mod state;
 pub mod trade;
+pub mod unfunded_orders;
 
 mod backup;
 mod cipher;

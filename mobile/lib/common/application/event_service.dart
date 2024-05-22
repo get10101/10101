@@ -35,6 +35,7 @@ class EventService {
       subscribers[eventType] = List.empty(growable: true);
     }
 
+    logger.i("Subscribed: $subscriber for event: $event $eventType");
     subscribers[eventType]!.add(subscriber);
   }
 }

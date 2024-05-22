@@ -8,7 +8,7 @@ import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/usd_text_field.dart';
-import 'package:get_10101/features/trade/channel_configuration.dart';
+import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/domain/channel_opening_params.dart';
 import 'package:get_10101/ffi.dart' as rust;
 import 'package:get_10101/common/value_data_row.dart';
@@ -22,6 +22,7 @@ import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_bottom_sheet_confirmation.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
+import 'package:get_10101/util/constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -153,22 +154,10 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                       switch (tradeAction) {
                         case TradeAction.openChannel:
                           {
-                            final tradeValues =
-                                context.read<TradeValuesChangeNotifier>().fromDirection(direction);
-                            channelConfiguration(
-                              context: context,
-                              tradeValues: tradeValues,
-                              onConfirmation: (ChannelOpeningParams channelOpeningParams) {
-                                tradeBottomSheetConfirmation(
-                                  context: context,
-                                  direction: direction,
-                                  tradeAction: tradeAction,
-                                  onConfirmation: () => onConfirmation(
-                                      submitOrderChangeNotifier, tradeValues, channelOpeningParams),
-                                  channelOpeningParams: channelOpeningParams,
-                                );
-                              },
-                            );
+                            Navigator.pop(context);
+
+                            GoRouter.of(context).go(ChannelConfigurationScreen.route,
+                                extra: {"direction": direction});
                             break;
                           }
                         case TradeAction.trade:
@@ -243,6 +232,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
             selector: (_, provider) => provider.fromDirection(direction).price ?? 0,
             builder: (context, price, child) {
               return UsdTextField(
+                key: tradeButtonSheetMarketPrice,
                 value: Usd.fromDouble(price),
                 label: "Market Price (USD)",
               );
@@ -252,6 +242,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
           children: [
             Flexible(
                 child: AmountInputField(
+              key: tradeButtonSheetQuantityInput,
               controller: quantityController,
               suffixIcon: TextButton(
                 onPressed: () {
@@ -314,6 +305,7 @@ class _TradeBottomSheetTabState extends State<TradeBottomSheetTab>
                         provider.fromDirection(direction).margin ?? Amount.zero(),
                     builder: (context, margin, child) {
                       return AmountTextField(
+                        key: tradeButtonSheetMarginField,
                         value: margin,
                         label: "Margin (sats)",
                       );

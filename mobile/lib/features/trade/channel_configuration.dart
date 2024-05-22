@@ -280,8 +280,8 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                     ? () {
                         GoRouter.of(context).pop();
                         widget.onConfirmation(ChannelOpeningParams(
-                            coordinatorCollateral: counterpartyCollateral,
-                            traderCollateral: ownTotalCollateral));
+                            coordinatorReserve: counterpartyCollateral,
+                            traderReserve: ownTotalCollateral));
                       }
                     : null,
                 style: ElevatedButton.styleFrom(

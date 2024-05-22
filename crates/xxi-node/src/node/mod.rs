@@ -21,6 +21,7 @@ use bitcoin::address::NetworkUnchecked;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use bitcoin::Address;
+use bitcoin::Amount;
 use bitcoin::Network;
 use bitcoin::Txid;
 use futures::future::RemoteHandle;
@@ -57,6 +58,8 @@ pub mod peer_manager;
 pub use crate::message_handler::tentenone_message_name;
 pub use ::dlc_manager as rust_dlc_manager;
 use ::dlc_manager::ReferenceId;
+use bdk_esplora::esplora_client::OutputStatus;
+use bdk_esplora::esplora_client::Tx;
 pub use dlc_manager::signed_channel_state_name;
 pub use dlc_manager::DlcManager;
 use lightning::ln::peer_handler::ErroringMessageHandler;
@@ -334,6 +337,72 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: Storage + Sync + Send + 's
             .into_iter()
             .map(|(peer, _)| to_secp_pk_30(peer))
             .collect()
+    }
+
+    pub async fn get_unspent_txs(&self, address: &Address) -> Result<Vec<(Tx, Amount)>> {
+        let txs = self.get_utxo_for_address(address).await?;
+        let mut statuses = vec![];
+        for tx in txs {
+            if let Some(index) = tx
+                .vout
+                .iter()
+                .position(|vout| vout.scriptpubkey == address.script_pubkey())
+            {
+                match self.get_status_for_vout(&tx.txid, index as u64).await {
+                    Ok(Some(status)) => {
+                        if status.spent {
+                            tracing::warn!(
+                                txid = tx.txid.to_string(),
+                                vout = index,
+                                "Ignoring output as it is already spent"
+                            )
+                        } else {
+                            let amount =
+                                Amount::from_sat(tx.vout.get(index).expect("to exist").value);
+                            statuses.push((tx, amount));
+                        }
+                    }
+                    Ok(None) => {
+                        tracing::warn!(
+                            txid = tx.txid.to_string(),
+                            vout = index,
+                            "No status found for tx"
+                        );
+                    }
+                    Err(error) => {
+                        tracing::error!(
+                            txid = tx.txid.to_string(),
+                            vout = index,
+                            "Failed at checking tx status {error:?}"
+                        );
+                    }
+                }
+            } else {
+                tracing::error!(
+                    txid = tx.txid.to_string(),
+                    address = address.to_string(),
+                    "Output not found. This should not happen, but if it does, it indicates something is wrong.");
+            }
+        }
+        Ok(statuses)
+    }
+
+    async fn get_utxo_for_address(&self, address: &Address) -> Result<Vec<Tx>> {
+        let vec = self
+            .blockchain
+            .esplora_client_async
+            .scripthash_txs(&address.script_pubkey(), None)
+            .await?;
+        Ok(vec)
+    }
+
+    async fn get_status_for_vout(&self, tx_id: &Txid, vout: u64) -> Result<Option<OutputStatus>> {
+        let status = self
+            .blockchain
+            .esplora_client_async
+            .get_output_status(tx_id, vout)
+            .await?;
+        Ok(status)
     }
 }
 

@@ -93,7 +93,10 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
       width: MediaQuery.of(context).size.width * 0.65,
       child: ElevatedButton(
           onPressed: () {
-            GoRouter.of(context).pop();
+            var goRouter = GoRouter.of(context);
+            if (goRouter.canPop()) {
+              goRouter.pop();
+            }
 
             if (widget.onClose != null) {
               widget.onClose!();

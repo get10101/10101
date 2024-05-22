@@ -30,6 +30,7 @@ pub enum Event {
     BackgroundNotification(BackgroundTask),
     Authenticated(TenTenOneConfig),
     DlcChannelEvent(DlcChannel),
+    FundingChannelNotification(FundingChannelTask),
 }
 
 #[frb]
@@ -88,6 +89,9 @@ impl From<EventInternal> for Event {
             EventInternal::BidPriceUpdateNotification(price) => {
                 Event::BidPriceUpdateNotification(price.to_f32().expect("to fit"))
             }
+            EventInternal::FundingChannelNotification(status) => {
+                Event::FundingChannelNotification(status.into())
+            }
         }
     }
 }
@@ -125,6 +129,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::ServiceHealthUpdate,
             EventType::ChannelStatusUpdate,
             EventType::BackgroundNotification,
+            EventType::FundingChannelNotification,
             EventType::PaymentClaimed,
             EventType::PaymentSent,
             EventType::PaymentFailed,
@@ -189,4 +194,26 @@ pub struct WalletInfo {
 pub struct Balances {
     pub on_chain: u64,
     pub off_chain: Option<u64>,
+}
+
+#[frb]
+#[derive(Clone)]
+pub enum FundingChannelTask {
+    Pending,
+    Funded,
+    Failed(String),
+    OrderCreated(String),
+}
+
+impl From<event::FundingChannelTask> for FundingChannelTask {
+    fn from(value: event::FundingChannelTask) -> Self {
+        match value {
+            event::FundingChannelTask::Pending => FundingChannelTask::Pending,
+            event::FundingChannelTask::Funded => FundingChannelTask::Funded,
+            event::FundingChannelTask::Failed(reason) => FundingChannelTask::Failed(reason),
+            event::FundingChannelTask::OrderCreated(order_id) => {
+                FundingChannelTask::OrderCreated(order_id)
+            }
+        }
+    }
 }

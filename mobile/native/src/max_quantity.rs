@@ -5,6 +5,7 @@ use crate::dlc;
 use crate::trade::position;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
+use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use std::cmp::max;
@@ -12,13 +13,11 @@ use xxi_node::commons;
 use xxi_node::commons::Direction;
 use xxi_node::commons::Price;
 
-/// Calculates the max quantity a user can trade using the following input parameters
-/// - if no channel exists the on-chain fees (channel fee reserve and funding tx fee) is substracted
-///   from the max balance. Note, we add a little bit of buffer since these values are only
-///   estimates.
-/// - The max coordinator margin which is restricted to a certain max amount.
-/// - The max trader margin which is either the on-chain balance or the off-chain balance if a
-///   channel already exists.
+/// Calculates the max quantity
+///
+/// The max quantity a user can trade is the lower value of either:
+/// a) The max coordinator margin which is restricted to a certain max amount.
+/// b) The max trader margin which is off-chain balance if a channel already exists.
 pub fn max_quantity(
     price: Decimal,
     trader_leverage: f32,
@@ -40,7 +39,21 @@ pub fn max_quantity(
 
     let max_coordinator_balance =
         Amount::from_sat(channel_trade_constraints.max_counterparty_balance_sats);
-    let max_trader_balance = Amount::from_sat(channel_trade_constraints.max_local_balance_sats);
+
+    // If the trader has a channel, his max balance is the channel balance and we continue,
+    // otherwise we can return here as the max amount to trade depends on what the coordinator can
+    // provide
+    let max_trader_balance = if channel_trade_constraints.is_channel_balance {
+        Amount::from_sat(channel_trade_constraints.max_local_balance_sats)
+    } else {
+        return Ok(Decimal::from_f32(calculations::calculate_quantity(
+            price.to_f32().expect("to fit"),
+            max_coordinator_balance.to_sat(),
+            channel_trade_constraints.coordinator_leverage,
+        ))
+        .expect("to fit"));
+    };
+
     let order_matching_fee_rate = channel_trade_constraints.order_matching_fee_rate;
     let order_matching_fee_rate = Decimal::try_from(order_matching_fee_rate).expect("to fit");
 
@@ -126,7 +139,7 @@ pub fn max_quantity(
     Ok(max_quantity)
 }
 
-/// Calculates the max quantity for the given input parameters. If an on-chai fee estimate is
+/// Calculates the max quantity. If an on-chain fee estimate is
 /// provided the max margins are reduced by that amount to ensure the fees are considered.
 ///
 /// 1. Calculate the max coordinator quantity and max trader quantity.
