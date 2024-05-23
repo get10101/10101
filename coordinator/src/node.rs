@@ -481,9 +481,14 @@ impl Node {
                                     "DLC Channel settle offer has been rejected. Setting position to back to open."
                                 );
 
-                        db::positions::Position::update_closing_position(
+                        db::positions::Position::update_position_state(
                             &mut connection,
                             node_id.to_string(),
+                            vec![
+                                // the closing price doesn't matter here.
+                                PositionState::Closing { closing_price: 0.0 },
+                                PositionState::Rollover,
+                            ],
                             PositionState::Open,
                         )?;
                     }

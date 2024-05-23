@@ -206,6 +206,11 @@ impl DlcHandler {
                         BackgroundTask::RecoverDlc(TaskStatus::Pending),
                     ));
 
+                    // FIXME(holzeis): We need to be able to differentiate between a
+                    // SignedChannelState::RenewOffered and a RolloverOffer. This differentiation
+                    // currently only lives in 10101 and in the dlc messages, but not on the channel
+                    // state. Hence at the moment we also reject pending `RolloverOffers` the same
+                    // way we reject `RenewOffers`
                     self.node
                         .reject_renew_offer(None, channel_id)
                         .context("Failed to reject pending renew offer")?;

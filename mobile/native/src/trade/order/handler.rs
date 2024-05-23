@@ -322,20 +322,28 @@ pub(crate) fn order_failed(
     let order = match order_id {
         None => get_order_in_filling(),
         Some(order_id) => db::get_order(order_id),
-    }?
-    .with_context(|| format!("Could not find order. order_id = {order_id:?}"))
+    }
     .inspect_err(|e| {
+        // it doesn't matter that we send here an async trade failed even though we do not exactly
+        // know what kind of background task failed, because the error screen looks always the same.
         event::publish(&EventInternal::BackgroundNotification(
             BackgroundTask::AsyncTrade(TaskStatus::Failed(format!("{e:#}"))),
         ))
     })?;
 
     let task_status = TaskStatus::Failed(format!("{error:#}"));
-    let task = match order.reason {
-        OrderReason::Manual => BackgroundTask::AsyncTrade(task_status),
-        OrderReason::Expired => BackgroundTask::Expire(task_status),
-        OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
-            BackgroundTask::Expire(task_status)
+    let task = match order {
+        Some(order) => match order.reason {
+            OrderReason::Manual => BackgroundTask::AsyncTrade(task_status),
+            OrderReason::Expired => BackgroundTask::Expire(task_status),
+            OrderReason::CoordinatorLiquidated | OrderReason::TraderLiquidated => {
+                BackgroundTask::Expire(task_status)
+            }
+        },
+        None => {
+            // if we can't find a filling order it must have been a rollover. Note this is not very
+            // nice, but we are missing the required context information at the moment.
+            BackgroundTask::Rollover(task_status)
         }
     };
 
