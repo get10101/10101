@@ -760,4 +760,8 @@ db-coordinator-redo:
       --migration-dir ./migrations \
       --config-file ./diesel.toml
 
+ln-pay-invoice:
+    #!/usr/bin/env bash
+    curl -X POST http://localhost:18080/pay_invoice
+
 # vim:expandtab:sw=4:ts=4
