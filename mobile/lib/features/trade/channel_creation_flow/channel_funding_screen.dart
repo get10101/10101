@@ -333,6 +333,33 @@ class _ChannelFunding extends State<ChannelFunding> {
             );
             break;
         }
+      case FundingType.lightning:
+        switch (value) {
+          case null:
+          case FundingChannelTaskStatus.pending:
+            loadingWidget = const RotatingIcon(icon: Icons.sync);
+            break;
+          case FundingChannelTaskStatus.funded:
+            transactionStatusText = "Lightning payment received";
+            loadingWidget = const RotatingIcon(icon: BitcoinIcons.bitcoin);
+            break;
+          case FundingChannelTaskStatus.orderCreated:
+            transactionStatusText = "Order successfully created";
+            transactionStatusInformationText = "";
+            loadingWidget = const Icon(
+              Icons.check,
+              size: 20.0,
+              color: tenTenOnePurple,
+            );
+            break;
+          case FundingChannelTaskStatus.failed:
+            loadingWidget = const Icon(
+              Icons.error,
+              size: 20.0,
+              color: tenTenOnePurple,
+            );
+            break;
+        }
       default:
         break;
     }
