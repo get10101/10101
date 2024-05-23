@@ -6,6 +6,9 @@ use rand::Rng;
 use sha256::digest;
 
 pub struct PreImage {
+    // TODO(bonomat): instead of implementing `PreImage` we should create our
+    // own `serialize` and `deserialize` and `to_string` which converts back and forth from a
+    // url_safe string
     pub pre_image: [u8; 32],
     pub hash: String,
 }
@@ -13,6 +16,19 @@ pub struct PreImage {
 impl PreImage {
     pub fn get_base64_encoded_pre_image(&self) -> String {
         general_purpose::URL_SAFE.encode(self.pre_image)
+    }
+    pub fn get_pre_image_as_string(&self) -> String {
+        hex::encode(self.pre_image)
+    }
+
+    pub fn from_url_safe_encoded_pre_image(url_safe_pre_image: &str) -> Result<Self> {
+        let vec = general_purpose::URL_SAFE.decode(url_safe_pre_image)?;
+        let hex_array = vec_to_hex_array(vec)?;
+        let hash = inner_hash_pre_image(&hex_array);
+        Ok(Self {
+            pre_image: hex_array,
+            hash,
+        })
     }
 }
 
@@ -37,14 +53,20 @@ fn inner_hash_pre_image(pre_image: &[u8; 32]) -> String {
 ///
 /// Fails if `pre_image` is not a valid `[u8; 32]`
 pub fn hash_pre_image_string(pre_image: &str) -> Result<String> {
-    let pre_image = hex::decode(pre_image).unwrap();
+    let pre_image = hex::decode(pre_image)?;
+    let pre_image = vec_to_hex_array(pre_image)?;
+
+    Ok(digest(&pre_image))
+}
+
+fn vec_to_hex_array(pre_image: Vec<u8>) -> Result<[u8; 32]> {
     let pre_image: [u8; 32] = match pre_image.try_into() {
         Ok(array) => array,
         Err(_) => {
-            bail!("Failed to hash pre_image string");
+            bail!("Failed to parse pre-image");
         }
     };
-    Ok(digest(&pre_image))
+    Ok(pre_image)
 }
 
 #[cfg(test)]
