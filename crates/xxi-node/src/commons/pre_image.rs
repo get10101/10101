@@ -3,7 +3,8 @@ use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
 use rand::Rng;
-use sha256::digest;
+use sha2::Digest;
+use sha2::Sha256;
 
 pub struct PreImage {
     // TODO(bonomat): instead of implementing `PreImage` we should create our
@@ -46,17 +47,11 @@ fn inner_create_pre_image() -> [u8; 32] {
 }
 
 fn inner_hash_pre_image(pre_image: &[u8; 32]) -> String {
-    digest(pre_image)
-}
+    let mut hasher = Sha256::new();
+    hasher.update(pre_image);
 
-/// Converts the provided pre_image into a `[u8; 32]` and hashes it then.
-///
-/// Fails if `pre_image` is not a valid `[u8; 32]`
-pub fn hash_pre_image_string(pre_image: &str) -> Result<String> {
-    let pre_image = hex::decode(pre_image)?;
-    let pre_image = vec_to_hex_array(pre_image)?;
-
-    Ok(digest(&pre_image))
+    let hash = hasher.finalize();
+    general_purpose::URL_SAFE.encode(hash)
 }
 
 fn vec_to_hex_array(pre_image: Vec<u8>) -> Result<[u8; 32]> {
@@ -71,7 +66,6 @@ fn vec_to_hex_array(pre_image: Vec<u8>) -> Result<[u8; 32]> {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::commons::pre_image::hash_pre_image_string;
     use crate::commons::pre_image::inner_hash_pre_image;
 
     #[test]
@@ -83,20 +77,6 @@ pub mod tests {
             .expect("Failed to convert Vec<u8> to [u8; 32]");
 
         let hash = inner_hash_pre_image(&pre_image);
-        assert_eq!(
-            hash,
-            "75aeb75aeaf351089bbeed0e2c294915ab73bd3de4b990eb7029b9b65d1b1018"
-        )
-    }
-
-    #[test]
-    pub fn given_preimage_computes_deterministic_hash_from_string() {
-        let pre_image = "92b1de6841db0cf46cc40be6fe80110a0264513ab27eb822ed71ca517ffe8fd9";
-
-        let hash = hash_pre_image_string(pre_image).unwrap();
-        assert_eq!(
-            hash,
-            "75aeb75aeaf351089bbeed0e2c294915ab73bd3de4b990eb7029b9b65d1b1018"
-        )
+        assert_eq!(hash, "da63WurzUQibvu0OLClJFatzvT3kuZDrcCm5tl0bEBg=")
     }
 }
