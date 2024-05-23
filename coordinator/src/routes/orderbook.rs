@@ -126,8 +126,6 @@ pub async fn post_order(
 
             db::hodl_invoice::update_hodl_invoice_pre_image(
                 &mut conn,
-                hash.as_str(),
-                pre_image.as_str(),
                 inner_hash.as_str(),
                 inner_pre_image.as_str(),
             )?;
@@ -137,6 +135,18 @@ pub async fn post_order(
         .await
         .expect("task to complete")
         .map_err(|e| AppError::BadRequest(format!("Invalid preimage provided: {e:?}")))?;
+
+        state
+            .lnd_bridge
+            .settle_invoice(pre_image.get_base64_encoded_pre_image())
+            .await
+            .map_err(|err| AppError::BadRequest(format!("Could not settle invoice {err:?}")))?;
+
+        tracing::info!(
+            hash = pre_image.hash,
+            trader_pubkey = trader_pubkey_string,
+            "Settled invoice"
+        );
     }
 
     let pool = state.pool.clone();
