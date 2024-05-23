@@ -69,12 +69,13 @@ pub enum SubmitOrderError {
 pub async fn submit_order(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
+    pre_image: Option<String>,
 ) -> Result<Uuid, SubmitOrderError> {
     event::publish(&EventInternal::BackgroundNotification(
         BackgroundTask::AsyncTrade(TaskStatus::Pending),
     ));
 
-    submit_order_internal(order, channel_opening_params)
+    submit_order_internal(order, channel_opening_params, pre_image)
         .await
         .inspect_err(report_error_to_coordinator)
         .inspect_err(|e| {
@@ -87,6 +88,7 @@ pub async fn submit_order(
 pub async fn submit_order_internal(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
+    pre_image: Option<String>,
 ) -> Result<Uuid, SubmitOrderError> {
     check_channel_state()?;
 
@@ -110,7 +112,7 @@ pub async fn submit_order_internal(
 
     set_order_to_open_and_update_ui(order.id).map_err(SubmitOrderError::Storage)?;
     if let Err(err) = orderbook_client
-        .post_new_market_order(order.clone().into(), channel_opening_params)
+        .post_new_market_order(order.clone().into(), channel_opening_params, pre_image)
         .await
     {
         let order_id = order.id.clone().to_string();

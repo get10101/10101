@@ -39,6 +39,9 @@ pub fn update_hodl_invoice_pre_image(
         ))
         .execute(conn)?;
 
-    ensure!(affected_rows > 0, "Could not update hodl invoice");
+    ensure!(
+        affected_rows > 0,
+        "Could not update hodl invoice. Preimage hash not found"
+    );
     Ok(())
 }

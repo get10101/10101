@@ -1,4 +1,5 @@
 use crate::check_version::check_version;
+use crate::db;
 use crate::orderbook;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::NewOrderMessage;
@@ -22,6 +23,7 @@ use tokio::sync::broadcast::Sender;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
 use uuid::Uuid;
+use xxi_node::commons;
 use xxi_node::commons::Message;
 use xxi_node::commons::NewOrder;
 use xxi_node::commons::NewOrderRequest;
@@ -75,6 +77,7 @@ pub async fn post_order(
         .map_err(|_| AppError::Unauthorized)?;
 
     let new_order = new_order_request.value;
+    let trader_pubkey_string = new_order.trader_id().to_string();
 
     // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
     if let NewOrder::Market(new_order) = &new_order {
@@ -103,6 +106,37 @@ pub async fn post_order(
                 "Limit orders with zero price are not allowed".to_string(),
             ));
         }
+    }
+
+    let pool = state.pool.clone();
+    if let Some(pre_image) = new_order_request.pre_image {
+        let pre_image = commons::PreImage::from_url_safe_encoded_pre_image(pre_image.as_str())
+            .map_err(|_| AppError::BadRequest("Invalid pre_image provided".to_string()))?;
+        let inner_pre_image = pre_image.get_pre_image_as_string();
+
+        tracing::debug!(
+            pre_image = inner_pre_image,
+            hash = pre_image.hash,
+            "Received pre-image, updating records"
+        );
+
+        let inner_hash = pre_image.hash.clone();
+        spawn_blocking(move || {
+            let mut conn = pool.get()?;
+
+            db::hodl_invoice::update_hodl_invoice_pre_image(
+                &mut conn,
+                hash.as_str(),
+                pre_image.as_str(),
+                inner_hash.as_str(),
+                inner_pre_image.as_str(),
+            )?;
+
+            anyhow::Ok(())
+        })
+        .await
+        .expect("task to complete")
+        .map_err(|e| AppError::BadRequest(format!("Invalid preimage provided: {e:?}")))?;
     }
 
     let pool = state.pool.clone();

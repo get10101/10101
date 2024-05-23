@@ -19,6 +19,7 @@ pub struct NewOrderRequest {
     /// A signature of the sha256 of [`value`]
     pub signature: Signature,
     pub channel_opening_params: Option<ChannelOpeningParams>,
+    pub pre_image: Option<String>,
 }
 
 impl NewOrderRequest {
@@ -308,11 +309,12 @@ pub mod tests {
             value: NewOrder::Limit(original_order),
             signature,
             channel_opening_params: None,
+            pre_image: None,
         };
 
         let original_serialized_request = serde_json::to_string(&original_request).unwrap();
 
-        let serialized_msg = "{\"value\":{\"Limit\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"expiry\":1,\"stable\":false}},\"signature\":\"304402205024fd6aea64c02155bdc063cf9168d9cd24fc6d54d3da0db645372828df210e022062323c30a88b60ef647d6740a01ac38fccc7f306f1c380bd92715d8b2e39adb9\",\"channel_opening_params\":null}";
+        let serialized_msg = "{\"value\":{\"Limit\":{\"id\":\"67e55044-10b1-426f-9247-bb680e5fe0c8\",\"contract_symbol\":\"BtcUsd\",\"price\":53000.0,\"quantity\":2000.0,\"trader_id\":\"0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166\",\"direction\":\"Long\",\"leverage\":2.0,\"expiry\":1,\"stable\":false}},\"signature\":\"304402205024fd6aea64c02155bdc063cf9168d9cd24fc6d54d3da0db645372828df210e022062323c30a88b60ef647d6740a01ac38fccc7f306f1c380bd92715d8b2e39adb9\",\"channel_opening_params\":null,\"pre_image\":null}";
 
         // replace the signature with the one from above to have the same string
         let serialized_msg =

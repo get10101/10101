@@ -334,7 +334,7 @@ pub fn calculate_max_quantity(
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn submit_order(order: NewOrder) -> Result<String> {
-    order::handler::submit_order(order.into(), None)
+    order::handler::submit_order(order.into(), None, None)
         .await
         .map_err(anyhow::Error::new)
         .map(|id| id.to_string())
@@ -352,6 +352,7 @@ pub async fn submit_channel_opening_order(
             coordinator_reserve: Amount::from_sat(coordinator_reserve),
             trader_reserve: Amount::from_sat(trader_reserve),
         }),
+        None,
     )
     .await
     .map_err(anyhow::Error::new)

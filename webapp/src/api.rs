@@ -370,7 +370,7 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
     };
 
     let order_id =
-        native::trade::order::handler::submit_order(order, channel_opening_params).await?;
+        native::trade::order::handler::submit_order(order, channel_opening_params, None).await?;
 
     Ok(Json(OrderId { id: order_id }))
 }

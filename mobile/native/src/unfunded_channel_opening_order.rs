@@ -35,6 +35,7 @@ pub async fn unfunded_channel_opening_order(
     let bitcoin_address = node.inner.get_new_address()?;
     let funding_amount = Amount::from_sat(estimated_margin + trader_reserve);
     let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount).await?;
+    let pre_image = hodl_invoice.pre_image;
 
     let runtime = crate::state::get_or_create_tokio_runtime()?;
     let (future, remote_handle) = runtime.spawn({
@@ -45,16 +46,18 @@ pub async fn unfunded_channel_opening_order(
             ));
 
             // we must only create the order on either event. If the bitcoin address is funded we cancel the watch for the lightning invoice and vice versa.
-            tokio::select! {
+            let maybe_pre_image = tokio::select! {
                 _ = watcher::watch_funding_address(bitcoin_address.clone(), funding_amount) => {
                     // received bitcoin payment.
-                    tracing::info!(%bitcoin_address, %funding_amount, "Found funding amount on bitcoin address.")
+                    tracing::info!(%bitcoin_address, %funding_amount, "Found funding amount on bitcoin address.");
+                    None
                 }
                 _ = watcher::watch_lightning_payment() => {
                     // received lightning payment.
-                    tracing::info!(%funding_amount, "Found lighting payment.")
+                    tracing::info!(%funding_amount, "Found lighting payment.");
+                    Some(pre_image)
                 }
-            }
+            };
 
             event::publish(&EventInternal::FundingChannelNotification(
                 FundingChannelTask::Funded,
@@ -72,6 +75,7 @@ pub async fn unfunded_channel_opening_order(
                     coordinator_reserve: Amount::from_sat(coordinator_reserve),
                     trader_reserve: Amount::from_sat(trader_reserve),
                 }),
+                maybe_pre_image
             )
                 .await
                 .map_err(anyhow::Error::new)

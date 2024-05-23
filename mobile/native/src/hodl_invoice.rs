@@ -15,6 +15,7 @@ pub struct HodlInvoice {
 }
 
 pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<HodlInvoice> {
+    // TODO(bonomat): we might want to store this in the db so.
     let pre_image = commons::create_pre_image();
 
     let client = reqwest_client();
