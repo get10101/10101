@@ -119,6 +119,7 @@ async fn process_pending_match(
                 },
                 trader_reserve: channel_opening_params.map(|c| c.trader_reserve),
                 coordinator_reserve: channel_opening_params.map(|c| c.coordinator_reserve),
+                external_funding: channel_opening_params.and_then(|c| c.external_funding),
             })
             .await;
     }

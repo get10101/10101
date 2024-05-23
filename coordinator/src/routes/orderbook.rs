@@ -109,45 +109,55 @@ pub async fn post_order(
     }
 
     let pool = state.pool.clone();
-    if let Some(pre_image) = new_order_request.pre_image {
-        let pre_image = commons::PreImage::from_url_safe_encoded_pre_image(pre_image.as_str())
-            .map_err(|_| AppError::BadRequest("Invalid pre_image provided".to_string()))?;
-        let inner_pre_image = pre_image.get_pre_image_as_string();
+    let external_funding = match new_order_request
+        .channel_opening_params
+        .clone()
+        .and_then(|c| c.pre_image)
+    {
+        Some(pre_image) => {
+            let pre_image = commons::PreImage::from_url_safe_encoded_pre_image(pre_image.as_str())
+                .map_err(|_| AppError::BadRequest("Invalid pre_image provided".to_string()))?;
+            let inner_pre_image = pre_image.get_pre_image_as_string();
 
-        tracing::debug!(
-            pre_image = inner_pre_image,
-            hash = pre_image.hash,
-            "Received pre-image, updating records"
-        );
+            tracing::debug!(
+                pre_image = inner_pre_image,
+                hash = pre_image.hash,
+                "Received pre-image, updating records"
+            );
 
-        let inner_hash = pre_image.hash.clone();
-        spawn_blocking(move || {
-            let mut conn = pool.get()?;
+            let inner_hash = pre_image.hash.clone();
+            let funding_amount = spawn_blocking(move || {
+                let mut conn = pool.get()?;
 
-            db::hodl_invoice::update_hodl_invoice_pre_image(
-                &mut conn,
-                inner_hash.as_str(),
-                inner_pre_image.as_str(),
-            )?;
+                let amount = db::hodl_invoice::update_hodl_invoice_pre_image(
+                    &mut conn,
+                    inner_hash.as_str(),
+                    inner_pre_image.as_str(),
+                )?;
 
-            anyhow::Ok(())
-        })
-        .await
-        .expect("task to complete")
-        .map_err(|e| AppError::BadRequest(format!("Invalid preimage provided: {e:?}")))?;
-
-        state
-            .lnd_bridge
-            .settle_invoice(pre_image.get_base64_encoded_pre_image())
+                anyhow::Ok(amount)
+            })
             .await
-            .map_err(|err| AppError::BadRequest(format!("Could not settle invoice {err:?}")))?;
+            .expect("task to complete")
+            .map_err(|e| AppError::BadRequest(format!("Invalid preimage provided: {e:#}")))?;
 
-        tracing::info!(
-            hash = pre_image.hash,
-            trader_pubkey = trader_pubkey_string,
-            "Settled invoice"
-        );
-    }
+            state
+                .lnd_bridge
+                .settle_invoice(pre_image.get_base64_encoded_pre_image())
+                .await
+                .map_err(|err| AppError::BadRequest(format!("Could not settle invoice {err:#}")))?;
+
+            tracing::info!(
+                hash = pre_image.hash,
+                trader_pubkey = trader_pubkey_string,
+                "Settled invoice"
+            );
+            // we have received funding via lightning and can now open the channel with funding
+            // only from the coordinator
+            Some(funding_amount)
+        }
+        None => None,
+    };
 
     let pool = state.pool.clone();
     let new_order = new_order.clone();
@@ -169,9 +179,17 @@ pub async fn post_order(
     .expect("task to complete")
     .map_err(|e| AppError::InternalServerError(e.to_string()))?;
 
+    // FIXME(holzeis): We shouldn't blindly trust the user about the coordinator reserve. Note, we
+    // already ignore the trader reserve parameter when the channel is externally funded.
     let message = NewOrderMessage {
         order,
-        channel_opening_params: new_order_request.channel_opening_params,
+        channel_opening_params: new_order_request.channel_opening_params.map(|params| {
+            crate::ChannelOpeningParams {
+                trader_reserve: params.trader_reserve,
+                coordinator_reserve: params.coordinator_reserve,
+                external_funding,
+            }
+        }),
         order_reason: OrderReason::Manual,
     };
 

@@ -21,7 +21,6 @@ impl OrderbookClient {
         &self,
         order: NewMarketOrder,
         channel_opening_params: Option<ChannelOpeningParams>,
-        pre_image: Option<String>,
     ) -> Result<()> {
         let secret_key = get_node_key();
         let message = order.message();
@@ -30,7 +29,6 @@ impl OrderbookClient {
             value: NewOrder::Market(order),
             signature,
             channel_opening_params,
-            pre_image,
         };
 
         let url = self.url.join("/api/orderbook/orders")?;

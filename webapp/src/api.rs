@@ -366,11 +366,12 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
         Some(ChannelOpeningParams {
             coordinator_reserve: Amount::from_sat(params.coordinator_reserve.unwrap_or_default()),
             trader_reserve: Amount::from_sat(params.trader_reserve.unwrap_or_default()),
+            pre_image: None,
         })
     };
 
     let order_id =
-        native::trade::order::handler::submit_order(order, channel_opening_params, None).await?;
+        native::trade::order::handler::submit_order(order, channel_opening_params).await?;
 
     Ok(Json(OrderId { id: order_id }))
 }

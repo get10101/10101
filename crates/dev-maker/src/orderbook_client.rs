@@ -27,7 +27,6 @@ impl OrderbookClient {
         order: NewOrder,
         channel_opening_params: Option<ChannelOpeningParams>,
         secret_key: SecretKey,
-        pre_image: Option<String>,
     ) -> Result<()> {
         let url = self.url.join("/api/orderbook/orders")?;
 
@@ -43,7 +42,6 @@ impl OrderbookClient {
             value: order,
             signature,
             channel_opening_params,
-            pre_image,
         };
 
         let response = self

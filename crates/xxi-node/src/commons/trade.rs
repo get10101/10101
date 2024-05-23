@@ -16,6 +16,8 @@ pub struct TradeAndChannelParams {
     pub trader_reserve: Option<Amount>,
     #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
     pub coordinator_reserve: Option<Amount>,
+    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
+    pub external_funding: Option<Amount>,
 }
 
 /// The trade parameters defining the trade execution.

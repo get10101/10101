@@ -123,7 +123,6 @@ async fn post_order(
             }),
             None,
             secret_key,
-            None,
         )
         .await
     {

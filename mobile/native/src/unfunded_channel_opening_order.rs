@@ -74,8 +74,8 @@ pub async fn unfunded_channel_opening_order(
                 Some(ChannelOpeningParams {
                     coordinator_reserve: Amount::from_sat(coordinator_reserve),
                     trader_reserve: Amount::from_sat(trader_reserve),
-                }),
-                maybe_pre_image
+                    pre_image: maybe_pre_image,
+                })
             )
                 .await
                 .map_err(anyhow::Error::new)

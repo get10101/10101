@@ -4,6 +4,7 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Json;
+use bitcoin::Amount;
 use diesel::PgConnection;
 use diesel_migrations::embed_migrations;
 use diesel_migrations::EmbeddedMigrations;
@@ -105,4 +106,11 @@ pub fn decimal_from_f32(float: f32) -> Decimal {
 #[track_caller]
 pub fn f32_from_decimal(decimal: Decimal) -> f32 {
     decimal.to_f32().expect("Decimal to fit into f32")
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ChannelOpeningParams {
+    pub trader_reserve: Amount,
+    pub coordinator_reserve: Amount,
+    pub external_funding: Option<Amount>,
 }

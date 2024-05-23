@@ -111,6 +111,7 @@ diesel::table! {
         coordinator_reserve -> Int8,
         trader_reserve -> Int8,
         created_at -> Int8,
+        external_funding -> Nullable<Int8>,
     }
 }
 
