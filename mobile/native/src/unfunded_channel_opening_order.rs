@@ -8,7 +8,6 @@ use crate::trade::order::api::NewOrder;
 use crate::watcher;
 use anyhow::Error;
 use bitcoin::Amount;
-use futures::FutureExt;
 use xxi_node::commons::ChannelOpeningParams;
 
 pub struct ExternalFunding {
@@ -23,22 +22,25 @@ pub struct ExternalFunding {
 /// 1. we watch an on-chain address of funding arrives
 /// 2. we ask the coordinator for a hodl invoice and watch for it getting paid
 ///
-/// if either 1) or 2) of those two tusk report that the funds are here, we continue and post the
+/// if either 1) or 2) of those two task report that the funds are here, we continue and post the
 /// order. if task 2) was done (hodl invoice), we also share the pre-image with the coordinator
-pub async fn unfunded_channel_opening_order(
+pub async fn submit_unfunded_channel_opening_order(
     order: NewOrder,
     coordinator_reserve: u64,
     trader_reserve: u64,
     estimated_margin: u64,
-) -> anyhow::Result<anyhow::Result<ExternalFunding, Error>, Error> {
+) -> anyhow::Result<ExternalFunding, Error> {
     let node = get_node();
     let bitcoin_address = node.inner.get_new_address()?;
     let funding_amount = Amount::from_sat(estimated_margin + trader_reserve);
     let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount).await?;
     let pre_image = hodl_invoice.pre_image;
 
+    // abort previous watcher before starting new task.
+    abort_watcher().await?;
+
     let runtime = crate::state::get_or_create_tokio_runtime()?;
-    let (future, remote_handle) = runtime.spawn({
+    let watch_handle = runtime.spawn({
         let bitcoin_address = bitcoin_address.clone();
         async move {
             event::publish(&EventInternal::FundingChannelNotification(
@@ -95,16 +97,24 @@ pub async fn unfunded_channel_opening_order(
                 }
             };
         }
-    }).remote_handle();
+    });
 
-    // We need to store the handle which will drop any old handler if present.
-    node.watcher_handle.lock().replace(remote_handle);
+    *node.watcher_handle.lock() = Some(watch_handle);
 
-    // Only now we can spawn the future, as otherwise we might have two competing handlers
-    runtime.spawn(future);
-
-    Ok(Ok(ExternalFunding {
+    Ok(ExternalFunding {
         bitcoin_address: bitcoin_address.to_string(),
         payment_request: hodl_invoice.payment_request,
-    }))
+    })
+}
+
+/// Aborts any existing watch for bitcoin address or hodl invoice funding.
+pub async fn abort_watcher() -> anyhow::Result<()> {
+    let node = get_node();
+    let watch_handle = { node.watcher_handle.lock().take() };
+    if let Some(watch_handle) = watch_handle {
+        watch_handle.abort();
+        _ = watch_handle.await;
+    };
+
+    Ok(())
 }

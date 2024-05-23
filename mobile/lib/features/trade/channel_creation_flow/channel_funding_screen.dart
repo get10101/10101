@@ -10,6 +10,7 @@ import 'package:get_10101/common/funding_channel_task_change_notifier.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -107,7 +108,11 @@ class _ChannelFunding extends State<ChannelFunding> {
                                     size: 22,
                                   )),
                               onTap: () {
-                                GoRouter.of(context).pop();
+                                context
+                                    .read<SubmitOrderChangeNotifier>()
+                                    .orderService
+                                    .abortUnfundedChannelOpeningMarketOrder()
+                                    .then((value) => GoRouter.of(context).pop());
                               },
                             ),
                             const Row(

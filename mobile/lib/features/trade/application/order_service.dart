@@ -87,4 +87,8 @@ class OrderService {
 
     return orders;
   }
+
+  Future<void> abortUnfundedChannelOpeningMarketOrder() async {
+    await rust.api.abortUnfundedChannelOpeningOrder();
+  }
 }

@@ -29,7 +29,7 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
-use crate::unfunded_channel_opening_order::unfunded_channel_opening_order;
+use crate::unfunded_channel_opening_order;
 use crate::unfunded_channel_opening_order::ExternalFunding;
 use anyhow::ensure;
 use anyhow::Context;
@@ -910,6 +910,16 @@ pub async fn submit_unfunded_channel_opening_order(
     trader_reserve: u64,
     estimated_margin: u64,
 ) -> Result<ExternalFunding> {
-    unfunded_channel_opening_order(order, coordinator_reserve, trader_reserve, estimated_margin)
-        .await?
+    unfunded_channel_opening_order::submit_unfunded_channel_opening_order(
+        order,
+        coordinator_reserve,
+        trader_reserve,
+        estimated_margin,
+    )
+    .await
+}
+
+#[tokio::main(flavor = "current_thread")]
+pub async fn abort_unfunded_channel_opening_order() -> Result<()> {
+    unfunded_channel_opening_order::abort_watcher().await
 }
