@@ -212,6 +212,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    hodl_invoices (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        r_hash -> Text,
+        amount_sats -> Int8,
+        pre_image -> Nullable<Text>,
+        created_at -> Timestamptz,
+        updated_at -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     last_outbound_dlc_messages (peer_id) {
         peer_id -> Text,
         message_hash -> Text,
@@ -494,6 +506,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     dlc_channels,
     dlc_messages,
     dlc_protocols,
+    hodl_invoices,
     last_outbound_dlc_messages,
     legacy_collaborative_reverts,
     liquidity_options,

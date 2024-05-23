@@ -615,28 +615,54 @@ async fn create_invoice(
     State(state): State<Arc<AppState>>,
     Json(invoice_params): Json<SignedValue<commons::HodlInvoiceParams>>,
 ) -> Result<Json<String>, AppError> {
+    let public_key = invoice_params.value.trader_pubkey;
+
     invoice_params
-        .verify(&state.secp, &invoice_params.value.trader_pubkey)
+        .verify(&state.secp, &public_key)
         .map_err(|_| AppError::Unauthorized)?;
 
     let invoice_params = invoice_params.value;
+    let invoice_amount = invoice_params.amt_sats;
+    let hash = invoice_params.r_hash.clone();
+
+    let mut connection = state
+        .pool
+        .get()
+        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
 
     let response = state
         .lnd_bridge
         .create_invoice(InvoiceParams {
-            value: invoice_params.amt_sats,
+            value: invoice_amount,
             memo: "Fund your 10101 position".to_string(),
             expiry: 10 * 60, // 10 minutes
-            hash: invoice_params.clone().r_hash,
+            hash: hash.clone(),
         })
         .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    db::hodl_invoice::create_hodl_invoice(
+        &mut connection,
+        hash.as_str(),
+        public_key,
+        invoice_amount,
+    )
+    .map_err(|error| {
+        AppError::InternalServerError(format!("Could not process hodl invoice {error:?}"))
+    })?;
 
     // watch for the created hodl invoice
     invoice::spawn_invoice_watch(
         state.tx_orderbook_feed.clone(),
         state.lnd_bridge.clone(),
         invoice_params,
+    );
+
+    tracing::info!(
+        trader_pubkey = public_key.to_string(),
+        hash,
+        amount_sats = invoice_amount,
+        "Started watching for hodl invoice"
     );
 
     Ok(Json(response.payment_request))
