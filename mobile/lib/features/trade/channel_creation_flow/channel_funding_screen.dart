@@ -12,6 +12,7 @@ import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -80,6 +81,12 @@ class _ChannelFunding extends State<ChannelFunding> {
           embeddedImageSizeWidth: 350,
           dimension: 300,
         )
+    };
+
+    final qrCodeSubTitle = switch (selectedBox) {
+      FundingType.lightning => widget.funding.paymentRequest,
+      FundingType.onchain => widget.funding.bitcoinAddress,
+      FundingType.unified || FundingType.external => "Follow us on social media for updates",
     };
 
     return Scaffold(
@@ -186,11 +193,11 @@ class _ChannelFunding extends State<ChannelFunding> {
                                     onTap: () {
                                       Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
                                         showSnackBar(ScaffoldMessenger.of(context),
-                                            "Copied: ${qrCode.data}");
+                                            "Copied: $qrCodeSubTitle");
                                       });
                                     },
                                     child: Text(
-                                      qrCode.data,
+                                      truncateWithEllipsis(44, qrCodeSubTitle),
                                       style: const TextStyle(fontSize: 14),
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
