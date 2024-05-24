@@ -114,6 +114,10 @@ impl<D: BdkStorage, S: TenTenOneStorage, N: Storage + Send + Sync + 'static> Nod
         .await
         .expect("task to complete")?;
 
+        // On sync, we unlock our locked utxos, because we are syncing with the blockchain we will
+        // find already spent utxos and release those which were locked unnecessarily.
+        self.wallet.locked_utxos.lock().clear();
+
         Ok(())
     }
 
