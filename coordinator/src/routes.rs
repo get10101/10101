@@ -623,7 +623,7 @@ async fn create_invoice(
 
     let invoice_params = invoice_params.value;
     let invoice_amount = invoice_params.amt_sats;
-    let hash = invoice_params.r_hash.clone();
+    let r_hash = invoice_params.r_hash.clone();
 
     let mut connection = state
         .pool
@@ -635,15 +635,15 @@ async fn create_invoice(
         .create_invoice(InvoiceParams {
             value: invoice_amount,
             memo: "Fund your 10101 position".to_string(),
-            expiry: 10 * 60, // 10 minutes
-            hash: hash.clone(),
+            expiry: 5 * 60, // 5 minutes
+            hash: r_hash.clone(),
         })
         .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     db::hodl_invoice::create_hodl_invoice(
         &mut connection,
-        hash.as_str(),
+        r_hash.as_str(),
         public_key,
         invoice_amount,
     )
@@ -660,7 +660,7 @@ async fn create_invoice(
 
     tracing::info!(
         trader_pubkey = public_key.to_string(),
-        hash,
+        r_hash,
         amount_sats = invoice_amount,
         "Started watching for hodl invoice"
     );

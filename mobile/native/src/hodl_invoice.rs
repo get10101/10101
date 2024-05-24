@@ -11,7 +11,7 @@ pub struct HodlInvoice {
     pub payment_request: String,
     pub pre_image: String,
     pub r_hash: String,
-    pub amt_sats: Amount,
+    pub amount: Amount,
 }
 
 pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<HodlInvoice> {
@@ -42,7 +42,8 @@ pub async fn get_hodl_invoice_from_coordinator(amount: Amount) -> Result<HodlInv
         payment_request,
         pre_image: pre_image.get_base64_encoded_pre_image(),
         r_hash: pre_image.hash,
-        amt_sats: Default::default(),
+        amount,
     };
+
     Ok(hodl_invoice)
 }
