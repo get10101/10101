@@ -63,7 +63,8 @@ class OrderService {
       bool stable,
       Amount coordinatorReserve,
       Amount traderReserve,
-      Amount margin) async {
+      Amount margin,
+      Amount orderMatchingFee) async {
     rust.NewOrder order = rust.NewOrder(
         leverage: leverage.leverage,
         quantity: quantity.asDouble(),
@@ -76,7 +77,8 @@ class OrderService {
         order: order,
         coordinatorReserve: coordinatorReserve.sats,
         traderReserve: traderReserve.sats,
-        estimatedMargin: margin.sats);
+        estimatedMargin: margin.sats,
+        orderMatchingFees: orderMatchingFee.sats);
 
     return ExternalFunding.fromApi(funding);
   }

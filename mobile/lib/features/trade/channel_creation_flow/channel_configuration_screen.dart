@@ -93,6 +93,14 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
   Amount fundingTxFeeWithBuffer = Amount.zero();
 
+  /// The minimum reserve the trader has to put into the channel.
+  /// This is needed as the price might move before the external funding is found. To ensure
+  /// that the order gets executed.
+  ///
+  /// TODO(holzeis): This won't be necessary anymore once we implement margin orders for externally
+  /// funded positions.
+  final minTraderReserveSats = 15000;
+
   @override
   void initState() {
     super.initState();
@@ -167,6 +175,19 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
     Amount totalFee = orderMatchingFee.add(fundingTxFee).add(channelFeeReserve);
     Amount totalAmountToBeFunded = ownTotalCollateral.add(totalFee);
+
+    Amount traderMargin = widget.tradeValues.margin ?? Amount.zero();
+
+    Amount traderReserve = ownTotalCollateral - traderMargin;
+
+    if (traderReserve.sats < minTraderReserveSats) {
+      totalAmountToBeFunded =
+          totalAmountToBeFunded.add(Amount(minTraderReserveSats) - traderReserve);
+    }
+
+    // The user needs to bring in a minimum reserve to cover for price movements.
+    // TODO(holzeis): remove once we have margin orders.
+    traderReserve = Amount(max(minTraderReserveSats, traderReserve.sats));
 
     return Scaffold(
       body: SafeArea(
@@ -363,9 +384,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               ValueDataRow(
-                                  type: ValueType.amount,
-                                  value: ownTotalCollateral,
-                                  label: 'Channel size'),
+                                  type: ValueType.amount, value: traderMargin, label: 'Margin'),
+                              ValueDataRow(
+                                  type: ValueType.amount, value: traderReserve, label: 'Reserve'),
                               FeeExpansionTile(
                                   value: totalFee,
                                   orderMatchingFee: orderMatchingFee,
@@ -414,12 +435,21 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                                     logger.d(
                                         "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
 
+                                    // TODO(holzeis): The coordinator leverage should not be hard coded here.
+                                    final coordinatorCollateral =
+                                        widget.tradeValues.calculateMargin(Leverage(2.0));
+
+                                    final coordinatorReserve = max(
+                                        0, counterpartyCollateral.sub(coordinatorCollateral).sats);
+                                    final traderReserve = max(minTraderReserveSats,
+                                        ownTotalCollateral.sub(widget.tradeValues.margin!).sats);
+
                                     await submitOrderChangeNotifier
                                         .submitUnfundedOrder(
                                             widget.tradeValues,
                                             ChannelOpeningParams(
-                                                coordinatorReserve: counterpartyCollateral,
-                                                traderReserve: ownTotalCollateral))
+                                                coordinatorReserve: Amount(coordinatorReserve),
+                                                traderReserve: Amount(traderReserve)))
                                         .then((ExternalFunding funding) {
                                       GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
                                         "funding": funding,

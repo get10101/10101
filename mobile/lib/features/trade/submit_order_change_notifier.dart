@@ -49,24 +49,16 @@ class SubmitOrderChangeNotifier extends ChangeNotifier {
   Future<ExternalFunding> submitUnfundedOrder(
       TradeValues tradeValues, ChannelOpeningParams channelOpeningParams) async {
     try {
-      // TODO(holzeis): The coordinator leverage should not be hard coded here.
-      final coordinatorCollateral = tradeValues.calculateMargin(Leverage(2.0));
-
-      final coordinatorReserve =
-          max(0, channelOpeningParams.coordinatorReserve.sub(coordinatorCollateral).sats);
-      final traderReserve =
-          max(0, channelOpeningParams.traderReserve.sub(tradeValues.margin!).sats);
-
       return orderService.submitUnfundedChannelOpeningMarketOrder(
-        tradeValues.leverage,
-        tradeValues.contracts,
-        ContractSymbol.btcusd,
-        tradeValues.direction,
-        false,
-        Amount(coordinatorReserve),
-        Amount(traderReserve),
-        tradeValues.margin!,
-      );
+          tradeValues.leverage,
+          tradeValues.contracts,
+          ContractSymbol.btcusd,
+          tradeValues.direction,
+          false,
+          channelOpeningParams.coordinatorReserve,
+          channelOpeningParams.traderReserve,
+          tradeValues.margin!,
+          tradeValues.fee ?? Amount.zero());
     } on FfiException catch (exception) {
       logger.e("Failed to submit order: $exception");
       rethrow;

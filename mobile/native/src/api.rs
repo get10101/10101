@@ -909,12 +909,14 @@ pub async fn submit_unfunded_channel_opening_order(
     coordinator_reserve: u64,
     trader_reserve: u64,
     estimated_margin: u64,
+    order_matching_fees: u64,
 ) -> Result<ExternalFunding> {
     unfunded_channel_opening_order::submit_unfunded_channel_opening_order(
         order,
         coordinator_reserve,
         trader_reserve,
         estimated_margin,
+        order_matching_fees,
     )
     .await
 }

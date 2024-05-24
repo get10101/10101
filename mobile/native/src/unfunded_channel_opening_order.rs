@@ -29,10 +29,16 @@ pub async fn submit_unfunded_channel_opening_order(
     coordinator_reserve: u64,
     trader_reserve: u64,
     estimated_margin: u64,
+    order_matching_fee: u64,
 ) -> anyhow::Result<ExternalFunding, Error> {
     let node = get_node();
     let bitcoin_address = node.inner.get_new_address()?;
-    let funding_amount = Amount::from_sat(estimated_margin + trader_reserve);
+
+    let fees = Amount::from_sat(order_matching_fee)
+        + crate::dlc::estimated_fee_reserve()?
+        + crate::dlc::estimated_funding_tx_fee()?;
+
+    let funding_amount = Amount::from_sat(estimated_margin + trader_reserve) + fees;
     let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount).await?;
     let pre_image = hodl_invoice.pre_image;
 
