@@ -151,9 +151,8 @@ impl<D> OnChainWallet<D> {
     pub(crate) fn get_utxos(&self) -> Vec<(OutPoint, TxOut)> {
         let bdk = self.bdk.read();
 
-        bdk.tx_graph()
-            .all_txouts()
-            .map(|(outpoint, txout)| (outpoint, txout.clone()))
+        bdk.list_unspent()
+            .map(|local_output| (local_output.outpoint, local_output.txout))
             .collect()
     }
 
