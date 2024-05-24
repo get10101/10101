@@ -116,6 +116,26 @@ pub fn submit_order(order: NewOrder) -> String {
     block_in_place(move || api::submit_order(order).unwrap())
 }
 
+pub fn submit_unfunded_channel_opening_order(
+    order: NewOrder,
+    coordinator_reserve: u64,
+    trader_reserve: u64,
+    estimated_margin: u64,
+    order_matching_fee: u64,
+) -> anyhow::Result<()> {
+    block_in_place(move || {
+        api::submit_unfunded_channel_opening_order(
+            order,
+            coordinator_reserve,
+            trader_reserve,
+            estimated_margin,
+            order_matching_fee,
+        )
+    })?;
+
+    Ok(())
+}
+
 pub fn submit_channel_opening_order(
     order: NewOrder,
     coordinator_reserve: u64,
