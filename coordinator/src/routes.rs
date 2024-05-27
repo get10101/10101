@@ -36,6 +36,8 @@ use admin::resend_renew_revoke_message;
 use admin::roll_back_dlc_channel;
 use admin::rollover;
 use admin::update_settings;
+use anyhow::anyhow;
+use anyhow::Context;
 use anyhow::Result;
 use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
@@ -79,6 +81,7 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 use xxi_node::commons;
 use xxi_node::commons::Backup;
@@ -279,20 +282,22 @@ pub async fn post_register(
     let register_params = params.0;
     tracing::info!(?register_params, "Registered new user");
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get()?;
 
-    user::upsert_user(
-        &mut conn,
-        register_params.pubkey,
-        register_params.contact.clone(),
-        register_params.nickname.clone(),
-        register_params.version.clone(),
-        register_params.os,
-        register_params.referral_code,
-    )
+        user::upsert_user(
+            &mut conn,
+            register_params.pubkey,
+            register_params.contact.clone(),
+            register_params.nickname.clone(),
+            register_params.version.clone(),
+            register_params.os,
+            register_params.referral_code,
+        )
+        .map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
     .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
 
     Ok(())
@@ -306,13 +311,14 @@ pub async fn update_nickname(
     let register_params = params.0;
     tracing::info!(?register_params, "Updating user's nickname");
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    user::update_nickname(&mut conn, register_params.pubkey, register_params.nickname)
-        .map_err(|e| AppError::InternalServerError(format!("Could not update nickname: {e:#}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        user::update_nickname(&mut conn, register_params.pubkey, register_params.nickname)
+            .map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not update nickname: {e:#}")))?;
 
     Ok(())
 }
@@ -336,16 +342,16 @@ pub async fn get_user(
     State(state): State<Arc<AppState>>,
     Path(trader_pubkey): Path<String>,
 ) -> Result<Json<commons::User>, AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
     let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
         .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
 
-    let option = user::get_user(&mut conn, &trader_pubkey)
-        .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
+    let option = spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        user::get_user(&mut conn, &trader_pubkey)
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
 
     match option {
         None => Err(AppError::BadRequest("No user found".to_string())),
@@ -405,13 +411,14 @@ pub async fn get_polls(
     let node_id = PublicKey::from_str(&node_id)
         .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
 
-    let mut connection = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-    let polls = db::polls::active(&mut connection, &node_id).map_err(|error| {
-        AppError::InternalServerError(format!("Could not fetch new polls {error}"))
-    })?;
+    let polls = spawn_blocking(move || {
+        let mut connection = state.pool.get().context("Could not get db connection")?;
+        db::polls::active(&mut connection, &node_id).map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|error| AppError::InternalServerError(format!("Could not fetch new polls {error}")))?;
+
     Ok(Json(polls))
 }
 
@@ -424,12 +431,13 @@ pub async fn post_poll_answer(
             trader_pk = poll_answer.trader_pk.to_string(),
             answers = ?poll_answer.answers,
         "Received new answer");
-    let mut connection = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-
-    db::polls::add_answer(&mut connection, poll_answer.0).map_err(|error| {
+    spawn_blocking(move || {
+        let mut connection = state.pool.get().context("Could not get db connection")?;
+        db::polls::add_answer(&mut connection, poll_answer.0)
+    })
+    .await
+    .expect("to finish task")
+    .map_err(|error| {
         AppError::InternalServerError(format!("Could not save answer in db: {error:?}"))
     })?;
 
@@ -441,10 +449,6 @@ pub async fn collaborative_revert_confirm(
     State(state): State<Arc<AppState>>,
     revert_params: Json<CollaborativeRevertTraderResponse>,
 ) -> Result<Json<String>, AppError> {
-    let mut conn = state.pool.clone().get().map_err(|error| {
-        AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
-    })?;
-
     let channel_id_string = revert_params.channel_id.clone();
     let channel_id = parse_dlc_channel_id(channel_id_string.as_str()).map_err(|error| {
         tracing::error!(
@@ -458,15 +462,26 @@ pub async fn collaborative_revert_confirm(
         channel_id = channel_id_string,
         "Confirming collaborative channel revert"
     );
+
     let inner_node = state.node.inner.clone();
 
-    let raw_tx = confirm_collaborative_revert(
-        inner_node,
-        &mut conn,
-        channel_id,
-        revert_params.transaction.clone(),
-        revert_params.signature,
-    )
+    let raw_tx = spawn_blocking(move || {
+        let mut conn = state
+            .pool
+            .clone()
+            .get()
+            .context("Could not acquire db lock")?;
+
+        confirm_collaborative_revert(
+            inner_node,
+            &mut conn,
+            channel_id,
+            revert_params.transaction.clone(),
+            revert_params.signature,
+        )
+    })
+    .await
+    .expect("task to finish")
     .map_err(|error| {
         tracing::error!(
             channel_id = channel_id_string,
@@ -474,6 +489,7 @@ pub async fn collaborative_revert_confirm(
         );
         AppError::InternalServerError("Could not confirm collaborative revert".to_string())
     })?;
+
     Ok(Json(serialize_hex(&raw_tx)))
 }
 
@@ -580,14 +596,15 @@ pub async fn get_leaderboard(
 
     let category = params.category.clone().unwrap_or(LeaderBoardCategory::Pnl);
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not access db".to_string()))?;
-    let leader_board = generate_leader_board(&mut conn, top, category, reverse, start, end)
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Could not build leaderboard {error}"))
-        })?;
+    let leader_board = spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not access db")?;
+        generate_leader_board(&mut conn, top, category, reverse, start, end)
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|error| {
+        AppError::InternalServerError(format!("Could not build leaderboard {error}"))
+    })?;
 
     Ok(Json(LeaderBoard {
         entries: leader_board,
@@ -599,13 +616,13 @@ async fn post_error(
     State(state): State<Arc<AppState>>,
     app_error: Json<ReportedError>,
 ) -> Result<(), AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e}")))?;
-
-    db::reported_errors::insert(&mut conn, app_error.0)
-        .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        db::reported_errors::insert(&mut conn, app_error.0).map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
 
     Ok(())
 }
@@ -625,11 +642,6 @@ async fn create_invoice(
     let invoice_amount = invoice_params.amt_sats;
     let r_hash = invoice_params.r_hash.clone();
 
-    let mut connection = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-
     let response = state
         .lnd_bridge
         .create_invoice(InvoiceParams {
@@ -641,12 +653,23 @@ async fn create_invoice(
         .await
         .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
-    db::hodl_invoice::create_hodl_invoice(
-        &mut connection,
-        r_hash.as_str(),
-        public_key,
-        invoice_amount,
-    )
+    spawn_blocking({
+        let pool = state.pool.clone();
+        let r_hash = r_hash.clone();
+        move || {
+            let mut connection = pool.get().context("Could not get db connection")?;
+
+            db::hodl_invoice::create_hodl_invoice(
+                &mut connection,
+                r_hash.as_str(),
+                public_key,
+                invoice_amount,
+            )
+            .context("Could not create hodl invoice")
+        }
+    })
+    .await
+    .expect("to finish task")
     .map_err(|error| {
         AppError::InternalServerError(format!("Could not process hodl invoice {error:?}"))
     })?;
