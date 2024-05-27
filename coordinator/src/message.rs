@@ -27,6 +27,25 @@ pub struct TraderMessage {
 }
 
 #[derive(Clone)]
+pub struct TraderSender {
+    pub sender: Sender<TraderMessage>,
+}
+
+impl TraderSender {
+    pub fn send(&self, message: TraderMessage) {
+        tokio::spawn({
+            let sender = self.sender.clone();
+            async move {
+                let trader = message.trader_id;
+                if let Err(e) = sender.send(message).await {
+                    tracing::error!(%trader, "Failed to send trader message. Error: {e:#}");
+                }
+            }
+        });
+    }
+}
+
+#[derive(Clone)]
 pub struct NewUserMessage {
     pub new_user: PublicKey,
     pub sender: Sender<Message>,

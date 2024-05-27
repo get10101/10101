@@ -4,6 +4,7 @@ use anyhow::Result;
 use bitcoin::hashes::sha256;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
+use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use secp256k1::ecdsa::Signature;
 use secp256k1::Message;
@@ -31,7 +32,7 @@ impl NewOrderRequest {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Copy)]
 pub enum NewOrder {
     Market(NewMarketOrder),
     Limit(NewLimitOrder),
@@ -82,7 +83,7 @@ impl NewOrder {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct NewMarketOrder {
     pub id: Uuid,
     pub contract_symbol: ContractSymbol,
@@ -114,6 +115,26 @@ pub struct NewLimitOrder {
     pub stable: bool,
 }
 
+impl From<NewLimitOrder> for Order {
+    fn from(value: NewLimitOrder) -> Self {
+        Self {
+            id: value.id,
+            price: value.price,
+            leverage: value.leverage.to_f32().expect("to fit"),
+            contract_symbol: value.contract_symbol,
+            trader_id: value.trader_id,
+            direction: value.direction,
+            quantity: value.quantity,
+            order_type: OrderType::Limit,
+            timestamp: OffsetDateTime::now_utc(),
+            expiry: value.expiry,
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        }
+    }
+}
+
 impl NewLimitOrder {
     pub fn message(&self) -> Message {
         let mut vec: Vec<u8> = vec![];
@@ -141,6 +162,26 @@ impl NewLimitOrder {
         vec.append(&mut leverage.to_vec());
 
         Message::from_hashed_data::<sha256::Hash>(vec.as_slice())
+    }
+}
+
+impl From<NewMarketOrder> for Order {
+    fn from(value: NewMarketOrder) -> Self {
+        Self {
+            id: value.id,
+            price: Decimal::ZERO, // market orders don't have a price.
+            leverage: value.leverage.to_f32().expect("to fit"),
+            contract_symbol: value.contract_symbol,
+            trader_id: value.trader_id,
+            direction: value.direction,
+            quantity: value.quantity,
+            order_type: OrderType::Market,
+            timestamp: OffsetDateTime::now_utc(),
+            expiry: value.expiry,
+            order_state: OrderState::Open,
+            order_reason: OrderReason::Manual,
+            stable: false,
+        }
     }
 }
 
@@ -188,7 +229,7 @@ impl OrderType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum OrderState {
     Open,
     Matched,
@@ -198,7 +239,7 @@ pub enum OrderState {
     Deleted,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum OrderReason {
     Manual,
     Expired,
@@ -206,7 +247,7 @@ pub enum OrderReason {
     TraderLiquidated,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Copy)]
 pub struct Order {
     pub id: Uuid,
     #[serde(with = "rust_decimal::serde::float")]
@@ -225,6 +266,13 @@ pub struct Order {
     pub order_state: OrderState,
     pub order_reason: OrderReason,
     pub stable: bool,
+}
+
+impl Order {
+    /// Returns true if the order is expired.
+    pub fn is_expired(&self) -> bool {
+        OffsetDateTime::now_utc() > self.expiry
+    }
 }
 
 /// Extra information required to open a DLC channel, independent of the [`TradeParams`] associated

@@ -226,7 +226,7 @@ pub(crate) fn async_order_filling(
                 },
                 creation_timestamp: order.timestamp,
                 order_expiry_timestamp: order.expiry,
-                reason: order.order_reason.clone().into(),
+                reason: order.order_reason.into(),
                 stable: order.stable,
                 failure_reason: None,
             };

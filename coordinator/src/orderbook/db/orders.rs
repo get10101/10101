@@ -410,6 +410,22 @@ pub fn delete(conn: &mut PgConnection, id: Uuid) -> QueryResult<OrderbookOrder> 
     set_order_state(conn, id, commons::OrderState::Deleted)
 }
 
+pub fn set_order_state_partially_taken(
+    conn: &mut PgConnection,
+    id: Uuid,
+    quantity: Decimal,
+) -> QueryResult<OrderbookOrder> {
+    let order: Order = diesel::update(orders::table)
+        .filter(orders::order_id.eq(id))
+        .set((
+            orders::order_state.eq(OrderState::Taken),
+            orders::quantity.eq(quantity.to_f32().expect("to fit")),
+        ))
+        .get_result(conn)?;
+
+    Ok(OrderbookOrder::from(order))
+}
+
 /// Returns the number of affected rows: 1.
 pub fn set_order_state(
     conn: &mut PgConnection,
@@ -418,10 +434,21 @@ pub fn set_order_state(
 ) -> QueryResult<OrderbookOrder> {
     let order: Order = diesel::update(orders::table)
         .filter(orders::order_id.eq(id))
-        .set((orders::order_state.eq(OrderState::from(order_state)),))
+        .set(orders::order_state.eq(OrderState::from(order_state)))
         .get_result(conn)?;
 
     Ok(OrderbookOrder::from(order))
+}
+
+pub fn update_quantity(
+    conn: &mut PgConnection,
+    order_id: Uuid,
+    quantity: Decimal,
+) -> QueryResult<usize> {
+    diesel::update(orders::table)
+        .filter(orders::order_id.eq(order_id))
+        .set(orders::quantity.eq(quantity.to_f32().expect("to fit")))
+        .execute(conn)
 }
 
 pub fn set_expired_limit_orders_to_expired(

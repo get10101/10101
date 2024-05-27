@@ -4,15 +4,11 @@ use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::funding_fee::funding_fee_from_funding_fee_events;
 use crate::funding_fee::get_outstanding_funding_fee_events;
-use crate::message::TraderMessage;
 use crate::node::Node;
-use crate::orderbook::db::matches;
-use crate::orderbook::db::orders;
 use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
-use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
@@ -20,8 +16,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
-use diesel::Connection;
-use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannel;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
@@ -36,7 +30,6 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
-use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_29;
@@ -46,11 +39,13 @@ use xxi_node::cfd::calculate_margin;
 use xxi_node::cfd::calculate_pnl;
 use xxi_node::cfd::calculate_short_liquidation_price;
 use xxi_node::commons;
+use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
-use xxi_node::commons::MatchState;
-use xxi_node::commons::Message;
+use xxi_node::commons::FilledWith;
+use xxi_node::commons::Match;
+use xxi_node::commons::Matches;
+use xxi_node::commons::Order;
 use xxi_node::commons::OrderState;
-use xxi_node::commons::TradeAndChannelParams;
 use xxi_node::commons::TradeParams;
 use xxi_node::message_handler::TenTenOneMessage;
 use xxi_node::message_handler::TenTenOneReject;
@@ -65,9 +60,6 @@ pub mod websocket;
 
 enum TradeAction {
     OpenDlcChannel,
-    OpenSingleFundedChannel {
-        external_funding: Amount,
-    },
     OpenPosition {
         channel_id: DlcChannelId,
         own_payout: Amount,
@@ -103,9 +95,28 @@ enum ResizeAction {
     },
 }
 
+pub struct ExecutableMatch {
+    pub order: Order,
+    pub matches: Vec<Matches>,
+}
+
+impl ExecutableMatch {
+    pub fn build_matches(&self) -> Vec<Match> {
+        self.matches
+            .clone()
+            .into_iter()
+            .map(|m| m.into())
+            .collect::<Vec<_>>()
+    }
+
+    pub fn sum_quantity(&self) -> Decimal {
+        self.matches.iter().map(|m| m.quantity).sum()
+    }
+}
+
+#[derive(Clone)]
 pub struct TradeExecutor {
     node: Node,
-    notifier: mpsc::Sender<TraderMessage>,
 }
 
 /// The funds the trader will need to provide to open a DLC channel with the coordinator.
@@ -121,33 +132,36 @@ enum TraderRequiredLiquidity {
 }
 
 impl TradeExecutor {
-    pub fn new(node: Node, notifier: mpsc::Sender<TraderMessage>) -> Self {
-        Self { node, notifier }
+    pub fn new(node: Node) -> Self {
+        Self { node }
     }
 
-    pub async fn execute(&self, params: &TradeAndChannelParams) {
-        let trader_id = params.trade_params.pubkey;
-        let order_id = params.trade_params.filled_with.order_id;
+    pub fn is_connected(&self, trader: PublicKey) -> bool {
+        self.node.is_connected(trader)
+    }
 
-        match self.execute_internal(params).await {
+    pub async fn execute(&self, executable_match: ExecutableMatch) -> Result<()> {
+        let trader_pubkey = executable_match.order.trader_id;
+        let order_id = executable_match.order.id;
+        let trader_id = executable_match.order.trader_id;
+
+        let external_funding = spawn_blocking({
+            let pool = self.node.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                let params = db::channel_opening_params::get_by_order_id(&mut conn, order_id)?;
+                anyhow::Ok(params.and_then(|p| p.external_funding))
+            }
+        })
+        .await
+        .expect("to finish task")
+        .unwrap_or_default();
+
+        match self.execute_internal(executable_match).await {
             Ok(()) => {
-                tracing::info!(
-                    %trader_id,
-                    %order_id,
-                    "Successfully processed match, setting match to Filled"
-                );
+                tracing::info!(%trader_pubkey, %order_id, "Successfully processed match");
 
-                if let Err(e) =
-                    self.update_order_and_match(order_id, MatchState::Filled, OrderState::Taken)
-                {
-                    tracing::error!(
-                        %trader_id,
-                        %order_id,
-                        "Failed to update order and match state. Error: {e:#}"
-                    );
-                }
-
-                if params.external_funding.is_some() {
+                if external_funding.is_some() {
                     // The channel was funded externally. We need to post process the dlc channel
                     // offer.
                     if let Err(e) = self.settle_invoice(trader_id, order_id).await {
@@ -161,19 +175,7 @@ impl TradeExecutor {
                             tracing::error!(%trader_id, %order_id, "Failed to cancel hodl invoice. Error: {e:#}");
                         }
 
-                        let message = TraderMessage {
-                            trader_id,
-                            message: Message::TradeError {
-                                order_id,
-                                error: e.into(),
-                            },
-                            notification: None,
-                        };
-                        if let Err(e) = self.notifier.send(message).await {
-                            tracing::debug!("Failed to notify trader. Error: {e:#}");
-                        }
-
-                        return;
+                        return Err(e);
                     }
                 }
 
@@ -182,12 +184,16 @@ impl TradeExecutor {
                 self.node
                     .inner
                     .event_handler
-                    .publish(NodeEvent::SendLastDlcMessage { peer: trader_id });
+                    .publish(NodeEvent::SendLastDlcMessage {
+                        peer: trader_pubkey,
+                    });
+
+                Ok(())
             }
             Err(e) => {
-                tracing::error!(%trader_id, %order_id,"Failed to execute trade. Error: {e:#}");
+                tracing::error!(%trader_pubkey, %order_id, "Failed to execute trade. Error: {e:#}");
 
-                if params.external_funding.is_some() {
+                if external_funding.is_some() {
                     // TODO(holzeis): It might make sense to do this for any failed offer to
                     // unreserve potentially reserved utxos.
                     if let Err(e) = self.cancel_offer(trader_id).await {
@@ -199,25 +205,9 @@ impl TradeExecutor {
                     }
                 }
 
-                if let Err(e) =
-                    self.update_order_and_match(order_id, MatchState::Failed, OrderState::Failed)
-                {
-                    tracing::error!(%trader_id, %order_id, "Failed to update order and match: {e}");
-                };
-
-                let message = TraderMessage {
-                    trader_id,
-                    message: Message::TradeError {
-                        order_id,
-                        error: e.into(),
-                    },
-                    notification: None,
-                };
-                if let Err(e) = self.notifier.send(message).await {
-                    tracing::debug!("Failed to notify trader. Error: {e:#}");
-                }
+                Err(e)
             }
-        };
+        }
     }
 
     /// Settles the accepted invoice for the given trader
@@ -302,13 +292,32 @@ impl TradeExecutor {
     /// 2. If no position is found, we open a position.
     ///
     /// 3. If a position of differing quantity is found, we resize the position.
-    async fn execute_internal(&self, params: &TradeAndChannelParams) -> Result<()> {
-        let mut connection = self.node.pool.get()?;
+    async fn execute_internal(&self, executable_match: ExecutableMatch) -> Result<()> {
+        let trader_pubkey = executable_match.order.trader_id;
+        let order_id = executable_match.order.id;
 
-        let order_id = params.trade_params.filled_with.order_id;
-        let trader_id = params.trade_params.pubkey;
-        let order =
-            orders::get_with_id(&mut connection, order_id)?.context("Could not find order")?;
+        let expiry_timestamp =
+            commons::calculate_next_expiry(OffsetDateTime::now_utc(), self.node.inner.network);
+
+        let order = executable_match.order;
+
+        let filled_with = FilledWith {
+            order_id,
+            expiry_timestamp,
+            oracle_pk: self.node.inner.oracle_pubkey,
+            matches: executable_match.build_matches(),
+        };
+
+        let trade_params = TradeParams {
+            pubkey: trader_pubkey,
+            contract_symbol: ContractSymbol::BtcUsd,
+            leverage: order.leverage,
+            quantity: executable_match.sum_quantity().to_f32().expect("to fit"),
+            direction: order.direction,
+            filled_with,
+        };
+
+        let trader_pubkey = trade_params.pubkey;
         let is_stable_order = order.stable;
 
         ensure!(
@@ -316,14 +325,14 @@ impl TradeExecutor {
             "Can't execute a trade on an expired order"
         );
         ensure!(
-            order.order_state == OrderState::Matched,
-            "Can't execute trade with in invalid state {:?}",
+            order.order_state == OrderState::Taken,
+            "Can't execute trade with an invalid state {:?}",
             order.order_state
         );
 
-        tracing::info!(%trader_id, %order_id, "Executing match");
+        tracing::info!(%trader_pubkey, %order_id, "Executing match");
 
-        let trade_action = self.determine_trade_action(&mut connection, params).await?;
+        let trade_action = self.determine_trade_action(&trade_params).await?;
 
         ensure!(
             matches!(trade_action, TradeAction::ClosePosition { .. })
@@ -333,70 +342,78 @@ impl TradeExecutor {
 
         match trade_action {
             TradeAction::OpenDlcChannel => {
-                let collateral_reserve_coordinator = params
-                    .coordinator_reserve
-                    .context("Missing coordinator collateral reserve")?;
-                let collateral_reserve_trader = params
-                    .trader_reserve
-                    .context("Missing trader collateral reserve")?;
+                let channel_opening_params = spawn_blocking({
+                    let pool = self.node.pool.clone();
+                    move || {
+                        let mut conn = pool.get()?;
+                        let params =
+                            db::channel_opening_params::get_by_order_id(&mut conn, order_id)?;
+                        anyhow::Ok(params)
+                    }
+                })
+                .await??
+                .context("Missing channel opening params")?;
+
+                let (
+                    collateral_reserve_coordinator,
+                    collateral_reserve_trader,
+                    trader_required_utxos,
+                ) = match channel_opening_params.external_funding {
+                    Some(external_funding) => {
+                        let order_matching_fee = trade_params.order_matching_fee();
+                        let margin_trader = margin_trader(&trade_params);
+
+                        let fee_rate = self
+                            .node
+                            .inner
+                            .fee_rate_estimator
+                            .get(ConfirmationTarget::Normal);
+
+                        // The on chain fees are split evenly between the two parties.
+                        let funding_transaction_fee =
+                            estimated_funding_transaction_fee(fee_rate.as_sat_per_vb() as f64) / 2;
+
+                        let channel_fee_reserve =
+                            estimated_dlc_channel_fee_reserve(fee_rate.as_sat_per_vb() as f64) / 2;
+
+                        // If the user funded the channel externally we derive the collateral
+                        // reserve trader from the difference of the trader
+                        // margin and the externally received funds.
+                        //
+                        // TODO(holzeis): Introduce margin orders to directly use the
+                        // external_funding_sats for the position instead of failing here. We need
+                        // to do this though as a malicious actor could otherwise drain us.
+                        //
+                        // Note, we add a min trader reserve to the external funding to ensure that
+                        // minor price movements are covered.
+                        let collateral_reserve_trader = external_funding
+                            .checked_sub(
+                                margin_trader
+                                    + order_matching_fee
+                                    + funding_transaction_fee
+                                    + channel_fee_reserve,
+                            )
+                            .context("Not enough external funds to open position")?;
+
+                        (
+                            channel_opening_params.coordinator_reserve,
+                            collateral_reserve_trader,
+                            TraderRequiredLiquidity::None,
+                        )
+                    }
+                    None => (
+                        channel_opening_params.coordinator_reserve,
+                        channel_opening_params.trader_reserve,
+                        TraderRequiredLiquidity::ForTradeCostAndTxFees,
+                    ),
+                };
 
                 self.open_dlc_channel(
-                    &mut connection,
-                    &params.trade_params,
+                    &trade_params,
                     collateral_reserve_coordinator,
                     collateral_reserve_trader,
                     is_stable_order,
-                    TraderRequiredLiquidity::ForTradeCostAndTxFees,
-                )
-                .await
-                .context("Failed to open DLC channel")?;
-            }
-            TradeAction::OpenSingleFundedChannel { external_funding } => {
-                let collateral_reserve_coordinator = params
-                    .coordinator_reserve
-                    .context("Missing coordinator collateral reserve")?;
-                let order_matching_fee = params.trade_params.order_matching_fee();
-                let margin_trader = margin_trader(&params.trade_params);
-
-                let fee_rate = self
-                    .node
-                    .inner
-                    .fee_rate_estimator
-                    .get(ConfirmationTarget::Normal);
-
-                // The on chain fees are split evenly between the two parties.
-                let funding_transaction_fee =
-                    estimated_funding_transaction_fee(fee_rate.as_sat_per_vb() as f64) / 2;
-
-                let channel_fee_reserve =
-                    estimated_dlc_channel_fee_reserve(fee_rate.as_sat_per_vb() as f64) / 2;
-
-                // If the user funded the channel externally we derive the collateral reserve
-                // trader from the difference of the trader margin and the
-                // externally received funds.
-                //
-                // TODO(holzeis): Introduce margin orders to directly use the
-                // external_funding_sats for the position instead of failing here. We need
-                // to do this though as a malicious actor could otherwise drain us.
-                //
-                // Note, we add a min trader reserve to the external funding to ensure that
-                // minor price movements are covered.
-                let collateral_reserve_trader = external_funding
-                    .checked_sub(
-                        margin_trader
-                            + order_matching_fee
-                            + funding_transaction_fee
-                            + channel_fee_reserve,
-                    )
-                    .context("Not enough external funds to open position")?;
-
-                self.open_dlc_channel(
-                    &mut connection,
-                    &params.trade_params,
-                    collateral_reserve_coordinator,
-                    collateral_reserve_trader,
-                    is_stable_order,
-                    TraderRequiredLiquidity::None,
+                    trader_required_utxos,
                 )
                 .await
                 .context("Failed to open DLC channel")?;
@@ -407,9 +424,8 @@ impl TradeExecutor {
                 counter_payout,
             } => self
                 .open_position(
-                    &mut connection,
                     channel_id,
-                    &params.trade_params,
+                    &trade_params,
                     own_payout,
                     counter_payout,
                     is_stable_order,
@@ -420,13 +436,7 @@ impl TradeExecutor {
                 channel_id,
                 position,
             } => self
-                .start_closing_position(
-                    &mut connection,
-                    order,
-                    &position,
-                    &params.trade_params,
-                    channel_id,
-                )
+                .start_closing_position(order, &position, &trade_params, channel_id)
                 .await
                 .with_context(|| format!("Failed to close position {}", position.id))?,
             TradeAction::ResizePosition {
@@ -434,13 +444,7 @@ impl TradeExecutor {
                 position,
                 resize_action,
             } => self
-                .resize_position(
-                    &mut connection,
-                    channel_id,
-                    &position,
-                    &params.trade_params,
-                    resize_action,
-                )
+                .resize_position(channel_id, &position, &trade_params, resize_action)
                 .await
                 .with_context(|| format!("Failed to resize position {}", position.id))?,
         };
@@ -450,7 +454,6 @@ impl TradeExecutor {
 
     async fn open_dlc_channel(
         &self,
-        conn: &mut PgConnection,
         trade_params: &TradeParams,
         collateral_reserve_coordinator: Amount,
         collateral_reserve_trader: Amount,
@@ -600,7 +603,6 @@ impl TradeExecutor {
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
         // successfully.
         self.persist_position(
-            conn,
             trade_params,
             temporary_contract_id,
             leverage_coordinator,
@@ -612,7 +614,6 @@ impl TradeExecutor {
 
     async fn open_position(
         &self,
-        conn: &mut PgConnection,
         dlc_channel_id: DlcChannelId,
         trade_params: &TradeParams,
         coordinator_dlc_channel_collateral: Amount,
@@ -768,7 +769,6 @@ impl TradeExecutor {
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
         // successfully.
         self.persist_position(
-            conn,
             trade_params,
             temporary_contract_id,
             leverage_coordinator,
@@ -780,7 +780,6 @@ impl TradeExecutor {
 
     async fn resize_position(
         &self,
-        conn: &mut PgConnection,
         dlc_channel_id: DlcChannelId,
         position: &Position,
         trade_params: &TradeParams,
@@ -798,8 +797,19 @@ impl TradeExecutor {
         let peer_id = trade_params.pubkey;
 
         // Update position based on the outstanding funding fee events _before_ applying resize.
-        let funding_fee_events =
-            get_outstanding_funding_fee_events(conn, position.trader, position.id)?;
+        let funding_fee_events = spawn_blocking({
+            let pool = self.node.pool.clone();
+            let trader = position.trader;
+            let position_id = position.id;
+            move || {
+                let mut conn = pool.get()?;
+                let funding_fee_events =
+                    get_outstanding_funding_fee_events(&mut conn, trader, position_id)?;
+
+                anyhow::Ok(funding_fee_events)
+            }
+        })
+        .await??;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
@@ -963,28 +973,36 @@ impl TradeExecutor {
             funding_fee_event_ids,
         )?;
 
-        db::positions::Position::set_position_to_resizing(
-            conn,
-            peer_id,
-            temporary_contract_id,
-            contracts,
-            coordinator_direction.opposite(),
-            margin_trader,
-            margin_coordinator,
-            average_execution_price,
-            expiry_timestamp,
-            coordinator_liquidation_price,
-            trader_liquidation_price,
-            realized_pnl,
-            order_matching_fee,
-        )?;
+        spawn_blocking({
+            let pool = self.node.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                db::positions::Position::set_position_to_resizing(
+                    &mut conn,
+                    peer_id,
+                    temporary_contract_id,
+                    contracts,
+                    coordinator_direction.opposite(),
+                    margin_trader,
+                    margin_coordinator,
+                    average_execution_price,
+                    expiry_timestamp,
+                    coordinator_liquidation_price,
+                    trader_liquidation_price,
+                    realized_pnl,
+                    order_matching_fee,
+                )?;
+
+                anyhow::Ok(())
+            }
+        })
+        .await??;
 
         Ok(())
     }
 
     async fn persist_position(
         &self,
-        connection: &mut PgConnection,
         trade_params: &TradeParams,
         temporary_contract_id: ContractId,
         coordinator_leverage: f32,
@@ -1039,15 +1057,20 @@ impl TradeExecutor {
 
         // TODO(holzeis): We should only create the position once the dlc protocol finished
         // successfully.
-        db::positions::Position::insert(connection, new_position.clone())?;
-
-        Ok(())
+        spawn_blocking({
+            let pool = self.node.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                db::positions::Position::insert(&mut conn, new_position.clone())?;
+                anyhow::Ok(())
+            }
+        })
+        .await?
     }
 
     pub async fn start_closing_position(
         &self,
-        conn: &mut PgConnection,
-        order: commons::Order,
+        order: Order,
         position: &Position,
         trade_params: &TradeParams,
         channel_id: DlcChannelId,
@@ -1063,8 +1086,19 @@ impl TradeExecutor {
 
         // Update position based on the outstanding funding fee events _before_ calculating
         // `position_settlement_amount_coordinator`.
-        let funding_fee_events =
-            get_outstanding_funding_fee_events(conn, position.trader, position.id)?;
+        let funding_fee_events = spawn_blocking({
+            let pool = self.node.pool.clone();
+            let trader = position.trader;
+            let position_id = position.id;
+            move || {
+                let mut conn = pool.get()?;
+                let funding_fee_events =
+                    get_outstanding_funding_fee_events(&mut conn, trader, position_id)?;
+
+                anyhow::Ok(funding_fee_events)
+            }
+        })
+        .await??;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
@@ -1150,44 +1184,31 @@ impl TradeExecutor {
             funding_fee_event_ids,
         )?;
 
-        db::positions::Position::set_open_position_to_closing(
-            conn,
-            &position.trader,
-            Some(closing_price),
-        )?;
+        spawn_blocking({
+            let pool = self.node.pool.clone();
+            let trader_pubkey = position.trader;
+            move || {
+                let mut conn = pool.get()?;
+                db::positions::Position::set_open_position_to_closing(
+                    &mut conn,
+                    &trader_pubkey,
+                    Some(closing_price),
+                )?;
+                anyhow::Ok(())
+            }
+        })
+        .await??;
 
         Ok(())
     }
 
-    fn update_order_and_match(
-        &self,
-        order_id: Uuid,
-        match_state: MatchState,
-        order_state: OrderState,
-    ) -> Result<()> {
-        let mut connection = self.node.pool.get()?;
-        connection
-            .transaction(|connection| {
-                matches::set_match_state(connection, order_id, match_state)?;
-
-                orders::set_order_state(connection, order_id, order_state)?;
-
-                diesel::result::QueryResult::Ok(())
-            })
-            .map_err(|e| anyhow!("Failed to update order and match. Error: {e:#}"))
-    }
-
-    async fn determine_trade_action(
-        &self,
-        connection: &mut PgConnection,
-        params: &TradeAndChannelParams,
-    ) -> Result<TradeAction> {
-        let trader_id = params.trade_params.pubkey;
+    async fn determine_trade_action(&self, trade_params: &TradeParams) -> Result<TradeAction> {
+        let trader_pubkey = trade_params.pubkey;
 
         let trade_action = match self
             .node
             .inner
-            .get_signed_dlc_channel_by_counterparty(&trader_id)?
+            .get_signed_dlc_channel_by_counterparty(&trader_pubkey)?
         {
             None => {
                 ensure!(
@@ -1196,17 +1217,12 @@ impl TradeExecutor {
                         .inner
                         .list_dlc_channels()?
                         .iter()
-                        .filter(|c| c.get_counter_party_id() == to_secp_pk_29(trader_id))
+                        .filter(|c| c.get_counter_party_id() == to_secp_pk_29(trader_pubkey))
                         .any(|c| matches!(c, Channel::Offered(_) | Channel::Accepted(_))),
                     "Previous DLC Channel offer still pending."
                 );
 
-                match params.external_funding {
-                    Some(external_funding) => {
-                        TradeAction::OpenSingleFundedChannel { external_funding }
-                    }
-                    None => TradeAction::OpenDlcChannel,
-                }
+                TradeAction::OpenDlcChannel
             }
             Some(SignedChannel {
                 channel_id,
@@ -1227,14 +1243,21 @@ impl TradeExecutor {
                 channel_id,
                 ..
             }) => {
-                let trade_params = &params.trade_params;
+                let position = spawn_blocking({
+                    let pool = self.node.pool.clone();
+                    move || {
+                        let mut conn = pool.get()?;
+                        let position = db::positions::Position::get_position_by_trader(
+                            &mut conn,
+                            trader_pubkey,
+                            vec![PositionState::Open],
+                        )?
+                        .context("Failed to find open position")?;
 
-                let position = db::positions::Position::get_position_by_trader(
-                    connection,
-                    trader_id,
-                    vec![PositionState::Open],
-                )?
-                .context("Failed to find open position")?;
+                        anyhow::Ok(position)
+                    }
+                })
+                .await??;
 
                 let position_contracts = {
                     let contracts = decimal_from_f32(position.quantity);

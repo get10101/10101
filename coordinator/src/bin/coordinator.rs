@@ -10,6 +10,7 @@ use coordinator::funding_fee::generate_funding_fee_events_periodically;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
+use coordinator::message::TraderSender;
 use coordinator::node::expired_positions;
 use coordinator::node::liquidated_positions;
 use coordinator::node::rollover;
@@ -17,9 +18,10 @@ use coordinator::node::storage::NodeStorage;
 use coordinator::node::unrealized_pnl;
 use coordinator::node::Node;
 use coordinator::notifications::NotificationService;
-use coordinator::orderbook::async_match;
 use coordinator::orderbook::collaborative_revert;
+use coordinator::orderbook::match_order;
 use coordinator::orderbook::trading;
+use coordinator::orderbook::OrderMatchingFeeRate;
 use coordinator::routes::router;
 use coordinator::run_migration;
 use coordinator::scheduler::NotificationScheduler;
@@ -32,6 +34,8 @@ use diesel::PgConnection;
 use lnd_bridge::LndBridge;
 use rand::thread_rng;
 use rand::RngCore;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use std::backtrace::Backtrace;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
@@ -247,21 +251,31 @@ async fn main() -> Result<()> {
 
     let (tx_orderbook_feed, _rx) = broadcast::channel(100);
 
-    let (_handle, trading_sender) = trading::start(
-        node.clone(),
-        tx_orderbook_feed.clone(),
-        auth_users_notifier.clone(),
-        notification_service.get_sender(),
-        network,
-        node.inner.oracle_pubkey,
-    );
-    let _handle = async_match::monitor(
+    let order_matching_fee_rate = OrderMatchingFeeRate {
+        // TODO(holzeis): Split up order matching fee rate into taker and maker fees.
+        taker: Decimal::from_f32(node.settings.read().await.order_matching_fee_rate)
+            .expect("to fit"),
+        maker: Decimal::from_f32(node.settings.read().await.order_matching_fee_rate)
+            .expect("to fit"),
+    };
+
+    let match_executor = match_order::spawn_match_executor(
         node.clone(),
         node_event_handler.subscribe(),
-        auth_users_notifier.clone(),
-        network,
-        node.inner.oracle_pubkey,
+        order_matching_fee_rate,
+        TraderSender {
+            sender: auth_users_notifier.clone(),
+        },
     );
+
+    let orderbook_sender = trading::spawn_orderbook(
+        node.pool.clone(),
+        notification_service.get_sender(),
+        match_executor.clone(),
+        tx_orderbook_feed.clone(),
+        auth_users_notifier.clone(),
+    );
+
     let _handle = rollover::monitor(
         pool.clone(),
         node_event_handler.subscribe(),
@@ -269,6 +283,7 @@ async fn main() -> Result<()> {
         network,
         node.clone(),
     );
+
     let _handle = collaborative_revert::monitor(
         pool.clone(),
         tx_user_feed.clone(),
@@ -280,11 +295,12 @@ async fn main() -> Result<()> {
 
     tokio::spawn({
         let node = node.clone();
-        let trading_sender = trading_sender.clone();
+        let orderbook_sender = orderbook_sender.clone();
         async move {
             loop {
                 tokio::time::sleep(EXPIRED_POSITION_SYNC_INTERVAL).await;
-                if let Err(e) = expired_positions::close(node.clone(), trading_sender.clone()).await
+                if let Err(e) =
+                    expired_positions::close(node.clone(), orderbook_sender.clone()).await
                 {
                     tracing::error!("Failed to close expired positions! Error: {e:#}");
                 }
@@ -294,11 +310,11 @@ async fn main() -> Result<()> {
 
     tokio::spawn({
         let node = node.clone();
-        let trading_sender = trading_sender.clone();
+        let orderbook_sender = orderbook_sender.clone();
         async move {
             loop {
                 tokio::time::sleep(LIQUIDATED_POSITION_SYNC_INTERVAL).await;
-                liquidated_positions::monitor(node.clone(), trading_sender.clone()).await
+                liquidated_positions::monitor(node.clone(), orderbook_sender.clone()).await
             }
         }
     });
@@ -310,7 +326,7 @@ async fn main() -> Result<()> {
         pool.clone(),
         settings.clone(),
         NODE_ALIAS,
-        trading_sender,
+        orderbook_sender,
         tx_orderbook_feed,
         tx_position_feed,
         tx_user_feed,

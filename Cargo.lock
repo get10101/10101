@@ -1008,6 +1008,7 @@ dependencies = [
  "tokio",
  "tokio-cron-scheduler",
  "tokio-metrics",
+ "tokio-stream",
  "tokio-util",
  "toml 0.8.8",
  "tracing",
@@ -4375,6 +4376,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

@@ -46,6 +46,7 @@ time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "
 tokio = { version = "1", features = ["full", "tracing"] }
 tokio-cron-scheduler = { version = "0.9.4" }
 tokio-metrics = "0.2.2"
+tokio-stream = { version = "0.1.14", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["io"] }
 toml = "0.8"
 tracing = "0.1.37"

@@ -652,7 +652,7 @@ impl TenTenOneMessage {
             | TenTenOneMessage::SettleAccept(TenTenOneSettleAccept { order_reason, .. })
             | TenTenOneMessage::SettleConfirm(TenTenOneSettleConfirm { order_reason, .. })
             | TenTenOneMessage::SettleFinalize(TenTenOneSettleFinalize { order_reason, .. }) => {
-                Some(order_reason.clone())
+                Some(*order_reason)
             }
             TenTenOneMessage::Offer(_)
             | TenTenOneMessage::Accept(_)
