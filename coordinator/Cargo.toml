@@ -21,10 +21,11 @@ dlc-messages = "0.4.0"
 dlc-trie = "0.4.0"
 fcm = "0.9.2"
 futures = "0.3"
+futures-util = "0.3"
 hex = "0.4"
 lazy_static = "1.4.0"
 lightning = { version = "0.0.117", features = ["max_level_trace"] }
-local-ip-address = "0.5.1"
+lnd-bridge = { path = "../crates/lnd-bridge" }
 openssl = { version = "0.10.60", features = ["vendored"] }
 opentelemetry = "0.19.0"
 opentelemetry-prometheus = "0.12.0"

@@ -111,6 +111,7 @@ diesel::table! {
         coordinator_reserve -> Int8,
         trader_reserve -> Int8,
         created_at -> Int8,
+        external_funding -> Nullable<Int8>,
     }
 }
 
@@ -208,6 +209,18 @@ diesel::table! {
         trader_pubkey -> Text,
         timestamp -> Timestamptz,
         protocol_type -> ProtocolTypeType,
+    }
+}
+
+diesel::table! {
+    hodl_invoices (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        r_hash -> Text,
+        amount_sats -> Int8,
+        pre_image -> Nullable<Text>,
+        created_at -> Timestamptz,
+        updated_at -> Nullable<Timestamptz>,
     }
 }
 
@@ -494,6 +507,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     dlc_channels,
     dlc_messages,
     dlc_protocols,
+    hodl_invoices,
     last_outbound_dlc_messages,
     legacy_collaborative_reverts,
     liquidity_options,

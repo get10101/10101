@@ -231,12 +231,14 @@ pub struct Order {
 /// with the filled order.
 ///
 /// [`TradeParams`]: commons::TradeParams
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ChannelOpeningParams {
     #[serde(with = "bitcoin::amount::serde::as_sat")]
     pub trader_reserve: Amount,
     #[serde(with = "bitcoin::amount::serde::as_sat")]
     pub coordinator_reserve: Amount,
+    /// if set, the channel will be opened with funding only from the coordinator.
+    pub pre_image: Option<String>,
 }
 
 #[cfg(test)]

@@ -17,16 +17,16 @@ class CustomFramedContainer extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
             border: Border.all(color: Colors.grey, width: 1),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(8),
             shape: BoxShape.rectangle,
           ),
           child: child,
         ),
         Positioned(
-          left: 15,
-          top: 12,
+          left: 5,
+          top: 8,
           child: Container(
-            padding: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+            padding: const EdgeInsets.only(bottom: 5, left: 5, right: 5),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: FractionalOffset.topCenter,
@@ -37,12 +37,11 @@ class CustomFramedContainer extends StatelessWidget {
                   Colors.grey.shade100,
                 ],
               ),
-              borderRadius: BorderRadius.circular(5),
               shape: BoxShape.rectangle,
             ),
             child: Text(
               text,
-              style: const TextStyle(color: Colors.black, fontSize: 12),
+              style: const TextStyle(color: Colors.black, fontSize: 16),
             ),
           ),
         ),

@@ -29,12 +29,12 @@ use crate::trade::order::api::Order;
 use crate::trade::position;
 use crate::trade::position::api::Position;
 use crate::trade::users;
-use crate::unfunded_orders;
+use crate::unfunded_channel_opening_order;
+use crate::unfunded_channel_opening_order::ExternalFunding;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use bdk::FeeRate;
-use bitcoin::Address;
 use bitcoin::Amount;
 use flutter_rust_bridge::StreamSink;
 use flutter_rust_bridge::SyncReturn;
@@ -46,7 +46,6 @@ use std::backtrace::Backtrace;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
@@ -352,6 +351,7 @@ pub async fn submit_channel_opening_order(
         Some(ChannelOpeningParams {
             coordinator_reserve: Amount::from_sat(coordinator_reserve),
             trader_reserve: Amount::from_sat(trader_reserve),
+            pre_image: None,
         }),
     )
     .await
@@ -905,22 +905,23 @@ pub fn has_traded_once() -> Result<SyncReturn<bool>> {
 
 #[tokio::main(flavor = "current_thread")]
 pub async fn submit_unfunded_channel_opening_order(
-    funding_address: String,
     order: NewOrder,
     coordinator_reserve: u64,
     trader_reserve: u64,
     estimated_margin: u64,
-) -> Result<()> {
-    let funding_address = Address::from_str(funding_address.as_str())?.assume_checked();
-
-    unfunded_orders::submit_unfunded_wallet_channel_opening_order(
-        funding_address,
+    order_matching_fees: u64,
+) -> Result<ExternalFunding> {
+    unfunded_channel_opening_order::submit_unfunded_channel_opening_order(
         order,
         coordinator_reserve,
         trader_reserve,
-        estimated_margin + trader_reserve,
+        estimated_margin,
+        order_matching_fees,
     )
-    .await?;
+    .await
+}
 
-    Ok(())
+#[tokio::main(flavor = "current_thread")]
+pub async fn abort_unfunded_channel_opening_order() -> Result<()> {
+    unfunded_channel_opening_order::abort_watcher().await
 }

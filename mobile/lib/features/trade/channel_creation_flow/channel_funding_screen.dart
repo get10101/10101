@@ -8,8 +8,11 @@ import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/funding_channel_task_change_notifier.dart';
 import 'package:get_10101/common/snack_bar.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
+import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -20,24 +23,24 @@ class ChannelFundingScreen extends StatelessWidget {
   static const route = "${ChannelConfigurationScreen.route}/$subRouteName";
   static const subRouteName = "fund_tx";
   final Amount amount;
-  final String address;
+  final ExternalFunding funding;
 
   const ChannelFundingScreen({
     super.key,
     required this.amount,
-    required this.address,
+    required this.funding,
   });
 
   @override
   Widget build(BuildContext context) {
     return ChannelFunding(
       amount: amount,
-      address: address,
+      funding: funding,
     );
   }
 }
 
-enum FundinType {
+enum FundingType {
   lightning,
   onchain,
   unified,
@@ -46,40 +49,45 @@ enum FundinType {
 
 class ChannelFunding extends StatefulWidget {
   final Amount amount;
-  final String address;
+  final ExternalFunding funding;
 
-  const ChannelFunding({super.key, required this.amount, required this.address});
+  const ChannelFunding({super.key, required this.amount, required this.funding});
 
   @override
   State<ChannelFunding> createState() => _ChannelFunding();
 }
 
 class _ChannelFunding extends State<ChannelFunding> {
-  FundinType selectedBox = FundinType.onchain;
+  FundingType selectedBox = FundingType.onchain;
 
   @override
   Widget build(BuildContext context) {
-    String address = widget.address;
-    // TODO: creating a bip21 qr code should be generic once we support other desposit methods
-    String qcCodeContent = "bitcoin:$address?amount=${widget.amount.btc.toString()}";
+    final qrCode = switch (selectedBox) {
+      FundingType.lightning => CustomQrCode(
+          data: widget.funding.paymentRequest,
+          embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
+          dimension: 300,
+        ),
+      FundingType.onchain => CustomQrCode(
+          // TODO: creating a bip21 qr code should be generic once we support other desposit methods
+          data: "bitcoin:${widget.funding.bitcoinAddress}?amount=${widget.amount.btc.toString()}",
+          embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
+          dimension: 300,
+        ),
+      FundingType.unified || FundingType.external => const CustomQrCode(
+          data: "https://x.com/get10101",
+          embeddedImage: AssetImage("assets/coming_soon.png"),
+          embeddedImageSizeHeight: 350,
+          embeddedImageSizeWidth: 350,
+          dimension: 300,
+        )
+    };
 
-    var qrCode = CustomQrCode(
-      data: qcCodeContent,
-      embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
-      dimension: 300,
-    );
-
-    if (selectedBox != FundinType.onchain) {
-      qcCodeContent = "Follow us on Twitter for news: @get10101";
-
-      qrCode = CustomQrCode(
-        data: qcCodeContent,
-        embeddedImage: const AssetImage("assets/coming_soon.png"),
-        embeddedImageSizeHeight: 350,
-        embeddedImageSizeWidth: 350,
-        dimension: 300,
-      );
-    }
+    final qrCodeSubTitle = switch (selectedBox) {
+      FundingType.lightning => widget.funding.paymentRequest,
+      FundingType.onchain => widget.funding.bitcoinAddress,
+      FundingType.unified || FundingType.external => "Follow us on social media for updates",
+    };
 
     return Scaffold(
       body: SafeArea(
@@ -107,7 +115,11 @@ class _ChannelFunding extends State<ChannelFunding> {
                                     size: 22,
                                   )),
                               onTap: () {
-                                GoRouter.of(context).pop();
+                                context
+                                    .read<SubmitOrderChangeNotifier>()
+                                    .orderService
+                                    .abortUnfundedChannelOpeningMarketOrder()
+                                    .then((value) => GoRouter.of(context).pop());
                               },
                             ),
                             const Row(
@@ -137,7 +149,7 @@ class _ChannelFunding extends State<ChannelFunding> {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       border: Border.all(color: Colors.grey, width: 1),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(10),
                       shape: BoxShape.rectangle,
                     ),
                     child: Center(
@@ -161,9 +173,9 @@ class _ChannelFunding extends State<ChannelFunding> {
                           ),
                           GestureDetector(
                             onTap: () {
-                              Clipboard.setData(ClipboardData(text: qcCodeContent)).then((_) {
-                                showSnackBar(ScaffoldMessenger.of(context),
-                                    "Address copied: $qcCodeContent");
+                              Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
+                                showSnackBar(
+                                    ScaffoldMessenger.of(context), "Copied: ${qrCode.data}");
                               });
                             },
                             child: Padding(
@@ -179,13 +191,13 @@ class _ChannelFunding extends State<ChannelFunding> {
                                   padding: const EdgeInsets.only(left: 10.0, right: 10.0),
                                   child: GestureDetector(
                                     onTap: () {
-                                      Clipboard.setData(ClipboardData(text: address)).then((_) {
+                                      Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
                                         showSnackBar(ScaffoldMessenger.of(context),
-                                            "Address copied: $address");
+                                            "Copied: $qrCodeSubTitle");
                                       });
                                     },
                                     child: Text(
-                                      address,
+                                      truncateWithEllipsis(44, qrCodeSubTitle),
                                       style: const TextStyle(fontSize: 14),
                                       textAlign: TextAlign.center,
                                       maxLines: 1,
@@ -250,10 +262,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "Unified",
             image: const Icon(BitcoinIcons.bitcoin_circle_outline),
-            isSelected: selectedBox == FundinType.unified,
+            isSelected: selectedBox == FundingType.unified,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.unified;
+                selectedBox = FundingType.unified;
               });
             },
           ),
@@ -262,10 +274,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "Lightning",
             image: const Icon(BitcoinIcons.lightning_outline),
-            isSelected: selectedBox == FundinType.lightning,
+            isSelected: selectedBox == FundingType.lightning,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.lightning;
+                selectedBox = FundingType.lightning;
               });
             },
           ),
@@ -274,10 +286,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "On-chain",
             image: const Icon(BitcoinIcons.link_outline),
-            isSelected: selectedBox == FundinType.onchain,
+            isSelected: selectedBox == FundingType.onchain,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.onchain;
+                selectedBox = FundingType.onchain;
               });
             },
           ),
@@ -286,10 +298,10 @@ class _ChannelFunding extends State<ChannelFunding> {
           child: ClickableBox(
             text: "External",
             image: const Icon(BitcoinIcons.wallet),
-            isSelected: selectedBox == FundinType.external,
+            isSelected: selectedBox == FundingType.external,
             onTap: () {
               setState(() {
-                selectedBox = FundinType.external;
+                selectedBox = FundingType.external;
               });
             },
           ),
@@ -298,7 +310,7 @@ class _ChannelFunding extends State<ChannelFunding> {
     );
   }
 
-  Column buildInfoBox(FundingChannelTaskStatus? value, FundinType selectedBox) {
+  Column buildInfoBox(FundingChannelTaskStatus? value, FundingType selectedBox) {
     String transactionStatusText = "Waiting for payment...";
     String transactionStatusInformationText =
         "Please wait. If you leave now, your position won’t be opened when the funds arrive.";
@@ -306,7 +318,7 @@ class _ChannelFunding extends State<ChannelFunding> {
     Widget loadingWidget = Container();
 
     switch (selectedBox) {
-      case FundinType.onchain:
+      case FundingType.onchain:
         switch (value) {
           case null:
           case FundingChannelTaskStatus.pending:
@@ -314,6 +326,33 @@ class _ChannelFunding extends State<ChannelFunding> {
             break;
           case FundingChannelTaskStatus.funded:
             transactionStatusText = "Address funded";
+            loadingWidget = const RotatingIcon(icon: BitcoinIcons.bitcoin);
+            break;
+          case FundingChannelTaskStatus.orderCreated:
+            transactionStatusText = "Order successfully created";
+            transactionStatusInformationText = "";
+            loadingWidget = const Icon(
+              Icons.check,
+              size: 20.0,
+              color: tenTenOnePurple,
+            );
+            break;
+          case FundingChannelTaskStatus.failed:
+            loadingWidget = const Icon(
+              Icons.error,
+              size: 20.0,
+              color: tenTenOnePurple,
+            );
+            break;
+        }
+      case FundingType.lightning:
+        switch (value) {
+          case null:
+          case FundingChannelTaskStatus.pending:
+            loadingWidget = const RotatingIcon(icon: Icons.sync);
+            break;
+          case FundingChannelTaskStatus.funded:
+            transactionStatusText = "Lightning payment received";
             loadingWidget = const RotatingIcon(icon: BitcoinIcons.bitcoin);
             break;
           case FundingChannelTaskStatus.orderCreated:

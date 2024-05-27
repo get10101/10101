@@ -12,7 +12,7 @@ pub mod logger;
 pub mod schema;
 pub mod state;
 pub mod trade;
-pub mod unfunded_orders;
+pub mod watcher;
 
 mod backup;
 mod cipher;
@@ -36,4 +36,6 @@ pub use report_error::report_error_to_coordinator;
     unused_qualifications
 )]
 mod bridge_generated;
+mod hodl_invoice;
 mod position;
+mod unfunded_channel_opening_order;

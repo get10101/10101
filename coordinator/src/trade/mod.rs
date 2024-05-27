@@ -49,6 +49,8 @@ use xxi_node::commons::Message;
 use xxi_node::commons::OrderState;
 use xxi_node::commons::TradeAndChannelParams;
 use xxi_node::commons::TradeParams;
+use xxi_node::node::dlc_channel::estimated_dlc_channel_fee_reserve;
+use xxi_node::node::dlc_channel::estimated_funding_transaction_fee;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::signed_channel_state_name;
 use xxi_node::node::ProtocolId;
@@ -58,8 +60,9 @@ pub mod websocket;
 
 enum TradeAction {
     OpenDlcChannel,
-    #[allow(dead_code)]
-    OpenSingleFundedChannel,
+    OpenSingleFundedChannel {
+        external_funding: Amount,
+    },
     OpenPosition {
         channel_id: DlcChannelId,
         own_payout: u64,
@@ -231,13 +234,44 @@ impl TradeExecutor {
                 .await
                 .context("Failed to open DLC channel")?;
             }
-            TradeAction::OpenSingleFundedChannel => {
+            TradeAction::OpenSingleFundedChannel { external_funding } => {
                 let collateral_reserve_coordinator = params
                     .coordinator_reserve
                     .context("Missing coordinator collateral reserve")?;
-                let collateral_reserve_trader = params
-                    .trader_reserve
-                    .context("Missing trader collateral reserve")?;
+                let order_matching_fee = params.trade_params.order_matching_fee();
+                let margin_trader = Amount::from_sat(margin_trader(&params.trade_params));
+
+                let fee_rate = self
+                    .node
+                    .inner
+                    .fee_rate_estimator
+                    .get(ConfirmationTarget::Normal);
+
+                // The on chain fees are split evenly between the two parties.
+                let funding_transaction_fee =
+                    estimated_funding_transaction_fee(fee_rate.as_sat_per_vb() as f64) / 2;
+
+                let channel_fee_reserve =
+                    estimated_dlc_channel_fee_reserve(fee_rate.as_sat_per_vb() as f64) / 2;
+
+                // If the user funded the channel externally we derive the collateral reserve
+                // trader from the difference of the trader margin and the
+                // externally received funds.
+                //
+                // TODO(holzeis): Introduce margin orders to directly use the
+                // external_funding_sats for the position instead of failing here. We need
+                // to do this though as a malicious actor could otherwise drain us.
+                //
+                // Note, we add a min trader reserve to the external funding to ensure that
+                // minor price movements are covered.
+                let collateral_reserve_trader = external_funding
+                    .checked_sub(
+                        margin_trader
+                            + order_matching_fee
+                            + funding_transaction_fee
+                            + channel_fee_reserve,
+                    )
+                    .context("Not enough external funds to open position")?;
 
                 self.open_dlc_channel(
                     &mut connection,
@@ -378,17 +412,19 @@ impl TradeExecutor {
                 margin_trader + collateral_reserve_trader + order_matching_fee,
                 dlc::FeeConfig::EvenSplit,
             ),
-            TraderRequiredLiquidity::None => (
-                margin_coordinator
-                    + collateral_reserve_coordinator.to_sat()
-                    + margin_trader
-                    + collateral_reserve_trader
-                    // If the trader doesn't bring their own UTXOs, including the order matching fee
-                    // is not strictly necessary, but it's simpler to do so.
-                    + order_matching_fee,
-                0,
-                dlc::FeeConfig::AllOffer,
-            ),
+            TraderRequiredLiquidity::None => {
+                (
+                    margin_coordinator
+                        + collateral_reserve_coordinator.to_sat()
+                        + margin_trader
+                        + collateral_reserve_trader
+                        // If the trader doesn't bring their own UTXOs, including the order matching fee
+                        // is not strictly necessary, but it's simpler to do so.
+                        + order_matching_fee,
+                    0,
+                    dlc::FeeConfig::AllOffer,
+                )
+            }
         };
 
         let contract_input = ContractInput {
@@ -995,7 +1031,12 @@ impl TradeExecutor {
                     "Previous DLC Channel offer still pending."
                 );
 
-                TradeAction::OpenDlcChannel
+                match params.external_funding {
+                    Some(external_funding) => {
+                        TradeAction::OpenSingleFundedChannel { external_funding }
+                    }
+                    None => TradeAction::OpenDlcChannel,
+                }
             }
             Some(SignedChannel {
                 channel_id,

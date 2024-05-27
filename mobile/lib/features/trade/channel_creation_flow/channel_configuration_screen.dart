@@ -1,14 +1,15 @@
 import 'dart:math';
 
 import 'package:flutter/gestures.dart';
-import 'package:get_10101/common/dlc_channel_change_notifier.dart';
-import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/common/dlc_channel_service.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:get_10101/common/value_data_row.dart';
+import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_funding_screen.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/custom_framed_container.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/fee_expansion_widget.dart';
@@ -92,6 +93,14 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
   Amount fundingTxFeeWithBuffer = Amount.zero();
 
+  /// The minimum reserve the trader has to put into the channel.
+  /// This is needed as the price might move before the external funding is found. To ensure
+  /// that the order gets executed.
+  ///
+  /// TODO(holzeis): This won't be necessary anymore once we implement margin orders for externally
+  /// funded positions.
+  final minTraderReserveSats = 15000;
+
   @override
   void initState() {
     super.initState();
@@ -166,6 +175,19 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
 
     Amount totalFee = orderMatchingFee.add(fundingTxFee).add(channelFeeReserve);
     Amount totalAmountToBeFunded = ownTotalCollateral.add(totalFee);
+
+    Amount traderMargin = widget.tradeValues.margin ?? Amount.zero();
+
+    Amount traderReserve = ownTotalCollateral - traderMargin;
+
+    if (traderReserve.sats < minTraderReserveSats) {
+      totalAmountToBeFunded =
+          totalAmountToBeFunded.add(Amount(minTraderReserveSats) - traderReserve);
+    }
+
+    // The user needs to bring in a minimum reserve to cover for price movements.
+    // TODO(holzeis): remove once we have margin orders.
+    traderReserve = Amount(max(minTraderReserveSats, traderReserve.sats));
 
     return Scaffold(
       body: SafeArea(
@@ -362,11 +384,10 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               ValueDataRow(
-                                  type: ValueType.amount,
-                                  value: ownTotalCollateral,
-                                  label: 'Channel size'),
+                                  type: ValueType.amount, value: traderMargin, label: 'Margin'),
+                              ValueDataRow(
+                                  type: ValueType.amount, value: traderReserve, label: 'Reserve'),
                               FeeExpansionTile(
-                                  label: "Fee*",
                                   value: totalFee,
                                   orderMatchingFee: orderMatchingFee,
                                   fundingTxFee: fundingTxFee,
@@ -400,80 +421,92 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                         )
                       ],
                     ),
-                    Visibility(
-                      visible: useInnerWallet,
-                      replacement: Padding(
-                        padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
-                        child: ElevatedButton(
-                          key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
-                          onPressed: _formKey.currentState != null &&
-                                  _formKey.currentState!.validate()
-                              ? () async {
-                                  logger.d(
-                                      "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
+                    SizedBox(
+                      height: 50,
+                      child: Visibility(
+                        visible: useInnerWallet,
+                        replacement: Padding(
+                          padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
+                          child: ElevatedButton(
+                            key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
+                            onPressed: _formKey.currentState != null &&
+                                    _formKey.currentState!.validate()
+                                ? () async {
+                                    logger.d(
+                                        "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
 
-                                  await submitOrderChangeNotifier
-                                      .submitUnfundedOrder(
-                                          widget.tradeValues,
-                                          ChannelOpeningParams(
-                                              coordinatorReserve: counterpartyCollateral,
-                                              traderReserve: ownTotalCollateral))
-                                      .then((address) {
-                                    GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
-                                      "address": address,
-                                      "amount": totalAmountToBeFunded
+                                    // TODO(holzeis): The coordinator leverage should not be hard coded here.
+                                    final coordinatorCollateral =
+                                        widget.tradeValues.calculateMargin(Leverage(2.0));
+
+                                    final coordinatorReserve = max(
+                                        0, counterpartyCollateral.sub(coordinatorCollateral).sats);
+                                    final traderReserve = max(minTraderReserveSats,
+                                        ownTotalCollateral.sub(widget.tradeValues.margin!).sats);
+
+                                    await submitOrderChangeNotifier
+                                        .submitUnfundedOrder(
+                                            widget.tradeValues,
+                                            ChannelOpeningParams(
+                                                coordinatorReserve: Amount(coordinatorReserve),
+                                                traderReserve: Amount(traderReserve)))
+                                        .then((ExternalFunding funding) {
+                                      GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
+                                        "funding": funding,
+                                        "amount": totalAmountToBeFunded
+                                      });
+                                    }).onError((error, stackTrace) {
+                                      logger.e("Failed at submitting unfunded order $error");
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      showSnackBar(
+                                          messenger, "Failed creating order ${error.toString()}");
                                     });
-                                  }).onError((error, stackTrace) {
-                                    logger.e("Failed at submitting unfunded order $error");
-                                    final messenger = ScaffoldMessenger.of(context);
-                                    showSnackBar(
-                                        messenger, "Failed creating order ${error.toString()}");
-                                  });
-                                }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(50),
-                              backgroundColor: tenTenOnePurple),
-                          child: const Text(
-                            "Confirm",
-                            style: TextStyle(color: Colors.white),
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                backgroundColor: tenTenOnePurple),
+                            child: const Text(
+                              "Next",
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
-                        child: ConfirmationSlider(
-                          key: tradeScreenBottomSheetChannelConfigurationConfirmSlider,
-                          text: "Swipe to confirm ${widget.tradeValues.direction.nameU}",
-                          textStyle: TextStyle(color: confirmationSliderColor),
-                          height: 40,
-                          foregroundColor: confirmationSliderColor,
-                          sliderButtonContent: const Icon(
-                            Icons.chevron_right,
-                            color: Colors.white,
-                            size: 20,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
+                          child: ConfirmationSlider(
+                            key: tradeScreenBottomSheetChannelConfigurationConfirmSlider,
+                            text: "Swipe to confirm ${widget.tradeValues.direction.nameU}",
+                            textStyle: TextStyle(color: confirmationSliderColor),
+                            height: 40,
+                            foregroundColor: confirmationSliderColor,
+                            sliderButtonContent: const Icon(
+                              Icons.chevron_right,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onConfirmation: () async {
+                              logger.d("Submitting new order with "
+                                  "quantity: ${widget.tradeValues.quantity}, "
+                                  "leverage: ${widget.tradeValues.leverage.formatted()}, "
+                                  "direction: ${widget.tradeValues.direction}, "
+                                  "liquidationPrice: ${widget.tradeValues.liquidationPrice}, "
+                                  "margin: ${widget.tradeValues.margin}, "
+                                  "ownTotalCollateral: $ownTotalCollateral, "
+                                  "counterpartyCollateral: $counterpartyCollateral, "
+                                  "");
+                              submitOrderChangeNotifier
+                                  .submitOrder(widget.tradeValues,
+                                      channelOpeningParams: ChannelOpeningParams(
+                                          coordinatorReserve: counterpartyCollateral,
+                                          traderReserve: ownTotalCollateral))
+                                  .onError((error, stackTrace) {
+                                logger.e("Failed creating new channel due to $error");
+                                final messenger = ScaffoldMessenger.of(context);
+                                showSnackBar(messenger, "Failed creating order ${e.toString()}");
+                              }).then((ignored) => GoRouter.of(context).go(TradeScreen.route));
+                            },
                           ),
-                          onConfirmation: () async {
-                            logger.d("Submitting new order with "
-                                "quantity: ${widget.tradeValues.quantity}, "
-                                "leverage: ${widget.tradeValues.leverage.formatted()}, "
-                                "direction: ${widget.tradeValues.direction}, "
-                                "liquidationPrice: ${widget.tradeValues.liquidationPrice}, "
-                                "margin: ${widget.tradeValues.margin}, "
-                                "ownTotalCollateral: $ownTotalCollateral, "
-                                "counterpartyCollateral: $counterpartyCollateral, "
-                                "");
-                            submitOrderChangeNotifier
-                                .submitOrder(widget.tradeValues,
-                                    channelOpeningParams: ChannelOpeningParams(
-                                        coordinatorReserve: counterpartyCollateral,
-                                        traderReserve: ownTotalCollateral))
-                                .onError((error, stackTrace) {
-                              logger.e("Failed creating new channel due to $error");
-                              final messenger = ScaffoldMessenger.of(context);
-                              showSnackBar(messenger, "Failed creating order ${e.toString()}");
-                            }).then((ignored) => GoRouter.of(context).go(TradeScreen.route));
-                          },
                         ),
                       ),
                     ),

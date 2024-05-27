@@ -10,6 +10,7 @@ use crate::leaderboard::LeaderBoardCategory;
 use crate::leaderboard::LeaderBoardQueryParams;
 use crate::message::NewUserMessage;
 use crate::message::OrderbookMessage;
+use crate::node::invoice;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::orderbook::trading::NewOrderMessage;
@@ -35,6 +36,9 @@ use admin::resend_renew_revoke_message;
 use admin::roll_back_dlc_channel;
 use admin::rollover;
 use admin::update_settings;
+use anyhow::anyhow;
+use anyhow::Context;
+use anyhow::Result;
 use axum::extract::ConnectInfo;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::Path;
@@ -57,7 +61,8 @@ use bitcoin::secp256k1::VerifyOnly;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::PgConnection;
-use lightning::ln::msgs::SocketAddress;
+use lnd_bridge::InvoiceParams;
+use lnd_bridge::LndBridge;
 use opentelemetry_prometheus::PrometheusExporter;
 use orderbook::delete_order;
 use orderbook::get_order;
@@ -76,6 +81,7 @@ use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::RwLock;
+use tokio::task::spawn_blocking;
 use tracing::instrument;
 use xxi_node::commons;
 use xxi_node::commons::Backup;
@@ -87,6 +93,7 @@ use xxi_node::commons::PollAnswers;
 use xxi_node::commons::RegisterParams;
 use xxi_node::commons::ReportedError;
 use xxi_node::commons::Restore;
+use xxi_node::commons::SignedValue;
 use xxi_node::commons::UpdateUsernameParams;
 use xxi_node::node::NodeInfo;
 
@@ -104,12 +111,12 @@ pub struct AppState {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub exporter: PrometheusExporter,
-    pub announcement_addresses: Vec<SocketAddress>,
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     pub notification_sender: mpsc::Sender<Notification>,
     pub user_backup: SledBackup,
     pub secp: Secp256k1<VerifyOnly>,
+    pub lnd_bridge: LndBridge,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -118,7 +125,6 @@ pub fn router(
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
     exporter: PrometheusExporter,
-    announcement_addresses: Vec<SocketAddress>,
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_orderbook_feed: broadcast::Sender<Message>,
@@ -127,6 +133,7 @@ pub fn router(
     auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     notification_sender: mpsc::Sender<Notification>,
     user_backup: SledBackup,
+    lnd_bridge: LndBridge,
 ) -> Router {
     let secp = Secp256k1::verification_only();
 
@@ -139,12 +146,12 @@ pub fn router(
         tx_user_feed,
         trading_sender,
         exporter,
-        announcement_addresses,
         node_alias: node_alias.to_string(),
         auth_users_notifier,
         notification_sender,
         user_backup,
         secp,
+        lnd_bridge,
     });
 
     Router::new()
@@ -163,6 +170,7 @@ pub fn router(
         .route("/api/orderbook/orders", get(get_orders).post(post_order))
         .route("/api/orderbook/orders/:order_id", get(get_order))
         .route("/api/orderbook/websocket", get(websocket_handler))
+        .route("/api/invoice", post(create_invoice))
         .route("/api/users", post(post_register))
         .route("/api/users/:trader_pubkey", get(get_user))
         .route("/api/users/nickname", put(update_nickname))
@@ -274,20 +282,22 @@ pub async fn post_register(
     let register_params = params.0;
     tracing::info!(?register_params, "Registered new user");
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get()?;
 
-    user::upsert_user(
-        &mut conn,
-        register_params.pubkey,
-        register_params.contact.clone(),
-        register_params.nickname.clone(),
-        register_params.version.clone(),
-        register_params.os,
-        register_params.referral_code,
-    )
+        user::upsert_user(
+            &mut conn,
+            register_params.pubkey,
+            register_params.contact.clone(),
+            register_params.nickname.clone(),
+            register_params.version.clone(),
+            register_params.os,
+            register_params.referral_code,
+        )
+        .map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
     .map_err(|e| AppError::InternalServerError(format!("Could not upsert user: {e:#}")))?;
 
     Ok(())
@@ -301,13 +311,14 @@ pub async fn update_nickname(
     let register_params = params.0;
     tracing::info!(?register_params, "Updating user's nickname");
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
-    user::update_nickname(&mut conn, register_params.pubkey, register_params.nickname)
-        .map_err(|e| AppError::InternalServerError(format!("Could not update nickname: {e:#}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        user::update_nickname(&mut conn, register_params.pubkey, register_params.nickname)
+            .map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not update nickname: {e:#}")))?;
 
     Ok(())
 }
@@ -331,16 +342,16 @@ pub async fn get_user(
     State(state): State<Arc<AppState>>,
     Path(trader_pubkey): Path<String>,
 ) -> Result<Json<commons::User>, AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e:#}")))?;
-
     let trader_pubkey = PublicKey::from_str(trader_pubkey.as_str())
         .map_err(|_| AppError::BadRequest("Invalid trader id provided".to_string()))?;
 
-    let option = user::get_user(&mut conn, &trader_pubkey)
-        .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
+    let option = spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        user::get_user(&mut conn, &trader_pubkey)
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not load users: {e:#}")))?;
 
     match option {
         None => Err(AppError::BadRequest("No user found".to_string())),
@@ -400,13 +411,14 @@ pub async fn get_polls(
     let node_id = PublicKey::from_str(&node_id)
         .map_err(|e| AppError::BadRequest(format!("Invalid node id provided. {e:#}")))?;
 
-    let mut connection = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-    let polls = db::polls::active(&mut connection, &node_id).map_err(|error| {
-        AppError::InternalServerError(format!("Could not fetch new polls {error}"))
-    })?;
+    let polls = spawn_blocking(move || {
+        let mut connection = state.pool.get().context("Could not get db connection")?;
+        db::polls::active(&mut connection, &node_id).map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|error| AppError::InternalServerError(format!("Could not fetch new polls {error}")))?;
+
     Ok(Json(polls))
 }
 
@@ -419,12 +431,13 @@ pub async fn post_poll_answer(
             trader_pk = poll_answer.trader_pk.to_string(),
             answers = ?poll_answer.answers,
         "Received new answer");
-    let mut connection = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not get db connection".to_string()))?;
-
-    db::polls::add_answer(&mut connection, poll_answer.0).map_err(|error| {
+    spawn_blocking(move || {
+        let mut connection = state.pool.get().context("Could not get db connection")?;
+        db::polls::add_answer(&mut connection, poll_answer.0)
+    })
+    .await
+    .expect("to finish task")
+    .map_err(|error| {
         AppError::InternalServerError(format!("Could not save answer in db: {error:?}"))
     })?;
 
@@ -436,10 +449,6 @@ pub async fn collaborative_revert_confirm(
     State(state): State<Arc<AppState>>,
     revert_params: Json<CollaborativeRevertTraderResponse>,
 ) -> Result<Json<String>, AppError> {
-    let mut conn = state.pool.clone().get().map_err(|error| {
-        AppError::InternalServerError(format!("Could not acquire db lock {error:#}"))
-    })?;
-
     let channel_id_string = revert_params.channel_id.clone();
     let channel_id = parse_dlc_channel_id(channel_id_string.as_str()).map_err(|error| {
         tracing::error!(
@@ -453,15 +462,26 @@ pub async fn collaborative_revert_confirm(
         channel_id = channel_id_string,
         "Confirming collaborative channel revert"
     );
+
     let inner_node = state.node.inner.clone();
 
-    let raw_tx = confirm_collaborative_revert(
-        inner_node,
-        &mut conn,
-        channel_id,
-        revert_params.transaction.clone(),
-        revert_params.signature,
-    )
+    let raw_tx = spawn_blocking(move || {
+        let mut conn = state
+            .pool
+            .clone()
+            .get()
+            .context("Could not acquire db lock")?;
+
+        confirm_collaborative_revert(
+            inner_node,
+            &mut conn,
+            channel_id,
+            revert_params.transaction.clone(),
+            revert_params.signature,
+        )
+    })
+    .await
+    .expect("task to finish")
     .map_err(|error| {
         tracing::error!(
             channel_id = channel_id_string,
@@ -469,6 +489,7 @@ pub async fn collaborative_revert_confirm(
         );
         AppError::InternalServerError("Could not confirm collaborative revert".to_string())
     })?;
+
     Ok(Json(serialize_hex(&raw_tx)))
 }
 
@@ -537,7 +558,7 @@ async fn restore(
     Ok(Json(backup))
 }
 
-fn parse_offset_datetime(date_str: String) -> anyhow::Result<Option<OffsetDateTime>> {
+fn parse_offset_datetime(date_str: String) -> Result<Option<OffsetDateTime>> {
     if date_str.is_empty() {
         return Ok(None);
     }
@@ -547,6 +568,7 @@ fn parse_offset_datetime(date_str: String) -> anyhow::Result<Option<OffsetDateTi
     Ok(Some(date_time))
 }
 
+#[instrument(skip_all, err(Debug))]
 pub async fn get_leaderboard(
     State(state): State<Arc<AppState>>,
     params: Query<LeaderBoardQueryParams>,
@@ -574,31 +596,97 @@ pub async fn get_leaderboard(
 
     let category = params.category.clone().unwrap_or(LeaderBoardCategory::Pnl);
 
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|_| AppError::InternalServerError("Could not access db".to_string()))?;
-    let leader_board = generate_leader_board(&mut conn, top, category, reverse, start, end)
-        .map_err(|error| {
-            AppError::InternalServerError(format!("Could not build leaderboard {error}"))
-        })?;
+    let leader_board = spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not access db")?;
+        generate_leader_board(&mut conn, top, category, reverse, start, end)
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|error| {
+        AppError::InternalServerError(format!("Could not build leaderboard {error}"))
+    })?;
 
     Ok(Json(LeaderBoard {
         entries: leader_board,
     }))
 }
 
+#[instrument(skip_all, err(Debug))]
 async fn post_error(
     State(state): State<Arc<AppState>>,
     app_error: Json<ReportedError>,
 ) -> Result<(), AppError> {
-    let mut conn = state
-        .pool
-        .get()
-        .map_err(|e| AppError::InternalServerError(format!("Could not get connection: {e}")))?;
-
-    db::reported_errors::insert(&mut conn, app_error.0)
-        .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
+    spawn_blocking(move || {
+        let mut conn = state.pool.get().context("Could not get connection")?;
+        db::reported_errors::insert(&mut conn, app_error.0).map_err(|e| anyhow!(e))
+    })
+    .await
+    .expect("task to finish")
+    .map_err(|e| AppError::InternalServerError(format!("Could not save error in db: {e}")))?;
 
     Ok(())
+}
+
+#[instrument(skip_all, err(Debug))]
+async fn create_invoice(
+    State(state): State<Arc<AppState>>,
+    Json(invoice_params): Json<SignedValue<commons::HodlInvoiceParams>>,
+) -> Result<Json<String>, AppError> {
+    let public_key = invoice_params.value.trader_pubkey;
+
+    invoice_params
+        .verify(&state.secp, &public_key)
+        .map_err(|_| AppError::Unauthorized)?;
+
+    let invoice_params = invoice_params.value;
+    let invoice_amount = invoice_params.amt_sats;
+    let r_hash = invoice_params.r_hash.clone();
+
+    let response = state
+        .lnd_bridge
+        .create_invoice(InvoiceParams {
+            value: invoice_amount,
+            memo: "Fund your 10101 position".to_string(),
+            expiry: 5 * 60, // 5 minutes
+            hash: r_hash.clone(),
+        })
+        .await
+        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+
+    spawn_blocking({
+        let pool = state.pool.clone();
+        let r_hash = r_hash.clone();
+        move || {
+            let mut connection = pool.get().context("Could not get db connection")?;
+
+            db::hodl_invoice::create_hodl_invoice(
+                &mut connection,
+                r_hash.as_str(),
+                public_key,
+                invoice_amount,
+            )
+            .context("Could not create hodl invoice")
+        }
+    })
+    .await
+    .expect("to finish task")
+    .map_err(|error| {
+        AppError::InternalServerError(format!("Could not process hodl invoice {error:?}"))
+    })?;
+
+    // watch for the created hodl invoice
+    invoice::spawn_invoice_watch(
+        state.tx_orderbook_feed.clone(),
+        state.lnd_bridge.clone(),
+        invoice_params,
+    );
+
+    tracing::info!(
+        trader_pubkey = public_key.to_string(),
+        r_hash,
+        amount_sats = invoice_amount,
+        "Started watching for hodl invoice"
+    );
+
+    Ok(Json(response.payment_request))
 }

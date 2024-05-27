@@ -13,6 +13,7 @@ mod message;
 mod order;
 mod order_matching_fee;
 mod polls;
+mod pre_image;
 mod price;
 mod reported_error;
 mod rollover;
@@ -27,6 +28,7 @@ pub use message::*;
 pub use order::*;
 pub use order_matching_fee::order_matching_fee;
 pub use polls::*;
+pub use pre_image::*;
 pub use price::*;
 pub use reported_error::ReportedError;
 pub use rollover::*;
@@ -75,6 +77,13 @@ impl User {
             referral_code,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct HodlInvoiceParams {
+    pub trader_pubkey: PublicKey,
+    pub amt_sats: u64,
+    pub r_hash: String,
 }
 
 pub fn referral_from_pubkey(public_key: PublicKey) -> String {

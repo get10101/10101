@@ -221,6 +221,11 @@ wipe-maker:
     pkill -9 maker && echo "stopped maker" || echo "maker not running, skipped"
     rm -rf data/maker/regtest
 
+wipe-lnd-mock:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    pkill -9 lnd-mock && echo "stopped lnd-mock" || echo "lnd-mock not running, skipped"
+
 wipe-app:
     #!/usr/bin/env bash
     set -euxo pipefail
@@ -315,6 +320,12 @@ maker args="":
 
     cargo run --bin dev-maker -- {{args}}
 
+lnd-mock:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    cargo run --package lnd-bridge --example mock
+
 flutter-test:
     cd mobile && fvm flutter pub run build_runner build --delete-conflicting-outputs && fvm flutter test
 
@@ -379,6 +390,19 @@ run-maker-detached:
     just wait-for-maker-to-be-ready
     echo "Maker successfully started. You can inspect the logs at {{maker_log_file}}"
 
+# Starts maker process in the background, piping logs to a file (used in other recipes)
+run-lnd-mock-detached:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    echo "Building lnd-mock first"
+    cargo build --package lnd-bridge --example mock
+
+    echo "Starting lnd-mock"
+
+    just lnd-mock &> /dev/null &
+    echo "Lnd mock successfully started."
+
 # Attach to the current coordinator logs
 coordinator-logs:
     #!/usr/bin/env bash
@@ -390,7 +414,7 @@ maker-logs:
     docker logs -f maker
 
 # Run services in the background
-services: docker run-coordinator-detached run-maker-detached fund
+services: docker run-lnd-mock-detached run-coordinator-detached run-maker-detached fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
@@ -735,5 +759,9 @@ db-coordinator-redo:
       --database-url=postgres://postgres:mysecretpassword@localhost:5432/orderbook \
       --migration-dir ./migrations \
       --config-file ./diesel.toml
+
+ln-pay-invoice:
+    #!/usr/bin/env bash
+    curl -X POST http://localhost:18080/pay_invoice
 
 # vim:expandtab:sw=4:ts=4

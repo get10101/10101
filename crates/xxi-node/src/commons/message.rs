@@ -41,6 +41,11 @@ pub enum Message {
         order_id: Uuid,
         error: TradingError,
     },
+    LnPaymentReceived {
+        r_hash: String,
+        #[serde(with = "bitcoin::amount::serde::as_sat")]
+        amount: Amount,
+    },
     RolloverError {
         error: TradingError,
     },
@@ -122,6 +127,9 @@ impl Display for Message {
             }
             Message::RolloverError { .. } => {
                 write!(f, "RolloverError")
+            }
+            Message::LnPaymentReceived { .. } => {
+                write!(f, "LnPaymentReceived")
             }
         }
     }

@@ -67,9 +67,6 @@ impl Subscriber for DBBackupSubscriber {
 
     fn events(&self) -> Vec<EventType> {
         vec![
-            EventType::PaymentClaimed,
-            EventType::PaymentSent,
-            EventType::PaymentFailed,
             EventType::PositionUpdateNotification,
             EventType::PositionClosedNotification,
             EventType::OrderUpdateNotification,

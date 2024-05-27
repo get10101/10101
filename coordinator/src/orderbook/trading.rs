@@ -7,6 +7,7 @@ use crate::orderbook::db::matches;
 use crate::orderbook::db::orders;
 use crate::referrals;
 use crate::trade::TradeExecutor;
+use crate::ChannelOpeningParams;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Context;
@@ -26,7 +27,6 @@ use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use uuid::Uuid;
-use xxi_node::commons::ChannelOpeningParams;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 use xxi_node::commons::FilledWith;
@@ -338,6 +338,7 @@ pub async fn process_new_market_order(
                 },
                 trader_reserve: channel_opening_params.map(|p| p.trader_reserve),
                 coordinator_reserve: channel_opening_params.map(|p| p.coordinator_reserve),
+                external_funding: channel_opening_params.and_then(|c| c.external_funding),
             })
             .await;
     } else {

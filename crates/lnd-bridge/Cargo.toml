@@ -1,0 +1,33 @@
+[package]
+name = "lnd-bridge"
+version = "0.1.0"
+edition = "2021"
+description = "A bridge to the lnd api."
+
+[dependencies]
+anyhow = "1"
+async-stream = "0.3"
+futures = "0.3"
+hex = { version = "0.4.3", features = ["default"] }
+rand = "0.8.5"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha256 = "1.5.0"
+tokio = { version = "1", features = ["macros", "time", "tracing"] }
+tokio-tungstenite = { version = "0.20", features = ["native-tls"] }
+tracing = "0.1"
+url = "2.3.0"
+
+[dev-dependencies]
+axum = { version = "0.6", features = ["headers", "ws"] }
+base64 = "0.22.1"
+futures-util = "0.3"
+hyper = { version = "0.14", features = ["full"] }
+rand = "0.8.5"
+sha2 = "0.10.8"
+time = { version = "0.3", features = ["serde", "serde-well-known", "macros"] }
+tokio = { version = "1", features = ["full"] }
+tower = "0.4"
+tower-http = { version = "0.2", features = ["trace"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "time"] }

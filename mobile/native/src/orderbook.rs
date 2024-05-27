@@ -284,6 +284,10 @@ async fn handle_orderbook_message(
                 BackgroundTask::Rollover(TaskStatus::Failed(format!("{error:#}"))),
             ));
         }
+        Message::LnPaymentReceived { r_hash, amount } => {
+            tracing::info!(r_hash, %amount, "Received a payment received event.");
+            event::publish(&EventInternal::LnPaymentReceived)
+        }
     };
 
     Ok(())

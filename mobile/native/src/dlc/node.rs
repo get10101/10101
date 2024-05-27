@@ -21,7 +21,6 @@ use dlc_messages::channel::OfferChannel;
 use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewOffer;
 use dlc_messages::channel::SettleOffer;
-use futures::future::RemoteHandle;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
 use lightning::sign::SpendableOutputDescriptor;
@@ -31,6 +30,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tokio::task::JoinHandle;
 use tracing::instrument;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_30;
@@ -76,7 +76,7 @@ pub struct Node {
     // good enough
     pub pending_usdp_invoices: Arc<parking_lot::Mutex<HashSet<bitcoin_old::hashes::sha256::Hash>>>,
 
-    pub unfunded_order_handle: Arc<parking_lot::Mutex<Option<RemoteHandle<()>>>>,
+    pub watcher_handle: Arc<parking_lot::Mutex<Option<JoinHandle<()>>>>,
 }
 
 impl Node {
@@ -94,7 +94,7 @@ impl Node {
             inner: node,
             _running: Arc::new(running),
             pending_usdp_invoices: Arc::new(Default::default()),
-            unfunded_order_handle: Arc::new(Default::default()),
+            watcher_handle: Arc::new(Default::default()),
         }
     }
 }

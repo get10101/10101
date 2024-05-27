@@ -269,6 +269,10 @@ jobs:
         run: |
           just run-maker-detached
           echo "Maker successfully started."
+      - name: Run lnd-mock
+        run: |
+          just run-lnd-mock-detached
+          echo "Lnd mock successfully started."
       - name: Run e2e tests
         run: RUST_BACKTRACE=1 ${{ matrix.tests }} --nocapture --ignored
       - name: Print maker logs on e2e tests error

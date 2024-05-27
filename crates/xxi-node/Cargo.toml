@@ -10,6 +10,7 @@ description = "A common library for the 10101 node"
 anyhow = { version = "1", features = ["backtrace"] }
 async-trait = "0.1.71"
 axum = { version = "0.6", features = ["ws"], optional = true }
+base64 = "0.22.1"
 bdk = { version = "1.0.0-alpha.6", features = ["std"] }
 bdk_coin_select = "0.2.0"
 bdk_esplora = { version = "0.8.0" }
@@ -34,12 +35,13 @@ reqwest = { version = "0.11", default-features = false, features = ["json"] }
 rust-bitcoin-coin-selection = { version = "0.1.0", features = ["rand"] }
 rust_decimal = { version = "1", features = ["serde-with-float"] }
 rust_decimal_macros = "1"
-secp256k1 = { version = "0.27.0", features = ["serde"] }
+secp256k1 = { version = "0.27.0", features = ["global-context", "serde"] }
 secp256k1-zkp = { version = "0.7.0", features = ["global-context"] }
 serde = "1.0.147"
 serde_json = "1.0"
 serde_with = "3.1.0"
 sha2 = "0.10"
+sha256 = "1.5.0"
 sled = "0.34"
 thiserror = "1"
 time = { version = "0.3", features = ["serde", "parsing", "std", "formatting", "macros", "serde-well-known"] }

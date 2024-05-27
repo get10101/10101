@@ -31,6 +31,7 @@ pub enum Event {
     Authenticated(TenTenOneConfig),
     DlcChannelEvent(DlcChannel),
     FundingChannelNotification(FundingChannelTask),
+    LnPaymentReceived,
 }
 
 #[frb]
@@ -92,6 +93,7 @@ impl From<EventInternal> for Event {
             EventInternal::FundingChannelNotification(status) => {
                 Event::FundingChannelNotification(status.into())
             }
+            EventInternal::LnPaymentReceived => Event::LnPaymentReceived,
         }
     }
 }
@@ -130,9 +132,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::ChannelStatusUpdate,
             EventType::BackgroundNotification,
             EventType::FundingChannelNotification,
-            EventType::PaymentClaimed,
-            EventType::PaymentSent,
-            EventType::PaymentFailed,
+            EventType::LnPaymentReceived,
             EventType::Authenticated,
             EventType::DlcChannelEvent,
         ]

@@ -1,10 +1,7 @@
 use anyhow::Result;
 use bitcoin::secp256k1::XOnlyPublicKey;
 use clap::Parser;
-use lightning::ln::msgs::SocketAddress;
-use local_ip_address::local_ip;
 use std::env::current_dir;
-use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -23,10 +20,6 @@ pub struct Opts {
     /// Where to permanently store data, defaults to the current working directory.
     #[clap(long)]
     data_dir: Option<PathBuf>,
-
-    /// Will skip announcing the node on the local ip address. Set this flag for production.
-    #[clap(long)]
-    skip_local_network_announcement: bool,
 
     #[clap(value_enum, default_value = "regtest")]
     pub network: Network,
@@ -78,6 +71,18 @@ pub struct Opts {
         default_value = "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
     )]
     pub oracle_pubkey: String,
+
+    /// The endpoint of the lnd rest api
+    #[clap(long, default_value = "localhost:18080")]
+    pub lnd_endpoint: String,
+
+    /// Defines the macaroon to be used for the lnd http api.
+    #[clap(long, default_value = "")]
+    pub macaroon: String,
+
+    /// If enabled the coordinator will try to connect to lnd via https, wss.
+    #[clap(short, long)]
+    pub secure_lnd: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -133,41 +138,5 @@ impl Opts {
         .join("coordinator");
 
         Ok(data_dir)
-    }
-
-    /// Returns a list of addresses under which the node can be reached. Note this is used for the
-    /// node announcements.
-    pub fn p2p_announcement_addresses(&self) -> Vec<SocketAddress> {
-        let mut addresses: Vec<SocketAddress> = vec![];
-        if !self.p2p_address.ip().is_unspecified() {
-            addresses.push(build_socket_address(
-                self.p2p_address.ip(),
-                self.p2p_address.port(),
-            ));
-        } else {
-            // Announcing the node on an unspecified ip address does not make any sense.
-            tracing::debug!("Skipping node announcement on '0.0.0.0'.");
-        }
-
-        if !self.skip_local_network_announcement {
-            let local_ip = local_ip().expect("to get local ip address");
-            tracing::info!("Adding node announcement within local network {local_ip}. Do not use for production!");
-            addresses.push(build_socket_address(local_ip, self.p2p_address.port()));
-        }
-
-        addresses
-    }
-}
-
-fn build_socket_address(ip: IpAddr, port: u16) -> SocketAddress {
-    match ip {
-        IpAddr::V4(ip) => SocketAddress::TcpIpV4 {
-            addr: ip.octets(),
-            port,
-        },
-        IpAddr::V6(ip) => SocketAddress::TcpIpV6 {
-            addr: ip.octets(),
-            port,
-        },
     }
 }
