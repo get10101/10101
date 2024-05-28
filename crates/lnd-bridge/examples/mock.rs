@@ -5,6 +5,7 @@ use axum::extract::ws::WebSocketUpgrade;
 use axum::extract::Extension;
 use axum::extract::Json;
 use axum::extract::Query;
+use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -12,6 +13,8 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
+use base64::engine::general_purpose;
+use base64::Engine;
 use lnd_bridge::CancelInvoice;
 use lnd_bridge::Invoice;
 use lnd_bridge::InvoiceParams;
@@ -21,6 +24,8 @@ use lnd_bridge::InvoiceState;
 use lnd_bridge::SettleInvoice;
 use serde::Deserialize;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::RwLock;
 use time::macros::format_description;
 use tokio::sync::broadcast;
 use tower::ServiceBuilder;
@@ -49,7 +54,8 @@ async fn main() -> Result<()> {
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(Extension(tx.clone())),
-        );
+        )
+        .with_state(Arc::new(RwLock::new("".to_string())));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 18080));
     tracing::info!("Listening on http://{}", addr);
@@ -63,13 +69,14 @@ async fn main() -> Result<()> {
 
 async fn create_invoice(
     Extension(tx): Extension<broadcast::Sender<String>>,
+    State(state): State<Arc<RwLock<String>>>,
     headers: HeaderMap,
     Json(params): Json<InvoiceParams>,
 ) -> impl IntoResponse {
     match headers.get("Grpc-Metadata-macaroon") {
         Some(_) => {
             let payment_request = "lntbs101010n1pnyw6wppp59sgej6qrv25s6k7y4eg2e43kqjywhlfd9knk0kvuuluv0jzlx4jqdp8ge6kuepq09hh2u3qxycrzvp3ypcx7umfw35k7mscqzzsxqzfvsp5zuekkq7kfall8gkfu4a9f8d90nma7z2hhe026kka4k7tfnpekamq9qxpqysgq265wu2x0hrujk2lyuhftqa9drpte8tp69gd5jehjxqyq526c9ayzy2zyx9eeacj0zvmnz874e59th37un8w280q8dyc5y2pjyy6c6ngqgp78j3".to_string();
-            let payment_addr = "LBGZaANiqQ1bxK5QrNY2BIjr/S0tp2fZnOf4x8hfNWQ=".to_string();
+            let payment_addr = "mFIzgKvND7dKGkKdSeEqkR29c22dULKJrQZ-RHP4_I4=".to_string();
             let response = InvoiceResponse {
                 add_index: 1,
                 payment_addr: payment_addr.clone(),
@@ -83,11 +90,16 @@ async fn create_invoice(
                     amt_paid_sat: 0,
                     state: InvoiceState::Open,
                     payment_request,
-                    r_hash: payment_addr,
+                    r_hash: params.hash.clone(),
                     add_index: 1,
                     settle_index: 2,
                 },
             };
+
+            let hash = general_purpose::URL_SAFE
+                .decode(&params.hash)
+                .expect("to decode");
+            *state.write().expect("") = general_purpose::STANDARD.encode(hash);
 
             let message = serde_json::to_string(&result).expect("to serialize");
 
@@ -105,6 +117,7 @@ async fn create_invoice(
 
 async fn settle_invoice(
     Extension(tx): Extension<broadcast::Sender<String>>,
+    State(state): State<Arc<RwLock<String>>>,
     headers: HeaderMap,
     Json(_): Json<SettleInvoice>,
 ) -> impl IntoResponse {
@@ -117,7 +130,7 @@ async fn settle_invoice(
                     amt_paid_sat: 0,
                     state: InvoiceState::Settled,
                     payment_request: "".to_string(),
-                    r_hash: "".to_string(),
+                    r_hash: state.read().expect("").to_string(),
                     add_index: 0,
                     settle_index: 0,
                 },
@@ -138,6 +151,7 @@ async fn settle_invoice(
 
 async fn cancel_invoice(
     Extension(tx): Extension<broadcast::Sender<String>>,
+    State(state): State<Arc<RwLock<String>>>,
     headers: HeaderMap,
     Json(_): Json<CancelInvoice>,
 ) -> impl IntoResponse {
@@ -150,7 +164,7 @@ async fn cancel_invoice(
                     amt_paid_sat: 0,
                     state: InvoiceState::Canceled,
                     payment_request: "".to_string(),
-                    r_hash: "".to_string(),
+                    r_hash: state.read().expect("").to_string(),
                     add_index: 0,
                     settle_index: 0,
                 },
@@ -169,7 +183,10 @@ async fn cancel_invoice(
     }
 }
 
-async fn pay_invoice(Extension(tx): Extension<broadcast::Sender<String>>) -> impl IntoResponse {
+async fn pay_invoice(
+    Extension(tx): Extension<broadcast::Sender<String>>,
+    State(state): State<Arc<RwLock<String>>>,
+) -> impl IntoResponse {
     let message = serde_json::to_string(&InvoiceResult {
         result: Invoice {
             memo: "".to_string(),
@@ -177,7 +194,7 @@ async fn pay_invoice(Extension(tx): Extension<broadcast::Sender<String>>) -> imp
             amt_paid_sat: 0,
             state: InvoiceState::Accepted,
             payment_request: "".to_string(),
-            r_hash: "".to_string(),
+            r_hash: state.read().expect("").to_string(),
             add_index: 0,
             settle_index: 0,
         },
