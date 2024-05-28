@@ -62,6 +62,9 @@ class _ChannelFunding extends State<ChannelFunding> {
 
   @override
   Widget build(BuildContext context) {
+    final status = context.watch<FundingChannelChangeNotifier>().status;
+    final orderCreated = status == FundingChannelTaskStatus.orderCreated;
+
     final qrCode = switch (selectedBox) {
       FundingType.lightning => CustomQrCode(
           data: widget.funding.paymentRequest,
@@ -119,7 +122,13 @@ class _ChannelFunding extends State<ChannelFunding> {
                                     .read<SubmitOrderChangeNotifier>()
                                     .orderService
                                     .abortUnfundedChannelOpeningMarketOrder()
-                                    .then((value) => GoRouter.of(context).pop());
+                                    .then((value) {
+                                  if (orderCreated) {
+                                    GoRouter.of(context).go(TradeScreen.route);
+                                  } else {
+                                    GoRouter.of(context).pop();
+                                  }
+                                });
                               },
                             ),
                             const Row(
@@ -218,36 +227,23 @@ class _ChannelFunding extends State<ChannelFunding> {
                 ],
               ),
               // information text about the tx status
-              Expanded(
-                  child: Selector<FundingChannelChangeNotifier, FundingChannelTaskStatus?>(
-                      selector: (_, provider) {
-                return provider.status;
-              }, builder: (BuildContext context, value, Widget? child) {
-                return buildInfoBox(value, selectedBox);
-              })),
+              Expanded(child: buildInfoBox(status, selectedBox)),
               Padding(
                   padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
-                  child: Selector<FundingChannelChangeNotifier, FundingChannelTaskStatus?>(
-                      selector: (_, provider) {
-                    return provider.status;
-                  }, builder: (BuildContext context, value, Widget? child) {
-                    if (value case FundingChannelTaskStatus.orderCreated) {
-                      return ElevatedButton(
-                        onPressed: () {
-                          GoRouter.of(context).go(TradeScreen.route);
-                        },
-                        style: ElevatedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                            backgroundColor: tenTenOnePurple),
-                        child: const Text(
-                          "Home",
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      );
-                    } else {
-                      return buildButtonRow();
-                    }
-                  })),
+                  child: orderCreated
+                      ? ElevatedButton(
+                          onPressed: () {
+                            GoRouter.of(context).go(TradeScreen.route);
+                          },
+                          style: ElevatedButton.styleFrom(
+                              minimumSize: const Size.fromHeight(50),
+                              backgroundColor: tenTenOnePurple),
+                          child: const Text(
+                            "Home",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        )
+                      : buildButtonRow()),
             ],
           ),
         ),
