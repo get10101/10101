@@ -8,8 +8,6 @@ use coordinator::dlc_handler::DlcHandler;
 use coordinator::logger;
 use coordinator::message::spawn_delivering_messages_to_authenticated_users;
 use coordinator::message::NewUserMessage;
-use coordinator::metrics;
-use coordinator::metrics::init_meter;
 use coordinator::node::expired_positions;
 use coordinator::node::liquidated_positions;
 use coordinator::node::rollover;
@@ -47,7 +45,6 @@ use xxi_node::node::event::NodeEventHandler;
 use xxi_node::seed::Bip39Seed;
 use xxi_node::storage::DlcChannelEvent;
 
-const PROCESS_PROMETHEUS_METRICS: Duration = Duration::from_secs(10);
 const PROCESS_INCOMING_DLC_MESSAGES_INTERVAL: Duration = Duration::from_millis(200);
 const LIQUIDATED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(30);
 const EXPIRED_POSITION_SYNC_INTERVAL: Duration = Duration::from_secs(5 * 60);
@@ -75,8 +72,6 @@ async fn main() -> Result<()> {
             std::process::abort()
         }),
     );
-
-    let exporter = init_meter();
 
     let opts = Opts::read();
     let data_dir = opts.data_dir()?;
@@ -236,19 +231,6 @@ async fn main() -> Result<()> {
         let node = node.clone();
         async move {
             loop {
-                let node = node.clone();
-                spawn_blocking(move || metrics::collect(node))
-                    .await
-                    .expect("To spawn blocking thread");
-                tokio::time::sleep(PROCESS_PROMETHEUS_METRICS).await;
-            }
-        }
-    });
-
-    tokio::spawn({
-        let node = node.clone();
-        async move {
-            loop {
                 tokio::time::sleep(UNREALIZED_PNL_SYNC_INTERVAL).await;
                 if let Err(e) = unrealized_pnl::sync(node.clone()).await {
                     tracing::error!(
@@ -323,7 +305,6 @@ async fn main() -> Result<()> {
         node.clone(),
         pool.clone(),
         settings.clone(),
-        exporter,
         NODE_ALIAS,
         trading_sender,
         tx_orderbook_feed,

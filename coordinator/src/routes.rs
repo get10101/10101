@@ -45,7 +45,6 @@ use axum::extract::Path;
 use axum::extract::Query;
 use axum::extract::State;
 use axum::extract::WebSocketUpgrade;
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::delete;
 use axum::routing::get;
@@ -63,14 +62,11 @@ use diesel::r2d2::Pool;
 use diesel::PgConnection;
 use lnd_bridge::InvoiceParams;
 use lnd_bridge::LndBridge;
-use opentelemetry_prometheus::PrometheusExporter;
 use orderbook::delete_order;
 use orderbook::get_order;
 use orderbook::get_orders;
 use orderbook::post_order;
 use orderbook::websocket_handler;
-use prometheus::Encoder;
-use prometheus::TextEncoder;
 use serde::Serialize;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -110,7 +106,6 @@ pub struct AppState {
     pub trading_sender: mpsc::Sender<NewOrderMessage>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
-    pub exporter: PrometheusExporter,
     pub node_alias: String,
     pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
     pub notification_sender: mpsc::Sender<Notification>,
@@ -124,7 +119,6 @@ pub fn router(
     node: Node,
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
-    exporter: PrometheusExporter,
     node_alias: &str,
     trading_sender: mpsc::Sender<NewOrderMessage>,
     tx_orderbook_feed: broadcast::Sender<Message>,
@@ -145,7 +139,6 @@ pub fn router(
         tx_position_feed,
         tx_user_feed,
         trading_sender,
-        exporter,
         node_alias: node_alias.to_string(),
         auth_users_notifier,
         notification_sender,
@@ -219,7 +212,6 @@ pub fn router(
             "/api/admin/users/:trader_pubkey/referrals",
             get(get_user_referral_status),
         )
-        .route("/metrics", get(get_metrics))
         .route("/health", get(get_health))
         .route("/api/leaderboard", get(get_leaderboard))
         .route(
@@ -357,30 +349,6 @@ pub async fn get_user(
         None => Err(AppError::BadRequest("No user found".to_string())),
         Some(user) => Ok(Json(user.try_into()?)),
     }
-}
-
-pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    let exporter = state.exporter.clone();
-    let encoder = TextEncoder::new();
-    let metric_families = exporter.registry().gather();
-    let mut result = vec![];
-    match encoder.encode(&metric_families, &mut result) {
-        Ok(()) => (),
-        Err(err) => {
-            tracing::error!("Could not collect opentelemetry metrics {err:#}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
-        }
-    };
-
-    let open_telemetry_metrics = match String::from_utf8(result) {
-        Ok(s) => s,
-        Err(err) => {
-            tracing::error!("Could not format metrics as string {err:#}");
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", err));
-        }
-    };
-
-    (StatusCode::OK, open_telemetry_metrics)
 }
 
 pub async fn get_health() -> Result<Json<String>, AppError> {

@@ -32,7 +32,6 @@ pub mod dlc_handler;
 pub mod dlc_protocol;
 pub mod logger;
 pub mod message;
-pub mod metrics;
 pub mod node;
 pub mod notifications;
 pub mod orderbook;
