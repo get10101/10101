@@ -132,7 +132,6 @@ impl Subscriber for FlutterSubscriber {
             EventType::ChannelStatusUpdate,
             EventType::BackgroundNotification,
             EventType::FundingChannelNotification,
-            EventType::LnPaymentReceived,
             EventType::Authenticated,
             EventType::DlcChannelEvent,
         ]
