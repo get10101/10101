@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/bitcoin_balance_field.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/countdown.dart';
 import 'package:get_10101/common/custom_qr_code.dart';
 import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -59,6 +60,9 @@ class ChannelFunding extends StatefulWidget {
 
 class _ChannelFunding extends State<ChannelFunding> {
   FundingType selectedBox = FundingType.onchain;
+
+  // TODO(holzeis): It would be nicer if this would come directly from the invoice.
+  final expiry = DateTime.timestamp().second + 300;
 
   @override
   Widget build(BuildContext context) {
@@ -206,12 +210,24 @@ class _ChannelFunding extends State<ChannelFunding> {
                                             "Copied: $qrCodeSubTitle");
                                       });
                                     },
-                                    child: Text(
-                                      truncateWithEllipsis(44, qrCodeSubTitle),
-                                      style: const TextStyle(fontSize: 14),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          truncateWithEllipsis(44, qrCodeSubTitle),
+                                          style: const TextStyle(fontSize: 14),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        if (selectedBox == FundingType.lightning)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 2),
+                                            child: Countdown(
+                                                start: expiry > DateTime.timestamp().second
+                                                    ? expiry - DateTime.timestamp().second
+                                                    : 0),
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ),
