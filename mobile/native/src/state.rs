@@ -26,6 +26,7 @@ static RUNTIME: Storage<Runtime> = Storage::new();
 static WEBSOCKET: Storage<RwLock<Sender<OrderbookRequest>>> = Storage::new();
 static LOG_STREAM_SINK: Storage<RwLock<Arc<StreamSink<LogEntry>>>> = Storage::new();
 static TENTENONE_CONFIG: Storage<RwLock<TenTenOneConfig>> = Storage::new();
+static LN_PAYMENT_WATCHER: Storage<RwLock<Sender<String>>> = Storage::new();
 
 pub fn set_config(config: ConfigInternal) {
     match CONFIG.try_get() {
@@ -145,4 +146,19 @@ pub fn set_tentenone_config(config: TenTenOneConfig) {
 
 pub fn try_get_tentenone_config() -> Option<TenTenOneConfig> {
     TENTENONE_CONFIG.try_get().map(|w| w.read().clone())
+}
+
+pub fn set_ln_payment_watcher(ln_payment_watcher: Sender<String>) {
+    match LN_PAYMENT_WATCHER.try_get() {
+        None => {
+            LN_PAYMENT_WATCHER.set(RwLock::new(ln_payment_watcher));
+        }
+        Some(s) => {
+            *s.write() = ln_payment_watcher;
+        }
+    }
+}
+
+pub fn get_ln_payment_watcher() -> Sender<String> {
+    LN_PAYMENT_WATCHER.get().read().clone()
 }
