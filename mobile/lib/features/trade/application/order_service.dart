@@ -7,9 +7,9 @@ import 'package:get_10101/ffi.dart' as rust;
 
 class ExternalFunding {
   final String bitcoinAddress;
-  final String paymentRequest;
+  final String? paymentRequest;
 
-  const ExternalFunding({required this.bitcoinAddress, required this.paymentRequest});
+  const ExternalFunding({required this.bitcoinAddress, this.paymentRequest});
 
   static ExternalFunding fromApi(rust.ExternalFunding funding) {
     return ExternalFunding(

@@ -7,6 +7,7 @@ use bitcoin::Amount;
 use reqwest::Url;
 use xxi_node::commons;
 
+#[derive(Clone)]
 pub struct HodlInvoice {
     pub payment_request: String,
     pub pre_image: String,
