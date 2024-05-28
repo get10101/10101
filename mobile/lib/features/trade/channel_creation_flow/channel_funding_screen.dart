@@ -200,7 +200,8 @@ class _ChannelFunding extends State<ChannelFunding> {
                                   padding: const EdgeInsets.only(left: 10.0, right: 10.0),
                                   child: GestureDetector(
                                     onTap: () {
-                                      Clipboard.setData(ClipboardData(text: qrCode.data)).then((_) {
+                                      Clipboard.setData(ClipboardData(text: qrCodeSubTitle))
+                                          .then((_) {
                                         showSnackBar(ScaffoldMessenger.of(context),
                                             "Copied: $qrCodeSubTitle");
                                       });
