@@ -9,6 +9,7 @@ pub mod dlc_protocols;
 pub mod hodl_invoice;
 pub mod last_outbound_dlc_message;
 pub mod liquidity_options;
+pub mod metrics;
 pub mod polls;
 pub mod positions;
 pub mod reported_errors;

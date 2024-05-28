@@ -344,6 +344,11 @@ async fn main() -> Result<()> {
                 .expect("To add the close liquidated position reminder job");
 
             scheduler
+                .add_collect_metrics_job(pool.clone())
+                .await
+                .expect("To add the collect metrics job");
+
+            scheduler
                 .start()
                 .await
                 .expect("to be able to start scheduler");

@@ -296,6 +296,14 @@ diesel::table! {
 }
 
 diesel::table! {
+    metrics (id) {
+        id -> Int4,
+        created_at -> Timestamptz,
+        on_chain_balance_sats -> Int8,
+    }
+}
+
+diesel::table! {
     use diesel::sql_types::*;
     use super::sql_types::DirectionType;
     use super::sql_types::OrderTypeType;
@@ -513,6 +521,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     liquidity_options,
     liquidity_request_logs,
     matches,
+    metrics,
     orders,
     payments,
     polls,
