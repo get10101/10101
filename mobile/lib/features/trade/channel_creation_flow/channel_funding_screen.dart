@@ -67,8 +67,12 @@ class _ChannelFunding extends State<ChannelFunding> {
 
     final qrCode = switch (selectedBox) {
       FundingType.lightning => CustomQrCode(
-          data: widget.funding.paymentRequest,
-          embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
+          data: widget.funding.paymentRequest ?? "https://x.com/get10101",
+          embeddedImage: widget.funding.paymentRequest != null
+              ? const AssetImage("assets/10101_logo_icon_white_background.png")
+              : const AssetImage("assets/coming_soon.png"),
+          embeddedImageSizeHeight: widget.funding.paymentRequest != null ? 50 : 350,
+          embeddedImageSizeWidth: widget.funding.paymentRequest != null ? 50 : 350,
           dimension: 300,
         ),
       FundingType.onchain => CustomQrCode(
@@ -87,9 +91,10 @@ class _ChannelFunding extends State<ChannelFunding> {
     };
 
     final qrCodeSubTitle = switch (selectedBox) {
-      FundingType.lightning => widget.funding.paymentRequest,
+      FundingType.lightning =>
+        widget.funding.paymentRequest ?? "Currently not available. Try again later.",
       FundingType.onchain => widget.funding.bitcoinAddress,
-      FundingType.unified || FundingType.external => "Follow us on social media for updates",
+      FundingType.unified || FundingType.external => "Follow us on social media for updates.",
     };
 
     return Scaffold(

@@ -12,7 +12,8 @@ use xxi_node::commons::ChannelOpeningParams;
 
 pub struct ExternalFunding {
     pub bitcoin_address: String,
-    pub payment_request: String,
+    /// The payment request of the hodl invoice. Could be none if the lnd node is down.
+    pub payment_request: Option<String>,
 }
 
 /// handles orders which would open a channel where the user does not have funds in his wallets
@@ -39,8 +40,12 @@ pub async fn submit_unfunded_channel_opening_order(
         + crate::dlc::estimated_funding_tx_fee()?;
 
     let funding_amount = Amount::from_sat(estimated_margin + trader_reserve) + fees;
-    let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount).await?;
-    let pre_image = hodl_invoice.pre_image;
+    let hodl_invoice = hodl_invoice::get_hodl_invoice_from_coordinator(funding_amount)
+        .await
+        .inspect_err(|e| tracing::error!("Failed to get hodl invoice. Error: {e:#}"))
+        .ok();
+
+    let payment_request = hodl_invoice.clone().map(|invoice| invoice.payment_request);
 
     // abort previous watcher before starting new task.
     abort_watcher().await?;
@@ -48,6 +53,7 @@ pub async fn submit_unfunded_channel_opening_order(
     let runtime = crate::state::get_or_create_tokio_runtime()?;
     let watch_handle = runtime.spawn({
         let bitcoin_address = bitcoin_address.clone();
+        let pre_image = hodl_invoice.map(|invoice| invoice.pre_image);
         async move {
             event::publish(&EventInternal::FundingChannelNotification(
                 FundingChannelTask::Pending,
@@ -63,7 +69,7 @@ pub async fn submit_unfunded_channel_opening_order(
                 _ = watcher::watch_lightning_payment() => {
                     // received lightning payment.
                     tracing::info!(%funding_amount, "Found lighting payment.");
-                    Some(pre_image)
+                    pre_image
                 }
             };
 
@@ -109,7 +115,7 @@ pub async fn submit_unfunded_channel_opening_order(
 
     Ok(ExternalFunding {
         bitcoin_address: bitcoin_address.to_string(),
-        payment_request: hodl_invoice.payment_request,
+        payment_request,
     })
 }
 
