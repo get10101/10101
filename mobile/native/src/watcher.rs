@@ -1,27 +1,51 @@
-use crate::event;
 use crate::event::subscriber::Subscriber;
 use crate::event::EventInternal;
 use crate::event::EventType;
 use crate::state;
 use anyhow::Result;
+use base64::engine::general_purpose;
+use base64::Engine;
 use bitcoin::Address;
 use bitcoin::Amount;
 use std::time::Duration;
-use tokio::sync::mpsc;
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone)]
 pub struct InvoiceWatcher {
-    sender: mpsc::Sender<bool>,
+    pub sender: Sender<String>,
 }
 
 impl Subscriber for InvoiceWatcher {
-    fn notify(&self, _: &EventInternal) {
-        tokio::spawn({
+    fn notify(&self, event: &EventInternal) {
+        let runtime = match state::get_or_create_tokio_runtime() {
+            Ok(runtime) => runtime,
+            Err(e) => {
+                tracing::error!("Failed to get tokio runtime. Error: {e:#}");
+                return;
+            }
+        };
+        let r_hash = match event {
+            EventInternal::LnPaymentReceived { r_hash } => r_hash,
+            _ => return,
+        };
+
+        runtime.spawn({
+            let r_hash = r_hash.clone();
             let sender = self.sender.clone();
             async move {
-                if let Err(e) = sender.send(true).await {
-                    tracing::error!("Failed to send accepted invoice event. Error: {e:#}");
-                }
+                // We receive the r_hash in base64 standard encoding
+                match general_purpose::STANDARD.decode(&r_hash) {
+                    Ok(hash) => {
+                        // but we watch for the r_has in base64 url safe encoding.
+                        let r_hash = general_purpose::URL_SAFE.encode(hash);
+                        if let Err(e) = sender.send(r_hash.clone()) {
+                            tracing::error!(%r_hash, "Failed to send accepted invoice event. Error: {e:#}");
+                        }
+                    },
+                    Err(e) => {
+                        tracing::error!(r_hash, "Failed to decode. Error: {e:#}");
+                    }
+                };
             }
         });
     }
@@ -31,11 +55,28 @@ impl Subscriber for InvoiceWatcher {
     }
 }
 
-pub(crate) async fn watch_lightning_payment() -> Result<()> {
-    let (sender, mut receiver) = mpsc::channel::<bool>(1);
-    event::subscribe(InvoiceWatcher { sender });
+pub(crate) async fn watch_lightning_payment(watched_r_hash: String) -> Result<()> {
+    tracing::debug!(%watched_r_hash, "Watching for lightning payment.");
 
-    receiver.recv().await;
+    let mut subscriber = state::get_ln_payment_watcher().subscribe();
+    loop {
+        match subscriber.recv().await {
+            Ok(r_hash) => {
+                if watched_r_hash.eq(&r_hash) {
+                    tracing::debug!(%watched_r_hash, "Received a watched lightning payment event.");
+                    return Ok(());
+                }
+
+                tracing::debug!(%r_hash, %watched_r_hash, "Received a lightning payment event for an unknown lightning invoice.");
+            }
+            Err(e) => {
+                tracing::error!("Failed to receive lighting payment received event. Error: {e:#}");
+                break;
+            }
+        }
+    }
+
+    tracing::debug!(%watched_r_hash, "Stopping lightning payment watch.");
 
     Ok(())
 }

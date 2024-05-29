@@ -194,7 +194,7 @@ impl Senders {
             native::event::EventInternal::FundingChannelNotification(_) => {
                 // ignored
             }
-            native::event::EventInternal::LnPaymentReceived => {
+            native::event::EventInternal::LnPaymentReceived { .. } => {
                 // ignored
             }
         }

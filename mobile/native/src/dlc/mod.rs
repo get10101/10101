@@ -25,6 +25,7 @@ use crate::trade::order::OrderReason;
 use crate::trade::order::OrderState;
 use crate::trade::order::OrderType;
 use crate::trade::position;
+use crate::watcher::InvoiceWatcher;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
@@ -289,6 +290,12 @@ pub fn run(
 
         event::subscribe(DBBackupSubscriber::new(storage.clone().client));
         event::subscribe(ForceCloseDlcChannelSubscriber);
+
+        let (ln_sender, _) = broadcast::channel::<String>(5);
+        event::subscribe(InvoiceWatcher {
+            sender: ln_sender.clone(),
+        });
+        state::set_ln_payment_watcher(ln_sender);
 
         let node_event_handler = Arc::new(NodeEventHandler::new());
 

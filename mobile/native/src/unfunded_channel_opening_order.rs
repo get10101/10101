@@ -53,7 +53,8 @@ pub async fn submit_unfunded_channel_opening_order(
     let runtime = crate::state::get_or_create_tokio_runtime()?;
     let watch_handle = runtime.spawn({
         let bitcoin_address = bitcoin_address.clone();
-        let pre_image = hodl_invoice.map(|invoice| invoice.pre_image);
+        let pre_image = hodl_invoice.clone().map(|invoice| invoice.pre_image);
+        let r_hash = hodl_invoice.map(|invoice| invoice.r_hash).unwrap_or_default();
         async move {
             event::publish(&EventInternal::FundingChannelNotification(
                 FundingChannelTask::Pending,
@@ -66,7 +67,7 @@ pub async fn submit_unfunded_channel_opening_order(
                     tracing::info!(%bitcoin_address, %funding_amount, "Found funding amount on bitcoin address.");
                     None
                 }
-                _ = watcher::watch_lightning_payment() => {
+                _ = watcher::watch_lightning_payment(r_hash) => {
                     // received lightning payment.
                     tracing::info!(%funding_amount, "Found lighting payment.");
                     pre_image

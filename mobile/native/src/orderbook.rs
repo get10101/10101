@@ -286,7 +286,7 @@ async fn handle_orderbook_message(
         }
         Message::LnPaymentReceived { r_hash, amount } => {
             tracing::info!(r_hash, %amount, "Received a payment received event.");
-            event::publish(&EventInternal::LnPaymentReceived)
+            event::publish(&EventInternal::LnPaymentReceived { r_hash })
         }
     };
 
