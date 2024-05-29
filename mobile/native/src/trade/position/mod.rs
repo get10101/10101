@@ -8,7 +8,6 @@ use crate::trade::FundingFeeEvent;
 use crate::trade::Trade;
 use anyhow::bail;
 use anyhow::ensure;
-use anyhow::Context;
 use anyhow::Result;
 use bitcoin::Amount;
 use bitcoin::SignedAmount;
@@ -572,7 +571,7 @@ impl Position {
             let collateral = self
                 .collateral
                 .checked_sub(funding_fee.to_sat() as u64)
-                .context("Cannot cover funding fee with margin")?;
+                .unwrap_or_default();
             let collateral = Amount::from_sat(collateral);
 
             let leverage = {
@@ -580,7 +579,7 @@ impl Position {
                 let average_entry_price =
                     Decimal::try_from(self.average_entry_price).expect("to fit");
 
-                let leverage = calculate_leverage(quantity, collateral, average_entry_price)?;
+                let leverage = calculate_leverage(quantity, collateral, average_entry_price);
 
                 leverage.to_f32().expect("to fit")
             };

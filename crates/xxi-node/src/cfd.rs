@@ -32,21 +32,14 @@ pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> Am
 }
 
 /// Calculate leverage.
-pub fn calculate_leverage(
-    quantity: Decimal,
-    margin: Amount,
-    open_price: Decimal,
-) -> Result<Decimal> {
+pub fn calculate_leverage(quantity: Decimal, margin: Amount, open_price: Decimal) -> Decimal {
     let margin_btc = Decimal::try_from(margin.to_btc()).expect("to fit");
 
     quantity
         .checked_div(margin_btc * open_price)
-        .with_context(|| {
-            format!(
-                "Division by zero when computing leverage. \
-                 Denominator: {margin_btc} * {open_price}"
-            )
-        })
+        // We use a leverage of 10_000 to represent a kind of maximum leverage that we can work
+        // with.
+        .unwrap_or(Decimal::TEN * Decimal::ONE_THOUSAND)
 }
 
 /// Calculate the quantity from price, collateral and leverage Margin in sats, calculation in BTC

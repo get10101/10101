@@ -4,20 +4,18 @@ use crate::db::positions;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::dlc_protocol::RolloverParams;
+use crate::funding_fee::funding_fee_from_funding_fee_events;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
 use crate::payout_curve::build_contract_descriptor;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
-use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::Amount;
 use bitcoin::Network;
-use bitcoin::SignedAmount;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
 use diesel::r2d2::PooledConnection;
@@ -183,12 +181,6 @@ impl Node {
 
         let next_expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
-        let collateral_reserve_coordinator =
-            self.inner.get_dlc_channel_usable_balance(dlc_channel_id)?;
-        let collateral_reserve_trader = self
-            .inner
-            .get_dlc_channel_usable_balance_counterparty(dlc_channel_id)?;
-
         let (oracle_pk, contract_tx_fee_rate) = {
             let old_contract = self.inner.get_contract_by_dlc_channel_id(dlc_channel_id)?;
 
@@ -227,28 +219,11 @@ impl Node {
         let funding_fee_events =
             db::funding_fee_events::get_outstanding_fees(conn, trader_pubkey, position.id)?;
 
-        let funding_fee_amount = funding_fee_events
-            .iter()
-            .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
+        let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
-        let funding_fee_event_ids = funding_fee_events
-            .iter()
-            .map(|event| event.id)
-            .collect::<Vec<_>>();
-
-        let funding_fee = match funding_fee_amount.to_sat() {
-            0 => FundingFee::Zero,
-            n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
-            n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
-        };
-
-        let (position, collateral_reserve_coordinator, collateral_reserve_trader) = position
-            .apply_funding_fee_to_position(
-                collateral_reserve_coordinator,
-                collateral_reserve_trader,
-                funding_fee,
-                maintenance_margin_rate,
-            );
+        let position = position.apply_funding_fee(funding_fee, maintenance_margin_rate);
+        let (collateral_reserve_coordinator, collateral_reserve_trader) =
+            self.apply_funding_fee_to_channel(*dlc_channel_id, funding_fee)?;
 
         let Position {
             coordinator_margin: margin_coordinator,
@@ -308,6 +283,11 @@ impl Node {
             Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
             None => None,
         };
+
+        let funding_fee_event_ids = funding_fee_events
+            .iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>();
 
         let funding_fee_events = funding_fee_events
             .into_iter()

@@ -110,10 +110,6 @@ pub(crate) fn get_for_active_trader_positions(
 }
 
 /// Get the unpaid [`funding_fee::FundingFeeEvent`]s for a trader position.
-///
-/// TODO: Use outstanding fees when:
-///
-/// - Deciding if positions need to be liquidated.
 pub(crate) fn get_outstanding_fees(
     conn: &mut PgConnection,
     trader_pubkey: PublicKey,

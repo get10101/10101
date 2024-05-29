@@ -3,6 +3,7 @@ use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
+use crate::funding_fee::funding_fee_from_funding_fee_events;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
@@ -11,7 +12,6 @@ use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
-use crate::FundingFee;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -799,46 +799,22 @@ impl TradeExecutor {
 
         let peer_id = trade_params.pubkey;
 
+        // Update position based on the outstanding funding fee events _before_ applying resize.
+        let funding_fee_events =
+            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+
+        let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
+
         let maintenance_margin_rate = {
             Decimal::try_from(self.node.settings.read().await.maintenance_margin_rate)
                 .expect("to fit")
         };
 
-        // Update position based on the outstanding funding fee events _before_ applying resize.
-        let funding_fee_events =
-            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+        let position = position.apply_funding_fee(funding_fee, maintenance_margin_rate);
 
-        let funding_fee_amount = funding_fee_events
-            .iter()
-            .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
-
-        let funding_fee_event_ids = funding_fee_events
-            .iter()
-            .map(|event| event.id)
-            .collect::<Vec<_>>();
-
-        let funding_fee = match funding_fee_amount.to_sat() {
-            0 => FundingFee::Zero,
-            n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
-            n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
-        };
-
-        let collateral_reserve_coordinator = self
+        let (collateral_reserve_coordinator, collateral_reserve_trader) = self
             .node
-            .inner
-            .get_dlc_channel_usable_balance(&dlc_channel_id)?;
-        let collateral_reserve_trader = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
-
-        let (position, original_collateral_reserve_coordinator, original_collateral_reserve_trader) =
-            position.apply_funding_fee_to_position(
-                collateral_reserve_coordinator,
-                collateral_reserve_trader,
-                funding_fee,
-                maintenance_margin_rate,
-            );
+            .apply_funding_fee_to_channel(dlc_channel_id, funding_fee)?;
 
         tracing::info!(
             %peer_id,
@@ -973,6 +949,11 @@ impl TradeExecutor {
             .await
             .context("Could not propose resize DLC channel update")?;
 
+        let funding_fee_event_ids = funding_fee_events
+            .iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>();
+
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_resize_protocol(
             protocol_id,
@@ -1087,40 +1068,16 @@ impl TradeExecutor {
         let funding_fee_events =
             db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
 
-        let funding_fee_amount = funding_fee_events
-            .iter()
-            .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
-
-        let funding_fee_event_ids = funding_fee_events
-            .iter()
-            .map(|event| event.id)
-            .collect::<Vec<_>>();
-
-        let funding_fee = match funding_fee_amount.to_sat() {
-            0 => FundingFee::Zero,
-            n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
-            n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
-        };
-
-        let collateral_reserve_coordinator = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance(&channel_id)?;
-
-        let collateral_reserve_trader = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance_counterparty(&channel_id)?;
+        let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
         let maintenance_margin_rate = { self.node.settings.read().await.maintenance_margin_rate };
         let maintenance_margin_rate = decimal_from_f32(maintenance_margin_rate);
 
-        let (position, collateral_reserve_coordinator, _) = position.apply_funding_fee_to_position(
-            collateral_reserve_coordinator,
-            collateral_reserve_trader,
-            funding_fee,
-            maintenance_margin_rate,
-        );
+        let position = position.apply_funding_fee(funding_fee, maintenance_margin_rate);
+
+        let (collateral_reserve_coordinator, _) = self
+            .node
+            .apply_funding_fee_to_channel(channel_id, funding_fee)?;
 
         let closing_price = trade_params.average_execution_price();
         let position_settlement_amount_coordinator = position
@@ -1179,6 +1136,11 @@ impl TradeExecutor {
                 protocol_id,
             )
             .await?;
+
+        let funding_fee_event_ids = funding_fee_events
+            .iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>();
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
         protocol_executor.start_settle_protocol(
