@@ -1,10 +1,12 @@
 use crate::db;
 use crate::decimal_from_f32;
 use crate::message::OrderbookMessage;
+use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::Amount;
 use bitcoin::SignedAmount;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -288,6 +290,18 @@ struct Index {
     last_price: f64,
     #[serde(rename = "reference")]
     _reference: String,
+}
+
+pub fn funding_fee_from_funding_fee_events(events: &[FundingFeeEvent]) -> FundingFee {
+    let funding_fee_amount = events
+        .iter()
+        .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
+
+    match funding_fee_amount.to_sat() {
+        0 => FundingFee::Zero,
+        n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
+        n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
+    }
 }
 
 #[cfg(test)]

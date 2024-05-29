@@ -203,38 +203,28 @@ impl Position {
         )
     }
 
-    pub fn apply_funding_fee_to_position(
+    #[must_use]
+    pub fn apply_funding_fee(
         self,
-        collateral_reserve_coordinator: Amount,
-        collateral_reserve_trader: Amount,
         funding_fee: FundingFee,
         maintenance_margin_rate: Decimal,
-    ) -> (Self, Amount, Amount) {
+    ) -> Self {
         let quantity = decimal_from_f32(self.quantity);
         let average_entry_price = decimal_from_f32(self.average_entry_price);
 
         match funding_fee {
-            FundingFee::Zero => (
-                self,
-                collateral_reserve_coordinator,
-                collateral_reserve_trader,
-            ),
+            FundingFee::Zero => self,
             FundingFee::CoordinatorPays(funding_fee) => {
                 let funding_fee = funding_fee.to_signed().expect("to fit");
 
                 let coordinator_margin = self.coordinator_margin.to_signed().expect("to fit");
                 let new_coordinator_margin = coordinator_margin - funding_fee;
-                let new_coordinator_margin = new_coordinator_margin.to_unsigned().expect("to fit");
 
-                let collateral_reserve_trader =
-                    collateral_reserve_trader.to_signed().expect("to fit");
-                let new_collateral_reserve_trader = collateral_reserve_trader + funding_fee;
-                let new_collateral_reserve_trader =
-                    new_collateral_reserve_trader.to_unsigned().expect("to fit");
+                let new_coordinator_margin =
+                    new_coordinator_margin.to_unsigned().unwrap_or(Amount::ZERO);
 
                 let new_coordinator_leverage =
-                    calculate_leverage(quantity, new_coordinator_margin, average_entry_price)
-                        .expect("valid leverage");
+                    calculate_leverage(quantity, new_coordinator_margin, average_entry_price);
 
                 let new_coordinator_liquidation_price = match self.trader_direction {
                     Direction::Long => calculate_short_liquidation_price(
@@ -249,39 +239,24 @@ impl Position {
                     ),
                 };
 
-                let position = Self {
+                Self {
                     coordinator_margin: new_coordinator_margin,
                     coordinator_leverage: f32_from_decimal(new_coordinator_leverage),
                     coordinator_liquidation_price: f32_from_decimal(
                         new_coordinator_liquidation_price,
                     ),
                     ..self
-                };
-
-                (
-                    position,
-                    collateral_reserve_coordinator,
-                    new_collateral_reserve_trader,
-                )
+                }
             }
             FundingFee::TraderPays(funding_fee) => {
                 let funding_fee = funding_fee.to_signed().expect("to fit");
 
                 let margin_trader = self.trader_margin.to_signed().expect("to fit");
                 let new_trader_margin = margin_trader - funding_fee;
-                let new_trader_margin = new_trader_margin.to_unsigned().expect("to fit");
-
-                let collateral_reserve_coordinator =
-                    collateral_reserve_coordinator.to_signed().expect("to fit");
-                let new_collateral_reserve_coordinator =
-                    collateral_reserve_coordinator + funding_fee;
-                let new_collateral_reserve_coordinator = new_collateral_reserve_coordinator
-                    .to_unsigned()
-                    .expect("to fit");
+                let new_trader_margin = new_trader_margin.to_unsigned().unwrap_or(Amount::ZERO);
 
                 let new_trader_leverage =
-                    calculate_leverage(quantity, new_trader_margin, average_entry_price)
-                        .expect("valid leverage");
+                    calculate_leverage(quantity, new_trader_margin, average_entry_price);
 
                 let new_trader_liquidation_price = match self.trader_direction {
                     Direction::Long => calculate_long_liquidation_price(
@@ -296,18 +271,12 @@ impl Position {
                     ),
                 };
 
-                let position = Self {
+                Self {
                     trader_margin: new_trader_margin,
                     trader_leverage: f32_from_decimal(new_trader_leverage),
                     trader_liquidation_price: f32_from_decimal(new_trader_liquidation_price),
                     ..self
-                };
-
-                (
-                    position,
-                    new_collateral_reserve_coordinator,
-                    collateral_reserve_trader,
-                )
+                }
             }
         }
     }
