@@ -118,6 +118,13 @@ pub struct ChannelOpeningParams {
     pub external_funding: Option<Amount>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum FundingFee {
+    Zero,
+    CoordinatorPays(Amount),
+    TraderPays(Amount),
+}
+
 /// Remove minutes, seconds and nano seconds from a given [`OffsetDateTime`].
 pub fn to_nearest_hour_in_the_past(start_date: OffsetDateTime) -> OffsetDateTime {
     OffsetDateTime::new_utc(

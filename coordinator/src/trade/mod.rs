@@ -11,6 +11,7 @@ use crate::payout_curve;
 use crate::position::models::NewPosition;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
+use crate::FundingFee;
 use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
@@ -1042,6 +1043,46 @@ impl TradeExecutor {
             bail!("Underlying DLC channel not yet confirmed.");
         }
 
+        // Update position based on the outstanding funding fee events _before_ calculating
+        // `position_settlement_amount_coordinator`.
+        let funding_fee_events =
+            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+
+        let funding_fee_amount = funding_fee_events
+            .iter()
+            .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
+
+        let funding_fee_event_ids = funding_fee_events
+            .iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>();
+
+        let funding_fee = match funding_fee_amount.to_sat() {
+            0 => FundingFee::Zero,
+            n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
+            n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
+        };
+
+        let collateral_reserve_coordinator = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance(&channel_id)?;
+
+        let collateral_reserve_trader = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance_counterparty(&channel_id)?;
+
+        let maintenance_margin_rate = { self.node.settings.read().await.maintenance_margin_rate };
+        let maintenance_margin_rate = decimal_from_f32(maintenance_margin_rate);
+
+        let (position, collateral_reserve_coordinator, _) = position.apply_funding_fee_to_position(
+            collateral_reserve_coordinator,
+            collateral_reserve_trader,
+            funding_fee,
+            maintenance_margin_rate,
+        );
+
         let closing_price = trade_params.average_execution_price();
         let position_settlement_amount_coordinator = position
             .calculate_coordinator_settlement_amount(
@@ -1049,10 +1090,6 @@ impl TradeExecutor {
                 trade_params.order_matching_fee(),
             )?;
 
-        let collateral_reserve_coordinator = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance(&channel_id)?;
         let dlc_channel_settlement_amount_coordinator =
             position_settlement_amount_coordinator + collateral_reserve_coordinator.to_sat();
 
@@ -1067,6 +1104,14 @@ impl TradeExecutor {
             trader_peer_id = %position.trader,
             "Closing position by settling DLC channel off-chain",
         );
+
+        if !funding_fee_events.is_empty() {
+            tracing::debug!(
+                ?funding_fee,
+                ?funding_fee_events,
+                "Resolving funding fee events when closing position"
+            );
+        }
 
         let total_collateral = self
             .node
@@ -1097,12 +1142,13 @@ impl TradeExecutor {
             .await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
-        protocol_executor.start_dlc_protocol(
+        protocol_executor.start_settle_protocol(
             protocol_id,
             previous_id,
             Some(&contract_id),
             &channel.get_id(),
-            DlcProtocolType::settle(trade_params, protocol_id),
+            trade_params,
+            funding_fee_event_ids,
         )?;
 
         db::positions::Position::set_open_position_to_closing(

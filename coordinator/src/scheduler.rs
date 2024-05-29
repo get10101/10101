@@ -240,7 +240,7 @@ fn build_rollover_notification_job(
                         if let Err(e) = node
                             .check_rollover(
                                 &mut conn,
-                                &position,
+                                position,
                                 node.inner.network,
                                 &notifier,
                                 Some(notification.clone()),

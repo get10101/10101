@@ -10,6 +10,7 @@ use crate::notifications::NotificationKind;
 use crate::payout_curve::build_contract_descriptor;
 use crate::position::models::Position;
 use crate::position::models::PositionState;
+use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -28,18 +29,13 @@ use dlc_manager::contract::Contract;
 use dlc_manager::DlcChannelId;
 use futures::future::RemoteHandle;
 use futures::FutureExt;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
-use xxi_node::cfd::calculate_leverage;
-use xxi_node::cfd::calculate_long_liquidation_price;
-use xxi_node::cfd::calculate_short_liquidation_price;
 use xxi_node::commons;
-use xxi_node::commons::Direction;
 use xxi_node::node::event::NodeEvent;
 use xxi_node::node::ProtocolId;
 
@@ -88,133 +84,6 @@ pub fn monitor(
     remote_handle
 }
 
-/// The [`Position`] values that can change after a rollover.
-struct RolledOverPosition {
-    margin_coordinator: Amount,
-    margin_trader: Amount,
-    collateral_reserve_coordinator: Amount,
-    collateral_reserve_trader: Amount,
-    leverage_coordinator: Decimal,
-    leverage_trader: Decimal,
-    liquidation_price_coordinator: Decimal,
-    liquidation_price_trader: Decimal,
-}
-
-fn apply_rollover_to_position(
-    position: &Position,
-    collateral_reserve_coordinator: Amount,
-    collateral_reserve_trader: Amount,
-    funding_fee: FundingFee,
-    maintenance_margin_rate: Decimal,
-) -> RolledOverPosition {
-    let quantity = decimal_from_f32(position.quantity);
-    let average_entry_price = decimal_from_f32(position.average_entry_price);
-
-    match funding_fee {
-        FundingFee::Zero => RolledOverPosition {
-            margin_coordinator: position.coordinator_margin,
-            margin_trader: position.trader_margin,
-            collateral_reserve_coordinator,
-            collateral_reserve_trader,
-            leverage_coordinator: decimal_from_f32(position.coordinator_leverage),
-            leverage_trader: decimal_from_f32(position.trader_leverage),
-            liquidation_price_coordinator: decimal_from_f32(position.coordinator_liquidation_price),
-            liquidation_price_trader: decimal_from_f32(position.trader_liquidation_price),
-        },
-        FundingFee::CoordinatorPays(funding_fee) => {
-            let funding_fee = funding_fee.to_signed().expect("to fit");
-
-            let margin_coordinator = position.coordinator_margin.to_signed().expect("to fit");
-            let new_margin_coordinator = margin_coordinator - funding_fee;
-            let new_margin_coordinator = new_margin_coordinator.to_unsigned().expect("to fit");
-
-            let collateral_reserve_trader = collateral_reserve_trader.to_signed().expect("to fit");
-            let new_collateral_reserve_trader = collateral_reserve_trader + funding_fee;
-            let new_collateral_reserve_trader =
-                new_collateral_reserve_trader.to_unsigned().expect("to fit");
-
-            let new_leverage_coordinator =
-                calculate_leverage(quantity, new_margin_coordinator, average_entry_price)
-                    .expect("valid leverage");
-
-            let new_coordinator_liquidation_price = match position.trader_direction {
-                Direction::Long => calculate_short_liquidation_price(
-                    new_leverage_coordinator,
-                    average_entry_price,
-                    maintenance_margin_rate,
-                ),
-                Direction::Short => calculate_long_liquidation_price(
-                    new_leverage_coordinator,
-                    average_entry_price,
-                    maintenance_margin_rate,
-                ),
-            };
-
-            RolledOverPosition {
-                margin_coordinator: new_margin_coordinator,
-                margin_trader: position.trader_margin,
-                collateral_reserve_coordinator,
-                collateral_reserve_trader: new_collateral_reserve_trader,
-                leverage_coordinator: new_leverage_coordinator,
-                leverage_trader: decimal_from_f32(position.trader_leverage),
-                liquidation_price_coordinator: new_coordinator_liquidation_price,
-                liquidation_price_trader: decimal_from_f32(position.trader_liquidation_price),
-            }
-        }
-        FundingFee::TraderPays(funding_fee) => {
-            let funding_fee = funding_fee.to_signed().expect("to fit");
-
-            let margin_trader = position.trader_margin.to_signed().expect("to fit");
-            let new_margin_trader = margin_trader - funding_fee;
-            let new_margin_trader = new_margin_trader.to_unsigned().expect("to fit");
-
-            let collateral_reserve_coordinator =
-                collateral_reserve_coordinator.to_signed().expect("to fit");
-            let new_collateral_reserve_coordinator = collateral_reserve_coordinator + funding_fee;
-            let new_collateral_reserve_coordinator = new_collateral_reserve_coordinator
-                .to_unsigned()
-                .expect("to fit");
-
-            let new_leverage_trader =
-                calculate_leverage(quantity, new_margin_trader, average_entry_price)
-                    .expect("valid leverage");
-
-            let new_trader_liquidation_price = match position.trader_direction {
-                Direction::Long => calculate_long_liquidation_price(
-                    new_leverage_trader,
-                    average_entry_price,
-                    maintenance_margin_rate,
-                ),
-                Direction::Short => calculate_short_liquidation_price(
-                    new_leverage_trader,
-                    average_entry_price,
-                    maintenance_margin_rate,
-                ),
-            };
-
-            RolledOverPosition {
-                margin_coordinator: position.coordinator_margin,
-                margin_trader: new_margin_trader,
-                collateral_reserve_coordinator: new_collateral_reserve_coordinator,
-                collateral_reserve_trader,
-                leverage_coordinator: decimal_from_f32(position.coordinator_leverage),
-                leverage_trader: new_leverage_trader,
-                liquidation_price_coordinator: decimal_from_f32(
-                    position.coordinator_liquidation_price,
-                ),
-                liquidation_price_trader: new_trader_liquidation_price,
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-enum FundingFee {
-    Zero,
-    CoordinatorPays(Amount),
-    TraderPays(Amount),
-}
-
 impl Node {
     async fn check_if_eligible_for_rollover(
         &self,
@@ -247,14 +116,14 @@ impl Node {
             None => return Ok(()),
         };
 
-        self.check_rollover(&mut conn, &position, network, &notifier, None)
+        self.check_rollover(&mut conn, position, network, &notifier, None)
             .await
     }
 
     pub async fn check_rollover(
         &self,
         connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
-        position: &Position,
+        position: Position,
         network: Network,
         notifier: &mpsc::Sender<Notification>,
         notification: Option<NotificationKind>,
@@ -307,7 +176,7 @@ impl Node {
         &self,
         conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
         dlc_channel_id: &DlcChannelId,
-        position: &Position,
+        position: Position,
         network: Network,
     ) -> Result<()> {
         let trader_pubkey = position.trader;
@@ -373,31 +242,30 @@ impl Node {
             n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
         };
 
-        let rolled_over_position = apply_rollover_to_position(
-            position,
-            collateral_reserve_coordinator,
-            collateral_reserve_trader,
-            funding_fee,
-            maintenance_margin_rate,
-        );
+        let (position, collateral_reserve_coordinator, collateral_reserve_trader) = position
+            .apply_funding_fee_to_position(
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+                funding_fee,
+                maintenance_margin_rate,
+            );
 
-        let RolledOverPosition {
-            margin_coordinator,
-            margin_trader,
-            collateral_reserve_coordinator,
-            collateral_reserve_trader,
-            leverage_coordinator,
-            leverage_trader,
-            liquidation_price_coordinator,
-            liquidation_price_trader,
-        } = rolled_over_position;
+        let Position {
+            coordinator_margin: margin_coordinator,
+            trader_margin: margin_trader,
+            coordinator_leverage: leverage_coordinator,
+            trader_leverage: leverage_trader,
+            coordinator_liquidation_price: liquidation_price_coordinator,
+            trader_liquidation_price: liquidation_price_trader,
+            ..
+        } = position;
 
         let contract_descriptor = build_contract_descriptor(
             Decimal::try_from(position.average_entry_price).expect("to fit"),
             margin_coordinator,
             margin_trader,
-            leverage_coordinator.to_f32().expect("to fit"),
-            leverage_trader.to_f32().expect("to fit"),
+            leverage_coordinator,
+            leverage_trader,
             position.trader_direction,
             collateral_reserve_coordinator,
             collateral_reserve_trader,
@@ -468,10 +336,10 @@ impl Node {
                     trader_pubkey,
                     margin_coordinator,
                     margin_trader,
-                    leverage_coordinator,
-                    leverage_trader,
-                    liquidation_price_coordinator,
-                    liquidation_price_trader,
+                    leverage_coordinator: decimal_from_f32(leverage_coordinator),
+                    leverage_trader: decimal_from_f32(leverage_trader),
+                    liquidation_price_coordinator: decimal_from_f32(liquidation_price_coordinator),
+                    liquidation_price_trader: decimal_from_f32(liquidation_price_trader),
                     expiry_timestamp: next_expiry,
                 },
                 funding_fee_event_ids,
