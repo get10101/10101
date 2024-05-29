@@ -10,6 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  FLUTTER_VERSION: "3.22.1"
 
 jobs:
   docker:
@@ -62,10 +63,14 @@ jobs:
       - uses: extractions/setup-just@v1
         if: matrix.bin == 'webapp'
 
-      - uses: ./.github/actions/setup-fvm
+      - uses: subosito/flutter-action@v2
+        if: matrix.bin == 'webapp'
         with:
-          fvm_config: ./webapp/frontend/.fvmrc
-          working_dir: ./webapp/frontend
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
 
       - name: build flutter for webapp
         if: matrix.bin == 'webapp'

@@ -63,7 +63,7 @@ class TradeTabs extends StatelessWidget {
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
                       // suppress overlay color (used for e.g. mouse-over) because it looks weird in this tab setup
-                      overlayColor: MaterialStateColor.resolveWith((states) => Colors.transparent),
+                      overlayColor: WidgetStateColor.resolveWith((states) => Colors.transparent),
 
                       // We don't have a bottom indicator; set to 0 to avoid it taking space when being unseleced.
                       indicatorWeight: 0,

@@ -284,19 +284,19 @@ class EmergencyKitButton extends StatelessWidget {
               });
         },
         style: ButtonStyle(
-          fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
-          iconSize: MaterialStateProperty.all<double>(20.0),
-          elevation: MaterialStateProperty.all<double>(0),
-          side: MaterialStateProperty.all(const BorderSide(width: 1.0, color: tenTenOnePurple)),
-          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+          fixedSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
+          iconSize: WidgetStateProperty.all<double>(20.0),
+          elevation: WidgetStateProperty.all<double>(0),
+          side: WidgetStateProperty.all(const BorderSide(width: 1.0, color: tenTenOnePurple)),
+          padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
             const EdgeInsets.fromLTRB(20, 12, 20, 12),
           ),
-          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+          shape: WidgetStateProperty.all<RoundedRectangleBorder>(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
           ),
-          backgroundColor: MaterialStateProperty.all<Color>(Colors.transparent),
+          backgroundColor: WidgetStateProperty.all<Color>(Colors.transparent),
         ),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           icon,

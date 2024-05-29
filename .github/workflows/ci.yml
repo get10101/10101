@@ -7,6 +7,7 @@ on:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_TERM_COLOR: always
+  FLUTTER_VERSION: "3.22.1"
 
 jobs:
   formatting-dprint:
@@ -26,10 +27,13 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
-      - uses: ./.github/actions/setup-fvm
+      - uses: subosito/flutter-action@v2
         with:
-          fvm_config: ./mobile/.fvmrc
-          working_dir: ./mobile
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Install FFI bindings
         run: just deps-gen
       - name: Generate FFI bindings
@@ -90,15 +94,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: extractions/setup-just@v1
-      - uses: ./.github/actions/setup-fvm
+      - uses: subosito/flutter-action@v2
         with:
-          fvm_config: ./mobile/.fvmrc
-          working_dir: ./mobile
-
-      - uses: ./.github/actions/setup-fvm
-        with:
-          fvm_config: ./webapp/frontend/.fvmrc
-          working_dir: ./webapp/frontend
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Download Dart mocks directory
         uses: actions/download-artifact@v2
         with:
@@ -125,10 +127,13 @@ jobs:
       - name: Setup rust toolchain
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
-      - uses: ./.github/actions/setup-fvm
+      - uses: subosito/flutter-action@v2
         with:
-          fvm_config: ./mobile/.fvmrc
-          working_dir: ./mobile
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
       - name: Download Rust generated FFI flutter bindings
         uses: actions/download-artifact@v2
         with:

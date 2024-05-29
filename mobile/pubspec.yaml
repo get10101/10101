@@ -4,6 +4,7 @@ publish_to: none
 version: 2.4.4
 environment:
   sdk: '>=3.1.2 <4.0.0'
+  flutter: '3.22.1'
 dependencies:
   flutter:
     sdk: flutter
@@ -45,7 +46,7 @@ dependencies:
   qr_code_scanner: ^1.0.1
   fl_chart: 0.64.0
   card_swiper: ^3.0.1
-  screenshot: ^2.1.0
+  screenshot: ^3.0.0
   syncfusion_flutter_sliders: ^24.2.9
   syncfusion_flutter_core: ^24.2.9
   html: ^0.15.4

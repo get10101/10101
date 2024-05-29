@@ -1,14 +1,14 @@
-import 'package:get_10101/util/environment.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
+import 'package:get_10101/ffi.dart';
 import 'package:get_10101/logger/logger.dart';
-import 'package:flutter/material.dart';
+import 'package:get_10101/util/environment.dart';
 import 'package:get_10101/util/file.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:go_router/go_router.dart';
-import 'package:get_10101/ffi.dart';
 
 class WelcomeScreen extends StatefulWidget {
   static const route = "/welcome";
@@ -211,17 +211,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                         }
                                       },
                                 style: ButtonStyle(
-                                    padding: MaterialStateProperty.all<EdgeInsets>(
+                                    padding: WidgetStateProperty.all<EdgeInsets>(
                                         const EdgeInsets.all(15)),
-                                    backgroundColor: MaterialStateProperty.resolveWith((states) {
-                                      if (states.contains(MaterialState.disabled)) {
+                                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                      if (states.contains(WidgetState.disabled)) {
                                         return tenTenOnePurple.shade100;
                                       } else {
                                         return tenTenOnePurple;
                                       }
                                     }),
-                                    shape: MaterialStateProperty.resolveWith((states) {
-                                      if (states.contains(MaterialState.disabled)) {
+                                    shape: WidgetStateProperty.resolveWith((states) {
+                                      if (states.contains(WidgetState.disabled)) {
                                         return RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(30.0),
                                           side: BorderSide(color: tenTenOnePurple.shade100),

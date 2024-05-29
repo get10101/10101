@@ -101,10 +101,13 @@ jobs:
       - name: List used Xcode version
         run: /usr/bin/xcodebuild -version
 
-      - uses: ./.github/actions/setup-fvm
+      - uses: subosito/flutter-action@v2
         with:
-          fvm_config: ./mobile/.fvmrc
-          working_dir: ./mobile
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
+          cache: true
+          cache-key: flutter-${{ env.FLUTTER_VERSION }}
+          cache-path: ${{ runner.tool_cache }}/flutter
 
       - name: Check cocoapods version
         run: /usr/local/bin/pod --version

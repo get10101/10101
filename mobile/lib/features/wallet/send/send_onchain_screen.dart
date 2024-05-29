@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
@@ -345,16 +345,16 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                               : null,
                           style: ButtonStyle(
                               padding:
-                                  MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                              backgroundColor: MaterialStateProperty.resolveWith((states) {
-                                if (states.contains(MaterialState.disabled)) {
+                                  WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                              backgroundColor: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
                                   return tenTenOnePurple.shade100;
                                 } else {
                                   return tenTenOnePurple;
                                 }
                               }),
-                              shape: MaterialStateProperty.resolveWith((states) {
-                                if (states.contains(MaterialState.disabled)) {
+                              shape: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.disabled)) {
                                   return RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(30.0),
                                     side: BorderSide(color: tenTenOnePurple.shade100),
