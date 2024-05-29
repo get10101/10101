@@ -13,7 +13,6 @@
 To begin, ensure that you have a working installation of the following items:
 
 - [Docker](https://docs.docker.com/) and docker-compose
-- [Flutter Version Manager (FVM)](https://fvm.app/)
 - [Rust language](https://rustup.rs/)
 - Appropriate [Rust targets](https://rust-lang.github.io/rustup/cross-compilation.html) for cross-compiling to your device
 - For Android targets:
@@ -27,18 +26,6 @@ echo "ANDROID_NDK=.." >> ~/.gradle/gradle.properties
 - For iOS targets:
   - XCode
   - Cocoapods
-
-## FVM (Flutter Version Manager)
-
-We use FVM to be able to easily switch between different Flutter versions.
-Make sure to install it locally.
-Once installed, you can use your favorite flutter commands as before, just add `fvm` before, e.g.
-
-```bash
-fvm flutter run
-```
-
-You can see whether you have all the sufficient dependencies for your platform by running `flutter doctor`.
 
 ## Contributing
 

@@ -54,18 +54,12 @@ deps-ios:
     cargo install cargo-lipo
     rustup target add aarch64-apple-ios x86_64-apple-ios
 
-gen flutter_channel="":
+gen:
     #!/usr/bin/env bash
     set -euxo pipefail
     cd mobile
 
-    if [ -n "{{flutter_channel}}" ]; then
-        echo "Flutter channel is set to: {{flutter_channel}}"
-        fvm spawn {{flutter_channel}} pub get
-    else
-        echo "Flutter channel is default"
-        fvm flutter pub get
-    fi
+    flutter pub get
 
     RUST_LOG={{ rust_log_for_frb }} flutter_rust_bridge_codegen \
         --rust-input native/src/api.rs \
@@ -90,13 +84,13 @@ android-release:
 
 # Build flutter webapp for cargo run --bin webapp
 build-web args="":
-    cd webapp/frontend && fvm flutter build web {{args}}
+    cd webapp/frontend && flutter build web {{args}}
 
 build-web-release:
-    cd webapp/frontend && fvm flutter build web --release
+    cd webapp/frontend && flutter build web --release
 
 run-web:
-    cd webapp/frontend && fvm flutter run -d chrome --web-browser-flag "--disable-web-security"
+    cd webapp/frontend && flutter run -d chrome --web-browser-flag "--disable-web-security"
 
 run-web-backend:
     cargo run --bin web
@@ -115,7 +109,7 @@ ios-release:
 run args="":
     #!/usr/bin/env bash
     cd mobile && \
-      fvm flutter run {{args}} \
+      flutter run {{args}} \
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
       --dart-define="REGTEST_FAUCET=http://localhost:8080" \
@@ -126,7 +120,7 @@ run args="":
 run-regtest args="":
     #!/usr/bin/env bash
     cd mobile && \
-      fvm flutter run {{args}} \
+      flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
         --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
@@ -140,7 +134,7 @@ run-regtest args="":
 run-mainnet args="":
     #!/usr/bin/env bash
     cd mobile && \
-      fvm flutter run {{args}} \
+      flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
         --dart-define="ELECTRS_ENDPOINT=http://api.10101.finance:3000" \
@@ -155,7 +149,7 @@ run-mainnet args="":
 run-regtest-android args="":
     #!/usr/bin/env bash
     cd mobile && \
-      fvm flutter run {{args}} \
+      flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
         --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
@@ -172,7 +166,7 @@ run-local-android args="":
     LOCAL_IP=$({{get_local_ip}})
     echo "Android app will connect to $LOCAL_IP for 10101 services"
     cd mobile && \
-      fvm flutter run {{args}} \
+      flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
         --dart-define="ELECTRS_ENDPOINT=http://${LOCAL_IP}:3000" \
@@ -195,7 +189,7 @@ clean:
     set -euxo pipefail
     cd mobile
     rm -rf mobile/android/app/src/main/jniLibs/*
-    fvm flutter clean
+    flutter clean
     cd native && cargo clean
 
 # Wipes everything
@@ -282,8 +276,8 @@ cargo-clippy:
     cargo clippy --all-targets -- -D warnings
 
 lint-flutter:
-    cd mobile && fvm flutter analyze --fatal-infos .
-    cd webapp/frontend && fvm flutter analyze --fatal-infos .
+    cd mobile && flutter analyze --fatal-infos .
+    cd webapp/frontend && flutter analyze --fatal-infos .
 
 alias flutter-lint := lint-flutter
 
@@ -327,7 +321,8 @@ lnd-mock:
     cargo run --package lnd-bridge --example mock
 
 flutter-test:
-    cd mobile && fvm flutter pub run build_runner build --delete-conflicting-outputs && fvm flutter test
+    cd mobile && flutter pub get
+    cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter test
 
 # Tests for the `native` crate
 native-test:
@@ -520,7 +515,7 @@ build-ipa args="":
       args+=(--flavor test)
     fi
 
-    cd mobile && fvm flutter build ipa "${args[@]}" \
+    cd mobile && flutter build ipa "${args[@]}" \
            --dart-define="ELECTRS_ENDPOINT=${ELECTRS_ENDPOINT}" \
            --dart-define="COORDINATOR_P2P_ENDPOINT=${COORDINATOR_P2P_ENDPOINT}" \
            --dart-define="NETWORK=${NETWORK}" \
@@ -547,7 +542,7 @@ publish-testflight-fastlane:
 release-testflight: gen ios build-ipa publish-testflight
 
 version:
-    cargo --version && rustc --version && fvm flutter --version
+    cargo --version && rustc --version && flutter --version
 
 build-apk-regtest:
     #!/usr/bin/env bash
@@ -555,7 +550,7 @@ build-apk-regtest:
     BUILD_NUMBER=$(git rev-list HEAD --count)
     echo "build name: ${BUILD_NAME}"
     echo "build number: ${BUILD_NUMBER}"
-    cd mobile && fvm flutter build apk  \
+    cd mobile && flutter build apk  \
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \
@@ -577,7 +572,7 @@ build-app-bundle-regtest:
     BUILD_NUMBER=$(git rev-list HEAD --count)
     echo "build name: ${BUILD_NAME}"
     echo "build number: ${BUILD_NUMBER}"
-    cd mobile && fvm flutter build appbundle \
+    cd mobile && flutter build appbundle \
         --build-name=${BUILD_NAME} \
         --build-number=${BUILD_NUMBER} \
         --release \
@@ -610,7 +605,7 @@ build-android-app-bundle:
     os={{os()}}
     echo "building on '$os' for '$NETWORK'"
 
-    cd mobile && fvm flutter build appbundle  \
+    cd mobile && flutter build appbundle  \
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \
@@ -643,7 +638,7 @@ build-android-app-apk args="":
     os={{os()}}
     echo "building on '$os' for '$NETWORK'"
 
-    cd mobile && fvm flutter build apk {{args}} \
+    cd mobile && flutter build apk {{args}} \
       --build-name=${BUILD_NAME} \
       --build-number=${BUILD_NUMBER} \
       --release \
