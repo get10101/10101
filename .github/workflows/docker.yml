@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  FLUTTER_VERSION: "3.22.0"
+  FLUTTER_VERSION: "3.22.1"
 
 jobs:
   docker:
