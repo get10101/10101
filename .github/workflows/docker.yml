@@ -78,7 +78,7 @@ jobs:
 
       - name: Generate FFI bindings
         if: matrix.bin == 'webapp'
-        run: just gen beta
+        run: just gen
 
       - name: Build ${{ matrix.bin }}
         run: cargo build --release --bin ${{ matrix.bin }} --target-dir ./target --target=${{ matrix.target }}
