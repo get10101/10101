@@ -4,10 +4,11 @@ import 'package:bitcoin_icons/bitcoin_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:get_10101/common/custom_app_bar.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/amount_text.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/custom_app_bar.dart';
 import 'package:get_10101/common/custom_qr_code.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -22,7 +23,6 @@ import 'package:get_10101/features/wallet/wallet_screen.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:share_plus/share_plus.dart';
 
 class ReceiveScreen extends StatefulWidget {
@@ -384,12 +384,12 @@ class ReceiveActionButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: onPressed,
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.all<Color>(Colors.grey.shade200),
-        elevation: MaterialStateProperty.all<double>(1), // this reduces the shade
-        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+        backgroundColor: WidgetStateProperty.all<Color>(Colors.grey.shade200),
+        elevation: WidgetStateProperty.all<double>(1), // this reduces the shade
+        padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
           const EdgeInsets.fromLTRB(24, 12, 24, 12),
         ),
-        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
           ),
@@ -479,22 +479,22 @@ class SelectableButton extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: onPressed,
       style: ButtonStyle(
-        iconSize: MaterialStateProperty.all<double>(20.0),
-        elevation: MaterialStateProperty.all<double>(0),
-        side: MaterialStateProperty.all(BorderSide(
+        iconSize: WidgetStateProperty.all<double>(20.0),
+        elevation: WidgetStateProperty.all<double>(0),
+        side: WidgetStateProperty.all(BorderSide(
             width: isSelected ? 1.0 : 0,
             color: isSelected ? selectedColor.withOpacity(1) : Colors.grey.shade300)),
-        padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+        padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
           const EdgeInsets.fromLTRB(20, 12, 20, 12),
         ),
-        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8.0),
           ),
         ),
         backgroundColor: isSelected
-            ? MaterialStateProperty.all<Color>(selectedColor.withOpacity(0.05))
-            : MaterialStateProperty.all<Color>(Colors.grey.shade200),
+            ? WidgetStateProperty.all<Color>(selectedColor.withOpacity(0.05))
+            : WidgetStateProperty.all<Color>(Colors.grey.shade200),
       ),
       icon: Icon(icon, color: isSelected ? selectedColor.withOpacity(1) : Colors.grey),
       label: Text(buttonText,
@@ -621,21 +621,21 @@ class _InvoiceDrawerScreen extends State<InvoiceDrawerScreen> {
                   child: OutlinedButton(
                     onPressed: () => widget.onConfirm(_amount ?? 0, _description),
                     style: ButtonStyle(
-                      fixedSize: MaterialStateProperty.all(const Size(double.infinity, 50)),
-                      iconSize: MaterialStateProperty.all<double>(20.0),
-                      elevation: MaterialStateProperty.all<double>(0),
+                      fixedSize: WidgetStateProperty.all(const Size(double.infinity, 50)),
+                      iconSize: WidgetStateProperty.all<double>(20.0),
+                      elevation: WidgetStateProperty.all<double>(0),
                       // this reduces the shade
-                      side: MaterialStateProperty.all(
+                      side: WidgetStateProperty.all(
                           const BorderSide(width: 1.0, color: tenTenOnePurple)),
-                      padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                      padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
                         const EdgeInsets.fromLTRB(20, 12, 20, 12),
                       ),
-                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                         RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                       ),
-                      backgroundColor: MaterialStateProperty.all<Color>(Colors.transparent),
+                      backgroundColor: WidgetStateProperty.all<Color>(Colors.transparent),
                     ),
                     child: const Text("Continue"),
                   ),

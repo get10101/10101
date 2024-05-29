@@ -147,9 +147,9 @@ class _Onboarding extends State<Onboarding> {
                   child: ElevatedButton(
                       onPressed: () => GoRouter.of(context).go(WelcomeScreen.route),
                       style: ButtonStyle(
-                        padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                        backgroundColor: MaterialStateProperty.all<Color>(tenTenOnePurple),
-                        shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                        padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                        backgroundColor: WidgetStateProperty.all<Color>(tenTenOnePurple),
+                        shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                           RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(40.0),
                             side: const BorderSide(color: tenTenOnePurple),
@@ -171,8 +171,8 @@ class _Onboarding extends State<Onboarding> {
                   child: TextButton(
                     onPressed: () => GoRouter.of(context).go(SeedPhraseImporter.route),
                     style: ButtonStyle(
-                      padding: MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                      backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
+                      padding: WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                      backgroundColor: WidgetStateProperty.all<Color>(Colors.white),
                     ),
                     child: const Wrap(
                       children: <Widget>[

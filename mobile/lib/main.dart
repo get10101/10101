@@ -6,10 +6,10 @@ import 'package:get_10101/common/init_service.dart';
 import 'package:get_10101/common/routes.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/wallet/wallet_theme.dart';
+import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:get_10101/logger/logger.dart';
 
 const Color appBackgroundColor = Color(0xFFFAFAFA);
 
@@ -81,10 +81,10 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ButtonStyle(
             // this is the button background color
-            backgroundColor: MaterialStateProperty.all<Color>(tenTenOnePurple),
+            backgroundColor: WidgetStateProperty.all<Color>(tenTenOnePurple),
             // this is the button text color
-            foregroundColor: MaterialStateProperty.all<Color>(Colors.white),
-            shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+            foregroundColor: WidgetStateProperty.all<Color>(Colors.white),
+            shape: WidgetStateProperty.all<RoundedRectangleBorder>(
               RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(5.0),
               ),
@@ -92,12 +92,12 @@ class _TenTenOneAppState extends State<TenTenOneApp> with WidgetsBindingObserver
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          prefixIconColor: MaterialStateColor.resolveWith(
-            (Set<MaterialState> states) {
-              if (states.contains(MaterialState.focused)) {
+          prefixIconColor: WidgetStateColor.resolveWith(
+            (Set<WidgetState> states) {
+              if (states.contains(WidgetState.focused)) {
                 return tenTenOnePurple;
               }
-              if (states.contains(MaterialState.error)) {
+              if (states.contains(WidgetState.error)) {
                 return Colors.red;
               }
               return Colors.grey;

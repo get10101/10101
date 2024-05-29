@@ -82,8 +82,8 @@ class _PollWidgetState extends State<PollWidget> {
                             },
                             style: ButtonStyle(
                               padding:
-                                  MaterialStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
-                              backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
+                                  WidgetStateProperty.all<EdgeInsets>(const EdgeInsets.all(15)),
+                              backgroundColor: WidgetStateProperty.all<Color>(Colors.white),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.start,

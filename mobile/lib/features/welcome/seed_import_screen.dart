@@ -97,7 +97,7 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                     width: 120,
                     child: ElevatedButton(
                       style: ButtonStyle(
-                        padding: MaterialStateProperty.all<EdgeInsets>(
+                        padding: WidgetStateProperty.all<EdgeInsets>(
                             const EdgeInsets.fromLTRB(20, 10, 20, 10)),
                       ),
                       onPressed: () {
@@ -116,18 +116,18 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                     width: 120,
                     child: ElevatedButton(
                       style: ButtonStyle(
-                        padding: MaterialStateProperty.all<EdgeInsets>(
+                        padding: WidgetStateProperty.all<EdgeInsets>(
                             const EdgeInsets.fromLTRB(20, 10, 20, 10)),
                         backgroundColor:
-                            MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                          if (states.contains(MaterialState.disabled)) {
+                            WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                          if (states.contains(WidgetState.disabled)) {
                             return Colors.grey; // Change to the desired disabled color
                           }
                           return tenTenOnePurple; // Change to the desired enabled color
                         }),
                         foregroundColor:
-                            MaterialStateProperty.resolveWith<Color>((Set<MaterialState> states) {
-                          if (states.contains(MaterialState.disabled)) {
+                            WidgetStateProperty.resolveWith<Color>((Set<WidgetState> states) {
+                          if (states.contains(WidgetState.disabled)) {
                             return Colors.black; // Change to the desired disabled text color
                           }
                           return Colors.white; // Change to the desired enabled text color
