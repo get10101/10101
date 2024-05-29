@@ -72,7 +72,7 @@ impl TradeParams {
 ///
 /// The match defines the execution price and the quantity to be used of the order with the
 /// corresponding order id.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub struct Match {
     /// The id of the match
     pub id: Uuid,

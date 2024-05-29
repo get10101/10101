@@ -431,7 +431,7 @@ pub async fn rollover(
         .propose_rollover(
             &mut connection,
             &dlc_channel_id,
-            &position,
+            position,
             state.node.inner.network,
         )
         .await

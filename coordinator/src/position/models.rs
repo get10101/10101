@@ -1,5 +1,7 @@
 use crate::compute_relative_contracts;
 use crate::decimal_from_f32;
+use crate::f32_from_decimal;
+use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -15,8 +17,11 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use xxi_node::bitmex_client::Quote;
+use xxi_node::cfd::calculate_leverage;
+use xxi_node::cfd::calculate_long_liquidation_price;
 use xxi_node::cfd::calculate_margin;
 use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::calculate_short_liquidation_price;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 use xxi_node::commons::TradeParams;
@@ -40,7 +45,7 @@ pub struct NewPosition {
     pub order_matching_fees: Amount,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PositionState {
     /// The position is in the process of being opened.
     ///
@@ -63,7 +68,7 @@ pub enum PositionState {
 }
 
 /// The trading position for a user identified by `trader`.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Position {
     pub id: i32,
     pub trader: PublicKey,
@@ -196,6 +201,115 @@ impl Position {
             trade_params.direction,
             trade_params.average_execution_price(),
         )
+    }
+
+    pub fn apply_funding_fee_to_position(
+        self,
+        collateral_reserve_coordinator: Amount,
+        collateral_reserve_trader: Amount,
+        funding_fee: FundingFee,
+        maintenance_margin_rate: Decimal,
+    ) -> (Self, Amount, Amount) {
+        let quantity = decimal_from_f32(self.quantity);
+        let average_entry_price = decimal_from_f32(self.average_entry_price);
+
+        match funding_fee {
+            FundingFee::Zero => (
+                self,
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+            ),
+            FundingFee::CoordinatorPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let coordinator_margin = self.coordinator_margin.to_signed().expect("to fit");
+                let new_coordinator_margin = coordinator_margin - funding_fee;
+                let new_coordinator_margin = new_coordinator_margin.to_unsigned().expect("to fit");
+
+                let collateral_reserve_trader =
+                    collateral_reserve_trader.to_signed().expect("to fit");
+                let new_collateral_reserve_trader = collateral_reserve_trader + funding_fee;
+                let new_collateral_reserve_trader =
+                    new_collateral_reserve_trader.to_unsigned().expect("to fit");
+
+                let new_coordinator_leverage =
+                    calculate_leverage(quantity, new_coordinator_margin, average_entry_price)
+                        .expect("valid leverage");
+
+                let new_coordinator_liquidation_price = match self.trader_direction {
+                    Direction::Long => calculate_short_liquidation_price(
+                        new_coordinator_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                    Direction::Short => calculate_long_liquidation_price(
+                        new_coordinator_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                };
+
+                let position = Self {
+                    coordinator_margin: new_coordinator_margin,
+                    coordinator_leverage: f32_from_decimal(new_coordinator_leverage),
+                    coordinator_liquidation_price: f32_from_decimal(
+                        new_coordinator_liquidation_price,
+                    ),
+                    ..self
+                };
+
+                (
+                    position,
+                    collateral_reserve_coordinator,
+                    new_collateral_reserve_trader,
+                )
+            }
+            FundingFee::TraderPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let margin_trader = self.trader_margin.to_signed().expect("to fit");
+                let new_trader_margin = margin_trader - funding_fee;
+                let new_trader_margin = new_trader_margin.to_unsigned().expect("to fit");
+
+                let collateral_reserve_coordinator =
+                    collateral_reserve_coordinator.to_signed().expect("to fit");
+                let new_collateral_reserve_coordinator =
+                    collateral_reserve_coordinator + funding_fee;
+                let new_collateral_reserve_coordinator = new_collateral_reserve_coordinator
+                    .to_unsigned()
+                    .expect("to fit");
+
+                let new_trader_leverage =
+                    calculate_leverage(quantity, new_trader_margin, average_entry_price)
+                        .expect("valid leverage");
+
+                let new_trader_liquidation_price = match self.trader_direction {
+                    Direction::Long => calculate_long_liquidation_price(
+                        new_trader_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                    Direction::Short => calculate_short_liquidation_price(
+                        new_trader_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                };
+
+                let position = Self {
+                    trader_margin: new_trader_margin,
+                    trader_leverage: f32_from_decimal(new_trader_leverage),
+                    trader_liquidation_price: f32_from_decimal(new_trader_liquidation_price),
+                    ..self
+                };
+
+                (
+                    position,
+                    new_collateral_reserve_coordinator,
+                    collateral_reserve_trader,
+                )
+            }
+        }
     }
 }
 

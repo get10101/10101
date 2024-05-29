@@ -36,7 +36,7 @@ pub struct DlcProtocol {
     pub protocol_type: DlcProtocolType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct TradeParams {
     pub protocol_id: ProtocolId,
     pub trader: PublicKey,
@@ -202,15 +202,50 @@ impl DlcProtocolExecutor {
             match protocol_type {
                 DlcProtocolType::OpenChannel { trade_params }
                 | DlcProtocolType::OpenPosition { trade_params }
-                | DlcProtocolType::ResizePosition { trade_params }
-                | DlcProtocolType::Settle { trade_params } => {
+                | DlcProtocolType::ResizePosition { trade_params } => {
                     db::trade_params::insert(conn, &trade_params)?;
                 }
-                DlcProtocolType::Rollover { rollover_params } => {
-                    db::rollover_params::insert(conn, &rollover_params)?;
+                DlcProtocolType::Settle { .. } => {
+                    unimplemented!("Use dedicated start_settle_protocol method")
+                }
+                DlcProtocolType::Rollover { .. } => {
+                    unimplemented!("Use dedicated start_rollover method")
                 }
                 _ => {}
             }
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    pub fn start_settle_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        contract_id: Option<&ContractId>,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                contract_id,
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::Settle,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
 
             diesel::result::QueryResult::Ok(())
         })?;
@@ -300,7 +335,7 @@ impl DlcProtocolExecutor {
                 }
                 DlcProtocolType::Settle { trade_params } => {
                     let settled_contract = dlc_protocol.contract_id;
-                    self.finish_close_trade_dlc_protocol(
+                    self.finish_settle_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
@@ -362,13 +397,17 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the close trade dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
-    /// - Set dlc protocol to success
-    /// - Calculates the pnl and sets the `[PositionState::Closing`] position state to
-    ///   `[PositionState::Closed`]
-    /// - Creates and inserts the new trade
-    fn finish_close_trade_dlc_protocol(
+    /// Complete the settle DLC protocol as successful and update the 10101 metadata accordingly in
+    /// a single database transaction.
+    ///
+    /// - Set settle DLC protocol to success.
+    ///
+    /// - Calculate the PNL and update the `[PositionState::Closing`] to `[PositionState::Closed`].
+    ///
+    /// - Create and insert new trade.
+    ///
+    /// - Mark relevant funding fee events as paid.
+    fn finish_settle_dlc_protocol(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
@@ -456,6 +495,8 @@ impl DlcProtocolExecutor {
         };
 
         db::trades::insert(conn, new_trade)?;
+
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
 
         Ok(())
     }
