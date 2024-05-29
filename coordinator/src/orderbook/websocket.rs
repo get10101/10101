@@ -1,5 +1,6 @@
 use crate::db;
 use crate::db::funding_fee_events;
+use crate::db::funding_rates;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
@@ -272,6 +273,32 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                         %trader_id,
                                         "Failed to load funding fee events \
                                          for active positions: {e}"
+                                    );
+                                }
+                            }
+
+                            match funding_rates::get_next_funding_rate(&mut conn) {
+                                Ok(Some(funding_rate)) => {
+                                    if let Err(e) = local_sender
+                                        .send(Message::NextFundingRate(funding_rate))
+                                        .await
+                                    {
+                                        tracing::error!(
+                                            %trader_id,
+                                            "Failed to send next funding rate: {e}"
+                                        );
+                                    }
+                                }
+                                Ok(None) => {
+                                    tracing::error!(
+                                        %trader_id,
+                                        "No next funding rate found in DB"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        %trader_id,
+                                        "Failed to load next funding rate: {e}"
                                     );
                                 }
                             }

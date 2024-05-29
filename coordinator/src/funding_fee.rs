@@ -1,7 +1,6 @@
 use crate::db;
 use crate::decimal_from_f32;
 use crate::message::OrderbookMessage;
-use crate::to_nearest_hour_in_the_past;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -25,51 +24,6 @@ use xxi_node::commons::Direction;
 use xxi_node::commons::Message;
 
 const RETRY_INTERVAL: Duration = Duration::from_secs(5);
-
-/// The funding rate for any position opened before the `end_date`, which remained open through the
-/// `end_date`.
-#[derive(Clone, Debug)]
-pub struct FundingRate {
-    /// A positive funding rate indicates that longs pay shorts; a negative funding rate indicates
-    /// that shorts pay longs.
-    rate: Decimal,
-    /// The start date for the funding rate period. This value is only used for informational
-    /// purposes.
-    ///
-    /// The `start_date` is always a whole hour.
-    start_date: OffsetDateTime,
-    /// The end date for the funding rate period. When the end date has passed, all active
-    /// positions that were created before the end date should be charged a funding fee based
-    /// on the `rate`.
-    ///
-    /// The `end_date` is always a whole hour.
-    end_date: OffsetDateTime,
-}
-
-impl FundingRate {
-    pub(crate) fn new(rate: Decimal, start_date: OffsetDateTime, end_date: OffsetDateTime) -> Self {
-        let start_date = to_nearest_hour_in_the_past(start_date);
-        let end_date = to_nearest_hour_in_the_past(end_date);
-
-        Self {
-            rate,
-            start_date,
-            end_date,
-        }
-    }
-
-    pub fn rate(&self) -> Decimal {
-        self.rate
-    }
-
-    pub fn start_date(&self) -> OffsetDateTime {
-        self.start_date
-    }
-
-    pub fn end_date(&self) -> OffsetDateTime {
-        self.end_date
-    }
-}
 
 /// A record that a funding fee is owed between the coordinator and a trader.
 #[derive(Clone, Copy, Debug)]
@@ -182,7 +136,7 @@ fn generate_funding_fee_events(
     let index_price = match index_price_source {
         IndexPriceSource::Bitmex => block_in_place(move || {
             let current_index_price =
-                get_bitmex_index_price(&contract_symbol, funding_rate.end_date)?;
+                get_bitmex_index_price(&contract_symbol, funding_rate.end_date())?;
 
             anyhow::Ok(current_index_price)
         })?,
@@ -201,12 +155,12 @@ fn generate_funding_fee_events(
     // We exclude active positions which were open after this funding period ended.
     let positions = db::positions::Position::get_all_active_positions_open_before(
         &mut conn,
-        funding_rate.end_date,
+        funding_rate.end_date(),
     )?;
     for position in positions {
         let amount = calculate_funding_fee(
             position.quantity,
-            funding_rate.rate,
+            funding_rate.rate(),
             index_price,
             position.trader_direction,
         );
@@ -216,9 +170,9 @@ fn generate_funding_fee_events(
             amount,
             position.trader,
             position.id,
-            funding_rate.end_date,
+            funding_rate.end_date(),
             index_price,
-            funding_rate.rate,
+            funding_rate.rate(),
         )
         .context("Failed to insert funding fee event")?
         {

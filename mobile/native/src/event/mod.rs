@@ -11,6 +11,7 @@ use rust_decimal::Decimal;
 use std::fmt;
 use std::hash::Hash;
 use xxi_node::commons::ContractSymbol;
+use xxi_node::commons::FundingRate;
 use xxi_node::commons::TenTenOneConfig;
 
 mod event_hub;
@@ -45,6 +46,7 @@ pub enum EventInternal {
     LnPaymentReceived { r_hash: String },
     NewTrade(Trade),
     FundingFeeEvent(FundingFeeEvent),
+    NextFundingRate(FundingRate),
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +95,7 @@ impl fmt::Display for EventInternal {
             EventInternal::LnPaymentReceived { .. } => "LnPaymentReceived",
             EventInternal::NewTrade(_) => "NewTrade",
             EventInternal::FundingFeeEvent(_) => "FundingFeeEvent",
+            EventInternal::NextFundingRate(_) => "NextFundingRate",
         }
         .fmt(f)
     }
@@ -120,6 +123,7 @@ impl From<EventInternal> for EventType {
             EventInternal::LnPaymentReceived { .. } => EventType::LnPaymentReceived,
             EventInternal::NewTrade(_) => EventType::NewTrade,
             EventInternal::FundingFeeEvent(_) => EventType::NewTrade,
+            EventInternal::NextFundingRate(_) => EventType::NextFundingRate,
         }
     }
 }
@@ -145,4 +149,5 @@ pub enum EventType {
     BidPriceUpdateNotification,
     FundingChannelNotification,
     NewTrade,
+    NextFundingRate,
 }

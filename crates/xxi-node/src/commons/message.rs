@@ -1,5 +1,6 @@
 use crate::commons::order::Order;
 use crate::commons::signature::Signature;
+use crate::commons::FundingRate;
 use crate::commons::LiquidityOption;
 use crate::commons::NewLimitOrder;
 use crate::commons::ReferralStatus;
@@ -52,6 +53,7 @@ pub enum Message {
     },
     FundingFeeEvent(FundingFeeEvent),
     AllFundingFeeEvents(Vec<FundingFeeEvent>),
+    NextFundingRate(FundingRate),
 }
 
 #[derive(Serialize, Deserialize, Clone, Error, Debug, PartialEq)]
@@ -116,6 +118,7 @@ impl Display for Message {
             Message::LnPaymentReceived { .. } => "LnPaymentReceived",
             Message::FundingFeeEvent(_) => "FundingFeeEvent",
             Message::AllFundingFeeEvents(_) => "FundingFeeEvent",
+            Message::NextFundingRate(_) => "NextFundingRate",
         };
 
         f.write_str(s)

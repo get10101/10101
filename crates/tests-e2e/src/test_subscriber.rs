@@ -203,6 +203,9 @@ impl Senders {
             native::event::EventInternal::FundingFeeEvent(_) => {
                 // ignored
             }
+            native::event::EventInternal::NextFundingRate(_) => {
+                // ignored
+            }
         }
         Ok(())
     }

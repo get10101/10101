@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
+import 'package:get_10101/features/trade/funding_rate_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_change_notifier.dart';
@@ -58,6 +59,7 @@ Future<void> runBackend(BuildContext context) async {
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
   final tradeChangeNotifier = context.read<TradeChangeNotifier>();
+  final fundingRateChangeNotifier = context.read<FundingRateChangeNotifier>();
   final dlcChannelChangeNotifier = context.read<DlcChannelChangeNotifier>();
 
   final seedDir = (await getApplicationSupportDirectory()).path;
@@ -78,6 +80,7 @@ Future<void> runBackend(BuildContext context) async {
   await positionChangeNotifier.initialize();
   await tradeChangeNotifier.initialize();
   await dlcChannelChangeNotifier.initialize();
+  await fundingRateChangeNotifier.initialize();
 }
 
 void _setupRustLogging() {

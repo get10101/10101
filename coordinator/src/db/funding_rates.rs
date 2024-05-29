@@ -1,13 +1,12 @@
-use crate::funding_fee;
 use crate::schema::funding_rates;
-use crate::to_nearest_hour_in_the_past;
-use anyhow::Context;
+use anyhow::bail;
 use anyhow::Result;
 use diesel::prelude::*;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
+use xxi_node::commons::to_nearest_hour_in_the_past;
 
 #[derive(Insertable, Debug)]
 #[diesel(table_name = funding_rates)]
@@ -30,7 +29,7 @@ struct FundingRate {
 
 pub(crate) fn insert(
     conn: &mut PgConnection,
-    funding_rates: &[funding_fee::FundingRate],
+    funding_rates: &[xxi_node::commons::FundingRate],
 ) -> Result<()> {
     let funding_rates = funding_rates
         .iter()
@@ -38,11 +37,6 @@ pub(crate) fn insert(
         .map(NewFundingRate::from)
         .collect::<Vec<_>>();
 
-        Ok(())
-    })
-}
-
-fn insert_one(conn: &mut PgConnection, params: &funding_fee::FundingRate) -> QueryResult<()> {
     let affected_rows = diesel::insert_into(funding_rates::table)
         .values(funding_rates)
         .execute(conn)?;
@@ -54,10 +48,23 @@ fn insert_one(conn: &mut PgConnection, params: &funding_fee::FundingRate) -> Que
     Ok(())
 }
 
+pub(crate) fn get_next_funding_rate(
+    conn: &mut PgConnection,
+) -> QueryResult<Option<xxi_node::commons::FundingRate>> {
+    let funding_rate: Option<FundingRate> = funding_rates::table
+        .order(funding_rates::end_date.desc())
+        .first::<FundingRate>(conn)
+        .optional()?;
+
+    let funding_rate = funding_rate.map(xxi_node::commons::FundingRate::from);
+
+    Ok(funding_rate)
+}
+
 /// Get the funding rate with an end date that is equal to the current date to the nearest hour.
 pub(crate) fn get_funding_rate_charged_in_the_last_hour(
     conn: &mut PgConnection,
-) -> QueryResult<Option<funding_fee::FundingRate>> {
+) -> QueryResult<Option<xxi_node::commons::FundingRate>> {
     let now = OffsetDateTime::now_utc();
     let now = to_nearest_hour_in_the_past(now);
 
@@ -66,10 +73,10 @@ pub(crate) fn get_funding_rate_charged_in_the_last_hour(
         .first::<FundingRate>(conn)
         .optional()?;
 
-    Ok(funding_rate.map(funding_fee::FundingRate::from))
+    Ok(funding_rate.map(xxi_node::commons::FundingRate::from))
 }
 
-impl From<FundingRate> for funding_fee::FundingRate {
+impl From<FundingRate> for xxi_node::commons::FundingRate {
     fn from(value: FundingRate) -> Self {
         Self::new(
             Decimal::from_f32(value.rate).expect("to fit"),
