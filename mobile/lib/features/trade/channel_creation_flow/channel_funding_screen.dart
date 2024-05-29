@@ -340,7 +340,7 @@ class _ChannelFunding extends State<ChannelFunding> {
         switch (value) {
           case null:
           case FundingChannelTaskStatus.pending:
-            loadingWidget = const RotatingIcon(icon: Icons.sync);
+            loadingWidget = const RotatingIcon(icon: Icons.sync, reverse: true);
             break;
           case FundingChannelTaskStatus.funded:
             transactionStatusText = "Address funded";
@@ -367,7 +367,7 @@ class _ChannelFunding extends State<ChannelFunding> {
         switch (value) {
           case null:
           case FundingChannelTaskStatus.pending:
-            loadingWidget = const RotatingIcon(icon: Icons.sync);
+            loadingWidget = const RotatingIcon(icon: Icons.sync, reverse: true);
             break;
           case FundingChannelTaskStatus.funded:
             transactionStatusText = "Lightning payment received";
@@ -470,8 +470,9 @@ class ClickableBox extends StatelessWidget {
 
 class RotatingIcon extends StatefulWidget {
   final IconData icon;
+  final bool reverse;
 
-  const RotatingIcon({super.key, required this.icon});
+  const RotatingIcon({super.key, required this.icon, this.reverse = false});
 
   @override
   State<StatefulWidget> createState() => _RotatingIconState();
@@ -479,6 +480,7 @@ class RotatingIcon extends StatefulWidget {
 
 class _RotatingIconState extends State<RotatingIcon> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
+  late Animation<double> _animation;
 
   @override
   void initState() {
@@ -487,6 +489,9 @@ class _RotatingIconState extends State<RotatingIcon> with SingleTickerProviderSt
       duration: const Duration(seconds: 2),
       vsync: this,
     )..repeat(); // Repeats the animation indefinitely
+
+    _animation = Tween<double>(begin: widget.reverse ? 1.0 : 0.0, end: widget.reverse ? 0.0 : 1.0)
+        .animate(_controller);
   }
 
   @override
@@ -498,7 +503,7 @@ class _RotatingIconState extends State<RotatingIcon> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return RotationTransition(
-      turns: _controller,
+      turns: _animation,
       child: Icon(
         widget.icon,
         size: 20.0,
