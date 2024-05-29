@@ -101,6 +101,8 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
   /// funded positions.
   final minTraderReserveSats = 15000;
 
+  bool externalFundingChannelButtonPressed = false;
+
   @override
   void initState() {
     super.initState();
@@ -426,52 +428,67 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
                       child: Visibility(
                         visible: useInnerWallet,
                         replacement: Padding(
-                          padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
-                          child: ElevatedButton(
-                            key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
-                            onPressed: _formKey.currentState != null &&
-                                    _formKey.currentState!.validate()
-                                ? () async {
-                                    logger.d(
-                                        "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
+                            padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
+                            child: ElevatedButton.icon(
+                                key: tradeScreenBottomSheetChannelConfigurationConfirmButton,
+                                onPressed: _formKey.currentState != null &&
+                                        _formKey.currentState!.validate() &&
+                                        !externalFundingChannelButtonPressed
+                                    ? () async {
+                                        logger.d(
+                                            "Submitting an order with ownTotalCollateral: $ownTotalCollateral orderMatchingFee: $orderMatchingFee, fundingTxFee: $fundingTxFee, channelFeeReserve: $channelFeeReserve, counterpartyCollateral: $counterpartyCollateral, ownMargin: ${widget.tradeValues.margin}");
 
-                                    // TODO(holzeis): The coordinator leverage should not be hard coded here.
-                                    final coordinatorCollateral =
-                                        widget.tradeValues.calculateMargin(Leverage(2.0));
+                                        setState(() => externalFundingChannelButtonPressed = true);
 
-                                    final coordinatorReserve = max(
-                                        0, counterpartyCollateral.sub(coordinatorCollateral).sats);
-                                    final traderReserve = max(minTraderReserveSats,
-                                        ownTotalCollateral.sub(widget.tradeValues.margin!).sats);
+                                        // TODO(holzeis): The coordinator leverage should not be hard coded here.
+                                        final coordinatorCollateral =
+                                            widget.tradeValues.calculateMargin(Leverage(2.0));
 
-                                    await submitOrderChangeNotifier
-                                        .submitUnfundedOrder(
-                                            widget.tradeValues,
-                                            ChannelOpeningParams(
-                                                coordinatorReserve: Amount(coordinatorReserve),
-                                                traderReserve: Amount(traderReserve)))
-                                        .then((ExternalFunding funding) {
-                                      GoRouter.of(context).push(ChannelFundingScreen.route, extra: {
-                                        "funding": funding,
-                                        "amount": totalAmountToBeFunded
-                                      });
-                                    }).onError((error, stackTrace) {
-                                      logger.e("Failed at submitting unfunded order $error");
-                                      final messenger = ScaffoldMessenger.of(context);
-                                      showSnackBar(
-                                          messenger, "Failed creating order ${error.toString()}");
-                                    });
-                                  }
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                backgroundColor: tenTenOnePurple),
-                            child: const Text(
-                              "Next",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
+                                        final coordinatorReserve = max(0,
+                                            counterpartyCollateral.sub(coordinatorCollateral).sats);
+                                        final traderReserve = max(
+                                            minTraderReserveSats,
+                                            ownTotalCollateral
+                                                .sub(widget.tradeValues.margin!)
+                                                .sats);
+
+                                        await submitOrderChangeNotifier
+                                            .submitUnfundedOrder(
+                                                widget.tradeValues,
+                                                ChannelOpeningParams(
+                                                    coordinatorReserve: Amount(coordinatorReserve),
+                                                    traderReserve: Amount(traderReserve)))
+                                            .then((ExternalFunding funding) {
+                                          externalFundingChannelButtonPressed = false;
+                                          GoRouter.of(context).push(ChannelFundingScreen.route,
+                                              extra: {
+                                                "funding": funding,
+                                                "amount": totalAmountToBeFunded
+                                              });
+                                        }).onError((error, stackTrace) {
+                                          setState(
+                                              () => externalFundingChannelButtonPressed = false);
+                                          logger.e("Failed at submitting unfunded order $error");
+                                          final messenger = ScaffoldMessenger.of(context);
+                                          showSnackBar(messenger,
+                                              "Failed creating order ${error.toString()}");
+                                        });
+                                      }
+                                    : null,
+                                icon: externalFundingChannelButtonPressed
+                                    ? const SizedBox(
+                                        width: 15,
+                                        height: 15,
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white, strokeWidth: 2))
+                                    : Container(),
+                                label: const Text(
+                                  "Next",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size.fromHeight(50),
+                                    disabledBackgroundColor: tenTenOnePurple.shade200))),
                         child: Padding(
                           padding: const EdgeInsets.only(top: 1, left: 8, right: 8, bottom: 8),
                           child: ConfirmationSlider(
