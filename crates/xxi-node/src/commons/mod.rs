@@ -5,6 +5,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
 use std::str::FromStr;
+use time::OffsetDateTime;
+use time::Time;
 
 mod backup;
 mod collab_revert;
@@ -24,7 +26,7 @@ mod trade;
 pub use crate::commons::trade::*;
 pub use backup::*;
 pub use collab_revert::*;
-pub use funding_fee_event::FundingFeeEvent;
+pub use funding_fee_event::*;
 pub use liquidity_option::*;
 pub use message::*;
 pub use order::*;
@@ -201,10 +203,17 @@ impl fmt::Display for ContractSymbol {
     }
 }
 
+/// Remove minutes, seconds and nano seconds from a given [`OffsetDateTime`].
+pub fn to_nearest_hour_in_the_past(start_date: OffsetDateTime) -> OffsetDateTime {
+    OffsetDateTime::new_utc(
+        start_date.date(),
+        Time::from_hms_nano(start_date.time().hour(), 0, 0, 0).expect("to be valid time"),
+    )
+}
+
 #[cfg(test)]
 pub mod tests {
-    use crate::commons::referral_from_pubkey;
-    use crate::commons::ContractSymbol;
+    use super::*;
     use secp256k1::PublicKey;
     use std::str::FromStr;
 
@@ -234,5 +243,18 @@ pub mod tests {
 
         let referral = referral_from_pubkey(pk);
         assert_eq!(referral, "DDD166".to_string());
+    }
+
+    #[test]
+    fn test_remove_small_units() {
+        let start_date = OffsetDateTime::now_utc();
+
+        // Act
+        let result = to_nearest_hour_in_the_past(start_date);
+
+        // Assert
+        assert_eq!(result.hour(), start_date.time().hour());
+        assert_eq!(result.minute(), 0);
+        assert_eq!(result.second(), 0);
     }
 }

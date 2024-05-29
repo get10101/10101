@@ -251,6 +251,10 @@ async fn handle_orderbook_message(
             position::handler::handle_funding_fee_events(&new_funding_fee_events)
                 .context("Failed to apply all funding fee events from coordinator")?;
         }
+        Message::NextFundingRate(funding_rate) => {
+            tracing::info!(?funding_rate, "Got next funding rate");
+            event::publish(&EventInternal::NextFundingRate(funding_rate));
+        }
         Message::FundingFeeEvent(funding_fee_event) => {
             let new_funding_fee_events =
                 funding_fee_event::handler::handle_unpaid_funding_fee_events(&[

@@ -34,6 +34,7 @@ pub enum Event {
     FundingChannelNotification(FundingChannelTask),
     LnPaymentReceived { r_hash: String },
     NewTrade(Trade),
+    NextFundingRate(f32),
 }
 
 #[frb]
@@ -97,6 +98,9 @@ impl From<EventInternal> for Event {
             }
             EventInternal::LnPaymentReceived { r_hash } => Event::LnPaymentReceived { r_hash },
             EventInternal::NewTrade(trade) => Event::NewTrade(trade.into()),
+            EventInternal::NextFundingRate(funding_rate) => {
+                Event::NextFundingRate(funding_rate.rate().to_f32().expect("to fit"))
+            }
             EventInternal::FundingFeeEvent(event) => Event::NewTrade(event.into()),
         }
     }
@@ -139,6 +143,7 @@ impl Subscriber for FlutterSubscriber {
             EventType::Authenticated,
             EventType::DlcChannelEvent,
             EventType::NewTrade,
+            EventType::NextFundingRate,
         ]
     }
 }

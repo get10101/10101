@@ -68,12 +68,14 @@ const tabTrade = Key(_tabs + _trade);
 
 const _ask = "ask";
 const _bid = "bid";
+const _fundingRate = "fundingRate";
 const _marketPrice = "marketPrice";
 const _quantityInput = "quantityInput";
 const _marginField = "marginField";
 
 const tradeScreenAskPrice = Key(_trade + _tabs + _ask);
 const tradeScreenBidPrice = Key(_trade + _tabs + _bid);
+const tradeScreenFundingRate = Key(_trade + _tabs + _fundingRate);
 
 const tradeButtonSheetMarketPrice = Key(_trade + _tabs + _bottomSheet + _marketPrice);
 const tradeButtonSheetQuantityInput = Key(_trade + _tabs + _bottomSheet + _quantityInput);

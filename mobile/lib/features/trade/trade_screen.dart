@@ -1,8 +1,11 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/order.dart';
 import 'package:get_10101/features/trade/domain/position.dart';
+import 'package:get_10101/features/trade/funding_rate_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/order_list_item.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
@@ -65,16 +68,22 @@ class TradeScreen extends StatelessWidget {
                   }, builder: (context, price, child) {
                     return LatestPriceWidget(
                       innerKey: tradeScreenAskPrice,
-                      label: "Latest Ask: ",
+                      label: "Ask: ",
                       price: Usd.fromDouble(price ?? 0.0),
                     );
+                  }),
+                  Selector<FundingRateChangeNotifier, double?>(selector: (_, provider) {
+                    return provider.nextRate;
+                  }, builder: (context, rate, child) {
+                    return FundingRateWidget(
+                        rate: rate, label: "Funding Rate: ", innerKey: tradeScreenFundingRate);
                   }),
                   Selector<TradeValuesChangeNotifier, double?>(selector: (_, provider) {
                     return provider.getBidPrice();
                   }, builder: (context, price, child) {
                     return LatestPriceWidget(
                       innerKey: tradeScreenBidPrice,
-                      label: "Latest Bid: ",
+                      label: "Bid: ",
                       price: Usd.fromDouble(price ?? 0.0),
                     );
                   }),
@@ -313,6 +322,32 @@ class LatestPriceWidget extends StatelessWidget {
         children: [
           TextSpan(
             text: "$price",
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FundingRateWidget extends StatelessWidget {
+  final double? rate;
+  final String label;
+  final Key innerKey;
+
+  const FundingRateWidget(
+      {super.key, required this.rate, required this.label, required this.innerKey});
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      key: innerKey,
+      text: TextSpan(
+        text: label,
+        style: DefaultTextStyle.of(context).style,
+        children: [
+          TextSpan(
+            text: rate != null ? "${(rate! * 100).toStringAsFixed(2)}%" : "n/a",
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],

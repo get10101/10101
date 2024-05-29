@@ -1,6 +1,5 @@
 use crate::collaborative_revert;
 use crate::db;
-use crate::funding_fee;
 use crate::parse_dlc_channel_id;
 use crate::position::models::Position;
 use crate::referrals;
@@ -678,12 +677,15 @@ pub async fn post_funding_rates(
             AppError::InternalServerError(format!("Could not get connection: {e:#}"))
         })?;
 
-    let funding_rates = funding_rates
-        .0
-        .iter()
-        .copied()
-        .map(funding_fee::FundingRate::from)
-        .collect::<Vec<_>>();
+        let funding_rates = funding_rates
+            .0
+            .iter()
+            .copied()
+            .map(xxi_node::commons::FundingRate::from)
+            .collect::<Vec<_>>();
+
+        db::funding_rates::insert(&mut conn, &funding_rates)
+            .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
         Ok(())
     })
@@ -705,9 +707,9 @@ pub struct FundingRate {
     end_date: OffsetDateTime,
 }
 
-impl From<FundingRate> for funding_fee::FundingRate {
+impl From<FundingRate> for xxi_node::commons::FundingRate {
     fn from(value: FundingRate) -> Self {
-        funding_fee::FundingRate::new(value.rate, value.start_date, value.end_date)
+        xxi_node::commons::FundingRate::new(value.rate, value.start_date, value.end_date)
     }
 }
 

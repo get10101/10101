@@ -16,8 +16,6 @@ use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use serde_json::json;
-use time::OffsetDateTime;
-use time::Time;
 use xxi_node::commons;
 
 mod collaborative_revert;
@@ -123,30 +121,4 @@ pub enum FundingFee {
     Zero,
     CoordinatorPays(Amount),
     TraderPays(Amount),
-}
-
-/// Remove minutes, seconds and nano seconds from a given [`OffsetDateTime`].
-pub fn to_nearest_hour_in_the_past(start_date: OffsetDateTime) -> OffsetDateTime {
-    OffsetDateTime::new_utc(
-        start_date.date(),
-        Time::from_hms_nano(start_date.time().hour(), 0, 0, 0).expect("to be valid time"),
-    )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_remove_small_units() {
-        let start_date = OffsetDateTime::now_utc();
-
-        // Act
-        let result = to_nearest_hour_in_the_past(start_date);
-
-        // Assert
-        assert_eq!(result.hour(), start_date.time().hour());
-        assert_eq!(result.minute(), 0);
-        assert_eq!(result.second(), 0);
-    }
 }
