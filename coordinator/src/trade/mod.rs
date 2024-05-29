@@ -819,6 +819,42 @@ impl TradeExecutor {
                 .expect("to fit")
         };
 
+        // Update position based on the outstanding funding fee events _before_ applying resize.
+        let funding_fee_events =
+            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+
+        let funding_fee_amount = funding_fee_events
+            .iter()
+            .fold(SignedAmount::ZERO, |acc, e| acc + e.amount);
+
+        let funding_fee_event_ids = funding_fee_events
+            .iter()
+            .map(|event| event.id)
+            .collect::<Vec<_>>();
+
+        let funding_fee = match funding_fee_amount.to_sat() {
+            0 => FundingFee::Zero,
+            n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
+            n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
+        };
+
+        let collateral_reserve_coordinator = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance(&dlc_channel_id)?;
+        let collateral_reserve_trader = self
+            .node
+            .inner
+            .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
+
+        let (position, original_collateral_reserve_coordinator, original_collateral_reserve_trader) =
+            position.apply_funding_fee_to_position(
+                collateral_reserve_coordinator,
+                collateral_reserve_trader,
+                funding_fee,
+                maintenance_margin_rate,
+            );
+
         tracing::info!(
             %peer_id,
             order_id = %trade_params.filled_with.order_id,
@@ -826,27 +862,28 @@ impl TradeExecutor {
             ?resize_action,
             ?position,
             ?trade_params,
+            ?collateral_reserve_coordinator,
+            ?collateral_reserve_trader,
             "Resizing position"
         );
+
+        if !funding_fee_events.is_empty() {
+            tracing::debug!(
+                ?funding_fee,
+                ?funding_fee_events,
+                "Resolving funding fee events when resizing position"
+            );
+        }
 
         let order_matching_fee = trade_params.order_matching_fee();
 
         // The leverage does not change when we resize a position.
 
-        let original_coordinator_collateral_reserve = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance(&dlc_channel_id)?;
-        let original_trader_collateral_reserve = self
-            .node
-            .inner
-            .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
-
         let resized_position = apply_resize_to_position(
             resize_action,
-            position,
-            original_coordinator_collateral_reserve,
-            original_trader_collateral_reserve,
+            &position,
+            collateral_reserve_coordinator,
+            collateral_reserve_trader,
             order_matching_fee,
             maintenance_margin_rate,
         )?;
@@ -952,12 +989,14 @@ impl TradeExecutor {
             .context("Could not propose resize DLC channel update")?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
-        protocol_executor.start_dlc_protocol(
+        protocol_executor.start_resize_protocol(
             protocol_id,
             previous_id,
             Some(&temporary_contract_id),
             &channel.get_id(),
-            DlcProtocolType::resize_position(trade_params, protocol_id, realized_pnl),
+            trade_params,
+            realized_pnl,
+            funding_fee_event_ids,
         )?;
 
         db::positions::Position::set_position_to_resizing(

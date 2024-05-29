@@ -220,6 +220,44 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_resize_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        contract_id: Option<&ContractId>,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+        realized_pnl: Option<SignedAmount>,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                contract_id,
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::ResizePosition,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::trade_params::insert(
+                conn,
+                &TradeParams::new(trade_params, protocol_id, realized_pnl),
+            )?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
     pub fn start_settle_protocol(
         &self,
         protocol_id: ProtocolId,
@@ -595,6 +633,8 @@ impl DlcProtocolExecutor {
         };
 
         db::trades::insert(conn, new_trade)?;
+
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
 
         Ok(())
     }

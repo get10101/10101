@@ -114,7 +114,6 @@ pub(crate) fn get_for_active_trader_positions(
 /// TODO: Use outstanding fees when:
 ///
 /// - Deciding if positions need to be liquidated.
-/// - Resizing a position.
 pub(crate) fn get_outstanding_fees(
     conn: &mut PgConnection,
     trader_pubkey: PublicKey,
