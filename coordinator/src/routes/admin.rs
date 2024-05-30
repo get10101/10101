@@ -296,11 +296,11 @@ pub async fn close_channel(
 
     tracing::info!(channel_id = %channel_id_string, "Attempting to close channel");
 
-    state
-        .node
-        .close_dlc_channel(channel_id, params.force.unwrap_or_default())
-        .await
-        .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
+    match params.force.unwrap_or_default() {
+        true => state.node.force_close_dlc_channel(channel_id).await,
+        false => state.node.close_dlc_channel(channel_id).await,
+    }
+    .map_err(|e| AppError::InternalServerError(format!("{e:#}")))?;
 
     Ok(())
 }
