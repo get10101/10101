@@ -565,6 +565,16 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         Ok(dlc_channels)
     }
 
+    pub fn get_dlc_channel(
+        &self,
+        matcher: impl FnMut(&&Channel) -> bool,
+    ) -> Result<Option<Channel>> {
+        let dlc_channels = self.list_dlc_channels()?;
+        let dlc_channel = dlc_channels.iter().find(matcher);
+
+        Ok(dlc_channel.cloned())
+    }
+
     pub fn list_dlc_channels(&self) -> Result<Vec<Channel>> {
         let dlc_channels = self.dlc_manager.get_store().get_channels()?;
 

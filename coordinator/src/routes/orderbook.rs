@@ -77,7 +77,7 @@ pub async fn post_order(
         .map_err(|_| AppError::Unauthorized)?;
 
     let new_order = new_order_request.value;
-    let trader_pubkey_string = new_order.trader_id().to_string();
+    let order_id = new_order.id();
 
     // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
     if let NewOrder::Market(new_order) = &new_order {
@@ -114,13 +114,13 @@ pub async fn post_order(
         .clone()
         .and_then(|c| c.pre_image)
     {
-        Some(pre_image) => {
-            let pre_image = commons::PreImage::from_url_safe_encoded_pre_image(pre_image.as_str())
-                .map_err(|_| AppError::BadRequest("Invalid pre_image provided".to_string()))?;
-            let inner_pre_image = pre_image.get_pre_image_as_string();
+        Some(pre_image_str) => {
+            let pre_image =
+                commons::PreImage::from_url_safe_encoded_pre_image(pre_image_str.as_str())
+                    .map_err(|_| AppError::BadRequest("Invalid pre_image provided".to_string()))?;
 
             tracing::debug!(
-                pre_image = inner_pre_image,
+                pre_image_str,
                 hash = pre_image.hash,
                 "Received pre-image, updating records"
             );
@@ -129,29 +129,19 @@ pub async fn post_order(
             let funding_amount = spawn_blocking(move || {
                 let mut conn = pool.get()?;
 
-                let amount = db::hodl_invoice::update_hodl_invoice_pre_image(
+                let amount = db::hodl_invoice::update_hodl_invoice_to_accepted(
                     &mut conn,
                     inner_hash.as_str(),
-                    inner_pre_image.as_str(),
+                    pre_image_str.as_str(),
+                    order_id,
                 )?;
 
                 anyhow::Ok(amount)
             })
             .await
             .expect("task to complete")
-            .map_err(|e| AppError::BadRequest(format!("Invalid preimage provided: {e:#}")))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid pre_image provided: {e:#}")))?;
 
-            state
-                .lnd_bridge
-                .settle_invoice(pre_image.get_base64_encoded_pre_image())
-                .await
-                .map_err(|err| AppError::BadRequest(format!("Could not settle invoice {err:#}")))?;
-
-            tracing::info!(
-                hash = pre_image.hash,
-                trader_pubkey = trader_pubkey_string,
-                "Settled invoice"
-            );
             // we have received funding via lightning and can now open the channel with funding
             // only from the coordinator
             Some(funding_amount)

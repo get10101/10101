@@ -3,6 +3,7 @@ use crate::db::dlc_channels::DlcChannelState;
 use crate::db::dlc_messages::MessageType;
 use crate::db::dlc_protocols::DlcProtocolState;
 use crate::db::dlc_protocols::DlcProtocolType;
+use crate::db::hodl_invoice::InvoiceState;
 use crate::db::polls::PollType;
 use crate::db::positions::ContractSymbol;
 use crate::db::positions::PositionState;
@@ -10,6 +11,7 @@ use crate::schema::sql_types::BonusStatusType;
 use crate::schema::sql_types::ContractSymbolType;
 use crate::schema::sql_types::DirectionType;
 use crate::schema::sql_types::DlcChannelStateType;
+use crate::schema::sql_types::InvoiceStateType;
 use crate::schema::sql_types::MessageTypeType;
 use crate::schema::sql_types::PollTypeType;
 use crate::schema::sql_types::PositionStateType;
@@ -261,6 +263,30 @@ impl FromSql<BonusStatusType, Pg> for BonusType {
         match bytes.as_bytes() {
             b"Referral" => Ok(BonusType::Referral),
             b"Referent" => Ok(BonusType::Referent),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
+}
+
+impl ToSql<InvoiceStateType, Pg> for InvoiceState {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Pg>) -> serialize::Result {
+        match *self {
+            InvoiceState::Open => out.write_all(b"Open")?,
+            InvoiceState::Accepted => out.write_all(b"Accepted")?,
+            InvoiceState::Settled => out.write_all(b"Settled")?,
+            InvoiceState::Failed => out.write_all(b"Failed")?,
+        }
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<InvoiceStateType, Pg> for InvoiceState {
+    fn from_sql(bytes: PgValue<'_>) -> deserialize::Result<Self> {
+        match bytes.as_bytes() {
+            b"Open" => Ok(InvoiceState::Open),
+            b"Accepted" => Ok(InvoiceState::Accepted),
+            b"Settled" => Ok(InvoiceState::Settled),
+            b"Failed" => Ok(InvoiceState::Failed),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

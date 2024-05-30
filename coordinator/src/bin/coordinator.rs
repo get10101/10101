@@ -177,6 +177,7 @@ async fn main() -> Result<()> {
         settings.to_node_settings(),
         tx_position_feed.clone(),
         auth_users_notifier.clone(),
+        lnd_bridge.clone(),
     );
 
     // TODO: Pass the tokio metrics into Prometheus

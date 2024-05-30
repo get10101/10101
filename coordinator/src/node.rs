@@ -21,6 +21,7 @@ use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewFinalize;
 use dlc_messages::channel::SettleFinalize;
 use dlc_messages::channel::SignChannel;
+use lnd_bridge::LndBridge;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc;
@@ -78,6 +79,7 @@ pub struct Node {
     pub settings: Arc<RwLock<NodeSettings>>,
     pub tx_position_feed: Sender<InternalPositionUpdateMessage>,
     trade_notifier: mpsc::Sender<OrderbookMessage>,
+    pub lnd_bridge: LndBridge,
 }
 
 impl Node {
@@ -94,6 +96,7 @@ impl Node {
         settings: NodeSettings,
         tx_position_feed: Sender<InternalPositionUpdateMessage>,
         trade_notifier: mpsc::Sender<OrderbookMessage>,
+        lnd_bridge: LndBridge,
     ) -> Self {
         Self {
             inner,
@@ -102,6 +105,7 @@ impl Node {
             _running: Arc::new(running),
             tx_position_feed,
             trade_notifier,
+            lnd_bridge,
         }
     }
 
@@ -208,7 +212,7 @@ impl Node {
     /// inconsistent state. One way of fixing that could be to: (1) use a single data source for the
     /// 10101 data and the `rust-dlc` data; (2) wrap the function into a DB transaction which can be
     /// atomically rolled back on error or committed on success.
-    fn process_dlc_message(&self, node_id: PublicKey, msg: &TenTenOneMessage) -> Result<()> {
+    pub fn process_dlc_message(&self, node_id: PublicKey, msg: &TenTenOneMessage) -> Result<()> {
         tracing::info!(
             from = %node_id,
             kind = %tentenone_message_name(msg),

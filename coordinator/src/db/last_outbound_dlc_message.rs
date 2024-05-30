@@ -28,6 +28,12 @@ pub(crate) struct LastOutboundDlcMessage {
     pub timestamp: OffsetDateTime,
 }
 
+pub(crate) fn delete(conn: &mut PgConnection, peer_id: &PublicKey) -> QueryResult<usize> {
+    diesel::delete(last_outbound_dlc_messages::table)
+        .filter(last_outbound_dlc_messages::peer_id.eq(peer_id.to_string()))
+        .execute(conn)
+}
+
 pub(crate) fn get(
     conn: &mut PgConnection,
     peer_id: &PublicKey,
