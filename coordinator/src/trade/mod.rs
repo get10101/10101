@@ -29,12 +29,14 @@ use dlc_manager::contract::contract_input::ContractInputInfo;
 use dlc_manager::contract::contract_input::OracleInput;
 use dlc_manager::ContractId;
 use dlc_manager::DlcChannelId;
+use dlc_messages::channel::Reject;
 use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::mpsc;
+use tokio::task::spawn_blocking;
 use uuid::Uuid;
 use xxi_node::bitcoin_conversion::to_secp_pk_29;
 use xxi_node::bitcoin_conversion::to_xonly_pk_29;
@@ -49,6 +51,8 @@ use xxi_node::commons::Message;
 use xxi_node::commons::OrderState;
 use xxi_node::commons::TradeAndChannelParams;
 use xxi_node::commons::TradeParams;
+use xxi_node::message_handler::TenTenOneMessage;
+use xxi_node::message_handler::TenTenOneReject;
 use xxi_node::node::dlc_channel::estimated_dlc_channel_fee_reserve;
 use xxi_node::node::dlc_channel::estimated_funding_transaction_fee;
 use xxi_node::node::event::NodeEvent;
@@ -142,6 +146,26 @@ impl TradeExecutor {
                     );
                 }
 
+                if params.external_funding.is_some() {
+                    // The channel was funded externally. We need to post process the dlc channel
+                    // offer.
+                    if let Err(e) = self.post_process_proposal(trader_id, order_id).await {
+                        let message = OrderbookMessage::TraderMessage {
+                            trader_id,
+                            message: Message::TradeError {
+                                order_id,
+                                error: e.into(),
+                            },
+                            notification: None,
+                        };
+                        if let Err(e) = self.notifier.send(message).await {
+                            tracing::debug!("Failed to notify trader. Error: {e:#}");
+                        }
+
+                        return;
+                    }
+                }
+
                 // Everything has been processed successfully, we can safely send the last dlc
                 // message, that has been stored before.
                 self.node
@@ -151,6 +175,30 @@ impl TradeExecutor {
             }
             Err(e) => {
                 tracing::error!(%trader_id, %order_id,"Failed to execute trade. Error: {e:#}");
+
+                if params.external_funding.is_some() {
+                    // TODO(holzeis): It might make sense to do this for any failed offer to
+                    // unreserve potentially reserved utxos.
+                    if let Err(e) = self.cancel_offer(trader_id).await {
+                        tracing::error!(%trader_id, %order_id, "Failed to cancel offer. Error: {e:#}");
+                    }
+
+                    // if the order was externally funded we need to set the hodl invoice to failed.
+                    if let Err(e) = spawn_blocking({
+                        let pool = self.node.pool.clone();
+                        move || {
+                            let mut conn = pool.get()?;
+                            db::hodl_invoice::update_hodl_invoice_to_failed(&mut conn, order_id)?;
+
+                            anyhow::Ok(())
+                        }
+                    })
+                    .await
+                    .expect("task to finish")
+                    {
+                        tracing::error!(%trader_id, %order_id, "Failed to set hodl invoice to failed. Error: {e:#}");
+                    }
+                }
 
                 if let Err(e) =
                     self.update_order_and_match(order_id, MatchState::Failed, OrderState::Failed)
@@ -171,6 +219,90 @@ impl TradeExecutor {
                 }
             }
         };
+    }
+
+    async fn post_process_proposal(&self, trader: PublicKey, order_id: Uuid) -> Result<()> {
+        match self.settle_invoice(trader, order_id).await {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                tracing::error!(%trader, %order_id, "Failed to settle invoice with provided pre_image. Cancelling offer. Error: {e:#}");
+
+                if let Err(e) = self.cancel_offer(trader).await {
+                    tracing::error!(%trader, %order_id, "Failed to cancel offer. Error: {e:#}");
+                }
+
+                if let Err(e) = spawn_blocking({
+                    let pool = self.node.pool.clone();
+                    move || {
+                        let mut conn = pool.get()?;
+                        db::hodl_invoice::update_hodl_invoice_to_failed(&mut conn, order_id)?;
+
+                        anyhow::Ok(())
+                    }
+                })
+                .await
+                .expect("task to finish")
+                {
+                    tracing::error!(%trader, %order_id, "Failed to set hodl invoice to failed. Error: {e:#}");
+                }
+                Err(e)
+            }
+        }
+    }
+
+    /// Settles the accepted invoice for the given trader
+    async fn settle_invoice(&self, trader: PublicKey, order_id: Uuid) -> Result<()> {
+        let pre_image = spawn_blocking({
+            let pool = self.node.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                let pre_image =
+                    db::hodl_invoice::update_hodl_invoice_to_settled(&mut conn, order_id)?;
+
+                anyhow::Ok(pre_image)
+            }
+        })
+        .await??
+        .context("Missing pre_image")?;
+
+        self.node.lnd_bridge.settle_invoice(pre_image).await?;
+
+        tracing::info!(%trader, %order_id, "Settled invoice");
+
+        Ok(())
+    }
+
+    /// Cancels a potential pending offer if the proposal failed.
+    async fn cancel_offer(&self, trader: PublicKey) -> Result<()> {
+        if let Some(channel) = self
+            .node
+            .inner
+            .get_dlc_channel(|channel| channel.get_counter_party_id() == to_secp_pk_29(trader))?
+        {
+            self.node.process_dlc_message(
+                trader,
+                &TenTenOneMessage::Reject(TenTenOneReject {
+                    reject: Reject {
+                        channel_id: channel.get_id(),
+                        timestamp: OffsetDateTime::now_utc().unix_timestamp() as u64,
+                        reference_id: None,
+                    },
+                }),
+            )?;
+
+            spawn_blocking({
+                let pool = self.node.pool.clone();
+                move || {
+                    let mut conn = pool.get()?;
+                    db::last_outbound_dlc_message::delete(&mut conn, &trader)?;
+
+                    anyhow::Ok(())
+                }
+            })
+            .await??;
+        }
+
+        Ok(())
     }
 
     /// Execute a trade action according to the coordinator's current trading status with the

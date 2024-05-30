@@ -18,9 +18,6 @@ impl PreImage {
     pub fn get_base64_encoded_pre_image(&self) -> String {
         general_purpose::URL_SAFE.encode(self.pre_image)
     }
-    pub fn get_pre_image_as_string(&self) -> String {
-        hex::encode(self.pre_image)
-    }
 
     pub fn from_url_safe_encoded_pre_image(url_safe_pre_image: &str) -> Result<Self> {
         let vec = general_purpose::URL_SAFE.decode(url_safe_pre_image)?;
