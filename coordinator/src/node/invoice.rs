@@ -1,13 +1,19 @@
+use crate::db;
 use bitcoin::Amount;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::Pool;
+use diesel::PgConnection;
 use futures_util::TryStreamExt;
 use lnd_bridge::InvoiceState;
 use lnd_bridge::LndBridge;
 use tokio::sync::broadcast;
+use tokio::task::spawn_blocking;
 use xxi_node::commons;
 use xxi_node::commons::Message;
 
 /// Watches a hodl invoice with the given r_hash
 pub fn spawn_invoice_watch(
+    pool: Pool<ConnectionManager<PgConnection>>,
     trader_sender: broadcast::Sender<Message>,
     lnd_bridge: LndBridge,
     invoice_params: commons::HodlInvoiceParams,
@@ -31,6 +37,22 @@ pub fn spawn_invoice_watch(
                     }
                     InvoiceState::Canceled => {
                         tracing::warn!(%trader_pubkey, invoice.r_hash, "Pending hodl invoice has been canceled.");
+                        if let Err(e) = spawn_blocking(move || {
+                            let mut conn = pool.get()?;
+                            db::hodl_invoice::update_hodl_invoice_to_failed_by_r_hash(
+                                &mut conn,
+                                invoice.r_hash,
+                            )?;
+                            anyhow::Ok(())
+                        })
+                        .await
+                        .expect("task to finish")
+                        {
+                            tracing::error!(
+                                r_hash,
+                                "Failed to set hodl invoice to failed. Error: {e:#}"
+                            );
+                        }
                         break;
                     }
                     InvoiceState::Accepted => {

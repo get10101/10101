@@ -26,6 +26,10 @@ pub mod sql_types {
     pub struct HtlcStatusType;
 
     #[derive(diesel::sql_types::SqlType)]
+    #[diesel(postgres_type(name = "InvoiceState_Type"))]
+    pub struct InvoiceStateType;
+
+    #[derive(diesel::sql_types::SqlType)]
     #[diesel(postgres_type(name = "MatchState_Type"))]
     pub struct MatchStateType;
 
@@ -213,6 +217,9 @@ diesel::table! {
 }
 
 diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::InvoiceStateType;
+
     hodl_invoices (id) {
         id -> Int4,
         trader_pubkey -> Text,
@@ -221,6 +228,8 @@ diesel::table! {
         pre_image -> Nullable<Text>,
         created_at -> Timestamptz,
         updated_at -> Nullable<Timestamptz>,
+        invoice_state -> InvoiceStateType,
+        order_id -> Nullable<Uuid>,
     }
 }
 
