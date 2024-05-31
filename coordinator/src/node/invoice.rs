@@ -28,22 +28,24 @@ pub fn spawn_invoice_watch(
             match stream.try_next().await {
                 Ok(Some(invoice)) => match invoice.state {
                     InvoiceState::Open => {
-                        tracing::debug!(%trader_pubkey, invoice.r_hash, "Watching hodl invoice.");
+                        tracing::debug!(%trader_pubkey, r_hash, "Watching hodl invoice.");
                         continue;
                     }
                     InvoiceState::Settled => {
-                        tracing::info!(%trader_pubkey, invoice.r_hash, "Accepted hodl invoice has been settled.");
+                        tracing::info!(%trader_pubkey, r_hash, "Accepted hodl invoice has been settled.");
                         break;
                     }
                     InvoiceState::Canceled => {
-                        tracing::warn!(%trader_pubkey, invoice.r_hash, "Pending hodl invoice has been canceled.");
-                        if let Err(e) = spawn_blocking(move || {
-                            let mut conn = pool.get()?;
-                            db::hodl_invoice::update_hodl_invoice_to_failed_by_r_hash(
-                                &mut conn,
-                                invoice.r_hash,
-                            )?;
-                            anyhow::Ok(())
+                        tracing::warn!(%trader_pubkey, r_hash, "Pending hodl invoice has been canceled.");
+                        if let Err(e) = spawn_blocking({
+                            let r_hash = r_hash.clone();
+                            move || {
+                                let mut conn = pool.get()?;
+                                db::hodl_invoice::update_hodl_invoice_to_failed_by_r_hash(
+                                    &mut conn, r_hash,
+                                )?;
+                                anyhow::Ok(())
+                            }
                         })
                         .await
                         .expect("task to finish")
@@ -56,12 +58,12 @@ pub fn spawn_invoice_watch(
                         break;
                     }
                     InvoiceState::Accepted => {
-                        tracing::info!(%trader_pubkey, invoice.r_hash, "Pending hodl invoice has been accepted.");
+                        tracing::info!(%trader_pubkey, r_hash, "Pending hodl invoice has been accepted.");
                         if let Err(e) = trader_sender.send(Message::LnPaymentReceived {
-                            r_hash: invoice.r_hash.clone(),
+                            r_hash: r_hash.clone(),
                             amount: Amount::from_sat(invoice.amt_paid_sat),
                         }) {
-                            tracing::error!(%trader_pubkey, r_hash = invoice.r_hash, "Failed to send payment received event to app. Error: {e:#}")
+                            tracing::error!(%trader_pubkey, r_hash, "Failed to send payment received event to app. Error: {e:#}")
                         }
                         continue;
                     }

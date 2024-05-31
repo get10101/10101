@@ -2569,7 +2569,6 @@ version = "2.4.5"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
- "base64 0.21.7",
  "bdk",
  "bdk_file_store",
  "bip21",
