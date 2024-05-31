@@ -35,6 +35,13 @@ impl QueryId for InvoiceStateType {
     }
 }
 
+pub fn cancel_pending_hodl_invoices(conn: &mut PgConnection) -> QueryResult<usize> {
+    diesel::update(hodl_invoices::table)
+        .filter(hodl_invoices::invoice_state.eq_any([InvoiceState::Open, InvoiceState::Accepted]))
+        .set(hodl_invoices::invoice_state.eq(InvoiceState::Canceled))
+        .execute(conn)
+}
+
 pub fn create_hodl_invoice(
     conn: &mut PgConnection,
     r_hash: &str,

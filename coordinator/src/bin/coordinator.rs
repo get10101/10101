@@ -3,6 +3,7 @@ use anyhow::Result;
 use bitcoin::key::XOnlyPublicKey;
 use coordinator::backup::SledBackup;
 use coordinator::cli::Opts;
+use coordinator::db;
 use coordinator::dlc_handler;
 use coordinator::dlc_handler::DlcHandler;
 use coordinator::logger;
@@ -355,6 +356,20 @@ async fn main() -> Result<()> {
                 .expect("to be able to start scheduler");
         }
     });
+
+    if let Err(e) = spawn_blocking({
+        let pool = pool.clone();
+        move || {
+            let mut conn = pool.get()?;
+            db::hodl_invoice::cancel_pending_hodl_invoices(&mut conn)?;
+            anyhow::Ok(())
+        }
+    })
+    .await
+    .expect("task to finish")
+    {
+        tracing::error!("Failed to set expired hodl invoices to canceled. Error: {e:#}");
+    }
 
     tracing::debug!("Listening on http://{}", http_address);
 
