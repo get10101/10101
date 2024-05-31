@@ -149,7 +149,17 @@ impl TradeExecutor {
                 if params.external_funding.is_some() {
                     // The channel was funded externally. We need to post process the dlc channel
                     // offer.
-                    if let Err(e) = self.post_process_proposal(trader_id, order_id).await {
+                    if let Err(e) = self.settle_invoice(trader_id, order_id).await {
+                        tracing::error!(%trader_id, %order_id, "Failed to settle invoice with provided pre_image. Cancelling offer. Error: {e:#}");
+
+                        if let Err(e) = self.cancel_offer(trader_id).await {
+                            tracing::error!(%trader_id, %order_id, "Failed to cancel offer. Error: {e:#}");
+                        }
+
+                        if let Err(e) = self.cancel_hodl_invoice(order_id).await {
+                            tracing::error!(%trader_id, %order_id, "Failed to cancel hodl invoice. Error: {e:#}");
+                        }
+
                         let message = OrderbookMessage::TraderMessage {
                             trader_id,
                             message: Message::TradeError {
@@ -183,20 +193,8 @@ impl TradeExecutor {
                         tracing::error!(%trader_id, %order_id, "Failed to cancel offer. Error: {e:#}");
                     }
 
-                    // if the order was externally funded we need to set the hodl invoice to failed.
-                    if let Err(e) = spawn_blocking({
-                        let pool = self.node.pool.clone();
-                        move || {
-                            let mut conn = pool.get()?;
-                            db::hodl_invoice::update_hodl_invoice_to_failed(&mut conn, order_id)?;
-
-                            anyhow::Ok(())
-                        }
-                    })
-                    .await
-                    .expect("task to finish")
-                    {
-                        tracing::error!(%trader_id, %order_id, "Failed to set hodl invoice to failed. Error: {e:#}");
+                    if let Err(e) = self.cancel_hodl_invoice(order_id).await {
+                        tracing::error!(%trader_id, %order_id, "Failed to cancel hodl_invoice. Error: {e:#}");
                     }
                 }
 
@@ -219,35 +217,6 @@ impl TradeExecutor {
                 }
             }
         };
-    }
-
-    async fn post_process_proposal(&self, trader: PublicKey, order_id: Uuid) -> Result<()> {
-        match self.settle_invoice(trader, order_id).await {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                tracing::error!(%trader, %order_id, "Failed to settle invoice with provided pre_image. Cancelling offer. Error: {e:#}");
-
-                if let Err(e) = self.cancel_offer(trader).await {
-                    tracing::error!(%trader, %order_id, "Failed to cancel offer. Error: {e:#}");
-                }
-
-                if let Err(e) = spawn_blocking({
-                    let pool = self.node.pool.clone();
-                    move || {
-                        let mut conn = pool.get()?;
-                        db::hodl_invoice::update_hodl_invoice_to_failed(&mut conn, order_id)?;
-
-                        anyhow::Ok(())
-                    }
-                })
-                .await
-                .expect("task to finish")
-                {
-                    tracing::error!(%trader, %order_id, "Failed to set hodl invoice to failed. Error: {e:#}");
-                }
-                Err(e)
-            }
-        }
     }
 
     /// Settles the accepted invoice for the given trader
@@ -303,6 +272,22 @@ impl TradeExecutor {
         }
 
         Ok(())
+    }
+
+    pub async fn cancel_hodl_invoice(&self, order_id: Uuid) -> Result<()> {
+        // if the order was externally funded we need to set the hodl invoice to failed.
+        let r_hash = spawn_blocking({
+            let pool = self.node.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                let r_hash = db::hodl_invoice::get_r_hash_by_order_id(&mut conn, order_id)?;
+
+                anyhow::Ok(r_hash)
+            }
+        })
+        .await??;
+
+        self.node.lnd_bridge.cancel_invoice(r_hash).await
     }
 
     /// Execute a trade action according to the coordinator's current trading status with the

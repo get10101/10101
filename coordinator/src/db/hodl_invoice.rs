@@ -9,6 +9,7 @@ use diesel::AsExpression;
 use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
 use diesel::PgConnection;
+use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::RunQueryDsl;
 use std::any::TypeId;
@@ -53,6 +54,13 @@ pub fn create_hodl_invoice(
     Ok(())
 }
 
+pub fn get_r_hash_by_order_id(conn: &mut PgConnection, order_id: Uuid) -> QueryResult<String> {
+    hodl_invoices::table
+        .filter(hodl_invoices::order_id.eq(order_id))
+        .select(hodl_invoices::r_hash)
+        .get_result(conn)
+}
+
 pub fn update_hodl_invoice_to_accepted(
     conn: &mut PgConnection,
     hash: &str,
@@ -85,19 +93,6 @@ pub fn update_hodl_invoice_to_settled(
         ))
         .returning(hodl_invoices::pre_image)
         .get_result(conn)
-}
-
-pub fn update_hodl_invoice_to_failed(
-    conn: &mut PgConnection,
-    order_id: Uuid,
-) -> QueryResult<usize> {
-    diesel::update(hodl_invoices::table)
-        .filter(hodl_invoices::order_id.eq(order_id))
-        .set((
-            hodl_invoices::updated_at.eq(OffsetDateTime::now_utc()),
-            hodl_invoices::invoice_state.eq(InvoiceState::Failed),
-        ))
-        .execute(conn)
 }
 
 pub fn update_hodl_invoice_to_failed_by_r_hash(

@@ -9,8 +9,8 @@ async fn main() -> Result<()> {
     let macaroon = "[enter macroon here]".to_string();
     let lnd_bridge = lnd_bridge::LndBridge::new("localhost:18080".to_string(), macaroon, false);
 
-    let payment_hash = "".to_string();
-    lnd_bridge.cancel_invoice(payment_hash).await?;
+    let r_hash = "".to_string();
+    lnd_bridge.cancel_invoice(r_hash).await?;
 
     Ok(())
 }
