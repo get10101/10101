@@ -61,21 +61,19 @@ pub struct DlcChannel {
 }
 
 impl Node {
-    pub async fn close_dlc_channel(
-        &self,
-        channel_id: DlcChannelId,
-        is_force_close: bool,
-    ) -> Result<()> {
+    pub async fn force_close_dlc_channel(&self, channel_id: DlcChannelId) -> Result<()> {
+        self.inner.close_dlc_channel(channel_id, true).await?;
+        Ok(())
+    }
+
+    pub async fn close_dlc_channel(&self, channel_id: DlcChannelId) -> Result<()> {
         let channel = self.inner.get_dlc_channel_by_id(&channel_id)?;
         let previous_id = channel
             .get_reference_id()
             .map(ProtocolId::try_from)
             .transpose()?;
 
-        let protocol_id = self
-            .inner
-            .close_dlc_channel(channel_id, is_force_close)
-            .await?;
+        let protocol_id = self.inner.close_dlc_channel(channel_id, false).await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
         protocol_executor.start_dlc_protocol(
