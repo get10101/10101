@@ -1,0 +1,1 @@
+ALTER TYPE "InvoiceState_Type" ADD VALUE IF NOT EXISTS 'Canceled';

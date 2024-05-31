@@ -41,7 +41,7 @@ pub fn spawn_invoice_watch(
                             let r_hash = r_hash.clone();
                             move || {
                                 let mut conn = pool.get()?;
-                                db::hodl_invoice::update_hodl_invoice_to_failed_by_r_hash(
+                                db::hodl_invoice::update_hodl_invoice_to_canceled(
                                     &mut conn, r_hash,
                                 )?;
                                 anyhow::Ok(())

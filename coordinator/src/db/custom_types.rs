@@ -275,6 +275,7 @@ impl ToSql<InvoiceStateType, Pg> for InvoiceState {
             InvoiceState::Accepted => out.write_all(b"Accepted")?,
             InvoiceState::Settled => out.write_all(b"Settled")?,
             InvoiceState::Failed => out.write_all(b"Failed")?,
+            InvoiceState::Canceled => out.write_all(b"Canceled")?,
         }
         Ok(IsNull::No)
     }
@@ -287,6 +288,7 @@ impl FromSql<InvoiceStateType, Pg> for InvoiceState {
             b"Accepted" => Ok(InvoiceState::Accepted),
             b"Settled" => Ok(InvoiceState::Settled),
             b"Failed" => Ok(InvoiceState::Failed),
+            b"Canceled" => Ok(InvoiceState::Canceled),
             _ => Err("Unrecognized enum variant".into()),
         }
     }

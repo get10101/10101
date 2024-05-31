@@ -23,6 +23,7 @@ pub enum InvoiceState {
     Accepted,
     Settled,
     Failed,
+    Canceled,
 }
 
 impl QueryId for InvoiceStateType {
@@ -95,7 +96,7 @@ pub fn update_hodl_invoice_to_settled(
         .get_result(conn)
 }
 
-pub fn update_hodl_invoice_to_failed_by_r_hash(
+pub fn update_hodl_invoice_to_canceled(
     conn: &mut PgConnection,
     r_hash: String,
 ) -> QueryResult<usize> {
@@ -103,7 +104,7 @@ pub fn update_hodl_invoice_to_failed_by_r_hash(
         .filter(hodl_invoices::r_hash.eq(r_hash))
         .set((
             hodl_invoices::updated_at.eq(OffsetDateTime::now_utc()),
-            hodl_invoices::invoice_state.eq(InvoiceState::Failed),
+            hodl_invoices::invoice_state.eq(InvoiceState::Canceled),
         ))
         .execute(conn)
 }
