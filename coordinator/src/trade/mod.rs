@@ -225,8 +225,7 @@ impl TradeExecutor {
             let pool = self.node.pool.clone();
             move || {
                 let mut conn = pool.get()?;
-                let pre_image =
-                    db::hodl_invoice::update_hodl_invoice_to_settled(&mut conn, order_id)?;
+                let pre_image = db::hodl_invoice::get_pre_image_by_order_id(&mut conn, order_id)?;
 
                 anyhow::Ok(pre_image)
             }
