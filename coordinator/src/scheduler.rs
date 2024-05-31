@@ -1,4 +1,5 @@
 use crate::db;
+use crate::metrics::collect_metrics;
 use crate::node::Node;
 use crate::notifications::Notification;
 use crate::notifications::NotificationKind;
@@ -58,6 +59,27 @@ impl NotificationScheduler {
         tracing::debug!(
             job_id = uuid.to_string(),
             "Started new job to update users bonus status"
+        );
+        Ok(())
+    }
+
+    pub async fn add_collect_metrics_job(
+        &self,
+        pool: Pool<ConnectionManager<PgConnection>>,
+    ) -> Result<()> {
+        let schedule = self.settings.collect_metrics_scheduler.clone();
+
+        let uuid = self
+            .scheduler
+            .add(build_metrics_collector_job(
+                schedule.as_str(),
+                pool,
+                self.node.clone(),
+            )?)
+            .await?;
+        tracing::debug!(
+            job_id = uuid.to_string(),
+            "Started new job to collect metrics"
         );
         Ok(())
     }
@@ -364,5 +386,33 @@ fn build_remind_to_close_liquidated_position_notification_job(
                 tracing::error!("Could not load orders with fcm token {error:#}")
             }),
         }
+    })
+}
+
+fn build_metrics_collector_job(
+    schedule: &str,
+    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
+) -> Result<Job, JobSchedulerError> {
+    Job::new_async(schedule, move |_, _| {
+        let conn = match pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return Box::pin(async move {
+                    tracing::error!("Failed to get connection. Error: {e:#}")
+                });
+            }
+        };
+        let node = node.clone();
+        Box::pin({
+            async move {
+                match collect_metrics(conn, node) {
+                    Ok(_) => {}
+                    Err(error) => {
+                        tracing::error!("Failed collecting metrics {error:#}");
+                    }
+                }
+            }
+        })
     })
 }
