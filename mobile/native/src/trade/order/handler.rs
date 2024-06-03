@@ -3,7 +3,7 @@ use crate::db;
 use crate::db::get_order_in_filling;
 use crate::db::maybe_get_open_orders;
 use crate::dlc;
-use crate::dlc::is_dlc_channel_confirmed;
+use crate::dlc::check_if_signed_channel_is_confirmed;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
@@ -42,11 +42,8 @@ pub enum SubmitOrderError {
     /// Generic problem related to the storage layer (sqlite, sled).
     #[error("Storage failed: {0}")]
     Storage(anyhow::Error),
-    #[error("DLC channel not yet confirmed: has {current_confirmations} confirmations, needs {required_confirmations}")]
-    UnconfirmedChannel {
-        current_confirmations: u64,
-        required_confirmations: u64,
-    },
+    #[error("DLC channel not yet confirmed")]
+    UnconfirmedChannel,
     #[error("DLC Channel in invalid state: expected {expected_channel_state}, got {actual_channel_state}")]
     InvalidChannelState {
         expected_channel_state: String,
@@ -88,7 +85,7 @@ pub async fn submit_order_internal(
     order: Order,
     channel_opening_params: Option<ChannelOpeningParams>,
 ) -> Result<Uuid, SubmitOrderError> {
-    check_channel_state()?;
+    check_channel_state().await?;
 
     // Having an order in `Filling` should mean that the subchannel is in the midst of an update.
     // Since we currently only support one subchannel per app, it does not make sense to start
@@ -142,7 +139,7 @@ pub async fn submit_order_internal(
 /// 1. Open position, but no channel in state [`SignedChannelState::Established`]
 /// 2. Open position and not enough confirmations on the funding txid.
 /// 3. No position and a channel which is not in state [`SignedChannelState::Settled`]
-fn check_channel_state() -> Result<(), SubmitOrderError> {
+async fn check_channel_state() -> Result<(), SubmitOrderError> {
     let channel = dlc::get_signed_dlc_channel().map_err(SubmitOrderError::Storage)?;
 
     if position::handler::get_positions()
@@ -171,12 +168,11 @@ fn check_channel_state() -> Result<(), SubmitOrderError> {
         // If we have an open position, we should not allow any further trading until the current
         // DLC channel is confirmed on-chain. Otherwise we can run into pesky DLC protocol
         // failures.
-        if !is_dlc_channel_confirmed().map_err(SubmitOrderError::Storage)? {
-            // TODO: Do not hard-code confirmations.
-            return Err(SubmitOrderError::UnconfirmedChannel {
-                current_confirmations: 0,
-                required_confirmations: 1,
-            });
+        if !check_if_signed_channel_is_confirmed()
+            .await
+            .map_err(SubmitOrderError::Storage)?
+        {
+            return Err(SubmitOrderError::UnconfirmedChannel);
         }
     } else {
         match channel {
