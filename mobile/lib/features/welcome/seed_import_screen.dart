@@ -46,7 +46,7 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
     var isImportDisabled = twelveWords.length < 12;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Manual restore')),
+      appBar: AppBar(title: const Text('Manual restore'), scrolledUnderElevation: 0.0),
       // this is needed to prevent an overflow when the keyboard is up
       resizeToAvoidBottomInset: false,
       body: Column(
