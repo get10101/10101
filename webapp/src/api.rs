@@ -18,7 +18,6 @@ use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::channel_trade_constraints;
 use native::dlc;
-use native::dlc::is_dlc_channel_confirmed;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
 use rust_decimal::prelude::ToPrimitive;
@@ -358,7 +357,7 @@ pub async fn post_new_order(params: Json<NewOrderParams>) -> Result<Json<OrderId
         .try_into()
         .context("Could not parse order request")?;
 
-    let is_dlc_channel_confirmed = is_dlc_channel_confirmed()?;
+    let is_dlc_channel_confirmed = dlc::check_if_signed_channel_is_confirmed().await?;
 
     let channel_opening_params = if is_dlc_channel_confirmed {
         None

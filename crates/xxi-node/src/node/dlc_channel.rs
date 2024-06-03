@@ -581,28 +581,40 @@ impl<D: BdkStorage, S: TenTenOneStorage + 'static, N: LnDlcStorage + Sync + Send
         Ok(dlc_channels)
     }
 
-    pub fn is_signed_dlc_channel_confirmed_by_trader_id(
-        &self,
-        trader_id: PublicKey,
-    ) -> Result<bool> {
-        let signed_channel = self.get_signed_channel_by_trader_id(trader_id)?;
-        self.is_dlc_channel_confirmed(&signed_channel.channel_id)
+    /// Checks if the underlying contract of the signed channel has been confirmed. If not a
+    /// periodic check is run to ensure we are on the latest state and return the corresponding
+    /// response.
+    pub async fn check_if_signed_channel_is_confirmed(&self, trader: PublicKey) -> Result<bool> {
+        let signed_channel = self.get_signed_channel_by_trader_id(trader)?;
+        if !self.is_dlc_channel_confirmed(&signed_channel.channel_id)? {
+            self.sync_on_chain_wallet().await?;
+            spawn_blocking({
+                let dlc_manager = self.dlc_manager.clone();
+                move || dlc_manager.periodic_check()
+            })
+            .await
+            .expect("task to complete")?;
+
+            return self.is_dlc_channel_confirmed(&signed_channel.channel_id);
+        }
+
+        Ok(true)
     }
 
-    // TODO: This API could return the number of required confirmations + the number of current
-    // confirmations.
-    pub fn is_dlc_channel_confirmed(&self, dlc_channel_id: &DlcChannelId) -> Result<bool> {
+    fn is_contract_confirmed(&self, contract_id: &ContractId) -> Result<bool> {
+        let contract = self
+            .get_contract_by_id(contract_id)?
+            .context("Could not find contract for signed channel in state Established.")?;
+        Ok(matches!(contract, Contract::Confirmed { .. }))
+    }
+
+    fn is_dlc_channel_confirmed(&self, dlc_channel_id: &DlcChannelId) -> Result<bool> {
         let channel = self.get_dlc_channel_by_id(dlc_channel_id)?;
         let confirmed = match channel {
             Channel::Signed(signed_channel) => match signed_channel.state {
                 SignedChannelState::Established {
                     signed_contract_id, ..
-                } => {
-                    let contract = self.get_contract_by_id(&signed_contract_id)?.context(
-                        "Could not find contract for signed channel in state Established.",
-                    )?;
-                    matches!(contract, Contract::Confirmed { .. })
-                }
+                } => self.is_contract_confirmed(&signed_contract_id)?,
                 _ => true,
             },
             Channel::Offered(_)

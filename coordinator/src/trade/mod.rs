@@ -804,8 +804,13 @@ impl TradeExecutor {
         trade_params: &TradeParams,
         resize_action: ResizeAction,
     ) -> Result<()> {
-        if !self.node.inner.is_dlc_channel_confirmed(&dlc_channel_id)? {
-            bail!("Underlying DLC channel not yet confirmed");
+        if !self
+            .node
+            .inner
+            .check_if_signed_channel_is_confirmed(position.trader)
+            .await?
+        {
+            bail!("Underlying DLC channel not yet confirmed.");
         }
 
         let peer_id = trade_params.pubkey;
@@ -1045,8 +1050,13 @@ impl TradeExecutor {
         trade_params: &TradeParams,
         channel_id: DlcChannelId,
     ) -> Result<()> {
-        if !self.node.inner.is_dlc_channel_confirmed(&channel_id)? {
-            bail!("Underlying DLC channel not yet confirmed");
+        if !self
+            .node
+            .inner
+            .check_if_signed_channel_is_confirmed(position.trader)
+            .await?
+        {
+            bail!("Underlying DLC channel not yet confirmed.");
         }
 
         let closing_price = trade_params.average_execution_price();

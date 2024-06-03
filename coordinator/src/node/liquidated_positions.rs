@@ -106,7 +106,8 @@ async fn check_if_positions_need_to_get_liquidated(
             // liquidation.
             match node
                 .inner
-                .is_signed_dlc_channel_confirmed_by_trader_id(position.trader)
+                .check_if_signed_channel_is_confirmed(position.trader)
+                .await
             {
                 Ok(true) => {
                     tracing::debug!(trader_id=%position.trader, "Traders dlc channel is confirmed. Continuing with the liquidation");

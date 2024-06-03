@@ -907,18 +907,17 @@ pub fn delete_dlc_channel(dlc_channel_id: &DlcChannelId) -> Result<()> {
     Ok(())
 }
 
-pub fn is_dlc_channel_confirmed() -> Result<bool> {
+pub async fn check_if_signed_channel_is_confirmed() -> Result<bool> {
     let node = match state::try_get_node() {
         Some(node) => node,
         None => return Ok(false),
     };
 
-    let dlc_channel = match get_signed_dlc_channel()? {
-        Some(dlc_channel) => dlc_channel,
-        None => return Ok(false),
-    };
+    let counterparty = config::get_coordinator_info().pubkey;
 
-    node.inner.is_dlc_channel_confirmed(&dlc_channel.channel_id)
+    node.inner
+        .check_if_signed_channel_is_confirmed(counterparty)
+        .await
 }
 
 pub fn get_fee_rate_for_target(target: ConfirmationTarget) -> FeeRate {
