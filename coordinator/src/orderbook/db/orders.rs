@@ -19,7 +19,6 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 use xxi_node::commons;
 use xxi_node::commons::BestPrice;
-use xxi_node::commons::Direction as OrderbookDirection;
 use xxi_node::commons::NewLimitOrder;
 use xxi_node::commons::NewMarketOrder;
 use xxi_node::commons::Order as OrderbookOrder;
@@ -233,29 +232,6 @@ pub fn all_limit_orders(conn: &mut PgConnection) -> QueryResult<Vec<OrderbookOrd
     Ok(orders.into_iter().map(OrderbookOrder::from).collect())
 }
 
-/// Loads all orders by the given order direction and type
-pub fn all_by_direction_and_type(
-    conn: &mut PgConnection,
-    direction: OrderbookDirection,
-    order_type: OrderBookOrderType,
-    filter_expired: bool,
-) -> QueryResult<Vec<OrderbookOrder>> {
-    let filters = orders::table
-        .filter(orders::direction.eq(Direction::from(direction)))
-        .filter(orders::order_type.eq(OrderType::from(order_type)))
-        .filter(orders::order_state.eq(OrderState::Open));
-
-    let orders: Vec<Order> = if filter_expired {
-        filters
-            .filter(orders::expiry.gt(OffsetDateTime::now_utc()))
-            .load::<Order>(conn)?
-    } else {
-        filters.load::<Order>(conn)?
-    };
-
-    Ok(orders.into_iter().map(OrderbookOrder::from).collect())
-}
-
 pub fn get_best_price(
     conn: &mut PgConnection,
     contract_symbol: commons::ContractSymbol,
@@ -377,34 +353,6 @@ pub fn insert_market_order(
     Ok(OrderbookOrder::from(order))
 }
 
-/// Returns the number of affected rows: 1.
-pub fn set_is_taken(
-    conn: &mut PgConnection,
-    id: Uuid,
-    is_taken: bool,
-) -> QueryResult<OrderbookOrder> {
-    if is_taken {
-        set_order_state(conn, id, commons::OrderState::Taken)
-    } else {
-        set_order_state(conn, id, commons::OrderState::Open)
-    }
-}
-
-/// Mark an order as [`OrderState::Deleted`], if it belongs to the given `trader_id`.
-pub fn delete_trader_order(
-    conn: &mut PgConnection,
-    id: Uuid,
-    trader_pubkey: PublicKey,
-) -> QueryResult<OrderbookOrder> {
-    let order: Order = diesel::update(orders::table)
-        .filter(orders::order_id.eq(id))
-        .filter(orders::trader_pubkey.eq(trader_pubkey.to_string()))
-        .set(orders::order_state.eq(OrderState::Deleted))
-        .get_result(conn)?;
-
-    Ok(OrderbookOrder::from(order))
-}
-
 /// Mark an order as [`OrderState::Deleted`].
 pub fn delete(conn: &mut PgConnection, id: Uuid) -> QueryResult<OrderbookOrder> {
     set_order_state(conn, id, commons::OrderState::Deleted)
@@ -449,22 +397,6 @@ pub fn update_quantity(
         .filter(orders::order_id.eq(order_id))
         .set(orders::quantity.eq(quantity.to_f32().expect("to fit")))
         .execute(conn)
-}
-
-pub fn set_expired_limit_orders_to_expired(
-    conn: &mut PgConnection,
-) -> QueryResult<Vec<OrderbookOrder>> {
-    let expired_limit_orders: Vec<Order> = diesel::update(orders::table)
-        .filter(orders::order_state.eq(OrderState::Open))
-        .filter(orders::order_type.eq(OrderType::Limit))
-        .filter(orders::expiry.lt(OffsetDateTime::now_utc()))
-        .set(orders::order_state.eq(OrderState::Expired))
-        .get_results(conn)?;
-
-    Ok(expired_limit_orders
-        .into_iter()
-        .map(OrderbookOrder::from)
-        .collect())
 }
 
 /// Returns the order by id
