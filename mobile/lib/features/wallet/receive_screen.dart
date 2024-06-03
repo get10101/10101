@@ -70,7 +70,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
 
     if (_paymentRequest == null) {
       return Scaffold(
-          appBar: AppBar(title: const Text("Receive funds")),
+          appBar: AppBar(title: const Text("Receive funds"), scrolledUnderElevation: 0.0),
           body: const Center(
               child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator())));
     }
