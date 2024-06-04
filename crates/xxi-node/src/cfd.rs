@@ -504,6 +504,18 @@ mod tests {
     }
 
     #[test]
+    pub fn test_calculate_long_liquidation_price_2() {
+        let leverage = dec!(10);
+        let price = dec!(30_000);
+        let maintenance_margin_rate = dec!(0);
+        let liquidation_price =
+            calculate_long_liquidation_price(leverage, price, maintenance_margin_rate);
+        let bankruptcy_price = calculate_long_bankruptcy_price(leverage, price);
+        assert_eq!(dec!(20_000), liquidation_price);
+        assert_eq!(liquidation_price, bankruptcy_price);
+    }
+
+    #[test]
     pub fn test_calculate_short_liquidation_price() {
         let leverage = dec!(2);
         let price = dec!(30_000);

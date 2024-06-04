@@ -349,5 +349,3 @@ impl Node {
         Ok(position.is_some())
     }
 }
-
-// TODO: Test `apply_rollover_to_position`.
