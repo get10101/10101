@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:get_10101/common/domain/model.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -6,7 +7,7 @@ import 'package:http/http.dart' as http;
 
 class FaucetService {
   /// Pay the provided invoice with our faucet
-  Future<void> payInvoiceWithFaucet(String bip21Uri, Amount? invoiceAmount) async {
+  Future<void> payInvoiceWithFaucet(String bip21Uri, Amount? invoiceAmount, String network) async {
     final split = bip21Uri.split(":");
     final addressAndMaybeAmount = split[1].split("?");
     logger.i("Funding $addressAndMaybeAmount");
@@ -14,16 +15,32 @@ class FaucetService {
     final amount = invoiceAmount?.btc ?? 1.0;
 
     logger.i("Funding $address with $amount");
-    // Default to the faucet on the 10101 server, but allow to override it
-    // locally if needed for dev testing
-    // It's not populated in Config struct, as it's not used in production
+
+    switch (network) {
+      case "regtest":
+        await payWith10101Faucet(address, amount);
+        break;
+      case "signet":
+        await payWithMutinyFaucet(address, amount);
+        break;
+      default:
+        throw Exception("Invalid network provided $network. Only regtest or signet supported");
+    }
+  }
+
+  Future<void> payWith10101Faucet(String address, double amountBtc) async {
+    // Faucet env variable needs to be set for local testing, otherwise we will fail here
+    if (!const bool.hasEnvironment("REGTEST_FAUCET")) {
+      throw Exception("Could not fund address. REGTEST_FAUCET not set");
+    }
+
     String faucet =
-        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://34.32.62.120:8080");
+        const String.fromEnvironment("REGTEST_FAUCET", defaultValue: "http://localhost:8080");
 
     final data = {
       'jsonrpc': '1.0',
       'method': 'sendtoaddress',
-      'params': [address, "$amount"],
+      'params': [address, "$amountBtc"],
     };
     final encodedData = json.encode(data);
 
@@ -63,24 +80,32 @@ class FaucetService {
     }
   }
 
-// Pay the generated invoice with maker faucet
-  Future<void> payInvoiceWithMakerFaucet(String invoice) async {
-    // Default to the faucet on the 10101 server, but allow to override it
-    // locally if needed for dev testing
-    // It's not populated in Config struct, as it's not used in production
-    String faucet = const String.fromEnvironment("REGTEST_MAKER_FAUCET",
-        defaultValue: "http://34.32.62.120:80/maker/faucet");
+  Future<void> payWithMutinyFaucet(String address, double amountBtc) async {
+    final url = Uri.parse('https://faucet.mutinynet.com/api/onchain');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Origin': 'https://faucet.mutinynet.com',
+    };
+    final body = jsonEncode({
+      'sats': min(amountBtc * 100000000, 10000000).toInt(),
+      'address': address,
+    });
 
-    final response = await http.post(
-      Uri.parse('$faucet/$invoice'),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: body,
+      );
 
-    logger.i("Response ${response.body}${response.statusCode}");
-
-    if (response.statusCode != 200) {
-      throw Exception("Payment failed: Received ${response.statusCode}. ${response.body}");
-    } else {
-      logger.i("Paying invoice succeeded: ${response.body}");
+      if (response.statusCode == 200) {
+        logger.i('Funding successful ${response.body}');
+      } else {
+        logger.e('Request failed with status: ${response.statusCode} ${response.body}');
+        throw Exception("Failed funding address ${response.statusCode} ${response.body}");
+      }
+    } catch (e) {
+      throw Exception("Failed funding address ${e.toString()}");
     }
   }
 }
