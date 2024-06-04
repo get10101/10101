@@ -135,5 +135,5 @@ TL;DR;
 a shortcut for this is available but it is recommended to execute each step separately:
 
 ```bash
-just release-app-bundle-regtest
+just release-app-bundle-signet
 ```

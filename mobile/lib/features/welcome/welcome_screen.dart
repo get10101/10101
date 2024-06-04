@@ -262,7 +262,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   void initState() {
     super.initState();
 
-    if (Environment.parse().network == "regtest") {
+    if (Environment.parse().network == "regtest" || Environment.parse().network == "signet") {
       _betaDisclaimer = true;
       _loseDisclaimer = true;
     }

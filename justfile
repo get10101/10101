@@ -7,12 +7,13 @@ maker_log_file := "$PWD/data/maker/regtest.log"
 # location of pubspec
 pubspec := "$PWD/mobile/pubspec.yaml"
 
-# public regtest constants
-public_regtest_coordinator := "03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.62.120:9045"
-public_regtest_electrs := "http://34.32.62.120:3000"
+# public signet constants
+public_signet_coordinator := "021eddb3062fddef2c24f16f6de55fbd78ab985b74b41858719def46321d4be7d0@146.0.73.175:9045"
+public_signet_electrs := "http://146.0.73.175:3003"
 public_coordinator_http_port := "80"
-public_regtest_oracle_endpoint := "http://34.32.62.120:8081"
-public_regtest_oracle_pk := "5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859"
+public_signet_oracle_endpoint := "http://146.0.73.175:8081"
+public_signet_oracle_pk := "16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0"
+public_signet_network := 'signet'
 
 mainnet_meme_endoint := "http://api.10101.finance/memes/"
 
@@ -116,18 +117,19 @@ run args="":
       --dart-define="ELECTRS_ENDPOINT=http://localhost:3000" \
       --dart-define="HEALTH_CHECK_INTERVAL_SECONDS=2"
 
-# Run against our public regtest server
-run-regtest args="":
+# Run against our public signet server
+run-signet args="":
     #!/usr/bin/env bash
     cd mobile && \
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
-        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_signet_electrs}}" \
+        --dart-define="NETWORK={{public_signet_network}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_signet_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
-        --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="ORACLE_ENDPOINT={{public_signet_oracle_endpoint}}" \
+        --dart-define="ORACLE_PUBKEY={{public_signet_oracle_pk}}" \
         --dart-define="MEME_ENDPOINT=${mainnet_meme_endpoint}"
 
 # Run against our public mainnet server
@@ -145,18 +147,19 @@ run-mainnet args="":
         --dart-define="ORACLE_PUBKEY=93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0" \
         --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/"
 
-# Specify correct Android flavor to run against our public regtest server
-run-regtest-android args="":
+# Specify correct Android flavor to run against our public signet server
+run-signet-android args="":
     #!/usr/bin/env bash
     cd mobile && \
       flutter run {{args}} \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
-        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_signet_electrs}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_signet_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
-        --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="ORACLE_ENDPOINT={{public_signet_oracle_endpoint}}" \
+        --dart-define="ORACLE_PUBKEY={{public_signet_oracle_pk}}" \
+        --dart-define="NETWORK={{public_signet_network}}" \
         --dart-define="MEME_ENDPOINT=http://api.10101.finance/memes/" \
         --flavor test
 
@@ -421,8 +424,8 @@ all args="": services gen native
 # Run everything at once, tailored for iOS development
 all-ios: services gen ios run
 
-# Run iOS on public regtest (useful for device testing, where local regtest is not available)
-ios-regtest: gen ios run-regtest
+# Run iOS on public signet (useful for device testing, where local regtest is not available)
+ios-signet: gen ios run-signet
 
 # Run everything at once, tailored for Android development (rebuilds Android)
 all-android: services gen android run-local-android
@@ -511,7 +514,7 @@ build-ipa args="":
     BUILD_NUMBER=$(git rev-list HEAD --count)
     args=()
 
-    if [ "$NETWORK" = "regtest" ]; then
+    if [ "$NETWORK" = "regtest" ] || [ "$NETWORK" = "signet" ]; then
       args+=(--flavor test)
     fi
 
@@ -544,7 +547,7 @@ release-testflight: gen ios build-ipa publish-testflight
 version:
     cargo --version && rustc --version && flutter --version
 
-build-apk-regtest:
+build-apk-signet:
     #!/usr/bin/env bash
     BUILD_NAME=$(yq -r .version {{pubspec}})
     BUILD_NUMBER=$(git rev-list HEAD --count)
@@ -556,17 +559,18 @@ build-apk-regtest:
       --release \
       --dart-define="COMMIT=$(git rev-parse HEAD)" \
       --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-      --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
-      --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+      --dart-define="ELECTRS_ENDPOINT={{public_signet_electrs}}" \
+      --dart-define="COORDINATOR_P2P_ENDPOINT={{public_signet_coordinator}}" \
       --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
-      --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-      --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+      --dart-define="ORACLE_ENDPOINT={{public_signet_oracle_endpoint}}" \
+      --dart-define="ORACLE_PUBKEY={{public_signet_oracle_pk}}" \
+      --dart-define="NETWORK={{public_signet_network}}" \
       --dart-define="MEME_ENDPOINT={{mainnet_meme_endoint}}" \
       --flavor demo
 
-release-apk-regtest: gen android-release build-apk-regtest
+release-apk-signet: gen android-release build-apk-signet
 
-build-app-bundle-regtest:
+build-app-bundle-signet:
     #!/usr/bin/env bash
     BUILD_NAME=$(yq -r .version {{pubspec}})
     BUILD_NUMBER=$(git rev-list HEAD --count)
@@ -578,11 +582,12 @@ build-app-bundle-regtest:
         --release \
         --dart-define="COMMIT=$(git rev-parse HEAD)" \
         --dart-define="BRANCH=$(git rev-parse --abbrev-ref HEAD)" \
-        --dart-define="ELECTRS_ENDPOINT={{public_regtest_electrs}}" \
-        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_regtest_coordinator}}" \
+        --dart-define="ELECTRS_ENDPOINT={{public_signet_electrs}}" \
+        --dart-define="COORDINATOR_P2P_ENDPOINT={{public_signet_coordinator}}" \
         --dart-define="COORDINATOR_PORT_HTTP={{public_coordinator_http_port}}" \
-        --dart-define="ORACLE_ENDPOINT={{public_regtest_oracle_endpoint}}" \
-        --dart-define="ORACLE_PUBKEY={{public_regtest_oracle_pk}}" \
+        --dart-define="ORACLE_ENDPOINT={{public_signet_oracle_endpoint}}" \
+        --dart-define="ORACLE_PUBKEY={{public_signet_oracle_pk}}" \
+        --dart-define="NETWORK={{public_signet_network}}" \
         --dart-define="MEME_ENDPOINT={{mainnet_meme_endoint}}" \
         --flavor demo
 
@@ -595,7 +600,7 @@ build-android-app-bundle:
     echo "build number: ${BUILD_NUMBER}"
 
     flavor_arg=()
-    if [ "$NETWORK" = "regtest" ]; then
+    if [ "$NETWORK" = "regtest" ] || [ "$NETWORK" = "signet" ]; then
       flavor_arg+=(--flavor demo)
     else
       flavor_arg+=(--flavor full)
@@ -628,7 +633,7 @@ build-android-app-apk args="":
     echo "build number: ${BUILD_NUMBER}"
 
     flavor_arg=()
-    if [ "$NETWORK" = "regtest" ]; then
+    if [ "$NETWORK" = "regtest" ] || [ "$NETWORK" = "signet" ]; then
       flavor_arg+=(--flavor demo)
     else
       flavor_arg+=(--flavor full)
@@ -658,7 +663,7 @@ upload-app-bundle:
 
     cd mobile/android/fastlane
 
-    if [ "$NETWORK" = "regtest" ]; then
+    if [ "$NETWORK" = "regtest" ] || [ "$NETWORK" = "signet" ]; then
       echo "Uploading for regtest"
       ANDROID_PACKAGE_NAME='finance.get10101.app.demo' FASTLANE_ANDROID_APP_SCHEME='demo' bundle exec fastlane beta
     else
@@ -666,7 +671,7 @@ upload-app-bundle:
       ANDROID_PACKAGE_NAME='finance.get10101.app' FASTLANE_ANDROID_APP_SCHEME='full' bundle exec fastlane internal
     fi
 
-release-app-bundle-regtest: gen android-release build-app-bundle-regtest upload-app-bundle
+release-app-bundle-signet: gen android-release build-app-bundle-signet upload-app-bundle
 
 # Run prometheus for local debugging (needs it installed, e.g. `brew install prometheus`)
 prometheus:
