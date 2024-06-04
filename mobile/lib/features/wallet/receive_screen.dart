@@ -84,8 +84,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
         Container(
           margin: const EdgeInsets.fromLTRB(0, 10, 0, 0),
           child: GestureDetector(
-            onDoubleTap:
-                config.network == "regtest" ? () => setState(() => _faucet = !_faucet) : null,
+            onDoubleTap: config.network == "regtest" || config.network == "signet"
+                ? () => setState(() => _faucet = !_faucet)
+                : null,
             child: Center(
                 child: _faucet
                     ? Column(
@@ -98,7 +99,7 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                                     setState(() => _isPayInvoiceButtonDisabled = true);
                                     final faucetService = context.read<FaucetService>();
                                     faucetService
-                                        .payInvoiceWithFaucet(rawInvoice(), amount)
+                                        .payInvoiceWithFaucet(rawInvoice(), amount, config.network)
                                         .catchError((error) {
                                       setState(() => _isPayInvoiceButtonDisabled = false);
                                       showSnackBar(ScaffoldMessenger.of(context), error.toString());
@@ -108,7 +109,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                               shape: const RoundedRectangleBorder(
                                   borderRadius: BorderRadius.all(Radius.circular(5.0))),
                             ),
-                            child: const Text("Pay with 10101 faucet"),
+                            child: config.network == "regtest"
+                                ? const Text("Pay with 10101 faucet")
+                                : const Text("Pay with Mutinynet faucet"),
                           ),
                           const SizedBox(height: 125),
                         ],

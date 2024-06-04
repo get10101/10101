@@ -64,7 +64,7 @@ List<SingleChildWidget> createProviders() {
     Provider(create: (context) => pollService),
     Provider(create: (context) => memeService)
   ];
-  if (config.network == "regtest") {
+  if (config.network == "regtest" || config.network == "signet") {
     providers.add(Provider(create: (context) => FaucetService()));
   }
 
