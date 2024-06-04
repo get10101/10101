@@ -8,6 +8,8 @@ import 'package:get_10101/common/application/channel_info_service.dart';
 import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 @GenerateNiceMocks([MockSpec<DlcChannelService>()])
 import 'package:get_10101/common/dlc_channel_service.dart';
+@GenerateNiceMocks([MockSpec<TradeService>()])
+import 'package:get_10101/features/trade/application/trade_service.dart';
 import 'package:get_10101/common/dlc_channel_change_notifier.dart';
 import 'package:get_10101/common/domain/dlc_channel.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -20,9 +22,11 @@ import 'package:get_10101/features/trade/application/trade_values_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/domain/direction.dart';
 import 'package:get_10101/features/trade/domain/leverage.dart';
+import 'package:get_10101/features/trade/funding_rate_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
+import 'package:get_10101/features/trade/trade_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/trade/trade_theme.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
@@ -93,11 +97,14 @@ void main() {
   MockWalletService walletService = MockWalletService();
   MockDlcChannelService dlcChannelService = MockDlcChannelService();
   MockOrderService orderService = MockOrderService();
+  MockTradeService tradeService = MockTradeService();
 
   testWidgets('Given rates, the trade screen show bid/ask price', (tester) async {
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
     SubmitOrderChangeNotifier submitOrderChangeNotifier = SubmitOrderChangeNotifier(orderService);
     PositionChangeNotifier positionChangeNotifier = PositionChangeNotifier(positionService);
+    TradeChangeNotifier tradeChangeNotifier = TradeChangeNotifier(tradeService);
+    FundingRateChangeNotifier fundingRateChangeNotifier = FundingRateChangeNotifier();
 
     const askPrice = 30001.0;
     const bidPrice = 30000.0;
@@ -114,6 +121,8 @@ void main() {
           ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
           ChangeNotifierProvider(create: (context) => OrderChangeNotifier(orderService)),
           ChangeNotifierProvider(create: (context) => positionChangeNotifier),
+          ChangeNotifierProvider(create: (context) => tradeChangeNotifier),
+          ChangeNotifierProvider(create: (context) => fundingRateChangeNotifier),
         ],
         child: TestWrapperWithTradeTheme(
           router: buildGoRouterMock(TradeScreen.route),
@@ -124,11 +133,11 @@ void main() {
     // We check if all the widgets are here which we want to see
     var tradeScreenAskPriceWidget = find.byKey(tradeScreenAskPrice);
     expect(tradeScreenAskPriceWidget, findsOneWidget);
-    var assertedPrice = assertPrice(tester, tradeScreenAskPriceWidget, "\$ 30,001");
+    var assertedPrice = assertPrice(tester, tradeScreenAskPriceWidget, "\$30,001");
     logger.i("Ask price found: $assertedPrice");
     var tradeScreenBidPriceWidget = find.byKey(tradeScreenBidPrice);
     expect(tradeScreenBidPriceWidget, findsOneWidget);
-    assertedPrice = assertPrice(tester, tradeScreenBidPriceWidget, "\$ 30,000");
+    assertedPrice = assertPrice(tester, tradeScreenBidPriceWidget, "\$30,000");
     logger.i("Bid price found: $assertedPrice");
 
     // Buy and sell buttons are also here
@@ -152,6 +161,8 @@ void main() {
         TenTenOneConfigChangeNotifier(channelConstraintsService);
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
     OrderChangeNotifier orderChangeNotifier = OrderChangeNotifier(orderService);
+    TradeChangeNotifier tradeChangeNotifier = TradeChangeNotifier(tradeService);
+    FundingRateChangeNotifier fundingRateChangeNotifier = FundingRateChangeNotifier();
 
     const askPrice = 30001.0;
     const bidPrice = 30000.0;
@@ -209,6 +220,8 @@ void main() {
           ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
           ChangeNotifierProvider(create: (context) => positionChangeNotifier),
           ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+          ChangeNotifierProvider(create: (context) => tradeChangeNotifier),
+          ChangeNotifierProvider(create: (context) => fundingRateChangeNotifier),
         ],
         child: TestWrapperWithTradeTheme(
           router: buildGoRouterMock(TradeScreen.route),
@@ -322,6 +335,8 @@ void main() {
         TenTenOneConfigChangeNotifier(channelConstraintsService);
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
     OrderChangeNotifier orderChangeNotifier = OrderChangeNotifier(orderService);
+    TradeChangeNotifier tradeChangeNotifier = TradeChangeNotifier(tradeService);
+    FundingRateChangeNotifier fundingRateChangeNotifier = FundingRateChangeNotifier();
 
     const askPrice = 30001.0;
     const bidPrice = 30000.0;
@@ -380,6 +395,8 @@ void main() {
           ChangeNotifierProvider(create: (context) => submitOrderChangeNotifier),
           ChangeNotifierProvider(create: (context) => positionChangeNotifier),
           ChangeNotifierProvider(create: (context) => AmountDenominationChangeNotifier()),
+          ChangeNotifierProvider(create: (context) => tradeChangeNotifier),
+          ChangeNotifierProvider(create: (context) => fundingRateChangeNotifier),
         ],
         child: TestWrapperWithTradeTheme(
           router: buildGoRouterMock(ChannelConfigurationScreen.route),
@@ -472,6 +489,10 @@ void main() {
     DlcChannelChangeNotifier dlcChannelChangeNotifier = DlcChannelChangeNotifier(dlcChannelService);
     dlcChannelChangeNotifier.initialize();
 
+    TradeChangeNotifier tradeChangeNotifier = TradeChangeNotifier(tradeService);
+
+    FundingRateChangeNotifier fundingRateChangeNotifier = FundingRateChangeNotifier();
+
     final tradeValuesChangeNotifier = TradeValuesChangeNotifier(tradeValueService);
 
     const askPrice = 30000.0;
@@ -493,6 +514,8 @@ void main() {
           ChangeNotifierProvider(create: (context) => walletChangeNotifier),
           ChangeNotifierProvider(create: (context) => configChangeNotifier),
           ChangeNotifierProvider(create: (context) => dlcChannelChangeNotifier),
+          ChangeNotifierProvider(create: (context) => tradeChangeNotifier),
+          ChangeNotifierProvider(create: (context) => fundingRateChangeNotifier),
         ],
         child: TestWrapperWithTradeTheme(
           router: buildGoRouterMock(TradeScreen.route),
