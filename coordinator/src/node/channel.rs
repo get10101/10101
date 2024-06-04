@@ -299,6 +299,8 @@ impl Node {
             .inner
             .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
 
+        // The party earning the funding fee receives adds it to their collateral reserve.
+        // Conversely, the party paying the funding fee subtracts it from their margin.
         let reserves = match funding_fee {
             FundingFee::Zero => (collateral_reserve_coordinator, collateral_reserve_trader),
             FundingFee::CoordinatorPays(funding_fee) => {
@@ -311,6 +313,8 @@ impl Node {
                     new_collateral_reserve_trader.to_unsigned().expect("to fit");
 
                 (
+                    // The coordinator pays the funding fee using their margin. Thus, their
+                    // collateral reserve remains unchanged.
                     collateral_reserve_coordinator,
                     new_collateral_reserve_trader,
                 )
@@ -328,6 +332,8 @@ impl Node {
 
                 (
                     new_collateral_reserve_coordinator,
+                    // The trader pays the funding fee using their margin. Thus, their
+                    // collateral reserve remains unchanged.
                     collateral_reserve_trader,
                 )
             }

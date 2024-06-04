@@ -1707,19 +1707,15 @@ fn margin_coordinator(trade_params: &TradeParams, coordinator_leverage: f32) -> 
     )
 }
 
-fn liquidation_price(
+pub fn liquidation_price(
     price: Decimal,
-    coordinator_leverage: Decimal,
+    leverage: Decimal,
     direction: Direction,
     maintenance_margin: Decimal,
 ) -> Decimal {
     match direction {
-        Direction::Long => {
-            calculate_long_liquidation_price(coordinator_leverage, price, maintenance_margin)
-        }
-        Direction::Short => {
-            calculate_short_liquidation_price(coordinator_leverage, price, maintenance_margin)
-        }
+        Direction::Long => calculate_long_liquidation_price(leverage, price, maintenance_margin),
+        Direction::Short => calculate_short_liquidation_price(leverage, price, maintenance_margin),
     }
 }
 
