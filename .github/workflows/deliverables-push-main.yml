@@ -49,13 +49,13 @@ jobs:
     uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
-      electrs_endpoint: http://34.32.62.120:3000
-      coordinator_p2p_endpoint: 03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.62.120:9045
+      electrs_endpoint: http://146.0.73.175:3003
+      coordinator_p2p_endpoint: 021eddb3062fddef2c24f16f6de55fbd78ab985b74b41858719def46321d4be7d0@146.0.73.175:9045
       coordinator_port_http: 80
-      network: regtest
+      network: signet
       tag: main
-      oracle_endpoint: http://34.32.62.120:8081
-      oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
+      oracle_endpoint: http://146.0.73.175:8081
+      oracle_pubkey: 16f88cf7d21e6c0f46bcbc983a4e3b19726c6c98858cc31c83551a88fde171c0
       fastlane_developer_app_identifier: finance.get10101.app.test
       fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app.test
       app_scheme: test
@@ -71,10 +71,10 @@ jobs:
     secrets: inherit
     with:
       tag: main
-      electrs_endpoint: http://34.32.62.120:3000
-      coordinator_p2p_endpoint: 03507b924dae6595cfb78492489978127c5f1e3877848564de2015cd6d41375802@34.32.62.120:9045
+      electrs_endpoint: http://146.0.73.175:3003
+      coordinator_p2p_endpoint: 021eddb3062fddef2c24f16f6de55fbd78ab985b74b41858719def46321d4be7d0@146.0.73.175:9045
       coordinator_port_http: 80
-      network: regtest
-      oracle_endpoint: http://34.32.62.120:8081
+      network: signet
+      oracle_endpoint: http://146.0.73.175:8081
       oracle_pubkey: 5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
       meme_endpoint: http://api.10101.finance/memes/
