@@ -4,10 +4,12 @@ use crate::event::EventInternal;
 use crate::trade::Trade;
 use anyhow::Result;
 
-pub fn new_trade(trade: Trade) -> Result<()> {
-    db::insert_trade(trade)?;
+pub fn new_trades(trades: Vec<Trade>) -> Result<()> {
+    db::insert_trades(&trades)?;
 
-    event::publish(&EventInternal::NewTrade(trade));
+    for trade in trades {
+        event::publish(&EventInternal::NewTrade(trade));
+    }
 
     Ok(())
 }

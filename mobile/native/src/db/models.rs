@@ -1092,12 +1092,14 @@ impl Trade {
 }
 
 impl NewTrade {
-    pub fn insert(conn: &mut SqliteConnection, trade: Self) -> Result<()> {
+    pub fn insert(conn: &mut SqliteConnection, trades: Vec<Self>) -> Result<()> {
+        let len = trades.len();
+
         let affected_rows = diesel::insert_into(trades::table)
-            .values(trade)
+            .values(trades)
             .execute(conn)?;
 
-        ensure!(affected_rows > 0, "Could not insert trade");
+        ensure!(affected_rows > len, "Could not insert trade");
 
         Ok(())
     }

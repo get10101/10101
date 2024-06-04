@@ -4,7 +4,7 @@ use crate::event::EventInternal;
 use crate::trade::order::Order;
 use crate::trade::position::Position;
 use crate::trade::position::PositionState;
-use crate::trade::trades::handler::new_trade;
+use crate::trade::trades::handler::new_trades;
 use crate::trade::FundingFeeEvent;
 use anyhow::bail;
 use anyhow::Context;
@@ -182,9 +182,7 @@ pub fn update_position_after_dlc_channel_creation_or_update(
         }
     };
 
-    for trade in trades {
-        new_trade(trade)?;
-    }
+    new_trades(trades)?;
 
     event::publish(&EventInternal::PositionUpdateNotification(position));
 
@@ -227,9 +225,7 @@ pub fn update_position_after_dlc_closure(filled_order: Order) -> Result<()> {
         );
     }
 
-    for trade in trades {
-        new_trade(trade)?;
-    }
+    new_trades(trades)?;
 
     db::delete_positions()?;
 

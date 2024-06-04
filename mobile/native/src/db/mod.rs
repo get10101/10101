@@ -497,10 +497,12 @@ pub fn get_all_trades() -> Result<Vec<crate::trade::Trade>> {
     Ok(trades)
 }
 
-pub fn insert_trade(trade: crate::trade::Trade) -> Result<()> {
+pub fn insert_trades(trades: &[crate::trade::Trade]) -> Result<()> {
     let mut db = connection()?;
 
-    NewTrade::insert(&mut db, trade.into())?;
+    let trades = trades.iter().copied().map(|trade| trade.into()).collect();
+
+    NewTrade::insert(&mut db, trades)?;
 
     Ok(())
 }
