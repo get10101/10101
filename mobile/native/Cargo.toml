@@ -9,7 +9,6 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 [dependencies]
 aes-gcm-siv = { version = "0.11.1", features = ["heapless"] }
 anyhow = "1"
-base64 = "0.21.0"
 bdk = { version = "1.0.0-alpha.6", features = ["std"] }
 bdk_file_store = "0.6"
 bip21 = "0.3.0"

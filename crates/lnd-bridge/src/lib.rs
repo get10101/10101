@@ -150,7 +150,7 @@ impl LndBridge {
         Ok(invoice)
     }
 
-    pub async fn cancel_invoice(&self, payment_hash: String) -> Result<()> {
+    pub async fn cancel_invoice(&self, r_hash: String) -> Result<()> {
         let builder = self.client.request(
             Method::POST,
             format!(
@@ -163,7 +163,9 @@ impl LndBridge {
         let resp = builder
             .header("content-type", "application/json")
             .header("Grpc-Metadata-macaroon", self.macaroon.clone())
-            .json(&CancelInvoice { payment_hash })
+            .json(&CancelInvoice {
+                payment_hash: r_hash,
+            })
             .send()
             .await?;
 

@@ -3,8 +3,6 @@ use crate::event::EventInternal;
 use crate::event::EventType;
 use crate::state;
 use anyhow::Result;
-use base64::engine::general_purpose;
-use base64::Engine;
 use bitcoin::Address;
 use bitcoin::Amount;
 use std::time::Duration;
@@ -33,19 +31,9 @@ impl Subscriber for InvoiceWatcher {
             let r_hash = r_hash.clone();
             let sender = self.sender.clone();
             async move {
-                // We receive the r_hash in base64 standard encoding
-                match general_purpose::STANDARD.decode(&r_hash) {
-                    Ok(hash) => {
-                        // but we watch for the r_has in base64 url safe encoding.
-                        let r_hash = general_purpose::URL_SAFE.encode(hash);
-                        if let Err(e) = sender.send(r_hash.clone()) {
-                            tracing::error!(%r_hash, "Failed to send accepted invoice event. Error: {e:#}");
-                        }
-                    },
-                    Err(e) => {
-                        tracing::error!(r_hash, "Failed to decode. Error: {e:#}");
-                    }
-                };
+                if let Err(e) = sender.send(r_hash.clone()) {
+                    tracing::error!(%r_hash, "Failed to send accepted invoice event. Error: {e:#}");
+                }
             }
         });
     }

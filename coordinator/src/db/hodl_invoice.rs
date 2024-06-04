@@ -9,6 +9,7 @@ use diesel::AsExpression;
 use diesel::ExpressionMethods;
 use diesel::FromSqlRow;
 use diesel::PgConnection;
+use diesel::QueryDsl;
 use diesel::QueryResult;
 use diesel::RunQueryDsl;
 use std::any::TypeId;
@@ -22,6 +23,7 @@ pub enum InvoiceState {
     Accepted,
     Settled,
     Failed,
+    Canceled,
 }
 
 impl QueryId for InvoiceStateType {
@@ -31,6 +33,13 @@ impl QueryId for InvoiceStateType {
     fn query_id() -> Option<TypeId> {
         None
     }
+}
+
+pub fn cancel_pending_hodl_invoices(conn: &mut PgConnection) -> QueryResult<usize> {
+    diesel::update(hodl_invoices::table)
+        .filter(hodl_invoices::invoice_state.eq_any([InvoiceState::Open, InvoiceState::Accepted]))
+        .set(hodl_invoices::invoice_state.eq(InvoiceState::Canceled))
+        .execute(conn)
 }
 
 pub fn create_hodl_invoice(
@@ -51,6 +60,13 @@ pub fn create_hodl_invoice(
     ensure!(affected_rows > 0, "Could not insert hodl invoice");
 
     Ok(())
+}
+
+pub fn get_r_hash_by_order_id(conn: &mut PgConnection, order_id: Uuid) -> QueryResult<String> {
+    hodl_invoices::table
+        .filter(hodl_invoices::order_id.eq(order_id))
+        .select(hodl_invoices::r_hash)
+        .get_result(conn)
 }
 
 pub fn update_hodl_invoice_to_accepted(
@@ -87,20 +103,7 @@ pub fn update_hodl_invoice_to_settled(
         .get_result(conn)
 }
 
-pub fn update_hodl_invoice_to_failed(
-    conn: &mut PgConnection,
-    order_id: Uuid,
-) -> QueryResult<usize> {
-    diesel::update(hodl_invoices::table)
-        .filter(hodl_invoices::order_id.eq(order_id))
-        .set((
-            hodl_invoices::updated_at.eq(OffsetDateTime::now_utc()),
-            hodl_invoices::invoice_state.eq(InvoiceState::Failed),
-        ))
-        .execute(conn)
-}
-
-pub fn update_hodl_invoice_to_failed_by_r_hash(
+pub fn update_hodl_invoice_to_canceled(
     conn: &mut PgConnection,
     r_hash: String,
 ) -> QueryResult<usize> {
@@ -108,7 +111,7 @@ pub fn update_hodl_invoice_to_failed_by_r_hash(
         .filter(hodl_invoices::r_hash.eq(r_hash))
         .set((
             hodl_invoices::updated_at.eq(OffsetDateTime::now_utc()),
-            hodl_invoices::invoice_state.eq(InvoiceState::Failed),
+            hodl_invoices::invoice_state.eq(InvoiceState::Canceled),
         ))
         .execute(conn)
 }
