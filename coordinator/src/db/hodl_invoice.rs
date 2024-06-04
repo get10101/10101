@@ -69,6 +69,19 @@ pub fn get_r_hash_by_order_id(conn: &mut PgConnection, order_id: Uuid) -> QueryR
         .get_result(conn)
 }
 
+/// Returns the pre image of the hodl invoice associated with the order id
+/// If the hodl invoice can not be found a [`Not Found`] error is returned
+/// If the hodl invoice is found the pre_image is optional, as it might have not yet been set.
+pub fn get_pre_image_by_order_id(
+    conn: &mut PgConnection,
+    order_id: Uuid,
+) -> QueryResult<Option<String>> {
+    hodl_invoices::table
+        .filter(hodl_invoices::order_id.eq(order_id))
+        .select(hodl_invoices::pre_image)
+        .get_result(conn)
+}
+
 pub fn update_hodl_invoice_to_accepted(
     conn: &mut PgConnection,
     hash: &str,
@@ -91,10 +104,10 @@ pub fn update_hodl_invoice_to_accepted(
 
 pub fn update_hodl_invoice_to_settled(
     conn: &mut PgConnection,
-    order_id: Uuid,
+    r_hash: String,
 ) -> QueryResult<Option<String>> {
     diesel::update(hodl_invoices::table)
-        .filter(hodl_invoices::order_id.eq(order_id))
+        .filter(hodl_invoices::r_hash.eq(r_hash))
         .set((
             hodl_invoices::updated_at.eq(OffsetDateTime::now_utc()),
             hodl_invoices::invoice_state.eq(InvoiceState::Settled),

@@ -33,6 +33,24 @@ pub fn spawn_invoice_watch(
                     }
                     InvoiceState::Settled => {
                         tracing::info!(%trader_pubkey, r_hash, "Accepted hodl invoice has been settled.");
+                        if let Err(e) = spawn_blocking({
+                            let r_hash = r_hash.clone();
+                            move || {
+                                let mut conn = pool.get()?;
+                                db::hodl_invoice::update_hodl_invoice_to_settled(
+                                    &mut conn, r_hash,
+                                )?;
+                                anyhow::Ok(())
+                            }
+                        })
+                        .await
+                        .expect("task to finish")
+                        {
+                            tracing::error!(
+                                r_hash,
+                                "Failed to set hodl invoice to failed. Error: {e:#}"
+                            );
+                        }
                         break;
                     }
                     InvoiceState::Canceled => {
