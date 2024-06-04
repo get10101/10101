@@ -115,60 +115,6 @@ pub enum DlcProtocolType {
     },
 }
 
-impl DlcProtocolType {
-    pub fn open_channel(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::OpenChannel {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-
-    pub fn open_position(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::OpenPosition {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-
-    pub fn resize_position(
-        trade_params: &commons::TradeParams,
-        protocol_id: ProtocolId,
-        trader_pnl: Option<SignedAmount>,
-    ) -> Self {
-        Self::ResizePosition {
-            trade_params: TradeParams::new(trade_params, protocol_id, trader_pnl),
-        }
-    }
-
-    pub fn settle(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::Settle {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-}
-
-impl DlcProtocolType {
-    pub fn get_trader_pubkey(&self) -> &PublicKey {
-        match self {
-            DlcProtocolType::OpenChannel {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::OpenPosition {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::ResizePosition {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::Settle {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::Close { trader } => trader,
-            DlcProtocolType::ForceClose { trader } => trader,
-            DlcProtocolType::Rollover {
-                rollover_params: RolloverParams { trader_pubkey, .. },
-            } => trader_pubkey,
-        }
-    }
-}
-
 pub struct DlcProtocolExecutor {
     pool: Pool<ConnectionManager<PgConnection>>,
 }
@@ -178,41 +124,60 @@ impl DlcProtocolExecutor {
         DlcProtocolExecutor { pool }
     }
 
-    /// Persist a new DLC protocol and update technical tables in a single transaction.
-    pub fn start_dlc_protocol(
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_open_channel_protocol(
         &self,
         protocol_id: ProtocolId,
-        previous_protocol_id: Option<ProtocolId>,
-        contract_id: Option<&ContractId>,
-        channel_id: &DlcChannelId,
-        protocol_type: DlcProtocolType,
+        temporary_contract_id: &ContractId,
+        temporary_channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
         conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                None,
+                Some(temporary_contract_id),
+                temporary_channel_id,
+                db::dlc_protocols::DlcProtocolType::OpenChannel,
+                &trader_pubkey,
+            )?;
+
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_open_position_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        temporary_contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
             db::dlc_protocols::create(
                 conn,
                 protocol_id,
                 previous_protocol_id,
-                contract_id,
+                Some(temporary_contract_id),
                 channel_id,
-                &protocol_type,
-                protocol_type.get_trader_pubkey(),
+                db::dlc_protocols::DlcProtocolType::OpenPosition,
+                &trader_pubkey,
             )?;
 
-            match protocol_type {
-                DlcProtocolType::OpenChannel { trade_params }
-                | DlcProtocolType::OpenPosition { trade_params }
-                | DlcProtocolType::ResizePosition { trade_params } => {
-                    db::trade_params::insert(conn, &trade_params)?;
-                }
-                DlcProtocolType::Settle { .. } => {
-                    unimplemented!("Use dedicated start_settle_protocol method")
-                }
-                DlcProtocolType::Rollover { .. } => {
-                    unimplemented!("Use dedicated start_rollover method")
-                }
-                _ => {}
-            }
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
 
             diesel::result::QueryResult::Ok(())
         })?;
@@ -225,7 +190,7 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: Option<&ContractId>,
+        temporary_contract_id: Option<&ContractId>,
         channel_id: &DlcChannelId,
         trade_params: &commons::TradeParams,
         realized_pnl: Option<SignedAmount>,
@@ -239,7 +204,7 @@ impl DlcProtocolExecutor {
                 conn,
                 protocol_id,
                 previous_protocol_id,
-                contract_id,
+                temporary_contract_id,
                 channel_id,
                 db::dlc_protocols::DlcProtocolType::ResizePosition,
                 &trader_pubkey,
@@ -262,7 +227,7 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: Option<&ContractId>,
+        contract_id: &ContractId,
         channel_id: &DlcChannelId,
         trade_params: &commons::TradeParams,
         funding_fee_event_ids: Vec<i32>,
@@ -275,7 +240,7 @@ impl DlcProtocolExecutor {
                 conn,
                 protocol_id,
                 previous_protocol_id,
-                contract_id,
+                Some(contract_id),
                 channel_id,
                 db::dlc_protocols::DlcProtocolType::Settle,
                 &trader_pubkey,
@@ -296,7 +261,7 @@ impl DlcProtocolExecutor {
         &self,
         protocol_id: ProtocolId,
         previous_protocol_id: Option<ProtocolId>,
-        contract_id: &ContractId,
+        temporary_contract_id: &ContractId,
         channel_id: &DlcChannelId,
         rollover_params: RolloverParams,
         funding_fee_event_ids: Vec<i32>,
@@ -309,7 +274,7 @@ impl DlcProtocolExecutor {
                 conn,
                 protocol_id,
                 previous_protocol_id,
-                Some(contract_id),
+                Some(temporary_contract_id),
                 channel_id,
                 db::dlc_protocols::DlcProtocolType::Rollover,
                 &trader_pubkey,
@@ -321,6 +286,28 @@ impl DlcProtocolExecutor {
 
             diesel::result::QueryResult::Ok(())
         })?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_close_channel_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        channel_id: &DlcChannelId,
+        trader_id: &PublicKey,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        db::dlc_protocols::create(
+            &mut conn,
+            protocol_id,
+            previous_protocol_id,
+            None,
+            channel_id,
+            db::dlc_protocols::DlcProtocolType::Close,
+            trader_id,
+        )?;
 
         Ok(())
     }

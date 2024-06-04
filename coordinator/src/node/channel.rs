@@ -77,14 +77,12 @@ impl Node {
         let protocol_id = self.inner.close_dlc_channel(channel_id, false).await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        protocol_executor.start_dlc_protocol(
+
+        protocol_executor.start_close_channel_protocol(
             protocol_id,
             previous_id,
-            None,
             &channel.get_id(),
-            DlcProtocolType::Close {
-                trader: to_secp_pk_30(channel.get_counter_party_id()),
-            },
+            &to_secp_pk_30(channel.get_counter_party_id()),
         )?;
 
         Ok(())
