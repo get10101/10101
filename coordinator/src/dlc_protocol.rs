@@ -36,7 +36,7 @@ pub struct DlcProtocol {
     pub protocol_type: DlcProtocolType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct TradeParams {
     pub protocol_id: ProtocolId,
     pub trader: PublicKey,
@@ -70,6 +70,19 @@ impl TradeParams {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RolloverParams {
+    pub protocol_id: ProtocolId,
+    pub trader_pubkey: PublicKey,
+    pub margin_coordinator: Amount,
+    pub margin_trader: Amount,
+    pub leverage_coordinator: Decimal,
+    pub leverage_trader: Decimal,
+    pub liquidation_price_coordinator: Decimal,
+    pub liquidation_price_trader: Decimal,
+    pub expiry_timestamp: OffsetDateTime,
+}
+
 pub enum DlcProtocolState {
     Pending,
     Success,
@@ -89,7 +102,7 @@ pub enum DlcProtocolType {
         trade_params: TradeParams,
     },
     Rollover {
-        trader: PublicKey,
+        rollover_params: RolloverParams,
     },
     Settle {
         trade_params: TradeParams,
@@ -102,58 +115,6 @@ pub enum DlcProtocolType {
     },
 }
 
-impl DlcProtocolType {
-    pub fn open_channel(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::OpenChannel {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-
-    pub fn open_position(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::OpenPosition {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-
-    pub fn resize_position(
-        trade_params: &commons::TradeParams,
-        protocol_id: ProtocolId,
-        trader_pnl: Option<SignedAmount>,
-    ) -> Self {
-        Self::ResizePosition {
-            trade_params: TradeParams::new(trade_params, protocol_id, trader_pnl),
-        }
-    }
-
-    pub fn settle(trade_params: &commons::TradeParams, protocol_id: ProtocolId) -> Self {
-        Self::Settle {
-            trade_params: TradeParams::new(trade_params, protocol_id, None),
-        }
-    }
-}
-
-impl DlcProtocolType {
-    pub fn get_trader_pubkey(&self) -> &PublicKey {
-        match self {
-            DlcProtocolType::OpenChannel {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::OpenPosition {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::ResizePosition {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::Settle {
-                trade_params: TradeParams { trader, .. },
-            } => trader,
-            DlcProtocolType::Close { trader } => trader,
-            DlcProtocolType::ForceClose { trader } => trader,
-            DlcProtocolType::Rollover { trader } => trader,
-        }
-    }
-}
-
 pub struct DlcProtocolExecutor {
     pool: Pool<ConnectionManager<PgConnection>>,
 }
@@ -163,42 +124,190 @@ impl DlcProtocolExecutor {
         DlcProtocolExecutor { pool }
     }
 
-    /// Starts a dlc protocol, by creating a new dlc protocol and temporarily stores
-    /// the trade params.
-    ///
-    /// Returns a uniquely generated protocol id as [`dlc_manager::ReferenceId`]
-    pub fn start_dlc_protocol(
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_open_channel_protocol(
         &self,
         protocol_id: ProtocolId,
-        previous_protocol_id: Option<ProtocolId>,
-        contract_id: Option<&ContractId>,
-        channel_id: &DlcChannelId,
-        protocol_type: DlcProtocolType,
+        temporary_contract_id: &ContractId,
+        temporary_channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
     ) -> Result<()> {
         let mut conn = self.pool.get()?;
         conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                None,
+                Some(temporary_contract_id),
+                temporary_channel_id,
+                db::dlc_protocols::DlcProtocolType::OpenChannel,
+                &trader_pubkey,
+            )?;
+
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_open_position_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        temporary_contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
             db::dlc_protocols::create(
                 conn,
                 protocol_id,
                 previous_protocol_id,
-                contract_id,
+                Some(temporary_contract_id),
                 channel_id,
-                protocol_type.clone(),
-                protocol_type.get_trader_pubkey(),
+                db::dlc_protocols::DlcProtocolType::OpenPosition,
+                &trader_pubkey,
             )?;
 
-            match protocol_type {
-                DlcProtocolType::OpenChannel { trade_params }
-                | DlcProtocolType::OpenPosition { trade_params }
-                | DlcProtocolType::ResizePosition { trade_params }
-                | DlcProtocolType::Settle { trade_params } => {
-                    db::trade_params::insert(conn, protocol_id, &trade_params)?;
-                }
-                _ => {}
-            }
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
 
             diesel::result::QueryResult::Ok(())
         })?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_resize_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        temporary_contract_id: Option<&ContractId>,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+        realized_pnl: Option<SignedAmount>,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                temporary_contract_id,
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::ResizePosition,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::trade_params::insert(
+                conn,
+                &TradeParams::new(trade_params, protocol_id, realized_pnl),
+            )?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    pub fn start_settle_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        trade_params: &commons::TradeParams,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = trade_params.pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                Some(contract_id),
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::Settle,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    /// Persist a new rollover protocol and update technical tables in a single transaction.
+    pub fn start_rollover(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        temporary_contract_id: &ContractId,
+        channel_id: &DlcChannelId,
+        rollover_params: RolloverParams,
+        funding_fee_event_ids: Vec<i32>,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        conn.transaction(|conn| {
+            let trader_pubkey = rollover_params.trader_pubkey;
+
+            db::dlc_protocols::create(
+                conn,
+                protocol_id,
+                previous_protocol_id,
+                Some(temporary_contract_id),
+                channel_id,
+                db::dlc_protocols::DlcProtocolType::Rollover,
+                &trader_pubkey,
+            )?;
+
+            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+
+            db::rollover_params::insert(conn, &rollover_params)?;
+
+            diesel::result::QueryResult::Ok(())
+        })?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_close_channel_protocol(
+        &self,
+        protocol_id: ProtocolId,
+        previous_protocol_id: Option<ProtocolId>,
+        channel_id: &DlcChannelId,
+        trader_id: &PublicKey,
+    ) -> Result<()> {
+        let mut conn = self.pool.get()?;
+        db::dlc_protocols::create(
+            &mut conn,
+            protocol_id,
+            previous_protocol_id,
+            None,
+            channel_id,
+            db::dlc_protocols::DlcProtocolType::Close,
+            trader_id,
+        )?;
 
         Ok(())
     }
@@ -210,7 +319,8 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Finishes a dlc protocol by the corresponding dlc protocol type handling.
+    /// Update the state of the database and the position feed based on the completion of a DLC
+    /// protocol.
     pub fn finish_dlc_protocol(
         &self,
         protocol_id: ProtocolId,
@@ -250,7 +360,7 @@ impl DlcProtocolExecutor {
                 }
                 DlcProtocolType::Settle { trade_params } => {
                     let settled_contract = dlc_protocol.contract_id;
-                    self.finish_close_trade_dlc_protocol(
+                    self.finish_settle_dlc_protocol(
                         conn,
                         trade_params,
                         protocol_id,
@@ -260,16 +370,18 @@ impl DlcProtocolExecutor {
                         channel_id,
                     )
                 }
-                DlcProtocolType::Rollover { .. } => {
+                DlcProtocolType::Rollover { rollover_params } => {
                     let contract_id = contract_id
                         .context("missing contract id")
                         .map_err(|_| RollbackTransaction)?;
+
                     self.finish_rollover_dlc_protocol(
                         conn,
                         trader_id,
                         protocol_id,
                         &contract_id,
                         channel_id,
+                        rollover_params,
                     )
                 }
                 DlcProtocolType::Close { .. } => {
@@ -310,13 +422,17 @@ impl DlcProtocolExecutor {
         Ok(())
     }
 
-    /// Completes the close trade dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
-    /// - Set dlc protocol to success
-    /// - Calculates the pnl and sets the `[PositionState::Closing`] position state to
-    ///   `[PositionState::Closed`]
-    /// - Creates and inserts the new trade
-    fn finish_close_trade_dlc_protocol(
+    /// Complete the settle DLC protocol as successful and update the 10101 metadata accordingly in
+    /// a single database transaction.
+    ///
+    /// - Set settle DLC protocol to success.
+    ///
+    /// - Calculate the PNL and update the `[PositionState::Closing`] to `[PositionState::Closed`].
+    ///
+    /// - Create and insert new trade.
+    ///
+    /// - Mark relevant funding fee events as paid.
+    fn finish_settle_dlc_protocol(
         &self,
         conn: &mut PgConnection,
         trade_params: &TradeParams,
@@ -368,8 +484,8 @@ impl DlcProtocolExecutor {
                 Decimal::from_f32(trade_params.average_price).expect("to fit into decimal"),
                 trade_params.quantity,
                 trader_position_direction,
-                initial_margin_long as u64,
-                initial_margin_short as u64,
+                initial_margin_long.to_sat(),
+                initial_margin_short.to_sat(),
             ) {
                 Ok(pnl) => pnl,
                 Err(e) => {
@@ -404,6 +520,8 @@ impl DlcProtocolExecutor {
         };
 
         db::trades::insert(conn, new_trade)?;
+
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
 
         Ok(())
     }
@@ -503,11 +621,13 @@ impl DlcProtocolExecutor {
 
         db::trades::insert(conn, new_trade)?;
 
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+
         Ok(())
     }
 
-    /// Completes the rollover dlc protocol as successful and updates the 10101 meta data
-    /// accordingly in a single database transaction.
+    /// Complete the rollover DLC protocol as successful and update the 10101 metadata accordingly,
+    /// in a single database transaction.
     fn finish_rollover_dlc_protocol(
         &self,
         conn: &mut PgConnection,
@@ -515,6 +635,7 @@ impl DlcProtocolExecutor {
         protocol_id: ProtocolId,
         contract_id: &ContractId,
         channel_id: &DlcChannelId,
+        rollover_params: &RolloverParams,
     ) -> QueryResult<()> {
         tracing::debug!(%trader, %protocol_id, "Finalizing rollover");
         db::dlc_protocols::set_dlc_protocol_state_to_success(
@@ -524,7 +645,20 @@ impl DlcProtocolExecutor {
             channel_id,
         )?;
 
-        db::positions::Position::set_position_to_open(conn, trader.to_string(), *contract_id)?;
+        db::positions::Position::finish_rollover_protocol(
+            conn,
+            trader.to_string(),
+            *contract_id,
+            rollover_params.leverage_coordinator,
+            rollover_params.margin_coordinator,
+            rollover_params.liquidation_price_coordinator,
+            rollover_params.leverage_trader,
+            rollover_params.margin_trader,
+            rollover_params.liquidation_price_trader,
+        )?;
+
+        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+
         Ok(())
     }
 

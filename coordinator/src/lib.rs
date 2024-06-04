@@ -30,6 +30,7 @@ pub mod cli;
 pub mod db;
 pub mod dlc_handler;
 pub mod dlc_protocol;
+pub mod funding_fee;
 pub mod logger;
 pub mod message;
 mod metrics;
@@ -113,4 +114,11 @@ pub struct ChannelOpeningParams {
     pub trader_reserve: Amount,
     pub coordinator_reserve: Amount,
     pub external_funding: Option<Amount>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum FundingFee {
+    Zero,
+    CoordinatorPays(Amount),
+    TraderPays(Amount),
 }

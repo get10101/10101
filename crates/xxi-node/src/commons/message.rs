@@ -1,8 +1,10 @@
 use crate::commons::order::Order;
 use crate::commons::signature::Signature;
+use crate::commons::FundingRate;
 use crate::commons::LiquidityOption;
 use crate::commons::NewLimitOrder;
 use crate::commons::ReferralStatus;
+use crate::FundingFeeEvent;
 use anyhow::Result;
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
@@ -49,6 +51,9 @@ pub enum Message {
     RolloverError {
         error: TradingError,
     },
+    FundingFeeEvent(FundingFeeEvent),
+    AllFundingFeeEvents(Vec<FundingFeeEvent>),
+    NextFundingRate(FundingRate),
 }
 
 #[derive(Serialize, Deserialize, Clone, Error, Debug, PartialEq)]
@@ -100,38 +105,23 @@ impl TryFrom<OrderbookRequest> for tungstenite::Message {
 
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Message::AllOrders(_) => {
-                write!(f, "AllOrders")
-            }
-            Message::NewOrder(_) => {
-                write!(f, "NewOrder")
-            }
-            Message::DeleteOrder(_) => {
-                write!(f, "DeleteOrder")
-            }
-            Message::Update(_) => {
-                write!(f, "Update")
-            }
-            Message::InvalidAuthentication(_) => {
-                write!(f, "InvalidAuthentication")
-            }
-            Message::Authenticated(_) => {
-                write!(f, "Authenticated")
-            }
-            Message::DlcChannelCollaborativeRevert { .. } => {
-                write!(f, "DlcChannelCollaborativeRevert")
-            }
-            Message::TradeError { .. } => {
-                write!(f, "TradeError")
-            }
-            Message::RolloverError { .. } => {
-                write!(f, "RolloverError")
-            }
-            Message::LnPaymentReceived { .. } => {
-                write!(f, "LnPaymentReceived")
-            }
-        }
+        let s = match self {
+            Message::AllOrders(_) => "AllOrders",
+            Message::NewOrder(_) => "NewOrder",
+            Message::DeleteOrder(_) => "DeleteOrder",
+            Message::Update(_) => "Update",
+            Message::InvalidAuthentication(_) => "InvalidAuthentication",
+            Message::Authenticated(_) => "Authenticated",
+            Message::DlcChannelCollaborativeRevert { .. } => "DlcChannelCollaborativeRevert",
+            Message::TradeError { .. } => "TradeError",
+            Message::RolloverError { .. } => "RolloverError",
+            Message::LnPaymentReceived { .. } => "LnPaymentReceived",
+            Message::FundingFeeEvent(_) => "FundingFeeEvent",
+            Message::AllFundingFeeEvents(_) => "FundingFeeEvent",
+            Message::NextFundingRate(_) => "NextFundingRate",
+        };
+
+        f.write_str(s)
     }
 }
 

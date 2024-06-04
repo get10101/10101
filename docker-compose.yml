@@ -142,6 +142,24 @@ services:
       vtto:
         ipv4_address: 10.5.0.9
 
+  postgrest-coordinator:
+    container_name: postgrest-coordinator
+    image: postgrest/postgrest
+    depends_on:
+      - db
+    ports:
+      - "3002:3002"
+    environment:
+      PGRST_DB_URI: "postgres://postgres:mysecretpassword@db:5432/orderbook"
+      PGRST_DB_SCHEMA: "public"
+      PGRST_DB_ANON_ROLE: "postgres"
+      PGRST_SERVER_PORT: "3002"
+    restart: always
+    networks:
+      vtto:
+        ipv4_address: 10.5.0.10
+    profiles: ['postgrest']
+
 networks:
   default:
     name: vtto

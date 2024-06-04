@@ -202,6 +202,7 @@ wipe-docker:
     #!/usr/bin/env bash
     set -euxo pipefail
     docker compose down -v
+    docker compose --profile postgrest down
 
 wipe-coordinator:
     pkill -9 coordinator && echo "stopped coordinator" || echo "coordinator not running, skipped"
@@ -412,7 +413,7 @@ maker-logs:
     docker logs -f maker
 
 # Run services in the background
-services: docker run-lnd-mock-detached run-coordinator-detached run-maker-detached fund
+services: docker run-lnd-mock-detached run-coordinator-detached postgrest-coordinator run-maker-detached fund
 
 # Run everything at once (docker, coordinator, native build)
 # Note: if you have mobile simulator running, it will start that one instead of native, but will *not* rebuild the mobile rust library.
@@ -763,5 +764,8 @@ db-coordinator-redo:
 ln-pay-invoice:
     #!/usr/bin/env bash
     curl -X POST http://localhost:18080/pay_invoice
+
+postgrest-coordinator:
+    docker compose --profile postgrest up -d
 
 # vim:expandtab:sw=4:ts=4

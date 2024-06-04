@@ -3,6 +3,7 @@ use crate::dlc_protocol;
 use crate::dlc_protocol::DlcProtocolType;
 use crate::node::Node;
 use crate::position::models::PositionState;
+use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -76,14 +77,12 @@ impl Node {
         let protocol_id = self.inner.close_dlc_channel(channel_id, false).await?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        protocol_executor.start_dlc_protocol(
+
+        protocol_executor.start_close_channel_protocol(
             protocol_id,
             previous_id,
-            None,
             &channel.get_id(),
-            DlcProtocolType::Close {
-                trader: to_secp_pk_30(channel.get_counter_party_id()),
-            },
+            &to_secp_pk_30(channel.get_counter_party_id()),
         )?;
 
         Ok(())
@@ -287,6 +286,60 @@ impl Node {
         }
 
         Ok(())
+    }
+
+    pub fn apply_funding_fee_to_channel(
+        &self,
+        dlc_channel_id: DlcChannelId,
+        funding_fee: FundingFee,
+    ) -> Result<(Amount, Amount)> {
+        let collateral_reserve_coordinator =
+            self.inner.get_dlc_channel_usable_balance(&dlc_channel_id)?;
+        let collateral_reserve_trader = self
+            .inner
+            .get_dlc_channel_usable_balance_counterparty(&dlc_channel_id)?;
+
+        // The party earning the funding fee receives adds it to their collateral reserve.
+        // Conversely, the party paying the funding fee subtracts it from their margin.
+        let reserves = match funding_fee {
+            FundingFee::Zero => (collateral_reserve_coordinator, collateral_reserve_trader),
+            FundingFee::CoordinatorPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let collateral_reserve_trader =
+                    collateral_reserve_trader.to_signed().expect("to fit");
+                let new_collateral_reserve_trader = collateral_reserve_trader + funding_fee;
+                let new_collateral_reserve_trader =
+                    new_collateral_reserve_trader.to_unsigned().expect("to fit");
+
+                (
+                    // The coordinator pays the funding fee using their margin. Thus, their
+                    // collateral reserve remains unchanged.
+                    collateral_reserve_coordinator,
+                    new_collateral_reserve_trader,
+                )
+            }
+            FundingFee::TraderPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let collateral_reserve_coordinator =
+                    collateral_reserve_coordinator.to_signed().expect("to fit");
+                let new_collateral_reserve_coordinator =
+                    collateral_reserve_coordinator + funding_fee;
+                let new_collateral_reserve_coordinator = new_collateral_reserve_coordinator
+                    .to_unsigned()
+                    .expect("to fit");
+
+                (
+                    new_collateral_reserve_coordinator,
+                    // The trader pays the funding fee using their margin. Thus, their
+                    // collateral reserve remains unchanged.
+                    collateral_reserve_trader,
+                )
+            }
+        };
+
+        Ok(reserves)
     }
 
     fn handle_closing_event(&self, conn: &mut PgConnection, channel: &Channel) -> Result<()> {

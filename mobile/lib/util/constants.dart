@@ -33,10 +33,12 @@ const _positions = "positions";
 const _orders = "orders";
 const _confirmationButton = "confirmation_button";
 const _confirmationSlider = "confirmation_slider";
+const _trades = "trades";
 const _openChannel = "open_channel";
 
 const tradeScreenTabsOrders = Key(_trade + _tabs + _orders);
 const tradeScreenTabsPositions = Key(_trade + _tabs + _positions);
+const tradeScreenTabsTrades = Key(_trade + _tabs + _trades);
 
 const tradeScreenButtonBuy = Key(_trade + _button + _buy);
 const tradeScreenButtonSell = Key(_trade + _button + _sell);
@@ -66,12 +68,14 @@ const tabTrade = Key(_tabs + _trade);
 
 const _ask = "ask";
 const _bid = "bid";
+const _fundingRate = "fundingRate";
 const _marketPrice = "marketPrice";
 const _quantityInput = "quantityInput";
 const _marginField = "marginField";
 
 const tradeScreenAskPrice = Key(_trade + _tabs + _ask);
 const tradeScreenBidPrice = Key(_trade + _tabs + _bid);
+const tradeScreenFundingRate = Key(_trade + _tabs + _fundingRate);
 
 const tradeButtonSheetMarketPrice = Key(_trade + _tabs + _bottomSheet + _marketPrice);
 const tradeButtonSheetQuantityInput = Key(_trade + _tabs + _bottomSheet + _quantityInput);

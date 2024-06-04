@@ -1,6 +1,5 @@
 use crate::db;
 use crate::dlc_protocol;
-use crate::dlc_protocol::DlcProtocolType;
 use crate::message::OrderbookMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
@@ -596,12 +595,11 @@ impl Node {
             .transpose()?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.pool.clone());
-        protocol_executor.start_dlc_protocol(
+        protocol_executor.start_close_channel_protocol(
             protocol_id,
             previous_id,
-            None,
             &channel.get_id(),
-            DlcProtocolType::Close { trader: *node_id },
+            node_id,
         )?;
 
         Ok(())

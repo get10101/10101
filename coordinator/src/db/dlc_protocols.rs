@@ -102,9 +102,10 @@ pub(crate) fn get_dlc_protocol(
         DlcProtocolType::ForceClose => dlc_protocol::DlcProtocolType::ForceClose {
             trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
         },
-        DlcProtocolType::Rollover => dlc_protocol::DlcProtocolType::Rollover {
-            trader: PublicKey::from_str(&dlc_protocol.trader_pubkey).expect("valid public key"),
-        },
+        DlcProtocolType::Rollover => {
+            let rollover_params = db::rollover_params::get(conn, protocol_id)?;
+            dlc_protocol::DlcProtocolType::Rollover { rollover_params }
+        }
         DlcProtocolType::ResizePosition => {
             let trade_params = db::trade_params::get(conn, protocol_id)?;
             dlc_protocol::DlcProtocolType::ResizePosition { trade_params }
@@ -173,7 +174,7 @@ pub(crate) fn create(
     previous_protocol_id: Option<ProtocolId>,
     contract_id: Option<&ContractId>,
     channel_id: &DlcChannelId,
-    protocol_type: dlc_protocol::DlcProtocolType,
+    protocol_type: impl Into<DlcProtocolType>,
     trader: &PublicKey,
 ) -> QueryResult<()> {
     let affected_rows = diesel::insert_into(dlc_protocols::table)
@@ -185,7 +186,7 @@ pub(crate) fn create(
             dlc_protocols::protocol_state.eq(DlcProtocolState::Pending),
             dlc_protocols::trader_pubkey.eq(trader.to_string()),
             dlc_protocols::timestamp.eq(OffsetDateTime::now_utc()),
-            dlc_protocols::protocol_type.eq(DlcProtocolType::from(protocol_type)),
+            dlc_protocols::protocol_type.eq(protocol_type.into()),
         ))
         .execute(conn)?;
 
@@ -216,8 +217,8 @@ impl From<DlcProtocolState> for dlc_protocol::DlcProtocolState {
     }
 }
 
-impl From<dlc_protocol::DlcProtocolType> for DlcProtocolType {
-    fn from(value: dlc_protocol::DlcProtocolType) -> Self {
+impl From<&dlc_protocol::DlcProtocolType> for DlcProtocolType {
+    fn from(value: &dlc_protocol::DlcProtocolType) -> Self {
         match value {
             dlc_protocol::DlcProtocolType::OpenChannel { .. } => DlcProtocolType::OpenChannel,
             dlc_protocol::DlcProtocolType::OpenPosition { .. } => DlcProtocolType::OpenPosition,

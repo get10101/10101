@@ -165,7 +165,7 @@ impl Senders {
                 self.wallet_info.send(Some(wallet_info.clone()))?;
             }
             native::event::EventInternal::PositionUpdateNotification(position) => {
-                self.position.send(Some(position.clone()))?;
+                self.position.send(Some(*position))?;
             }
             native::event::EventInternal::PositionCloseNotification(contract_symbol) => {
                 self.position_close.send(Some(*contract_symbol))?;
@@ -195,6 +195,15 @@ impl Senders {
                 // ignored
             }
             native::event::EventInternal::LnPaymentReceived { .. } => {
+                // ignored
+            }
+            native::event::EventInternal::NewTrade(_) => {
+                // ignored
+            }
+            native::event::EventInternal::FundingFeeEvent(_) => {
+                // ignored
+            }
+            native::event::EventInternal::NextFundingRate(_) => {
                 // ignored
             }
         }

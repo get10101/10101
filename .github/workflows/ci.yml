@@ -270,6 +270,10 @@ jobs:
           ./target/debug/coordinator &> ./data/coordinator/regtest.log &
           just wait-for-coordinator-to-be-ready
           echo "Coordinator successfully started."
+
+          echo "Starting coordinator postgrest server"
+          just postgrest-coordinator
+          echo "Started coordinator postgrest server"
       - name: Run maker
         run: |
           just run-maker-detached

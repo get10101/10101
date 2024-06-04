@@ -8,10 +8,15 @@ import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/tentenone_config.dart';
 import 'package:get_10101/common/funding_channel_task_change_notifier.dart';
 import 'package:get_10101/features/brag/meme_service.dart';
+import 'package:get_10101/features/trade/application/trade_service.dart';
+import 'package:get_10101/features/trade/domain/funding_rate.dart';
+import 'package:get_10101/features/trade/domain/trade.dart';
+import 'package:get_10101/features/trade/funding_rate_change_notifier.dart';
 import 'package:get_10101/features/trade/order_change_notifier.dart';
 import 'package:get_10101/features/trade/position_change_notifier.dart';
 import 'package:get_10101/common/amount_denomination_change_notifier.dart';
 import 'package:get_10101/common/service_status_notifier.dart';
+import 'package:get_10101/features/trade/trade_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/trade/trade_value_change_notifier.dart';
 import 'package:get_10101/features/wallet/application/wallet_service.dart';
@@ -52,6 +57,8 @@ List<SingleChildWidget> createProviders() {
     ChangeNotifierProvider(create: (context) => SubmitOrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => OrderChangeNotifier(OrderService())),
     ChangeNotifierProvider(create: (context) => PositionChangeNotifier(PositionService())),
+    ChangeNotifierProvider(create: (context) => TradeChangeNotifier(TradeService())),
+    ChangeNotifierProvider(create: (context) => FundingRateChangeNotifier()),
     ChangeNotifierProvider(create: (context) => WalletChangeNotifier(const WalletService())),
     ChangeNotifierProvider(create: (context) => ServiceStatusNotifier()),
     ChangeNotifierProvider(create: (context) => DlcChannelChangeNotifier(dlcChannelService)),
@@ -76,6 +83,8 @@ void subscribeToNotifiers(BuildContext context) {
   final EventService eventService = EventService.create();
 
   final orderChangeNotifier = context.read<OrderChangeNotifier>();
+  final tradeChangeNotifier = context.read<TradeChangeNotifier>();
+  final fundingRateChangeNotifier = context.read<FundingRateChangeNotifier>();
   final positionChangeNotifier = context.read<PositionChangeNotifier>();
   final walletChangeNotifier = context.read<WalletChangeNotifier>();
   final tradeValuesChangeNotifier = context.read<TradeValuesChangeNotifier>();
@@ -87,6 +96,11 @@ void subscribeToNotifiers(BuildContext context) {
 
   eventService.subscribe(
       orderChangeNotifier, bridge.Event.orderUpdateNotification(Order.apiDummy()));
+
+  eventService.subscribe(tradeChangeNotifier, bridge.Event.newTrade(Trade.apiDummy()));
+
+  eventService.subscribe(
+      fundingRateChangeNotifier, bridge.Event.nextFundingRate(FundingRate.apiDummy()));
 
   eventService.subscribe(
       positionChangeNotifier, bridge.Event.positionUpdateNotification(Position.apiDummy()));

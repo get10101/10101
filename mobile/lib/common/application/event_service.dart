@@ -13,7 +13,7 @@ class EventService {
   EventService.create() {
     api.subscribe().listen((Event event) {
       if (subscribers[event.runtimeType] == null) {
-        logger.d("found no subscribers, skipping event");
+        logger.d("found no subscribers for $event, skipping event");
         return;
       }
 

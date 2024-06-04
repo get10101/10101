@@ -575,12 +575,12 @@ mod tests {
             calculate_margin(initial_price, quantity, leverage_accept.to_f32().unwrap());
 
         let offer_party = PartyParams {
-            margin: margin_offer,
+            margin: margin_offer.to_sat(),
             collateral_reserve: collateral_reserve_offer.to_sat(),
         };
 
         let accept_party = PartyParams {
-            margin: margin_accept,
+            margin: margin_accept.to_sat(),
             collateral_reserve: collateral_reserve_accept.to_sat(),
         };
 
@@ -613,10 +613,8 @@ mod tests {
         let long_leverage = 2.0;
         let short_leverage = 1.0;
 
-        let offer_margin =
-            Amount::from_sat(calculate_margin(initial_price, quantity, long_leverage));
-        let accept_margin =
-            Amount::from_sat(calculate_margin(initial_price, quantity, short_leverage));
+        let offer_margin = calculate_margin(initial_price, quantity, long_leverage);
+        let accept_margin = calculate_margin(initial_price, quantity, short_leverage);
 
         let collateral_reserve_offer = Amount::from_sat(155);
 
@@ -872,9 +870,9 @@ mod tests {
             let short_leverage = short_leverage as f32;
 
             let offer_margin =
-                Amount::from_sat(calculate_margin(initial_price, quantity, long_leverage));
+                calculate_margin(initial_price, quantity, long_leverage);
             let accept_margin =
-                Amount::from_sat(calculate_margin(initial_price, quantity, short_leverage));
+                calculate_margin(initial_price, quantity, short_leverage);
 
             // Collateral reserve for the offer party based on a fee calculation.
             let collateral_reserve_offer = {
@@ -1005,12 +1003,12 @@ mod bounds_tests {
             calculate_margin(initial_price, quantity, leverage_accept.to_f32().unwrap());
 
         let offer_party = PartyParams {
-            margin: margin_offer,
+            margin: margin_offer.to_sat(),
             collateral_reserve: collateral_reserve_offer,
         };
 
         let accept_party = PartyParams {
-            margin: margin_accept,
+            margin: margin_accept.to_sat(),
             collateral_reserve: collateral_reserve_accept,
         };
 

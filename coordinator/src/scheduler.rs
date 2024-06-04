@@ -19,7 +19,7 @@ use tokio_cron_scheduler::JobSchedulerError;
 use xxi_node::commons;
 
 pub struct NotificationScheduler {
-    scheduler: JobScheduler,
+    pub scheduler: JobScheduler,
     sender: mpsc::Sender<Notification>,
     settings: Settings,
     network: Network,
@@ -56,10 +56,12 @@ impl NotificationScheduler {
             .scheduler
             .add(build_update_bonus_status_job(schedule.as_str(), pool)?)
             .await?;
+
         tracing::debug!(
             job_id = uuid.to_string(),
             "Started new job to update users bonus status"
         );
+
         Ok(())
     }
 
@@ -99,10 +101,12 @@ impl NotificationScheduler {
                 pool,
             )?)
             .await?;
+
         tracing::debug!(
             job_id = uuid.to_string(),
             "Started new job to remind to close an expired position"
         );
+
         Ok(())
     }
 
@@ -121,10 +125,12 @@ impl NotificationScheduler {
                 pool,
             )?)
             .await?;
+
         tracing::debug!(
             job_id = uuid.to_string(),
-            "Started new job to remind to close an expired position"
+            "Started new job to remind to close a liquidated position"
         );
+
         Ok(())
     }
 
@@ -148,10 +154,12 @@ impl NotificationScheduler {
                 sender,
             )?)
             .await?;
+
         tracing::debug!(
             job_id = uuid.to_string(),
             "Started new job to remind rollover window is open"
         );
+
         Ok(())
     }
 
@@ -178,8 +186,9 @@ impl NotificationScheduler {
 
         tracing::debug!(
             job_id = uuid.to_string(),
-            "Started new job to remind rollover window is open"
+            "Started new job to remind rollover window is closing"
         );
+
         Ok(())
     }
 
@@ -230,8 +239,8 @@ fn build_rollover_notification_job(
                     for position in positions {
                         if let Err(e) = node
                             .check_rollover(
-                                position.trader,
-                                position.expiry_timestamp,
+                                &mut conn,
+                                position,
                                 node.inner.network,
                                 &notifier,
                                 Some(notification.clone()),

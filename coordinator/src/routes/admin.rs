@@ -1,6 +1,7 @@
 use crate::collaborative_revert;
 use crate::db;
 use crate::parse_dlc_channel_id;
+use crate::position::models::Position;
 use crate::referrals;
 use crate::routes::AppState;
 use crate::settings::SettingsFile;
@@ -16,6 +17,9 @@ use bitcoin::Amount;
 use bitcoin::OutPoint;
 use bitcoin::Transaction;
 use bitcoin::TxOut;
+use diesel::r2d2::ConnectionManager;
+use diesel::r2d2::PooledConnection;
+use diesel::PgConnection;
 use dlc_manager::channel::signed_channel::SignedChannelState;
 use dlc_manager::channel::Channel;
 use dlc_manager::DlcChannelId;
@@ -410,23 +414,59 @@ pub async fn rollover(
     Path(dlc_channel_id): Path<String>,
 ) -> Result<(), AppError> {
     let dlc_channel_id = DlcChannelId::from_hex(dlc_channel_id.clone()).map_err(|e| {
-        AppError::InternalServerError(format!(
-            "Could not decode dlc channel id from {dlc_channel_id}: {e:#}"
-        ))
+        AppError::InternalServerError(format!("Could not decode DLC channel ID: {e}"))
     })?;
+
+    let mut connection = state
+        .pool
+        .get()
+        .map_err(|e| AppError::InternalServerError(format!("Could not acquire DB lock: {e}")))?;
+
+    let position = get_position_by_channel_id(&state, dlc_channel_id, &mut connection)
+        .map_err(|e| AppError::BadRequest(format!("Could not find position for channel: {e:#}")))?;
 
     state
         .node
-        .propose_rollover(&dlc_channel_id, state.node.inner.network)
+        .propose_rollover(
+            &mut connection,
+            &dlc_channel_id,
+            position,
+            state.node.inner.network,
+        )
         .await
         .map_err(|e| {
-            AppError::InternalServerError(format!(
-                "Failed to rollover dlc channel with id {}: {e:#}",
-                hex::encode(dlc_channel_id)
-            ))
+            AppError::InternalServerError(format!("Failed to rollover DLC channel: {e:#}",))
         })?;
 
     Ok(())
+}
+
+fn get_position_by_channel_id(
+    state: &Arc<AppState>,
+    dlc_channel_id: [u8; 32],
+    conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
+) -> anyhow::Result<Position> {
+    let dlc_channels = state.node.inner.list_dlc_channels()?;
+
+    let public_key = dlc_channels
+        .iter()
+        .find_map(|channel| {
+            if channel.get_id() == dlc_channel_id {
+                Some(channel.get_counter_party_id())
+            } else {
+                None
+            }
+        })
+        .context("DLC Channel not found")?;
+
+    let position = db::positions::Position::get_position_by_trader(
+        conn,
+        PublicKey::from_slice(&public_key.serialize()).expect("to be valid"),
+        vec![],
+    )?
+    .context("Position for channel not found")?;
+
+    Ok(position)
 }
 
 // Migrate existing dlc channels. TODO(holzeis): Delete this function after the migration has been
@@ -546,12 +586,16 @@ pub async fn post_sync(
     Query(params): Query<SyncParams>,
 ) -> Result<(), AppError> {
     if params.full.unwrap_or(false) {
+        tracing::info!("Full sync");
+
         let stop_gap = params.gap.unwrap_or(20);
 
         state.node.inner.full_sync(stop_gap).await.map_err(|e| {
             AppError::InternalServerError(format!("Could not full-sync on-chain wallet: {e:#}"))
         })?;
     } else {
+        tracing::info!("Regular sync");
+
         state.node.inner.sync_on_chain_wallet().await.map_err(|e| {
             AppError::InternalServerError(format!("Could not sync on-chain wallet: {e:#}"))
         })?;
@@ -621,6 +665,52 @@ pub async fn get_user_referral_status(
             AppError::InternalServerError(format!("Could not calculate referral state {err:?}"))
         })?;
     Ok(Json(referral_status))
+}
+
+#[instrument(skip_all, err(Debug))]
+pub async fn post_funding_rates(
+    State(state): State<Arc<AppState>>,
+    Json(funding_rates): Json<FundingRates>,
+) -> Result<(), AppError> {
+    spawn_blocking(move || {
+        let mut conn = state.pool.get().map_err(|e| {
+            AppError::InternalServerError(format!("Could not get connection: {e:#}"))
+        })?;
+
+        let funding_rates = funding_rates
+            .0
+            .iter()
+            .copied()
+            .map(xxi_node::commons::FundingRate::from)
+            .collect::<Vec<_>>();
+
+        db::funding_rates::insert(&mut conn, &funding_rates)
+            .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
+
+        Ok(())
+    })
+    .await
+    .expect("task to complete")?;
+
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FundingRates(Vec<FundingRate>);
+
+#[derive(Debug, Deserialize, Clone, Copy)]
+pub struct FundingRate {
+    rate: Decimal,
+    #[serde(with = "time::serde::rfc3339")]
+    start_date: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    end_date: OffsetDateTime,
+}
+
+impl From<FundingRate> for xxi_node::commons::FundingRate {
+    fn from(value: FundingRate) -> Self {
+        xxi_node::commons::FundingRate::new(value.rate, value.start_date, value.end_date)
+    }
 }
 
 impl From<xxi_node::TransactionDetails> for TransactionDetails {

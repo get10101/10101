@@ -1,4 +1,6 @@
 use crate::db;
+use crate::db::funding_fee_events;
+use crate::db::funding_rates;
 use crate::db::user;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
@@ -247,6 +249,58 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             let orders = orders::all_limit_orders(&mut conn).unwrap_or_default();
                             if let Err(e) = local_sender.send(Message::AllOrders(orders)).await {
                                 tracing::error!(%trader_id, "Failed to send all orders to user {e:#}");
+                            }
+
+                            // Send over all the funding fee events that the trader may have missed
+                            // whilst they were offline.
+                            match funding_fee_events::get_for_active_trader_positions(
+                                &mut conn, trader_id,
+                            ) {
+                                Ok(funding_fee_events) => {
+                                    if let Err(e) = local_sender
+                                        .send(Message::AllFundingFeeEvents(funding_fee_events))
+                                        .await
+                                    {
+                                        tracing::error!(
+                                            %trader_id,
+                                            "Failed to send funding fee events \
+                                             for active positions: {e}"
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        %trader_id,
+                                        "Failed to load funding fee events \
+                                         for active positions: {e}"
+                                    );
+                                }
+                            }
+
+                            match funding_rates::get_next_funding_rate(&mut conn) {
+                                Ok(Some(funding_rate)) => {
+                                    if let Err(e) = local_sender
+                                        .send(Message::NextFundingRate(funding_rate))
+                                        .await
+                                    {
+                                        tracing::error!(
+                                            %trader_id,
+                                            "Failed to send next funding rate: {e}"
+                                        );
+                                    }
+                                }
+                                Ok(None) => {
+                                    tracing::error!(
+                                        %trader_id,
+                                        "No next funding rate found in DB"
+                                    );
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        %trader_id,
+                                        "Failed to load next funding rate: {e}"
+                                    );
+                                }
                             }
 
                             let token = fcm_token.unwrap_or("unavailable".to_string());

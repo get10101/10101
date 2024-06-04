@@ -1229,6 +1229,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.6.1"
+  timeago_flutter:
+    dependency: "direct main"
+    description:
+      name: timeago_flutter
+      sha256: "8faa66867090d37f7ccb9489bd6d083d14a588005eafa3fadf2d1c86760dbc27"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.6.0"
   timezone:
     dependency: transitive
     description:

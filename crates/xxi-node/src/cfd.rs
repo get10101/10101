@@ -1,6 +1,7 @@
 use crate::commons::Direction;
 use anyhow::Context;
 use anyhow::Result;
+use bitcoin::Amount;
 use bitcoin::Denomination;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::prelude::ToPrimitive;
@@ -11,13 +12,13 @@ use std::ops::Neg;
 pub const BTCUSD_MAX_PRICE: u64 = 1_048_575;
 
 /// Calculate the collateral in sats.
-pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> u64 {
+pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> Amount {
     let quantity = Decimal::try_from(quantity).expect("quantity to fit into decimal");
     let leverage = Decimal::try_from(leverage).expect("leverage to fix into decimal");
 
     if open_price == Decimal::ZERO || leverage == Decimal::ZERO {
         // just to avoid div by 0 errors
-        return 0;
+        return Amount::ZERO;
     }
 
     let margin = quantity / (open_price * leverage);
@@ -27,13 +28,21 @@ pub fn calculate_margin(open_price: Decimal, quantity: f32, leverage: f32) -> u6
         margin.round_dp_with_strategy(8, rust_decimal::RoundingStrategy::MidpointAwayFromZero);
     let margin = margin.to_f64().expect("collateral to fit into f64");
 
-    bitcoin::Amount::from_btc(margin)
-        .expect("collateral to fit in amount")
-        .to_sat()
+    bitcoin::Amount::from_btc(margin).expect("collateral to fit in amount")
 }
 
-/// Calculate the quantity from price, collateral and leverage
-/// Margin in sats, calculation in BTC
+/// Calculate leverage.
+pub fn calculate_leverage(quantity: Decimal, margin: Amount, open_price: Decimal) -> Decimal {
+    let margin_btc = Decimal::try_from(margin.to_btc()).expect("to fit");
+
+    quantity
+        .checked_div(margin_btc * open_price)
+        // We use a leverage of 10_000 to represent a kind of maximum leverage that we can work
+        // with.
+        .unwrap_or(Decimal::TEN * Decimal::ONE_THOUSAND)
+}
+
+/// Calculate the quantity from price, collateral and leverage Margin in sats, calculation in BTC
 pub fn calculate_quantity(opening_price: f32, margin: u64, leverage: f32) -> f32 {
     let margin_amount = bitcoin::Amount::from_sat(margin);
 
@@ -151,8 +160,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
         let pnl_short = calculate_pnl(
@@ -160,8 +169,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -184,8 +193,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -207,8 +216,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -231,8 +240,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -254,8 +263,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -278,8 +287,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -302,8 +311,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -326,8 +335,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -350,8 +359,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -374,8 +383,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -398,8 +407,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -423,8 +432,8 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
@@ -450,12 +459,12 @@ mod tests {
             closing_price,
             quantity,
             Direction::Short,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
-        assert_eq!(pnl_short, (margin as i64).neg());
+        assert_eq!(pnl_short, (margin.to_sat() as i64).neg());
     }
 
     #[test]
@@ -474,12 +483,12 @@ mod tests {
             closing_price,
             quantity,
             Direction::Long,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .unwrap();
 
-        assert_eq!(pnl_short, (margin as i64).neg());
+        assert_eq!(pnl_short, (margin.to_sat() as i64).neg());
     }
 
     #[test]

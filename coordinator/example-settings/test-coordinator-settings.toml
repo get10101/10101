@@ -5,12 +5,14 @@ close_expired_position_scheduler = "0 0 12 * * *"
 close_liquidated_position_scheduler = "0 0 12 * * *"
 update_user_bonus_status_scheduler = "0 0 0 * * *"
 collect_metrics_scheduler = "0 0 * * * *"
+generate_funding_fee_events_scheduler = "1/5 * * * * *"
 whitelist_enabled = false
 # Default testnet maker
 whitelisted_makers = ["035eccdd1f05c65b433cf38e3b2597e33715e0392cb14d183e812f1319eb7b6794"]
 min_quantity = 1
 maintenance_margin_rate = 0.1
 order_matching_fee_rate = 0.003
+index_price_source = "Test"
 
 [xxi]
 off_chain_sync_interval = 5

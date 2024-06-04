@@ -38,6 +38,7 @@ use std::fmt::Formatter;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::str::from_utf8;
+use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::Arc;
 use std::time::Duration;
@@ -568,5 +569,15 @@ impl From<Uuid> for ProtocolId {
 impl From<ProtocolId> for Uuid {
     fn from(value: ProtocolId) -> Self {
         value.0
+    }
+}
+
+impl FromStr for ProtocolId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let uuid = Uuid::from_str(s)?;
+
+        Ok(ProtocolId(uuid))
     }
 }

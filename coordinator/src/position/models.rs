@@ -1,5 +1,7 @@
 use crate::compute_relative_contracts;
 use crate::decimal_from_f32;
+use crate::f32_from_decimal;
+use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
@@ -15,8 +17,11 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use xxi_node::bitmex_client::Quote;
+use xxi_node::cfd::calculate_leverage;
+use xxi_node::cfd::calculate_long_liquidation_price;
 use xxi_node::cfd::calculate_margin;
 use xxi_node::cfd::calculate_pnl;
+use xxi_node::cfd::calculate_short_liquidation_price;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 use xxi_node::commons::TradeParams;
@@ -31,16 +36,16 @@ pub struct NewPosition {
     pub average_entry_price: f32,
     pub trader_liquidation_price: Decimal,
     pub coordinator_liquidation_price: Decimal,
-    pub coordinator_margin: i64,
+    pub coordinator_margin: Amount,
     pub expiry_timestamp: OffsetDateTime,
     pub temporary_contract_id: ContractId,
     pub coordinator_leverage: f32,
-    pub trader_margin: i64,
+    pub trader_margin: Amount,
     pub stable: bool,
     pub order_matching_fees: Amount,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PositionState {
     /// The position is in the process of being opened.
     ///
@@ -63,7 +68,7 @@ pub enum PositionState {
 }
 
 /// The trading position for a user identified by `trader`.
-#[derive(Clone)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Position {
     pub id: i32,
     pub trader: PublicKey,
@@ -78,8 +83,8 @@ pub struct Position {
     pub trader_liquidation_price: f32,
     pub coordinator_liquidation_price: f32,
 
-    pub trader_margin: i64,
-    pub coordinator_margin: i64,
+    pub trader_margin: Amount,
+    pub coordinator_margin: Amount,
 
     pub trader_leverage: f32,
     pub coordinator_leverage: f32,
@@ -141,8 +146,8 @@ impl Position {
             closing_price,
             self.quantity,
             direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )
         .context("Failed to calculate pnl for position")?;
 
@@ -197,6 +202,84 @@ impl Position {
             trade_params.average_execution_price(),
         )
     }
+
+    #[must_use]
+    pub fn apply_funding_fee(
+        self,
+        funding_fee: FundingFee,
+        maintenance_margin_rate: Decimal,
+    ) -> Self {
+        let quantity = decimal_from_f32(self.quantity);
+        let average_entry_price = decimal_from_f32(self.average_entry_price);
+
+        match funding_fee {
+            FundingFee::Zero => self,
+            FundingFee::CoordinatorPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let coordinator_margin = self.coordinator_margin.to_signed().expect("to fit");
+                let new_coordinator_margin = coordinator_margin - funding_fee;
+
+                let new_coordinator_margin =
+                    new_coordinator_margin.to_unsigned().unwrap_or(Amount::ZERO);
+
+                let new_coordinator_leverage =
+                    calculate_leverage(quantity, new_coordinator_margin, average_entry_price);
+
+                let new_coordinator_liquidation_price = match self.trader_direction.opposite() {
+                    Direction::Long => calculate_long_liquidation_price(
+                        new_coordinator_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                    Direction::Short => calculate_short_liquidation_price(
+                        new_coordinator_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                };
+
+                Self {
+                    coordinator_margin: new_coordinator_margin,
+                    coordinator_leverage: f32_from_decimal(new_coordinator_leverage),
+                    coordinator_liquidation_price: f32_from_decimal(
+                        new_coordinator_liquidation_price,
+                    ),
+                    ..self
+                }
+            }
+            FundingFee::TraderPays(funding_fee) => {
+                let funding_fee = funding_fee.to_signed().expect("to fit");
+
+                let margin_trader = self.trader_margin.to_signed().expect("to fit");
+                let new_trader_margin = margin_trader - funding_fee;
+                let new_trader_margin = new_trader_margin.to_unsigned().unwrap_or(Amount::ZERO);
+
+                let new_trader_leverage =
+                    calculate_leverage(quantity, new_trader_margin, average_entry_price);
+
+                let new_trader_liquidation_price = match self.trader_direction {
+                    Direction::Long => calculate_long_liquidation_price(
+                        new_trader_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                    Direction::Short => calculate_short_liquidation_price(
+                        new_trader_leverage,
+                        average_entry_price,
+                        maintenance_margin_rate,
+                    ),
+                };
+
+                Self {
+                    trader_margin: new_trader_margin,
+                    trader_leverage: f32_from_decimal(new_trader_leverage),
+                    trader_liquidation_price: f32_from_decimal(new_trader_liquidation_price),
+                    ..self
+                }
+            }
+        }
+    }
 }
 
 /// Calculate the settlement amount for the coordinator, based on the PNL and the order-matching
@@ -221,8 +304,8 @@ fn calculate_coordinator_settlement_amount(
         closing_price,
         quantity,
         coordinator_direction,
-        long_margin,
-        short_margin,
+        long_margin.to_sat(),
+        short_margin.to_sat(),
     )?;
 
     let coordinator_margin = match coordinator_direction {
@@ -230,7 +313,8 @@ fn calculate_coordinator_settlement_amount(
         Direction::Short => short_margin,
     };
 
-    let coordinator_settlement_amount = Decimal::from(coordinator_margin) + Decimal::from(pnl);
+    let coordinator_settlement_amount =
+        Decimal::from(coordinator_margin.to_sat()) + Decimal::from(pnl);
 
     // Double-checking that the coordinator's payout isn't negative, although `calculate_pnl` should
     // guarantee this.
@@ -246,7 +330,7 @@ fn calculate_coordinator_settlement_amount(
 
     // The coordinator's maximum settlement amount is capped by the total combined margin in the
     // contract.
-    let coordinator_settlement_amount = coordinator_settlement_amount.min(total_margin);
+    let coordinator_settlement_amount = coordinator_settlement_amount.min(total_margin.to_sat());
 
     Ok(coordinator_settlement_amount)
 }
@@ -323,11 +407,11 @@ fn calculate_accept_settlement_amount_partial_close(
             trade_average_execution_price,
             settled_contracts,
             position_direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )?;
 
-        ((position_trader_margin as i64) + pnl).max(0) as u64
+        ((position_trader_margin.to_sat() as i64) + pnl).max(0) as u64
     }
     // Position changed direction.
     else if contracts_before_relative.signum() != contracts_after_relative.signum()
@@ -346,17 +430,17 @@ fn calculate_accept_settlement_amount_partial_close(
             trade_average_execution_price,
             settled_contracts,
             position_direction,
-            long_margin,
-            short_margin,
+            long_margin.to_sat(),
+            short_margin.to_sat(),
         )?;
 
-        ((position_trader_margin as i64) + pnl).max(0) as u64
+        ((position_trader_margin.to_sat() as i64) + pnl).max(0) as u64
     }
     // Position extended.
     else if contracts_before_relative.signum() == contracts_after_relative.signum()
         && contracts_before_relative.abs() < contracts_after_relative.abs()
     {
-        position_trader_margin
+        position_trader_margin.to_sat()
     }
     // Position either fully settled or unchanged. This is a bug.
     else {
@@ -496,8 +580,11 @@ impl std::fmt::Debug for Position {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::trade::liquidation_price;
+    use proptest::prelude::*;
     use rust_decimal_macros::dec;
     use std::str::FromStr;
+    use xxi_node::cfd::BTCUSD_MAX_PRICE;
 
     #[test]
     fn position_calculate_coordinator_settlement_amount() {
@@ -511,7 +598,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -522,7 +609,7 @@ mod tests {
             coordinator_leverage: 2.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -547,7 +634,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -558,7 +645,7 @@ mod tests {
             coordinator_leverage: 2.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -583,7 +670,7 @@ mod tests {
             trader_liquidation_price: 20_000.0,
             coordinator_liquidation_price: 60_000.0,
             position_state: PositionState::Open,
-            coordinator_margin: 125_000,
+            coordinator_margin: Amount::from_sat(125_000),
             creation_timestamp: OffsetDateTime::now_utc(),
             expiry_timestamp: OffsetDateTime::now_utc(),
             update_timestamp: OffsetDateTime::now_utc(),
@@ -594,7 +681,7 @@ mod tests {
             coordinator_leverage: 3.0,
             temporary_contract_id: None,
             closing_price: None,
-            trader_margin: 125_000,
+            trader_margin: Amount::from_sat(125_000),
             stable: false,
             trader_realized_pnl_sat: None,
             order_matching_fees: Amount::ZERO,
@@ -631,7 +718,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -656,7 +743,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -681,7 +768,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -706,7 +793,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -731,7 +818,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -756,7 +843,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -781,7 +868,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(settlement_coordinator < margin_coordinator);
+        assert!(settlement_coordinator < margin_coordinator.to_sat());
     }
 
     #[test]
@@ -806,7 +893,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(margin_coordinator < settlement_coordinator);
+        assert!(margin_coordinator.to_sat() < settlement_coordinator);
     }
 
     #[test]
@@ -1011,6 +1098,160 @@ mod tests {
         );
     }
 
+    proptest! {
+        #[test]
+        fn zero_funding_fee_has_no_effect(
+            is_long_trader in proptest::bool::ANY,
+            coordinator_leverage in 1u8..5,
+            trader_leverage in 1u8..5,
+            initial_price in 10_000u64..BTCUSD_MAX_PRICE,
+            quantity in 1u64..20_000,
+            maintenance_margin_rate in 0.05f32..0.3,
+        ) {
+            let maintenance_margin_rate = Decimal::try_from(maintenance_margin_rate).unwrap();
+
+            let before = new_position(
+                is_long_trader,
+                initial_price,
+                quantity,
+                coordinator_leverage,
+                trader_leverage,
+                maintenance_margin_rate
+            );
+
+            let after = before.apply_funding_fee(FundingFee::Zero, maintenance_margin_rate);
+
+            prop_assert_eq!(before, after);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn coordinator_pays_funding_fee(
+            is_long_trader in proptest::bool::ANY,
+            coordinator_leverage in 1u8..5,
+            trader_leverage in 1u8..5,
+            initial_price in 10_000u64..BTCUSD_MAX_PRICE,
+            quantity in 1u64..20_000,
+            maintenance_margin_rate in 0.05f32..0.3,
+            funding_fee in 1u64..100_000,
+        ) {
+            let maintenance_margin_rate = Decimal::try_from(maintenance_margin_rate).unwrap();
+
+            let before = new_position(
+                is_long_trader,
+                initial_price,
+                quantity,
+                coordinator_leverage,
+                trader_leverage,
+                maintenance_margin_rate
+            );
+
+            let after = before
+                .apply_funding_fee(
+                    FundingFee::CoordinatorPays(Amount::from_sat(funding_fee)),
+                    maintenance_margin_rate
+                );
+
+            prop_assert_eq!(before.trader_margin, after.trader_margin);
+            prop_assert_eq!(before.trader_leverage, after.trader_leverage);
+            prop_assert_eq!(before.trader_liquidation_price, after.trader_liquidation_price);
+
+            prop_assert!(before.coordinator_margin > after.coordinator_margin);
+            prop_assert!(after.coordinator_leverage > before.coordinator_leverage);
+
+            // We cannot assert on the liquidation price approaching the initial price because the
+            // rounding error can make the liquidation price go ever so slightly the wrong way for
+            // very small funding fees (relative to the coordinator margin).
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn trader_pays_funding_fee(
+            is_long_trader in proptest::bool::ANY,
+            coordinator_leverage in 1u8..5,
+            trader_leverage in 1u8..5,
+            initial_price in 10_000u64..BTCUSD_MAX_PRICE,
+            quantity in 1u64..20_000,
+            maintenance_margin_rate in 0.05f32..0.3,
+            funding_fee in 1u64..100_000,
+        ) {
+            let maintenance_margin_rate = Decimal::try_from(maintenance_margin_rate).unwrap();
+
+            let before = new_position(
+                is_long_trader,
+                initial_price,
+                quantity,
+                coordinator_leverage,
+                trader_leverage,
+                maintenance_margin_rate
+            );
+
+            let after = before
+                .apply_funding_fee(
+                    FundingFee::TraderPays(Amount::from_sat(funding_fee)),
+                    maintenance_margin_rate
+                );
+
+            prop_assert_eq!(before.coordinator_margin, after.coordinator_margin);
+            prop_assert_eq!(before.coordinator_leverage, after.coordinator_leverage);
+            prop_assert_eq!(before.coordinator_liquidation_price, after.coordinator_liquidation_price);
+
+            prop_assert!(before.trader_margin > after.trader_margin);
+            prop_assert!(after.trader_leverage > before.trader_leverage);
+
+            // We cannot assert on the liquidation price approaching the initial price because the
+            // rounding error can make the liquidation price go ever so slightly the wrong way for
+            // very small funding fees (relative to the trader margin).
+        }
+    }
+
+    #[test]
+    fn liquidation_price_gets_worse_if_party_pays_funding_fee() {
+        let maintenance_margin_rate = Decimal::try_from(0.05).unwrap();
+
+        // Long coordinator pays funding fee.
+        let before = new_position(false, 50_000, 1_000, 2, 2, maintenance_margin_rate);
+
+        let after = before.apply_funding_fee(
+            FundingFee::CoordinatorPays(Amount::from_sat(50_000)),
+            maintenance_margin_rate,
+        );
+
+        assert!(after.coordinator_liquidation_price > before.coordinator_liquidation_price);
+
+        // Short coordinator pays funding fee.
+        let before = new_position(true, 50_000, 1_000, 2, 2, maintenance_margin_rate);
+
+        let after = before.apply_funding_fee(
+            FundingFee::CoordinatorPays(Amount::from_sat(50_000)),
+            maintenance_margin_rate,
+        );
+
+        assert!(after.coordinator_liquidation_price < before.coordinator_liquidation_price);
+
+        // Long trader pays funding fee.
+        let before = new_position(true, 50_000, 1_000, 2, 2, maintenance_margin_rate);
+
+        let after = before.apply_funding_fee(
+            FundingFee::TraderPays(Amount::from_sat(50_000)),
+            maintenance_margin_rate,
+        );
+
+        assert!(after.trader_liquidation_price > before.trader_liquidation_price);
+
+        // Short trader pays funding fee.
+        let before = new_position(false, 50_000, 1_000, 2, 2, maintenance_margin_rate);
+
+        let after = before.apply_funding_fee(
+            FundingFee::TraderPays(Amount::from_sat(50_000)),
+            maintenance_margin_rate,
+        );
+
+        assert!(after.trader_liquidation_price < before.trader_liquidation_price);
+    }
+
     fn dummy_quote(bid: u64, ask: u64) -> Quote {
         Quote {
             bid_size: 0,
@@ -1019,6 +1260,60 @@ mod tests {
             ask_price: Decimal::from(ask),
             symbol: "".to_string(),
             timestamp: OffsetDateTime::now_utc(),
+        }
+    }
+
+    // TODO: We desperately need a function `Position::new` to ensure that a `Position` can only be
+    // created with values that match, so that, for example, the leverage depends on the margin. Atm
+    // we trust whoever builds `Position` to respect certain invariants. And it means that we have
+    // to duplicate the logic in tests.
+    fn new_position(
+        is_long_trader: bool,
+        initial_price: u64,
+        quantity: u64,
+        coordinator_leverage: u8,
+        trader_leverage: u8,
+        maintenance_margin_rate: Decimal,
+    ) -> Position {
+        let trader_direction = if is_long_trader {
+            Direction::Long
+        } else {
+            Direction::Short
+        };
+
+        let initial_price = Decimal::from(initial_price);
+        let quantity = quantity as f32;
+
+        let coordinator_margin =
+            calculate_margin(initial_price, quantity, coordinator_leverage as f32);
+
+        let trader_margin = calculate_margin(initial_price, quantity, trader_leverage as f32);
+
+        let coordinator_liquidation_price = liquidation_price(
+            initial_price,
+            Decimal::from(coordinator_leverage),
+            trader_direction.opposite(),
+            maintenance_margin_rate,
+        );
+
+        let trader_liquidation_price = liquidation_price(
+            initial_price,
+            Decimal::from(trader_leverage),
+            trader_direction,
+            maintenance_margin_rate,
+        );
+
+        Position {
+            trader_direction,
+            quantity,
+            coordinator_leverage: coordinator_leverage as f32,
+            trader_leverage: trader_leverage as f32,
+            coordinator_margin,
+            trader_margin,
+            coordinator_liquidation_price: f32_from_decimal(coordinator_liquidation_price),
+            trader_liquidation_price: f32_from_decimal(trader_liquidation_price),
+            average_entry_price: f32_from_decimal(initial_price),
+            ..Position::dummy()
         }
     }
 
@@ -1034,7 +1329,7 @@ mod tests {
                 trader_liquidation_price: 0.0,
                 coordinator_liquidation_price: 0.0,
                 position_state: PositionState::Open,
-                coordinator_margin: 1000,
+                coordinator_margin: Amount::from_sat(1_000),
                 creation_timestamp: OffsetDateTime::now_utc(),
                 expiry_timestamp: OffsetDateTime::now_utc(),
                 update_timestamp: OffsetDateTime::now_utc(),
@@ -1045,7 +1340,7 @@ mod tests {
                 temporary_contract_id: None,
                 closing_price: None,
                 coordinator_leverage: 2.0,
-                trader_margin: 1000,
+                trader_margin: Amount::from_sat(1_000),
                 stable: false,
                 trader_realized_pnl_sat: None,
                 order_matching_fees: Amount::ZERO,
