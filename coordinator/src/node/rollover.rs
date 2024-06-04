@@ -294,7 +294,7 @@ impl Node {
             .map(xxi_node::message_handler::FundingFeeEvent::from)
             .collect();
 
-        let contract_id = self
+        let temporary_contract_id = self
             .inner
             .propose_rollover(
                 dlc_channel_id,
@@ -309,7 +309,7 @@ impl Node {
             .start_rollover(
                 protocol_id,
                 previous_id,
-                &contract_id,
+                &temporary_contract_id,
                 dlc_channel_id,
                 RolloverParams {
                     protocol_id,

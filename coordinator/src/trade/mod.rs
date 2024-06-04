@@ -2,7 +2,6 @@ use crate::compute_relative_contracts;
 use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
-use crate::dlc_protocol::DlcProtocolType;
 use crate::funding_fee::funding_fee_from_funding_fee_events;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
@@ -595,12 +594,11 @@ impl TradeExecutor {
             .context("Could not propose DLC channel")?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
-        protocol_executor.start_dlc_protocol(
+        protocol_executor.start_open_channel_protocol(
             protocol_id,
-            None,
-            Some(&temporary_contract_id),
+            &temporary_contract_id,
             &temporary_channel_id,
-            DlcProtocolType::open_channel(trade_params, protocol_id),
+            trade_params,
         )?;
 
         // After the DLC channel has been proposed the position can be created. This fixes
@@ -756,7 +754,7 @@ impl TradeExecutor {
 
         let protocol_id = ProtocolId::new();
         let channel = self.node.inner.get_dlc_channel_by_id(&dlc_channel_id)?;
-        let previous_id = match channel.get_reference_id() {
+        let previous_protocol_id = match channel.get_reference_id() {
             Some(reference_id) => Some(ProtocolId::try_from(reference_id)?),
             None => None,
         };
@@ -774,12 +772,12 @@ impl TradeExecutor {
             .context("Could not propose reopen DLC channel update")?;
 
         let protocol_executor = dlc_protocol::DlcProtocolExecutor::new(self.node.pool.clone());
-        protocol_executor.start_dlc_protocol(
+        protocol_executor.start_open_position_protocol(
             protocol_id,
-            previous_id,
-            Some(&temporary_contract_id),
+            previous_protocol_id,
+            &temporary_contract_id,
             &channel.get_id(),
-            DlcProtocolType::open_position(trade_params, protocol_id),
+            trade_params,
         )?;
 
         // TODO(holzeis): The position should only get created after the dlc protocol has finished
@@ -1161,7 +1159,7 @@ impl TradeExecutor {
         protocol_executor.start_settle_protocol(
             protocol_id,
             previous_id,
-            Some(&contract_id),
+            &contract_id,
             &channel.get_id(),
             trade_params,
             funding_fee_event_ids,
