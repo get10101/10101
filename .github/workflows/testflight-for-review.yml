@@ -45,6 +45,41 @@ jobs:
           bundle install
           bundle info fastlane
 
+      - name: Install FFI bindings
+        run: just deps-gen --force
+
+      - name: Install ios dependencies
+        run: cargo install cargo-lipo --force
+
+      - name: Set rustup targets
+        run: rustup target add aarch64-apple-ios x86_64-apple-ios
+
+      - name: Generate FFI bindings
+        run: just gen
+
+      - name: Build iOS Rust lib in release mode
+        run: just ios-release
+
+      - name: Parse version from pubspec.yaml
+        id: version
+        uses: jbutcher5/read-yaml@1.6
+        with:
+          file: "mobile/pubspec.yaml"
+          key-path: '["version"]'
+
+      - name: Build iOS Archive
+        id: build-ios
+        run: |
+          NETWORK=$NETWORK just build-ipa-no-codesign
+        env:
+          ELECTRS_ENDPOINT: http://146.0.73.175:3003
+          COORDINATOR_P2P_ENDPOINT: 021eddb3062fddef2c24f16f6de55fbd78ab985b74b41858719def46321d4be7d0@146.0.73.175:9045
+          NETWORK: signet
+          COORDINATOR_PORT_HTTP: 80
+          ORACLE_ENDPOINT: http://146.0.73.175:8081
+          ORACLE_PUBKEY:  5d12d79f575b8d99523797c46441c0549eb0defb6195fe8a080000cbe3ab3859
+          MEME_ENDPOINT: http://api.10101.finance/memes/
+
       - name: Put for beta testing app for review
         env:
           # secrets
@@ -69,4 +104,3 @@ jobs:
       - name: Print fastlane gym logs
         if: always()
         run: cat /Users/runner/Library/Logs/gym/10101*.log
-
