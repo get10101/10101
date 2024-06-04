@@ -102,7 +102,7 @@ class TradeScreen extends StatelessWidget {
               Expanded(
                 child: TradeTabs(
                   tabs: const [
-                    "Positions",
+                    "Position",
                     "Orders",
                     "Trades",
                   ],
