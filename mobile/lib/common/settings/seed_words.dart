@@ -43,7 +43,7 @@ class SeedWord extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               SizedBox(
-                width: 25.0,
+                width: 30.0,
                 child: Text(
                   '#$index',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
