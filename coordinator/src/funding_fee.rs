@@ -13,7 +13,6 @@ use diesel::PgConnection;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use rust_decimal::RoundingStrategy;
-use rust_decimal_macros::dec;
 use std::time::Duration;
 use time::ext::NumericalDuration;
 use time::format_description;
@@ -153,9 +152,10 @@ fn generate_funding_fee_events(
         })?,
         IndexPriceSource::Test => {
             #[cfg(not(debug_assertions))]
-            compile_error!("Cannot use a test index price in release mode");
+            panic!("Cannot use a test index price in release mode");
 
-            dec!(50_000)
+            #[cfg(debug_assertions)]
+            rust_decimal_macros::dec!(50_000)
         }
     };
 
