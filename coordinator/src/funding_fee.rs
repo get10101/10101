@@ -1,4 +1,3 @@
-use crate::db;
 use crate::decimal_from_f32;
 use crate::message::OrderbookMessage;
 use crate::FundingFee;
@@ -19,11 +18,21 @@ use std::time::Duration;
 use time::ext::NumericalDuration;
 use time::format_description;
 use time::OffsetDateTime;
+use tokio::sync::broadcast;
 use tokio::task::block_in_place;
 use tokio_cron_scheduler::JobScheduler;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
+use xxi_node::commons::FundingRate;
 use xxi_node::commons::Message;
+
+mod db;
+
+pub use db::get_funding_fee_events_for_active_trader_positions;
+pub use db::get_next_funding_rate;
+pub use db::get_outstanding_funding_fee_events;
+pub use db::insert_protocol_funding_fee_event;
+pub use db::mark_funding_fee_event_as_paid;
 
 const RETRY_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -155,7 +164,7 @@ fn generate_funding_fee_events(
     }
 
     // We exclude active positions which were open after this funding period ended.
-    let positions = db::positions::Position::get_all_active_positions_open_before(
+    let positions = crate::db::positions::Position::get_all_active_positions_open_before(
         &mut conn,
         funding_rate.end_date(),
     )?;
@@ -302,6 +311,26 @@ pub fn funding_fee_from_funding_fee_events(events: &[FundingFeeEvent]) -> Fundin
         n if n.is_positive() => FundingFee::TraderPays(Amount::from_sat(n.unsigned_abs())),
         n => FundingFee::CoordinatorPays(Amount::from_sat(n.unsigned_abs())),
     }
+}
+
+pub fn insert_funding_rates(
+    conn: &mut PgConnection,
+    tx_orderbook_feed: broadcast::Sender<Message>,
+    funding_rates: &[FundingRate],
+) -> Result<()> {
+    db::insert_funding_rates(conn, funding_rates)?;
+
+    // There is no guarantee that the next funding rate has changed, but sending the message
+    // unconditionally is simpler and should cause no problems.
+    let next_funding_rate = get_next_funding_rate(conn)?;
+
+    if let Some(next_funding_rate) = next_funding_rate {
+        if let Err(e) = tx_orderbook_feed.send(Message::NextFundingRate(next_funding_rate)) {
+            tracing::error!("Failed to notify traders about next funding rate: {e}");
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

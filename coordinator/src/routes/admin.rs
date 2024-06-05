@@ -1,5 +1,6 @@
 use crate::collaborative_revert;
 use crate::db;
+use crate::funding_fee::insert_funding_rates;
 use crate::parse_dlc_channel_id;
 use crate::position::models::Position;
 use crate::referrals;
@@ -684,7 +685,7 @@ pub async fn post_funding_rates(
             .map(xxi_node::commons::FundingRate::from)
             .collect::<Vec<_>>();
 
-        db::funding_rates::insert(&mut conn, &funding_rates)
+        insert_funding_rates(&mut conn, state.tx_orderbook_feed.clone(), &funding_rates)
             .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
         Ok(())

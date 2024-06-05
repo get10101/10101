@@ -5,7 +5,7 @@ use crate::schema::protocol_funding_fee_events;
 use diesel::prelude::*;
 use xxi_node::node::ProtocolId;
 
-pub(crate) fn insert(
+pub fn insert_protocol_funding_fee_event(
     conn: &mut PgConnection,
     protocol_id: ProtocolId,
     funding_fee_event_ids: &[i32],
