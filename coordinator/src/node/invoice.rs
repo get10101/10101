@@ -1,4 +1,6 @@
 use crate::db;
+use crate::message::OrderbookMessage;
+use crate::notifications::NotificationKind;
 use bitcoin::Amount;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
@@ -6,7 +8,7 @@ use diesel::PgConnection;
 use futures_util::TryStreamExt;
 use lnd_bridge::InvoiceState;
 use lnd_bridge::LndBridge;
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tokio::task::spawn_blocking;
 use xxi_node::commons;
 use xxi_node::commons::Message;
@@ -14,7 +16,7 @@ use xxi_node::commons::Message;
 /// Watches a hodl invoice with the given r_hash
 pub fn spawn_invoice_watch(
     pool: Pool<ConnectionManager<PgConnection>>,
-    trader_sender: broadcast::Sender<Message>,
+    trader_sender: mpsc::Sender<OrderbookMessage>,
     lnd_bridge: LndBridge,
     invoice_params: commons::HodlInvoiceParams,
 ) {
@@ -77,10 +79,14 @@ pub fn spawn_invoice_watch(
                     }
                     InvoiceState::Accepted => {
                         tracing::info!(%trader_pubkey, r_hash, "Pending hodl invoice has been accepted.");
-                        if let Err(e) = trader_sender.send(Message::LnPaymentReceived {
-                            r_hash: r_hash.clone(),
-                            amount: Amount::from_sat(invoice.amt_paid_sat),
-                        }) {
+                        if let Err(e) = trader_sender.send(OrderbookMessage::TraderMessage {
+                            trader_id: trader_pubkey,
+                            message: Message::LnPaymentReceived {
+                                r_hash: r_hash.clone(),
+                                amount: Amount::from_sat(invoice.amt_paid_sat),
+                            },
+                            notification: Some(NotificationKind::Custom { title: "Open your DLC channel now!".to_string(), message: "Pending payment received, open the app to open your DLC channel.".to_string() }),
+                        }).await {
                             tracing::error!(%trader_pubkey, r_hash, "Failed to send payment received event to app. Error: {e:#}")
                         }
                         continue;
