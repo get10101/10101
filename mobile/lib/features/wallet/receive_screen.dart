@@ -99,7 +99,8 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                                     setState(() => _isPayInvoiceButtonDisabled = true);
                                     final faucetService = context.read<FaucetService>();
                                     faucetService
-                                        .payInvoiceWithFaucet(rawInvoice(), amount, config.network)
+                                        .payInvoiceWithFaucet(
+                                            rawInvoice(), amount, config.network, Layer.onchain)
                                         .catchError((error) {
                                       setState(() => _isPayInvoiceButtonDisabled = false);
                                       showSnackBar(ScaffoldMessenger.of(context), error.toString());
