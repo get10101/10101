@@ -109,8 +109,8 @@ class TradeScreen extends StatelessWidget {
                   selectedIndex: 0,
                   keys: const [
                     tradeScreenTabsPositions,
-                    tradeScreenTabsTrades,
-                    tradeScreenTabsOrders
+                    tradeScreenTabsOrders,
+                    tradeScreenTabsTrades
                   ],
                   tabBarViewChildren: [
                     ListView.builder(
@@ -192,6 +192,35 @@ class TradeScreen extends StatelessWidget {
                         );
                       },
                     ),
+                    // If there are no orders we early-return with placeholder
+                    orderChangeNotifier.orders.isEmpty
+                        ? RichText(
+                            text: TextSpan(
+                                style: DefaultTextStyle.of(context).style,
+                                children: <TextSpan>[
+                                const TextSpan(
+                                    text: "You don't have any orders yet.\n\n",
+                                    style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Buy",
+                                    style: TextStyle(
+                                        color: tradeTheme.buy, fontWeight: FontWeight.bold)),
+                                const TextSpan(text: " or ", style: TextStyle(color: Colors.grey)),
+                                TextSpan(
+                                    text: "Sell",
+                                    style: TextStyle(
+                                        color: tradeTheme.sell, fontWeight: FontWeight.bold)),
+                                const TextSpan(
+                                    text: " to create one!", style: TextStyle(color: Colors.grey)),
+                              ]))
+                        : SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Card(
+                              child: Column(
+                                  children: orderChangeNotifier.orders.values
+                                      .map((e) => OrderListItem(order: e))
+                                      .toList()),
+                            )),
                     tradeChangeNotifier.trades.isEmpty
                         ? RichText(
                             text: TextSpan(
@@ -220,35 +249,6 @@ class TradeScreen extends StatelessWidget {
                                   .map((trade) => TradeListItem(trade: trade))
                                   .toList(),
                             ))),
-                    // If there are no positions we early-return with placeholder
-                    orderChangeNotifier.orders.isEmpty
-                        ? RichText(
-                            text: TextSpan(
-                                style: DefaultTextStyle.of(context).style,
-                                children: <TextSpan>[
-                                const TextSpan(
-                                    text: "You don't have any orders yet.\n\n",
-                                    style: TextStyle(color: Colors.grey)),
-                                TextSpan(
-                                    text: "Buy",
-                                    style: TextStyle(
-                                        color: tradeTheme.buy, fontWeight: FontWeight.bold)),
-                                const TextSpan(text: " or ", style: TextStyle(color: Colors.grey)),
-                                TextSpan(
-                                    text: "Sell",
-                                    style: TextStyle(
-                                        color: tradeTheme.sell, fontWeight: FontWeight.bold)),
-                                const TextSpan(
-                                    text: " to create one!", style: TextStyle(color: Colors.grey)),
-                              ]))
-                        : SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            child: Card(
-                              child: Column(
-                                  children: orderChangeNotifier.orders.values
-                                      .map((e) => OrderListItem(order: e))
-                                      .toList()),
-                            ))
                   ],
                 ),
               )
