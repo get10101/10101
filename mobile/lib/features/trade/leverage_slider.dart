@@ -17,7 +17,7 @@ class LeverageSlider extends StatefulWidget {
   final bool isActive;
 
   const LeverageSlider(
-      {required this.onLeverageChanged, this.initialValue = 2, super.key, required this.isActive});
+      {required this.onLeverageChanged, this.initialValue = 5, super.key, required this.isActive});
 
   @override
   State<LeverageSlider> createState() => _LeverageSliderState();
