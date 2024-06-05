@@ -120,14 +120,14 @@ fn generate_funding_fee_events(
 ) -> Result<()> {
     let mut conn = pool.get()?;
 
-    tracing::debug!("Generating funding fee events");
+    tracing::trace!("Generating funding fee events");
 
     let funding_rate = db::funding_rates::get_funding_rate_charged_in_the_last_hour(&mut conn)?;
 
     let funding_rate = match funding_rate {
         Some(funding_rate) => funding_rate,
         None => {
-            tracing::debug!("No current funding rate for this hour");
+            tracing::trace!("No current funding rate for this hour");
             return Ok(());
         }
     };
