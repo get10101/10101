@@ -685,7 +685,7 @@ pub async fn post_funding_rates(
             .map(xxi_node::commons::FundingRate::from)
             .collect::<Vec<_>>();
 
-        insert_funding_rates(&mut conn, &funding_rates)
+        insert_funding_rates(&mut conn, state.tx_orderbook_feed.clone(), &funding_rates)
             .map_err(|e| AppError::BadRequest(format!("{e:#}")))?;
 
         Ok(())
