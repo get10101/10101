@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/switch.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/welcome/loading_screen.dart';
 import 'package:get_10101/ffi.dart';
 import 'package:get_10101/logger/logger.dart';
@@ -34,7 +35,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         value: SystemUiOverlayStyle.dark,
         child: Scaffold(
           backgroundColor: Colors.white,
-          body: SafeArea(
+          body: ScrollableSafeArea(
             bottom: false,
             child: Container(
               color: Colors.white,
