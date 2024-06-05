@@ -1,7 +1,7 @@
 use crate::db;
-use crate::db::funding_fee_events;
-use crate::db::funding_rates;
 use crate::db::user;
+use crate::funding_fee::get_funding_fee_events_for_active_trader_positions;
+use crate::funding_fee::get_next_funding_rate;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
 use crate::orderbook::trading::NewOrderMessage;
@@ -253,7 +253,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
 
                             // Send over all the funding fee events that the trader may have missed
                             // whilst they were offline.
-                            match funding_fee_events::get_for_active_trader_positions(
+                            match get_funding_fee_events_for_active_trader_positions(
                                 &mut conn, trader_id,
                             ) {
                                 Ok(funding_fee_events) => {
@@ -277,7 +277,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 }
                             }
 
-                            match funding_rates::get_next_funding_rate(&mut conn) {
+                            match get_next_funding_rate(&mut conn) {
                                 Ok(Some(funding_rate)) => {
                                     if let Err(e) = local_sender
                                         .send(Message::NextFundingRate(funding_rate))

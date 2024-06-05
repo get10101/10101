@@ -1,5 +1,6 @@
 use crate::db;
 use crate::funding_fee::funding_fee_from_funding_fee_events;
+use crate::funding_fee::get_outstanding_funding_fee_events;
 use crate::node::Node;
 use crate::orderbook;
 use crate::orderbook::db::orders;
@@ -51,7 +52,7 @@ async fn check_if_positions_need_to_get_liquidated(
         // Update position based on the outstanding funding fee events _before_ considering
         // liquidation.
         let funding_fee_events =
-            db::funding_fee_events::get_outstanding_fees(&mut conn, position.trader, position.id)?;
+            get_outstanding_funding_fee_events(&mut conn, position.trader, position.id)?;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 

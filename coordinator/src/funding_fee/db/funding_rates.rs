@@ -27,7 +27,7 @@ struct FundingRate {
     _timestamp: OffsetDateTime,
 }
 
-pub(crate) fn insert(
+pub fn insert_funding_rates(
     conn: &mut PgConnection,
     funding_rates: &[xxi_node::commons::FundingRate],
 ) -> Result<()> {
@@ -48,7 +48,7 @@ pub(crate) fn insert(
     Ok(())
 }
 
-pub(crate) fn get_next_funding_rate(
+pub fn get_next_funding_rate(
     conn: &mut PgConnection,
 ) -> QueryResult<Option<xxi_node::commons::FundingRate>> {
     let funding_rate: Option<FundingRate> = funding_rates::table
@@ -62,7 +62,7 @@ pub(crate) fn get_next_funding_rate(
 }
 
 /// Get the funding rate with an end date that is equal to the current date to the nearest hour.
-pub(crate) fn get_funding_rate_charged_in_the_last_hour(
+pub fn get_funding_rate_charged_in_the_last_hour(
     conn: &mut PgConnection,
 ) -> QueryResult<Option<xxi_node::commons::FundingRate>> {
     let now = OffsetDateTime::now_utc();

@@ -30,7 +30,7 @@ struct FundingFeeEvent {
     _timestamp: OffsetDateTime,
 }
 
-pub(crate) fn insert(
+pub fn insert(
     conn: &mut PgConnection,
     amount: SignedAmount,
     trader_pubkey: PublicKey,
@@ -79,7 +79,7 @@ pub(crate) fn insert(
 ///
 /// A list of [`xxi_node::FundingFeeEvent`]s, since these are to be sent to the trader via the
 /// `xxi_node::Message::AllFundingFeeEvents` message.
-pub(crate) fn get_for_active_trader_positions(
+pub fn get_funding_fee_events_for_active_trader_positions(
     conn: &mut PgConnection,
     trader_pubkey: PublicKey,
 ) -> QueryResult<Vec<xxi_node::FundingFeeEvent>> {
@@ -110,7 +110,7 @@ pub(crate) fn get_for_active_trader_positions(
 }
 
 /// Get the unpaid [`funding_fee::FundingFeeEvent`]s for a trader position.
-pub(crate) fn get_outstanding_fees(
+pub fn get_outstanding_funding_fee_events(
     conn: &mut PgConnection,
     trader_pubkey: PublicKey,
     position_id: i32,
@@ -131,7 +131,10 @@ pub(crate) fn get_outstanding_fees(
         .collect())
 }
 
-pub(crate) fn mark_as_paid(conn: &mut PgConnection, protocol_id: ProtocolId) -> QueryResult<()> {
+pub fn mark_funding_fee_event_as_paid(
+    conn: &mut PgConnection,
+    protocol_id: ProtocolId,
+) -> QueryResult<()> {
     conn.transaction(|conn| {
         // Find all funding fee event IDs that were just paid.
         let funding_fee_event_ids: Vec<i32> = protocol_funding_fee_events::table

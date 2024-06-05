@@ -1,4 +1,6 @@
 use crate::db;
+use crate::funding_fee::insert_protocol_funding_fee_event;
+use crate::funding_fee::mark_funding_fee_event_as_paid;
 use crate::position::models::PositionState;
 use crate::trade::models::NewTrade;
 use crate::trade::websocket::InternalPositionUpdateMessage;
@@ -210,7 +212,7 @@ impl DlcProtocolExecutor {
                 &trader_pubkey,
             )?;
 
-            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+            insert_protocol_funding_fee_event(conn, protocol_id, &funding_fee_event_ids)?;
 
             db::trade_params::insert(
                 conn,
@@ -246,7 +248,7 @@ impl DlcProtocolExecutor {
                 &trader_pubkey,
             )?;
 
-            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+            insert_protocol_funding_fee_event(conn, protocol_id, &funding_fee_event_ids)?;
 
             db::trade_params::insert(conn, &TradeParams::new(trade_params, protocol_id, None))?;
 
@@ -280,7 +282,7 @@ impl DlcProtocolExecutor {
                 &trader_pubkey,
             )?;
 
-            db::protocol_funding_fee_events::insert(conn, protocol_id, &funding_fee_event_ids)?;
+            insert_protocol_funding_fee_event(conn, protocol_id, &funding_fee_event_ids)?;
 
             db::rollover_params::insert(conn, &rollover_params)?;
 
@@ -521,7 +523,7 @@ impl DlcProtocolExecutor {
 
         db::trades::insert(conn, new_trade)?;
 
-        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+        mark_funding_fee_event_as_paid(conn, protocol_id)?;
 
         Ok(())
     }
@@ -621,7 +623,7 @@ impl DlcProtocolExecutor {
 
         db::trades::insert(conn, new_trade)?;
 
-        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+        mark_funding_fee_event_as_paid(conn, protocol_id)?;
 
         Ok(())
     }
@@ -657,7 +659,7 @@ impl DlcProtocolExecutor {
             rollover_params.liquidation_price_trader,
         )?;
 
-        db::funding_fee_events::mark_as_paid(conn, protocol_id)?;
+        mark_funding_fee_event_as_paid(conn, protocol_id)?;
 
         Ok(())
     }

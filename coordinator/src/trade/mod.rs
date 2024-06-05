@@ -3,6 +3,7 @@ use crate::db;
 use crate::decimal_from_f32;
 use crate::dlc_protocol;
 use crate::funding_fee::funding_fee_from_funding_fee_events;
+use crate::funding_fee::get_outstanding_funding_fee_events;
 use crate::message::OrderbookMessage;
 use crate::node::Node;
 use crate::orderbook::db::matches;
@@ -798,7 +799,7 @@ impl TradeExecutor {
 
         // Update position based on the outstanding funding fee events _before_ applying resize.
         let funding_fee_events =
-            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+            get_outstanding_funding_fee_events(conn, position.trader, position.id)?;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
@@ -1063,7 +1064,7 @@ impl TradeExecutor {
         // Update position based on the outstanding funding fee events _before_ calculating
         // `position_settlement_amount_coordinator`.
         let funding_fee_events =
-            db::funding_fee_events::get_outstanding_fees(conn, position.trader, position.id)?;
+            get_outstanding_funding_fee_events(conn, position.trader, position.id)?;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 

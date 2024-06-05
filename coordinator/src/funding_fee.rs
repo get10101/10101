@@ -1,4 +1,3 @@
-use crate::db;
 use crate::decimal_from_f32;
 use crate::message::OrderbookMessage;
 use crate::FundingFee;
@@ -24,6 +23,15 @@ use tokio_cron_scheduler::JobScheduler;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 use xxi_node::commons::Message;
+
+mod db;
+
+pub use db::get_funding_fee_events_for_active_trader_positions;
+pub use db::get_next_funding_rate;
+pub use db::get_outstanding_funding_fee_events;
+pub use db::insert_funding_rates;
+pub use db::insert_protocol_funding_fee_event;
+pub use db::mark_funding_fee_event_as_paid;
 
 const RETRY_INTERVAL: Duration = Duration::from_secs(5);
 
@@ -155,7 +163,7 @@ fn generate_funding_fee_events(
     }
 
     // We exclude active positions which were open after this funding period ended.
-    let positions = db::positions::Position::get_all_active_positions_open_before(
+    let positions = crate::db::positions::Position::get_all_active_positions_open_before(
         &mut conn,
         funding_rate.end_date(),
     )?;
