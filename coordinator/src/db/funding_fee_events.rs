@@ -56,7 +56,7 @@ pub(crate) fn insert(
             diesel::result::DatabaseErrorKind::UniqueViolation,
             _,
         )) => {
-            tracing::debug!(
+            tracing::trace!(
                 position_id,
                 %trader_pubkey,
                 %due_date,
