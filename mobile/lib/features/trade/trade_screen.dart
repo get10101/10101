@@ -72,12 +72,6 @@ class TradeScreen extends StatelessWidget {
                       price: Usd.fromDouble(price ?? 0.0),
                     );
                   }),
-                  Selector<FundingRateChangeNotifier, FundingRate?>(selector: (_, provider) {
-                    return provider.nextRate;
-                  }, builder: (context, rate, child) {
-                    return FundingRateWidget(
-                        rate: rate, label: "Funding Rate: ", innerKey: tradeScreenFundingRate);
-                  }),
                   Selector<TradeValuesChangeNotifier, double?>(selector: (_, provider) {
                     return provider.getBidPrice();
                   }, builder: (context, price, child) {
@@ -99,6 +93,12 @@ class TradeScreen extends StatelessWidget {
                   )
                 ],
               ),
+              const SizedBox(height: 5),
+              Selector<FundingRateChangeNotifier, FundingRate?>(selector: (_, provider) {
+                return provider.nextRate;
+              }, builder: (context, rate, child) {
+                return FundingRateWidget(rate: rate, innerKey: tradeScreenFundingRate);
+              }),
               Expanded(
                 child: TradeTabs(
                   tabs: const [
@@ -332,36 +332,32 @@ class LatestPriceWidget extends StatelessWidget {
 
 class FundingRateWidget extends StatelessWidget {
   final FundingRate? rate;
-  final String label;
   final Key innerKey;
 
-  const FundingRateWidget(
-      {super.key, required this.rate, required this.label, required this.innerKey});
+  const FundingRateWidget({super.key, required this.rate, required this.innerKey});
 
   @override
   Widget build(BuildContext context) {
     timeago.setLocaleMessages('en_custom', CustomEnMessages());
 
-    return RichText(
-      key: innerKey,
-      text: TextSpan(
-        text: label,
-        style: DefaultTextStyle.of(context).style,
-        children: [
-          TextSpan(
-            text: rate != null ? "${(rate!.rate * 100).toStringAsFixed(2)}%" : "n/a",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-            text: rate != null
-                ? "\n${timeago.format(rate!.endDate, locale: 'en_custom', allowFromNow: true)}"
-                : null,
-            style: const TextStyle(fontWeight: FontWeight.w300),
+    return rate != null
+        ? RichText(
+            key: innerKey,
+            text: TextSpan(
+              text: rate!.rate.isNegative ? "Shorts pay longs" : "Longs pay shorts",
+              style: DefaultTextStyle.of(context).style,
+              children: [
+                TextSpan(
+                  text: " ${(rate!.rate.abs() * 100).toStringAsFixed(2)}% ",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextSpan(
+                  text: timeago.format(rate!.endDate, locale: 'en_custom', allowFromNow: true),
+                )
+              ],
+            ),
           )
-        ],
-      ),
-      textAlign: TextAlign.center,
-    );
+        : RichText(text: const TextSpan(text: "Next funding rate unavailable"));
   }
 }
 
