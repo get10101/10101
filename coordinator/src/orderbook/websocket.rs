@@ -218,12 +218,18 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();
 
-                            let (min_quantity, maintenance_margin_rate, order_matching_fee_rate) = {
+                            let (
+                                min_quantity,
+                                maintenance_margin_rate,
+                                order_matching_fee_rate,
+                                max_leverage,
+                            ) = {
                                 let settings = state.settings.read().await;
                                 (
                                     settings.min_quantity,
                                     settings.maintenance_margin_rate,
                                     settings.order_matching_fee_rate,
+                                    settings.max_leverage,
                                 )
                             };
 
@@ -239,6 +245,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                     maintenance_margin_rate,
                                     order_matching_fee_rate,
                                     referral_status,
+                                    max_leverage,
                                 }))
                                 .await
                             {

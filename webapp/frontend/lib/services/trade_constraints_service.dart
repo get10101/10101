@@ -64,6 +64,10 @@ class TradeConstraints {
   @JsonKey(name: 'channel_fee_reserve_sats')
   final int channelFeeReserveSats;
 
+  /// The max leverage the trader can take
+  @JsonKey(name: 'max_leverage')
+  final int maxLeverage;
+
   const TradeConstraints({
     required this.maxLocalBalanceSats,
     required this.maxCounterpartyBalanceSats,
@@ -73,6 +77,7 @@ class TradeConstraints {
     required this.minMarginSats,
     required this.estimatedFundingTxFeeSats,
     required this.channelFeeReserveSats,
+    required this.maxLeverage,
   });
 
   factory TradeConstraints.fromJson(Map<String, dynamic> json) => _$TradeConstraintsFromJson(json);

@@ -23,6 +23,7 @@ class TenTenOneConfig {
             numberOfTotalReferrals: 0,
             referralTier: 0,
             referralFeeBonus: 0,
-            bonusStatusType: bridge.BonusStatusType.None));
+            bonusStatusType: bridge.BonusStatusType.None),
+        maxLeverage: 5);
   }
 }

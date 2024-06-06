@@ -13,6 +13,7 @@ min_quantity = 1
 maintenance_margin_rate = 0.1
 order_matching_fee_rate = 0.003
 index_price_source = "Test"
+max_leverage = 5
 
 [xxi]
 off_chain_sync_interval = 5
