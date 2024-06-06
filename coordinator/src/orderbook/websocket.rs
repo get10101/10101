@@ -232,6 +232,8 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                 trader_id.to_string(),
                             )
                             .unwrap_or(ReferralStatus::new(trader_id));
+                            // TODO: make this configurable
+                            let max_leverage = 5;
                             if let Err(e) = local_sender
                                 .send(Message::Authenticated(TenTenOneConfig {
                                     liquidity_options,
@@ -239,6 +241,7 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                     maintenance_margin_rate,
                                     order_matching_fee_rate,
                                     referral_status,
+                                    max_leverage,
                                 }))
                                 .await
                             {

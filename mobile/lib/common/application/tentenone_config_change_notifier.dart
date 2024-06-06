@@ -10,6 +10,8 @@ class TenTenOneConfigChangeNotifier extends ChangeNotifier implements Subscriber
 
   List<LiquidityOption> _liquidityOptions = [];
   ReferralStatus? _referralStatus;
+  // will be overwritten once we receive the authenticated event
+  int _maxLeverage = 5;
 
   TenTenOneConfigChangeNotifier(this.channelInfoService);
 
@@ -19,6 +21,8 @@ class TenTenOneConfigChangeNotifier extends ChangeNotifier implements Subscriber
 
   ReferralStatus? get referralStatus => _referralStatus;
 
+  double get maxLeverage => _maxLeverage.toDouble();
+
   @override
   void notify(bridge.Event event) {
     if (event is bridge.Event_Authenticated) {
@@ -27,6 +31,7 @@ class TenTenOneConfigChangeNotifier extends ChangeNotifier implements Subscriber
       _liquidityOptions.sort((a, b) => a.rank.compareTo(b.rank));
 
       _referralStatus = ReferralStatus.from(event.field0.referralStatus);
+      _maxLeverage = event.field0.maxLeverage;
 
       super.notifyListeners();
     }

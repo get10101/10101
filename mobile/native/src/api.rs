@@ -69,6 +69,7 @@ pub struct TenTenOneConfig {
     pub min_quantity: u64,
     pub maintenance_margin_rate: f32,
     pub referral_status: ReferralStatus,
+    pub max_leverage: u8,
 }
 
 impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
@@ -82,6 +83,7 @@ impl From<xxi_node::commons::TenTenOneConfig> for TenTenOneConfig {
             min_quantity: value.min_quantity,
             maintenance_margin_rate: value.maintenance_margin_rate,
             referral_status: value.referral_status.into(),
+            max_leverage: value.max_leverage,
         }
     }
 }

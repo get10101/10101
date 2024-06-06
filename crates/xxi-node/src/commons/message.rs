@@ -80,6 +80,7 @@ pub struct TenTenOneConfig {
     pub maintenance_margin_rate: f32,
     pub order_matching_fee_rate: f32,
     pub referral_status: ReferralStatus,
+    pub max_leverage: u8,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
