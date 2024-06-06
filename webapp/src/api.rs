@@ -18,6 +18,7 @@ use native::api::WalletHistoryItemType;
 use native::calculations::calculate_pnl;
 use native::channel_trade_constraints;
 use native::dlc;
+use native::state::try_get_tentenone_config;
 use native::trade::order::FailureReason;
 use native::trade::order::InvalidSubchannelOffer;
 use rust_decimal::prelude::ToPrimitive;
@@ -965,6 +966,7 @@ pub struct TradeConstraints {
     pub min_margin_sats: u64,
     pub estimated_funding_tx_fee_sats: u64,
     pub channel_fee_reserve_sats: u64,
+    pub max_leverage: u8,
 }
 
 #[utoipa::path(
@@ -976,6 +978,7 @@ responses(
 )]
 pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError> {
     let trade_constraints = channel_trade_constraints::channel_trade_constraints()?;
+    let ten_one_config = try_get_tentenone_config().context("Could not read 10101 config")?;
     let fee = dlc::estimated_funding_tx_fee()?;
     let channel_fee_reserve = dlc::estimated_fee_reserve()?;
     Ok(Json(TradeConstraints {
@@ -987,6 +990,7 @@ pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError>
         min_margin_sats: trade_constraints.min_margin,
         estimated_funding_tx_fee_sats: fee.to_sat(),
         channel_fee_reserve_sats: channel_fee_reserve.to_sat(),
+        max_leverage: ten_one_config.max_leverage,
     }))
 }
 

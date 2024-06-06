@@ -15,6 +15,7 @@ TradeConstraints _$TradeConstraintsFromJson(Map<String, dynamic> json) => TradeC
       minMarginSats: json['min_margin_sats'] as int,
       estimatedFundingTxFeeSats: json['estimated_funding_tx_fee_sats'] as int,
       channelFeeReserveSats: json['channel_fee_reserve_sats'] as int,
+      maxLeverage: json['max_leverage'] as int,
     );
 
 Map<String, dynamic> _$TradeConstraintsToJson(TradeConstraints instance) => <String, dynamic>{
@@ -26,4 +27,5 @@ Map<String, dynamic> _$TradeConstraintsToJson(TradeConstraints instance) => <Str
       'min_margin_sats': instance.minMarginSats,
       'estimated_funding_tx_fee_sats': instance.estimatedFundingTxFeeSats,
       'channel_fee_reserve_sats': instance.channelFeeReserveSats,
+      'max_leverage': instance.maxLeverage,
     };

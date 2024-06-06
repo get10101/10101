@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:get_10101/change_notifier/trade_constraint_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/theme.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_sliders/sliders.dart';
 import 'package:syncfusion_flutter_core/theme.dart' as slider_theme;
 
@@ -11,7 +13,6 @@ const gradientColors = <Color>[Colors.green, Colors.deepOrange];
 const LinearGradient gradient = LinearGradient(colors: gradientColors);
 
 const double minLeverage = 1.0;
-const double maxLeverage = 5.0;
 
 /// Slider that allows the user to select a leverage between minLeverage and maxLeverage.
 /// It uses linear scale and fractional leverage values are rounded to the nearest integer.
@@ -36,6 +37,12 @@ class _LeverageSliderState extends State<LeverageSlider> {
 
   @override
   Widget build(BuildContext context) {
+    TradeConstraintsChangeNotifier tradeConstraintsChangeNotifier =
+        context.read<TradeConstraintsChangeNotifier>();
+
+    double maxLeverage =
+        tradeConstraintsChangeNotifier.tradeConstraints?.maxLeverage.toDouble() ?? 5.0;
+
     return InputDecorator(
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
