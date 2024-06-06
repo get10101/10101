@@ -647,7 +647,7 @@ async fn create_invoice(
     // watch for the created hodl invoice
     invoice::spawn_invoice_watch(
         state.pool.clone(),
-        state.tx_orderbook_feed.clone(),
+        state.auth_users_notifier.clone(),
         state.lnd_bridge.clone(),
         invoice_params,
     );
