@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/bitcoin_balance_field.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/countdown.dart';
+import 'package:get_10101/bridge_generated/bridge_definitions.dart' as bridge;
 import 'package:get_10101/common/custom_qr_code.dart';
 import 'package:get_10101/common/domain/funding_channel_task.dart';
 import 'package:get_10101/common/domain/model.dart';
@@ -13,6 +14,7 @@ import 'package:get_10101/features/trade/application/order_service.dart';
 import 'package:get_10101/features/trade/channel_creation_flow/channel_configuration_screen.dart';
 import 'package:get_10101/features/trade/submit_order_change_notifier.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
+import 'package:get_10101/features/wallet/application/faucet_service.dart';
 import 'package:get_10101/features/wallet/application/util.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -61,17 +63,24 @@ class ChannelFunding extends StatefulWidget {
 class _ChannelFunding extends State<ChannelFunding> {
   FundingType selectedBox = FundingType.onchain;
 
+  /// Should only be true if on signet
+  bool _showFaucet = false;
+  bool _isPayInvoiceButtonDisabled = false;
+
   // TODO(holzeis): It would be nicer if this would come directly from the invoice.
   final expiry = DateTime.timestamp().second + 300;
 
   @override
   Widget build(BuildContext context) {
+    final bridge.Config config = context.read<bridge.Config>();
     final status = context.watch<FundingChannelChangeNotifier>().status;
     final orderCreated = status == FundingChannelTaskStatus.orderCreated;
 
     final qrCode = switch (selectedBox) {
       FundingType.lightning => CustomQrCode(
-          data: widget.funding.paymentRequest ?? "https://x.com/get10101",
+          data: widget.funding.paymentRequest != null
+              ? "lightning:${widget.funding.paymentRequest}"
+              : "https://x.com/get10101",
           embeddedImage: widget.funding.paymentRequest != null
               ? const AssetImage("assets/10101_logo_icon_white_background.png")
               : const AssetImage("assets/coming_soon.png"),
@@ -80,7 +89,7 @@ class _ChannelFunding extends State<ChannelFunding> {
           dimension: 300,
         ),
       FundingType.onchain => CustomQrCode(
-          // TODO: creating a bip21 qr code should be generic once we support other desposit methods
+          // TODO: creating a bip21 qr code should be generic once we support other deposit methods
           data: "bitcoin:${widget.funding.bitcoinAddress}?amount=${widget.amount.btc.toString()}",
           embeddedImage: const AssetImage("assets/10101_logo_icon_white_background.png"),
           dimension: 300,
@@ -196,9 +205,49 @@ class _ChannelFunding extends State<ChannelFunding> {
                                     ScaffoldMessenger.of(context), "Copied: ${qrCode.data}");
                               });
                             },
+                            onDoubleTap: (config.network == "regtest" || config.network == "signet")
+                                ? () => setState(() => _showFaucet = !_showFaucet)
+                                : null,
                             child: Padding(
                               padding: const EdgeInsets.all(8.0),
-                              child: qrCode,
+                              child: _showFaucet
+                                  ? Column(
+                                      children: [
+                                        const SizedBox(height: 125),
+                                        OutlinedButton(
+                                          onPressed: _isPayInvoiceButtonDisabled
+                                              ? null
+                                              : () async {
+                                                  setState(
+                                                      () => _isPayInvoiceButtonDisabled = true);
+                                                  final faucetService =
+                                                      context.read<FaucetService>();
+                                                  faucetService
+                                                      .payInvoiceWithFaucet(
+                                                          qrCode.data,
+                                                          widget.amount,
+                                                          config.network,
+                                                          parseSelectedBox(selectedBox))
+                                                      .catchError((error) {
+                                                    setState(
+                                                        () => _isPayInvoiceButtonDisabled = false);
+                                                    showSnackBar(ScaffoldMessenger.of(context),
+                                                        error.toString());
+                                                  });
+                                                },
+                                          style: ElevatedButton.styleFrom(
+                                            shape: const RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.all(Radius.circular(5.0))),
+                                          ),
+                                          child: config.network == "regtest"
+                                              ? const Text("Pay with 10101 faucet")
+                                              : const Text("Pay with Mutinynet faucet"),
+                                        ),
+                                        const SizedBox(height: 125),
+                                      ],
+                                    )
+                                  : qrCode,
                             ),
                           ),
                           LayoutBuilder(
@@ -284,6 +333,7 @@ class _ChannelFunding extends State<ChannelFunding> {
             onTap: () {
               setState(() {
                 selectedBox = FundingType.unified;
+                _showFaucet = false;
               });
             },
           ),
@@ -296,6 +346,7 @@ class _ChannelFunding extends State<ChannelFunding> {
             onTap: () {
               setState(() {
                 selectedBox = FundingType.lightning;
+                _showFaucet = false;
               });
             },
           ),
@@ -308,6 +359,7 @@ class _ChannelFunding extends State<ChannelFunding> {
             onTap: () {
               setState(() {
                 selectedBox = FundingType.onchain;
+                _showFaucet = false;
               });
             },
           ),
@@ -320,6 +372,7 @@ class _ChannelFunding extends State<ChannelFunding> {
             onTap: () {
               setState(() {
                 selectedBox = FundingType.external;
+                _showFaucet = false;
               });
             },
           ),
@@ -510,5 +563,14 @@ class _RotatingIconState extends State<RotatingIcon> with SingleTickerProviderSt
         color: tenTenOnePurple,
       ),
     );
+  }
+}
+
+Layer parseSelectedBox(FundingType fundingType) {
+  switch (fundingType) {
+    case FundingType.lightning:
+      return Layer.lightning;
+    default:
+      return Layer.onchain;
   }
 }
