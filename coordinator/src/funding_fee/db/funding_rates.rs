@@ -1,5 +1,4 @@
 use crate::schema::funding_rates;
-use anyhow::bail;
 use anyhow::Result;
 use diesel::prelude::*;
 use rust_decimal::prelude::FromPrimitive;
@@ -37,13 +36,11 @@ pub fn insert_funding_rates(
         .map(NewFundingRate::from)
         .collect::<Vec<_>>();
 
-    let affected_rows = diesel::insert_into(funding_rates::table)
+    diesel::insert_into(funding_rates::table)
         .values(funding_rates)
+        .on_conflict(funding_rates::end_date)
+        .do_nothing()
         .execute(conn)?;
-
-    if affected_rows == 0 {
-        bail!("Failed to insert funding rates");
-    }
 
     Ok(())
 }
