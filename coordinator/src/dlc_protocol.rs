@@ -60,7 +60,7 @@ impl TradeParams {
             protocol_id,
             trader: trade_params.pubkey,
             quantity: trade_params.quantity,
-            leverage: trade_params.leverage,
+            leverage: trade_params.trader_leverage,
             average_price: trade_params
                 .average_execution_price()
                 .to_f32()

@@ -23,7 +23,6 @@ class LiquidityOption {
   final Amount minDeposit;
   final Amount maxDeposit;
   final ProportionalFee fee;
-  final double coordinatorLeverage;
 
   LiquidityOption(
       {required this.active,
@@ -33,8 +32,7 @@ class LiquidityOption {
       required this.tradeUpTo,
       required this.minDeposit,
       required this.maxDeposit,
-      required this.fee,
-      required this.coordinatorLeverage});
+      required this.fee});
 
   static LiquidityOption from(bridge.LiquidityOption option) {
     return LiquidityOption(
@@ -46,7 +44,6 @@ class LiquidityOption {
       minDeposit: Amount(option.minDepositSats),
       maxDeposit: Amount(option.maxDepositSats),
       fee: ProportionalFee(percentage: option.feePercentage, minSats: option.minFeeSats),
-      coordinatorLeverage: option.coordinatorLeverage,
     );
   }
 }

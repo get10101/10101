@@ -322,6 +322,12 @@ pub async fn process_new_market_order(
             .map_err(|e| anyhow!("{e:#}"))?;
     }
 
+    let coordinator_leverage =
+        db::coordinator_leverages::find_coordinator_leverage_by_trader_leverage(
+            &mut conn,
+            order.leverage,
+        );
+
     if node.inner.is_connected(order.trader_id) {
         tracing::info!(trader_id = %order.trader_id, order_id = %order.id, order_reason = ?order.order_reason, "Executing trade for match");
         let trade_executor = TradeExecutor::new(node.clone(), trade_notifier);
@@ -331,7 +337,8 @@ pub async fn process_new_market_order(
                 trade_params: TradeParams {
                     pubkey: order.trader_id,
                     contract_symbol: ContractSymbol::BtcUsd,
-                    leverage: order.leverage,
+                    trader_leverage: order.leverage,
+                    coordinator_leverage,
                     quantity: order.quantity.to_f32().expect("to fit into f32"),
                     direction: order.direction,
                     filled_with: matched_orders.taker_match.filled_with,

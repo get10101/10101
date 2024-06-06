@@ -27,6 +27,7 @@ use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -956,17 +957,18 @@ where
     }
 }
 
-#[derive(Serialize, Copy, Clone, Debug, ToSchema)]
+#[derive(Serialize, Clone, Debug, ToSchema)]
 pub struct TradeConstraints {
     pub max_local_balance_sats: u64,
     pub max_counterparty_balance_sats: u64,
-    pub coordinator_leverage: f32,
+    pub default_coordinator_leverage: u8,
     pub min_quantity: u64,
     pub is_channel_balance: bool,
     pub min_margin_sats: u64,
     pub estimated_funding_tx_fee_sats: u64,
     pub channel_fee_reserve_sats: u64,
     pub max_leverage: u8,
+    pub coordinator_leverages: HashMap<u8, u8>,
 }
 
 #[utoipa::path(
@@ -984,13 +986,14 @@ pub async fn get_trade_constraints() -> Result<Json<TradeConstraints>, AppError>
     Ok(Json(TradeConstraints {
         max_local_balance_sats: trade_constraints.max_local_balance_sats,
         max_counterparty_balance_sats: trade_constraints.max_counterparty_balance_sats,
-        coordinator_leverage: trade_constraints.coordinator_leverage,
+        default_coordinator_leverage: trade_constraints.default_coordinator_leverage,
         min_quantity: trade_constraints.min_quantity,
         is_channel_balance: trade_constraints.is_channel_balance,
         min_margin_sats: trade_constraints.min_margin,
         estimated_funding_tx_fee_sats: fee.to_sat(),
         channel_fee_reserve_sats: channel_fee_reserve.to_sat(),
         max_leverage: ten_one_config.max_leverage,
+        coordinator_leverages: ten_one_config.coordinator_leverages.clone(),
     }))
 }
 

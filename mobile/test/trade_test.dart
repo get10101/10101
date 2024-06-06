@@ -203,12 +203,13 @@ void main() {
         const bridge.TradeConstraints(
             maxLocalBalanceSats: 20000000000,
             maxCounterpartyBalanceSats: 200000000000,
-            coordinatorLeverage: 2,
+            defaultCoordinatorLeverage: 2,
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1,
             maintenanceMarginRate: 0.1,
-            orderMatchingFeeRate: 0.003));
+            orderMatchingFeeRate: 0.003,
+            coordinatorLeverages: []));
 
     // We start the trade screen
     await tester.pumpWidget(MultiProvider(
@@ -378,12 +379,13 @@ void main() {
         const bridge.TradeConstraints(
             maxLocalBalanceSats: 10000000,
             maxCounterpartyBalanceSats: 20000000,
-            coordinatorLeverage: 2,
+            defaultCoordinatorLeverage: 2,
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1,
             maintenanceMarginRate: 0.1,
-            orderMatchingFeeRate: 0.003));
+            orderMatchingFeeRate: 0.003,
+            coordinatorLeverages: []));
 
     // We start the trade screen
     await tester.pumpWidget(MultiProvider(
@@ -462,12 +464,13 @@ void main() {
         const bridge.TradeConstraints(
             maxLocalBalanceSats: 20000000000,
             maxCounterpartyBalanceSats: 200000000000,
-            coordinatorLeverage: 2,
+            defaultCoordinatorLeverage: 2,
             minQuantity: 1,
             isChannelBalance: true,
             minMargin: 1,
             maintenanceMarginRate: 0.1,
-            orderMatchingFeeRate: 0.003));
+            orderMatchingFeeRate: 0.003,
+            coordinatorLeverages: []));
 
     when(dlcChannelService.getEstimatedChannelFeeReserve()).thenReturn((Amount(500)));
 

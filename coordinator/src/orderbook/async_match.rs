@@ -97,6 +97,12 @@ async fn process_pending_match(
     if let Some(order) =
         orders::get_by_trader_id_and_state(&mut conn, trader_id, OrderState::Matched)?
     {
+        let coordinator_leverage =
+            db::coordinator_leverages::find_coordinator_leverage_by_trader_leverage(
+                &mut conn,
+                order.leverage,
+            );
+
         tracing::debug!(%trader_id, order_id=%order.id, "Executing pending match");
 
         let matches = matches::get_matches_by_order_id(&mut conn, order.id)?;
@@ -112,7 +118,8 @@ async fn process_pending_match(
                 trade_params: TradeParams {
                     pubkey: trader_id,
                     contract_symbol: ContractSymbol::BtcUsd,
-                    leverage: order.leverage,
+                    trader_leverage: order.leverage,
+                    coordinator_leverage,
                     quantity: order.quantity.to_f32().expect("to fit into f32"),
                     direction: order.direction,
                     filled_with,

@@ -40,6 +40,9 @@ pub fn max_quantity(
     let max_coordinator_balance =
         Amount::from_sat(channel_trade_constraints.max_counterparty_balance_sats);
 
+    let coordinator_leverage =
+        channel_trade_constraints.coordinator_leverage_by_f32(trader_leverage);
+
     // If the trader has a channel, his max balance is the channel balance and we continue,
     // otherwise we can return here as the max amount to trade depends on what the coordinator can
     // provide
@@ -49,7 +52,7 @@ pub fn max_quantity(
         return Ok(Decimal::from_f32(calculations::calculate_quantity(
             price.to_f32().expect("to fit"),
             max_coordinator_balance.to_sat(),
-            channel_trade_constraints.coordinator_leverage,
+            coordinator_leverage,
         ))
         .expect("to fit"));
     };
@@ -129,7 +132,7 @@ pub fn max_quantity(
         max_coordinator_margin,
         max_trader_margin,
         on_chain_fee_estimate,
-        channel_trade_constraints.coordinator_leverage,
+        coordinator_leverage,
         trader_leverage,
         order_matching_fee_rate,
         accumulated_order_matching_fees,

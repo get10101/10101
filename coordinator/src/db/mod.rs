@@ -2,6 +2,7 @@ pub mod bonus_status;
 pub mod bonus_tiers;
 pub mod channel_opening_params;
 pub mod collaborative_reverts;
+pub mod coordinator_leverages;
 pub mod custom_types;
 pub mod dlc_channels;
 pub mod dlc_messages;

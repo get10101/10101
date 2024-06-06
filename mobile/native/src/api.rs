@@ -585,7 +585,6 @@ pub struct LiquidityOption {
     /// min fee in sats
     pub min_fee_sats: u64,
     pub fee_percentage: f64,
-    pub coordinator_leverage: f32,
     pub active: bool,
 }
 
@@ -600,7 +599,6 @@ impl From<xxi_node::commons::LiquidityOption> for LiquidityOption {
             max_deposit_sats: value.max_deposit_sats,
             min_fee_sats: value.min_fee_sats,
             fee_percentage: value.fee_percentage,
-            coordinator_leverage: value.coordinator_leverage,
             active: value.active,
         }
     }
