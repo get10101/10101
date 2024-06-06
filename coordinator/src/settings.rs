@@ -102,6 +102,9 @@ pub struct Settings {
 
     /// Where to get the index price from. This value is used to calculate funding fees.
     pub index_price_source: IndexPriceSource,
+
+    /// The max leverage a trader can take
+    pub max_leverage: u8,
 }
 
 impl Settings {
@@ -162,6 +165,7 @@ impl Settings {
             maintenance_margin_rate: file.maintenance_margin_rate,
             order_matching_fee_rate: file.order_matching_fee_rate,
             index_price_source: file.index_price_source,
+            max_leverage: file.max_leverage,
         }
     }
 }
@@ -190,6 +194,8 @@ pub struct SettingsFile {
     order_matching_fee_rate: f32,
 
     index_price_source: IndexPriceSource,
+
+    max_leverage: u8,
 }
 
 impl From<Settings> for SettingsFile {
@@ -210,6 +216,7 @@ impl From<Settings> for SettingsFile {
             maintenance_margin_rate: value.maintenance_margin_rate,
             order_matching_fee_rate: value.order_matching_fee_rate,
             index_price_source: value.index_price_source,
+            max_leverage: value.max_leverage,
         }
     }
 }
@@ -246,6 +253,7 @@ mod tests {
             maintenance_margin_rate: 0.1,
             order_matching_fee_rate: 0.003,
             index_price_source: IndexPriceSource::Bitmex,
+            max_leverage: 5,
         };
 
         let serialized = toml::to_string_pretty(&original).unwrap();
