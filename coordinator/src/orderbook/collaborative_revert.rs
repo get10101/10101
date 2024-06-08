@@ -47,6 +47,7 @@ pub fn monitor(
                             .await
                             {
                                 tracing::error!(
+                                    trader_id = %new_user_msg.new_user,
                                     "Failed to process pending collaborative revert. Error: {e:#}"
                                 );
                             }
