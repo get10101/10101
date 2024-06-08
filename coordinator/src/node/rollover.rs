@@ -59,6 +59,7 @@ pub fn monitor(
                                 .await
                             {
                                 tracing::error!(
+                                    trader_id = peer.to_string(),
                                     "Failed to check if eligible for rollover. Error: {e:#}"
                                 );
                             }
