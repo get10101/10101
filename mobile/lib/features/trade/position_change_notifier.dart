@@ -19,12 +19,12 @@ class PositionChangeNotifier extends ChangeNotifier implements Subscriber {
   double? bidPrice;
 
   /// Amount of stabilised bitcoin in terms of USD (fiat)
-  double getStableUSDAmountInFiat() {
+  Usd getStableUSDAmountInFiat() {
     if (hasStableUSD()) {
       final positionUsd = positions[ContractSymbol.btcusd];
-      return positionUsd!.quantity.asDouble();
+      return positionUsd!.quantity;
     } else {
-      return 0.0;
+      return Usd.zero();
     }
   }
 

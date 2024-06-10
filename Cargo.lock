@@ -984,7 +984,7 @@ dependencies = [
  "hex",
  "insta",
  "lazy_static",
- "lightning",
+ "lightning 0.0.117",
  "lnd-bridge",
  "openssl",
  "opentelemetry",
@@ -1393,7 +1393,7 @@ dependencies = [
  "dlc",
  "dlc-messages",
  "dlc-trie",
- "lightning",
+ "lightning 0.0.117",
  "log",
  "secp256k1-zkp",
  "serde",
@@ -1406,7 +1406,7 @@ source = "git+https://github.com/get10101/rust-dlc?rev=2545d6e#2545d6e90da92cc86
 dependencies = [
  "bitcoin 0.29.2",
  "dlc",
- "lightning",
+ "lightning 0.0.117",
  "log",
  "secp256k1-zkp",
  "serde",
@@ -1936,6 +1936,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-conservative"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "212ab92002354b4819390025006c897e8140934349e8635c9b077f47b4dcbd20"
+
+[[package]]
 name = "hex_lit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2316,6 +2322,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "lightning"
+version = "0.0.123"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fd92d4aa159374be430c7590e169b4a6c0fb79018f5bc4ea1bffde536384db3"
+dependencies = [
+ "bitcoin 0.30.2",
+ "hex-conservative",
+]
+
+[[package]]
+name = "lightning-invoice"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26d07d01cf197bf2184b929b7dc94aa70d935aac6df896c256a3a9475b7e9d40"
+dependencies = [
+ "bech32",
+ "bitcoin 0.30.2",
+ "lightning 0.0.123",
+ "secp256k1 0.27.0",
+]
+
+[[package]]
 name = "link-cplusplus"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2588,7 +2616,8 @@ dependencies = [
  "futures",
  "hex",
  "itertools",
- "lightning",
+ "lightning 0.0.117",
+ "lightning-invoice",
  "openssl",
  "orderbook-client",
  "parking_lot 0.12.1",
@@ -5485,7 +5514,7 @@ dependencies = [
  "hex",
  "hkdf",
  "insta",
- "lightning",
+ "lightning 0.0.117",
  "log",
  "mempool",
  "p2pd-oracle-client",

@@ -24,6 +24,7 @@ futures = "0.3"
 hex = "0.4"
 itertools = "0.10"
 lightning = { version = "0.0.117" }
+lightning-invoice = { version = "0.31" }
 openssl = { version = "0.10.60", features = ["vendored"] }
 orderbook-client = { path = "../../crates/orderbook-client" }
 parking_lot = { version = "0.12.1" }

@@ -7,13 +7,19 @@ use bitcoin::address::NetworkUnchecked;
 use bitcoin::Address;
 use bitcoin::Amount;
 use bitcoin::Network;
+use lightning_invoice::Bolt11Invoice;
+use lightning_invoice::Bolt11InvoiceDescription;
+use std::ops::Add;
 use std::str::FromStr;
+use std::time::Duration;
+use std::time::SystemTime;
 
 pub fn decode_destination(destination: String) -> Result<Destination> {
     let node = crate::state::get_node();
     let network = node.inner.network;
 
     decode_bip21(&destination, network)
+        .or(decode_invoice(&destination))
         .or(decode_address(destination))
         .context("Failed to parse destination as Bolt11 invoice, Bip21 URI, or on chain address")
 }
@@ -47,4 +53,41 @@ fn decode_address(request: String) -> Result<Destination> {
         "request is not valid on-chain address"
     );
     Ok(Destination::OnChainAddress(request))
+}
+
+fn decode_invoice(request: &str) -> Result<Destination> {
+    // The Zeus wallet adds a lightning prefix to the invoice. If we get such an invoice we simply
+    // remove the prefix and parse the remainder as lightning invoice.
+    let request = request.trim_start_matches("lightning:").trim_start();
+
+    let invoice =
+        &Bolt11Invoice::from_str(request).context("request is not valid BOLT11 invoice")?;
+    let description = match invoice.description() {
+        Bolt11InvoiceDescription::Direct(direct) => direct.to_string(),
+        Bolt11InvoiceDescription::Hash(_) => "".to_string(),
+    };
+
+    let timestamp = invoice.timestamp();
+
+    let expiry = timestamp
+        .add(Duration::from_secs(invoice.expiry_time().as_secs()))
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
+
+    let timestamp = timestamp.duration_since(SystemTime::UNIX_EPOCH)?.as_secs();
+
+    let payee = match invoice.payee_pub_key() {
+        Some(pubkey) => pubkey.to_string(),
+        None => invoice.recover_payee_pub_key().to_string(),
+    };
+
+    let amount_sats = (invoice.amount_milli_satoshis().unwrap_or(0) as f64 / 1000.0) as u64;
+
+    Ok(Destination::Bolt11 {
+        description,
+        timestamp,
+        expiry,
+        amount_sats,
+        payee,
+    })
 }
