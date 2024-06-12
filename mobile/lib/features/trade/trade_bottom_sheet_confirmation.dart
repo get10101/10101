@@ -244,7 +244,7 @@ class TradeBottomSheetConfirmation extends StatelessWidget {
                               type: ValueType.fiat,
                               value: tradeValues.price ?? 0.0,
                               label: 'Market Price'),
-                        if (!isReduce)
+                        if (!(isReduce || isClose))
                           ValueDataRow(
                               type: ValueType.amount, value: tradeValues.margin, label: 'Margin'),
                         if (isReduce || isClose || isChangedDirection)
