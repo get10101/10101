@@ -39,11 +39,11 @@ class SeedWord extends StatelessWidget {
     return Container(
         padding: const EdgeInsets.fromLTRB(0, 5, 0, 5),
         child: Row(
-            crossAxisAlignment: visibility ? CrossAxisAlignment.baseline : CrossAxisAlignment.end,
+            crossAxisAlignment: visibility ? CrossAxisAlignment.center : CrossAxisAlignment.center,
             textBaseline: TextBaseline.alphabetic,
             children: [
               SizedBox(
-                width: 25.0,
+                width: 30.0,
                 child: Text(
                   '#$index',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
@@ -53,12 +53,13 @@ class SeedWord extends StatelessWidget {
               visibility
                   ? SizedBox(
                       width: 100,
+                      height: 30,
                       child: Text(
                         word!,
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     )
-                  : Container(width: 100, height: 24, color: Colors.grey[300]),
+                  : Container(width: 100, height: 30, color: Colors.grey[300]),
             ]));
   }
 }
