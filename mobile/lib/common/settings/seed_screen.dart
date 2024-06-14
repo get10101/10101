@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/settings/seed_words.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:go_router/go_router.dart';
@@ -29,7 +30,7 @@ class _SeedScreenState extends State<SeedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: ScrollableSafeArea(
           child: Padding(
         padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
         child: Column(

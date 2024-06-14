@@ -75,6 +75,9 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
               child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator())));
     }
 
+    const double verticalSep = 15;
+    const double qrSize = 350;
+
     return Scaffold(
         body: ScrollableSafeArea(
             child: Container(
@@ -89,35 +92,38 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
                 : null,
             child: Center(
                 child: _faucet
-                    ? Column(
-                        children: [
-                          const SizedBox(height: 125),
-                          OutlinedButton(
-                            onPressed: _isPayInvoiceButtonDisabled
-                                ? null
-                                : () async {
-                                    setState(() => _isPayInvoiceButtonDisabled = true);
-                                    final faucetService = context.read<FaucetService>();
-                                    faucetService
-                                        .payInvoiceWithFaucet(
-                                            rawInvoice(), amount, config.network, Layer.onchain)
-                                        .catchError((error) {
-                                      setState(() => _isPayInvoiceButtonDisabled = false);
-                                      showSnackBar(ScaffoldMessenger.of(context), error.toString());
-                                    }).then((value) => context.go(WalletScreen.route));
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              shape: const RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                    ? AspectRatio(
+                        aspectRatio: 1,
+                        child: SizedBox.square(
+                          dimension: qrSize,
+                          child: Center(
+                            child: OutlinedButton(
+                              onPressed: _isPayInvoiceButtonDisabled
+                                  ? null
+                                  : () async {
+                                      setState(() => _isPayInvoiceButtonDisabled = true);
+                                      final faucetService = context.read<FaucetService>();
+                                      faucetService
+                                          .payInvoiceWithFaucet(
+                                              rawInvoice(), amount, config.network, Layer.onchain)
+                                          .catchError((error) {
+                                        setState(() => _isPayInvoiceButtonDisabled = false);
+                                        showSnackBar(
+                                            ScaffoldMessenger.of(context), error.toString());
+                                      }).then((value) => context.go(WalletScreen.route));
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(Radius.circular(5.0))),
+                              ),
+                              child: config.network == "regtest"
+                                  ? const Text("Pay with 10101 faucet")
+                                  : const Text("Pay with Mutinynet faucet"),
                             ),
-                            child: config.network == "regtest"
-                                ? const Text("Pay with 10101 faucet")
-                                : const Text("Pay with Mutinynet faucet"),
                           ),
-                          const SizedBox(height: 125),
-                        ],
-                      )
+                        ))
                     : CustomQrCode(
+                        dimension: qrSize,
                         data: rawInvoice(),
                         embeddedImage:
                             const AssetImage("assets/10101_logo_icon_white_background.png"),
@@ -191,43 +197,46 @@ class _ReceiveScreenState extends State<ReceiveScreen> {
             ],
           ),
         ),
+        const SizedBox(height: verticalSep),
         BitcoinAddress(
           address: _paymentRequest == null ? "" : _paymentRequest!.address,
         ),
-        const Spacer(),
         Visibility(
           visible: !hasDlcChannel && balance.sats < minBalance,
-          child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              decoration: BoxDecoration(
-                  border: Border.all(color: tenTenOnePurple),
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.info,
-                    color: tenTenOnePurple,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                      child: RichText(
-                    softWrap: true,
-                    text: TextSpan(
-                      text: "You will need around",
-                      style: const TextStyle(fontSize: 15, color: Colors.black87),
-                      children: [
-                        TextSpan(
-                            text: " ${formatSats(Amount(minBalance))} ",
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
-                        const TextSpan(text: "in your on-chain wallet to start trading.")
-                      ],
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(0.0, verticalSep, 0.0, 0.0),
+            child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+                decoration: BoxDecoration(
+                    border: Border.all(color: tenTenOnePurple),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.info,
+                      color: tenTenOnePurple,
+                      size: 22,
                     ),
-                  ))
-                ],
-              )),
+                    const SizedBox(width: 15),
+                    Expanded(
+                        child: RichText(
+                      softWrap: true,
+                      text: TextSpan(
+                        text: "You will need around",
+                        style: const TextStyle(fontSize: 15, color: Colors.black87),
+                        children: [
+                          TextSpan(
+                              text: " ${formatSats(Amount(minBalance))} ",
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const TextSpan(text: "in your on-chain wallet to start trading.")
+                        ],
+                      ),
+                    ))
+                  ],
+                )),
+          ),
         ),
       ]),
     )));
@@ -253,7 +262,6 @@ class BitcoinAddress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        margin: const EdgeInsets.fromLTRB(0, 15, 0, 0),
         decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade200),
             borderRadius: BorderRadius.circular(10),

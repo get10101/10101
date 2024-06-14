@@ -19,24 +19,27 @@ class CustomQrCode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: dimension,
-      child: QrImageView(
-        data: data,
-        eyeStyle: const QrEyeStyle(
-          eyeShape: QrEyeShape.square,
-          color: Colors.black,
+    return AspectRatio(
+      aspectRatio: 1,
+      child: SizedBox.square(
+        dimension: dimension,
+        child: QrImageView(
+          data: data,
+          eyeStyle: const QrEyeStyle(
+            eyeShape: QrEyeShape.square,
+            color: Colors.black,
+          ),
+          dataModuleStyle: const QrDataModuleStyle(
+            dataModuleShape: QrDataModuleShape.square,
+            color: Colors.black,
+          ),
+          embeddedImage: embeddedImage,
+          embeddedImageStyle: QrEmbeddedImageStyle(
+            size: Size(embeddedImageSizeHeight, embeddedImageSizeWidth),
+          ),
+          version: QrVersions.auto,
+          padding: const EdgeInsets.all(5),
         ),
-        dataModuleStyle: const QrDataModuleStyle(
-          dataModuleShape: QrDataModuleShape.square,
-          color: Colors.black,
-        ),
-        embeddedImage: embeddedImage,
-        embeddedImageStyle: QrEmbeddedImageStyle(
-          size: Size(embeddedImageSizeHeight, embeddedImageSizeWidth),
-        ),
-        version: QrVersions.auto,
-        padding: const EdgeInsets.all(5),
       ),
     );
   }

@@ -4,6 +4,7 @@ ButtonStyle secondaryActionButtonStyle() {
   ColorScheme greyScheme = ColorScheme.fromSwatch(primarySwatch: Colors.grey);
 
   return IconButton.styleFrom(
+    padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 12.0),
     foregroundColor: Colors.black,
     backgroundColor: Colors.grey.shade200,
     disabledBackgroundColor: greyScheme.onSurface.withOpacity(0.12),
