@@ -37,7 +37,10 @@ pub struct TradeParams {
     /// The leverage of the trader
     ///
     /// This has to correspond to our order's leverage.
-    pub leverage: f32,
+    pub trader_leverage: f32,
+
+    /// The leverage of the coordinator
+    pub coordinator_leverage: f32,
 
     /// The quantity of the trader
     ///

@@ -459,8 +459,8 @@ impl TradeExecutor {
     ) -> Result<()> {
         let peer_id = trade_params.pubkey;
 
-        let leverage_trader = trade_params.leverage;
-        let leverage_coordinator = coordinator_leverage_for_trade(&trade_params.pubkey)?;
+        let leverage_trader = trade_params.trader_leverage;
+        let leverage_coordinator = trade_params.coordinator_leverage;
 
         let margin_trader = margin_trader(trade_params);
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
@@ -631,8 +631,8 @@ impl TradeExecutor {
 
         let initial_price = trade_params.filled_with.average_execution_price();
 
-        let leverage_coordinator = coordinator_leverage_for_trade(&trade_params.pubkey)?;
-        let leverage_trader = trade_params.leverage;
+        let leverage_coordinator = trade_params.coordinator_leverage;
+        let leverage_trader = trade_params.trader_leverage;
 
         let margin_coordinator = margin_coordinator(trade_params, leverage_coordinator);
         let margin_trader = margin_trader(trade_params);
@@ -998,7 +998,7 @@ impl TradeExecutor {
 
         let trader_liquidation_price = liquidation_price(
             price,
-            Decimal::try_from(trade_params.leverage).expect("to fit into decimal"),
+            Decimal::try_from(trade_params.trader_leverage).expect("to fit into decimal"),
             trade_params.direction,
             maintenance_margin_rate,
         );
@@ -1020,7 +1020,7 @@ impl TradeExecutor {
 
         let new_position = NewPosition {
             contract_symbol: trade_params.contract_symbol,
-            trader_leverage: trade_params.leverage,
+            trader_leverage: trade_params.trader_leverage,
             quantity: trade_params.quantity,
             trader_direction: trade_params.direction,
             trader: trade_params.pubkey,
@@ -1695,7 +1695,7 @@ fn margin_trader(trade_params: &TradeParams) -> Amount {
     calculate_margin(
         trade_params.average_execution_price(),
         trade_params.quantity,
-        trade_params.leverage,
+        trade_params.trader_leverage,
     )
 }
 
@@ -1717,26 +1717,6 @@ pub fn liquidation_price(
         Direction::Long => calculate_long_liquidation_price(leverage, price, maintenance_margin),
         Direction::Short => calculate_short_liquidation_price(leverage, price, maintenance_margin),
     }
-}
-
-pub fn coordinator_leverage_for_trade(_counterparty_peer_id: &PublicKey) -> Result<f32> {
-    // TODO(bonomat): we will need to configure the leverage on the coordinator differently now
-    // let channel_details = self.get_counterparty_channel(*counterparty_peer_id)?;
-    // let user_channel_id = Uuid::from_u128(channel_details.user_channel_id).to_string();
-    // let channel = db::channels::get(&user_channel_id, &mut conn)?.with_context(|| {
-    //     format!("Couldn't find shadow channel with user channel ID {user_channel_id}",)
-    // })?;
-    // let leverage_coordinator = match channel.liquidity_option_id {
-    //     Some(liquidity_option_id) => {
-    //         let liquidity_option = db::liquidity_options::get(&mut conn,
-    // liquidity_option_id)?;         liquidity_option.coordinator_leverage
-    //     }
-    //     None => 1.0,
-    // };
-
-    let leverage_coordinator = 2.0;
-
-    Ok(leverage_coordinator)
 }
 
 #[cfg(test)]

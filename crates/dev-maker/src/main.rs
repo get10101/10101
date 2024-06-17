@@ -113,7 +113,7 @@ async fn post_order(
                 id: uuid,
                 contract_symbol: ContractSymbol::BtcUsd,
                 price,
-                quantity: Decimal::from(5000),
+                quantity: Decimal::from(10000),
                 trader_id: public_key,
                 direction,
                 leverage: Decimal::from(2),

@@ -12,6 +12,7 @@ use bitcoin::Amount;
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt::Display;
 use thiserror::Error;
 use tokio_tungstenite_wasm as tungstenite;
@@ -81,6 +82,11 @@ pub struct TenTenOneConfig {
     pub order_matching_fee_rate: f32,
     pub referral_status: ReferralStatus,
     pub max_leverage: u8,
+    pub default_coordinator_leverage: u8,
+    /// Coordinator leverage according to trader's leverage.
+    ///
+    /// Key=trader_leverage, value=coordinator_leverage
+    pub coordinator_leverages: HashMap<u8, u8>,
 }
 
 #[derive(Serialize, Clone, Deserialize, Debug)]

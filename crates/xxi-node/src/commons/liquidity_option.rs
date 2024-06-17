@@ -17,7 +17,6 @@ pub struct LiquidityOption {
     /// min fee in sats
     pub min_fee_sats: u64,
     pub fee_percentage: f64,
-    pub coordinator_leverage: f32,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339")]
@@ -61,7 +60,6 @@ mod test {
             max_deposit_sats: 500_000,
             min_fee_sats: 10_000,
             fee_percentage: 1.0,
-            coordinator_leverage: 2.0,
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),
             active: true,

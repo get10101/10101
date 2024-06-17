@@ -108,7 +108,8 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     super.initState();
 
     tentenoneConfigChangeNotifier = context.read<TenTenOneConfigChangeNotifier>();
-    var tradeConstraints = tentenoneConfigChangeNotifier.channelInfoService.getTradeConstraints();
+    var channelInfoService = tentenoneConfigChangeNotifier.channelInfoService;
+    var tradeConstraints = channelInfoService.getTradeConstraints();
 
     DlcChannelService dlcChannelService =
         context.read<DlcChannelChangeNotifier>().dlcChannelService;
@@ -120,7 +121,9 @@ class _ChannelConfiguration extends State<ChannelConfiguration> {
     maxCounterpartyCollateral = Amount(tradeConstraints.maxCounterpartyBalanceSats);
 
     maxOnChainSpending = Amount(tradeConstraints.maxLocalBalanceSats);
-    counterpartyLeverage = tradeConstraints.coordinatorLeverage;
+
+    counterpartyLeverage =
+        channelInfoService.findCoordinatorLeverage(widget.tradeValues.leverage.leverage.round());
 
     counterpartyMargin = widget.tradeValues.calculateMargin(Leverage(counterpartyLeverage));
 

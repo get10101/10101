@@ -14,6 +14,7 @@ use axum::extract::ws::WebSocket;
 use bitcoin::secp256k1::PublicKey;
 use futures::SinkExt;
 use futures::StreamExt;
+use rust_decimal::prelude::ToPrimitive;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
@@ -217,6 +218,15 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                         Ok(_) => {
                             let liquidity_options =
                                 db::liquidity_options::get_all(&mut conn).unwrap_or_default();
+                            let coordinator_leverages =
+                                db::coordinator_leverages::get_all(&mut conn).unwrap_or_default();
+                            // TODO(bonomat): we should make this configurable as well. Ideally, we
+                            // can differentiate between a _leverage_ when opening a position and a
+                            // _multiplier_ when opening a channel.
+                            let default_coordinator_leverage =
+                                db::coordinator_leverages::max_coordinator_leverage(&mut conn)
+                                    .to_u8()
+                                    .expect("to fit");
 
                             let (
                                 min_quantity,
@@ -246,6 +256,8 @@ pub async fn websocket_connection(stream: WebSocket, state: Arc<AppState>) {
                                     order_matching_fee_rate,
                                     referral_status,
                                     max_leverage,
+                                    default_coordinator_leverage,
+                                    coordinator_leverages,
                                 }))
                                 .await
                             {

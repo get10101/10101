@@ -21,7 +21,9 @@ pub(crate) struct LiquidityOption {
     /// min fee in sats
     pub min_fee_sats: Option<i64>,
     pub fee_percentage: f64,
-    pub coordinator_leverage: f32,
+    /// TODO(bonomat): we should use this field again for deciding the coordinator's channel size
+    #[diesel(column_name = "coordinator_leverage")]
+    pub _coordinator_leverage: f32,
     pub active: bool,
     pub created_at: OffsetDateTime,
     pub updated_at: OffsetDateTime,
@@ -47,7 +49,6 @@ impl From<LiquidityOption> for commons::LiquidityOption {
             max_deposit_sats: value.max_deposit_sats as u64,
             min_fee_sats: value.min_fee_sats.unwrap_or(0) as u64,
             fee_percentage: value.fee_percentage,
-            coordinator_leverage: value.coordinator_leverage,
             created_at: value.created_at,
             updated_at: value.updated_at,
             active: value.active,

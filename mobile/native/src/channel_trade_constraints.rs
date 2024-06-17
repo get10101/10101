@@ -1,6 +1,7 @@
 use crate::dlc;
 use anyhow::Context;
 use anyhow::Result;
+use rust_decimal::prelude::ToPrimitive;
 
 pub struct TradeConstraints {
     /// Max balance the local party can use
@@ -14,8 +15,6 @@ pub struct TradeConstraints {
     /// amount is what the counterparty has in the channel, otherwise, it's a fixed amount what
     /// the counterparty is willing to provide.
     pub max_counterparty_balance_sats: u64,
-    /// The leverage the coordinator will take
-    pub coordinator_leverage: f32,
     /// Smallest allowed amount of contracts
     pub min_quantity: u64,
     /// If true it means that the user has a channel and hence the max amount is limited by what he
@@ -31,6 +30,48 @@ pub struct TradeConstraints {
     pub order_matching_fee_rate: f32,
     /// Total collateral in the dlc channel, none if [`is_channel_balance`] is false.
     pub total_collateral: Option<u64>,
+    /// Defines what leverage the coordinator will take depending on what the trader takes
+    ///
+    /// Unfortunately our version of flutter_rust_bridge does not support hashmaps yet
+    pub coordinator_leverages: Vec<CoordinatorLeverage>,
+    /// The leverage the coordinator will take if none is provided in `coordinator_leverages`
+    /// TODO(bonomat): we should introduce a separate leverage/multiplier to derive channel sizes
+    pub default_coordinator_leverage: u8,
+}
+
+/// Trader/Coordinator leverage pair
+///
+/// The
+pub struct CoordinatorLeverage {
+    pub trader_leverage: u8,
+    pub coordinator_leverage: u8,
+}
+
+impl TradeConstraints {
+    /// looks up coordinator leverage in `coordinator_leverages` and falls back to
+    /// `default_coordinator_leverage` if none was found
+    pub fn coordinator_leverage(&self, trader_leverage: u8) -> f32 {
+        self.coordinator_leverages
+            .iter()
+            .find_map(|leverage| {
+                if leverage.trader_leverage == trader_leverage {
+                    Some(leverage.coordinator_leverage)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(self.default_coordinator_leverage)
+            .to_f32()
+            .expect("to fit")
+    }
+
+    /// looks up coordinator leverage in `coordinator_leverages` and falls back to
+    /// `default_coordinator_leverage` if none was found.
+    ///
+    /// rounds `trader_leverage` up.
+    pub fn coordinator_leverage_by_f32(&self, trader_leverage: f32) -> f32 {
+        self.coordinator_leverage(trader_leverage.round().to_u8().expect("to fit"))
+    }
 }
 
 pub fn channel_trade_constraints() -> Result<TradeConstraints> {
@@ -57,25 +98,36 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
         .filter(|option| option.active)
         .max_by_key(|option| &option.trade_up_to_sats)
         .context("we need at least one liquidity option")?;
-    let coordinator_leverage = option.coordinator_leverage;
+    let default_coordinator_leverage = config.default_coordinator_leverage;
+
+    let coordinator_leverages = config
+        .coordinator_leverages
+        .into_iter()
+        .map(|(trader, coordinator)| CoordinatorLeverage {
+            trader_leverage: trader,
+            coordinator_leverage: coordinator,
+        })
+        .collect();
 
     // FIXME: This doesn't work if the channel is in `Closing` and related states.
     let trade_constraints = match signed_channel {
         None => {
             let balance = dlc::get_onchain_balance();
             let counterparty_balance_sats = option.trade_up_to_sats;
+
             TradeConstraints {
                 max_local_balance_sats: balance.confirmed
                     + balance.trusted_pending
                     + balance.untrusted_pending,
                 max_counterparty_balance_sats: counterparty_balance_sats,
-                coordinator_leverage,
+                coordinator_leverages,
                 min_quantity,
                 is_channel_balance: false,
                 min_margin,
                 maintenance_margin_rate,
                 order_matching_fee_rate,
                 total_collateral: None,
+                default_coordinator_leverage,
             }
         }
         Some(channel) => {
@@ -85,7 +137,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
             TradeConstraints {
                 max_local_balance_sats: local_balance,
                 max_counterparty_balance_sats: counterparty_balance,
-                coordinator_leverage,
+                coordinator_leverages,
                 min_quantity,
                 is_channel_balance: true,
                 min_margin,
@@ -94,6 +146,7 @@ pub fn channel_trade_constraints() -> Result<TradeConstraints> {
                 total_collateral: Some(
                     channel.own_params.collateral + channel.counter_params.collateral,
                 ),
+                default_coordinator_leverage,
             }
         }
     };
