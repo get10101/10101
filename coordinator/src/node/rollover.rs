@@ -18,7 +18,6 @@ use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use diesel::r2d2::ConnectionManager;
-use diesel::r2d2::Pool;
 use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
@@ -39,11 +38,10 @@ use xxi_node::node::event::NodeEvent;
 use xxi_node::node::ProtocolId;
 
 pub fn monitor(
-    pool: Pool<ConnectionManager<PgConnection>>,
+    node: Node,
     mut receiver: broadcast::Receiver<NodeEvent>,
     notifier: mpsc::Sender<Notification>,
     network: Network,
-    node: Node,
 ) -> RemoteHandle<()> {
     let (fut, remote_handle) = async move {
         loop {
@@ -52,10 +50,9 @@ pub fn monitor(
                     tokio::spawn({
                         let notifier = notifier.clone();
                         let node = node.clone();
-                        let pool = pool.clone();
                         async move {
                             if let Err(e) = node
-                                .check_if_eligible_for_rollover(pool, notifier, peer, network)
+                                .check_if_eligible_for_rollover(notifier, peer, network)
                                 .await
                             {
                                 tracing::error!(
@@ -87,14 +84,16 @@ pub fn monitor(
 impl Node {
     async fn check_if_eligible_for_rollover(
         &self,
-        pool: Pool<ConnectionManager<PgConnection>>,
         notifier: mpsc::Sender<Notification>,
         trader_id: PublicKey,
         network: Network,
     ) -> Result<()> {
-        let mut conn = spawn_blocking(move || pool.get())
-            .await
-            .expect("task to complete")?;
+        let mut conn = spawn_blocking({
+            let pool = self.pool.clone();
+            move || pool.get()
+        })
+        .await
+        .expect("task to complete")?;
 
         tracing::debug!(%trader_id, "Checking if the user's position is eligible for rollover");
 
