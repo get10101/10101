@@ -428,12 +428,7 @@ pub async fn rollover(
 
     state
         .node
-        .propose_rollover(
-            &mut connection,
-            &dlc_channel_id,
-            position,
-            state.node.inner.network,
-        )
+        .propose_rollover(&dlc_channel_id, position, state.node.inner.network)
         .await
         .map_err(|e| {
             AppError::InternalServerError(format!("Failed to rollover DLC channel: {e:#}",))

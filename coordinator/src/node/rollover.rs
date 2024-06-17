@@ -19,7 +19,6 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
 use diesel::r2d2::ConnectionManager;
 use diesel::r2d2::Pool;
-use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use dlc_manager::contract::contract_input::ContractInput;
 use dlc_manager::contract::contract_input::ContractInputInfo;
@@ -92,37 +91,41 @@ impl Node {
         trader_id: PublicKey,
         network: Network,
     ) -> Result<()> {
-        let mut conn = spawn_blocking(move || pool.get())
-            .await
-            .expect("task to complete")?;
+        let position = spawn_blocking({
+            move || {
+                let mut conn = pool.get()?;
 
-        tracing::debug!(%trader_id, "Checking if the user's position is eligible for rollover");
+                if check_version(&mut conn, &trader_id).is_err() {
+                    tracing::info!(
+                        %trader_id,
+                        "User is not on the latest version. \
+                         Will not check if their position is eligible for rollover"
+                    );
+                    return anyhow::Ok(None);
+                }
 
-        if check_version(&mut conn, &trader_id).is_err() {
-            tracing::info!(
-                %trader_id,
-                "User is not on the latest version. \
-                 Will not check if their position is eligible for rollover"
-            );
-            return Ok(());
+                let position = positions::Position::get_position_by_trader(
+                    &mut conn,
+                    trader_id,
+                    vec![PositionState::Open, PositionState::Rollover],
+                )?;
+
+                anyhow::Ok(position)
+            }
+        })
+        .await??;
+
+        if let Some(position) = position {
+            tracing::debug!(%trader_id, "Checking if the user's position is eligible for rollover");
+            self.check_rollover(position, network, &notifier, None)
+                .await?;
         }
 
-        let position = match positions::Position::get_position_by_trader(
-            &mut conn,
-            trader_id,
-            vec![PositionState::Open, PositionState::Rollover],
-        )? {
-            Some(position) => position,
-            None => return Ok(()),
-        };
-
-        self.check_rollover(&mut conn, position, network, &notifier, None)
-            .await
+        Ok(())
     }
 
     pub async fn check_rollover(
         &self,
-        connection: &mut PooledConnection<ConnectionManager<PgConnection>>,
         position: Position,
         network: Network,
         notifier: &mpsc::Sender<Notification>,
@@ -156,13 +159,8 @@ impl Node {
 
             if self.is_connected(trader_id) {
                 tracing::info!(%trader_id, "Proposing to rollover DLC channel");
-                self.propose_rollover(
-                    connection,
-                    &signed_channel.channel_id,
-                    position,
-                    self.inner.network,
-                )
-                .await?;
+                self.propose_rollover(&signed_channel.channel_id, position, self.inner.network)
+                    .await?;
             } else {
                 tracing::warn!(%trader_id, "Skipping rollover, user is not connected.");
             }
@@ -174,7 +172,6 @@ impl Node {
     /// Initiates the rollover protocol with the app.
     pub async fn propose_rollover(
         &self,
-        conn: &mut PooledConnection<ConnectionManager<PgConnection>>,
         dlc_channel_id: &DlcChannelId,
         position: Position,
         network: Network,
@@ -218,8 +215,17 @@ impl Node {
         let maintenance_margin_rate =
             Decimal::try_from(maintenance_margin_rate).expect("to fit into decimal");
 
-        let funding_fee_events =
-            get_outstanding_funding_fee_events(conn, trader_pubkey, position.id)?;
+        let funding_fee_events = spawn_blocking({
+            let pool = self.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                let funding_fee_events =
+                    get_outstanding_funding_fee_events(&mut conn, trader_pubkey, position.id)?;
+
+                anyhow::Ok(funding_fee_events)
+            }
+        })
+        .await??;
 
         let funding_fee = funding_fee_from_funding_fee_events(&funding_fee_events);
 
@@ -328,8 +334,17 @@ impl Node {
             )
             .context("Failed to insert start of rollover protocol in dlc_protocols table")?;
 
-        db::positions::Position::rollover_position(conn, trader_pubkey, &next_expiry)
-            .context("Failed to set position state to rollover")?;
+        spawn_blocking({
+            let pool = self.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                positions::Position::rollover_position(&mut conn, trader_pubkey, &next_expiry)
+                    .context("Failed to set position state to rollover")?;
+
+                anyhow::Ok(())
+            }
+        })
+        .await??;
 
         self.inner
             .event_handler
