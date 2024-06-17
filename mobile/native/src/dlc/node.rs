@@ -1,4 +1,5 @@
 use crate::db;
+use crate::dlc::check_if_signed_channel_is_confirmed;
 use crate::event;
 use crate::event::BackgroundTask;
 use crate::event::EventInternal;
@@ -26,6 +27,7 @@ use dlc_messages::channel::OfferChannel;
 use dlc_messages::channel::Reject;
 use dlc_messages::channel::RenewOffer;
 use dlc_messages::channel::SettleOffer;
+use futures::executor::block_on;
 use itertools::Itertools;
 use lightning::chain::transaction::OutPoint;
 use lightning::sign::DelayedPaymentOutputDescriptor;
@@ -744,46 +746,61 @@ impl Node {
         )?;
 
         let channel_id = offer.renew_offer.channel_id;
+        if !block_on(check_if_signed_channel_is_confirmed())? {
+            tracing::warn!(
+                "Rejecting rollover offer as the DLC channel has not been confirmed yet."
+            );
 
-        match self.inner.dlc_manager.accept_renew_offer(&channel_id) {
-            Ok((renew_accept, node_id)) => {
-                let positions = get_positions()?;
-                let position = positions.first().context("No position to roll over")?;
+            event::publish(&EventInternal::BackgroundNotification(
+                BackgroundTask::Rollover(TaskStatus::Failed(
+                    "Failed to rollover with unconfirmed DLC channel.".to_string(),
+                )),
+            ));
 
-                let new_unpaid_funding_fee_events = handle_unpaid_funding_fee_events(
-                    &offer
-                        .funding_fee_events
-                        .iter()
-                        .map(|e| {
-                            FundingFeeEvent::unpaid(
-                                position.contract_symbol,
-                                Decimal::try_from(position.quantity).expect("to fit"),
-                                position.direction,
-                                e.price,
-                                e.funding_fee,
-                                e.due_date,
-                            )
-                        })
-                        .collect_vec(),
-                )?;
+            self.reject_rollover_offer(&channel_id)?;
+        } else {
+            tracing::warn!("DLC channel is confirmed. Accepting rollover offer.");
 
-                handle_rollover_offer(expiry_timestamp, &new_unpaid_funding_fee_events)?;
+            match self.inner.dlc_manager.accept_renew_offer(&channel_id) {
+                Ok((renew_accept, node_id)) => {
+                    let positions = get_positions()?;
+                    let position = positions.first().context("No position to roll over")?;
 
-                self.send_dlc_message(
-                    to_secp_pk_30(node_id),
-                    TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }),
-                )?;
-            }
-            Err(e) => {
-                tracing::error!("Failed to accept DLC channel rollover offer: {e}");
+                    let new_unpaid_funding_fee_events = handle_unpaid_funding_fee_events(
+                        &offer
+                            .funding_fee_events
+                            .iter()
+                            .map(|e| {
+                                FundingFeeEvent::unpaid(
+                                    position.contract_symbol,
+                                    Decimal::try_from(position.quantity).expect("to fit"),
+                                    position.direction,
+                                    e.price,
+                                    e.funding_fee,
+                                    e.due_date,
+                                )
+                            })
+                            .collect_vec(),
+                    )?;
 
-                event::publish(&EventInternal::BackgroundNotification(
-                    BackgroundTask::Rollover(TaskStatus::Failed(format!("{e}"))),
-                ));
+                    handle_rollover_offer(expiry_timestamp, &new_unpaid_funding_fee_events)?;
 
-                self.reject_rollover_offer(&channel_id)?;
-            }
-        };
+                    self.send_dlc_message(
+                        to_secp_pk_30(node_id),
+                        TenTenOneMessage::RolloverAccept(TenTenOneRolloverAccept { renew_accept }),
+                    )?;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to accept DLC channel rollover offer: {e}");
+
+                    event::publish(&EventInternal::BackgroundNotification(
+                        BackgroundTask::Rollover(TaskStatus::Failed(format!("{e}"))),
+                    ));
+
+                    self.reject_rollover_offer(&channel_id)?;
+                }
+            };
+        }
 
         Ok(())
     }
