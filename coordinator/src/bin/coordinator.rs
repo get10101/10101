@@ -263,11 +263,10 @@ async fn main() -> Result<()> {
         node.inner.oracle_pubkey,
     );
     let _handle = rollover::monitor(
-        pool.clone(),
+        node.clone(),
         node_event_handler.subscribe(),
         notification_service.get_sender(),
         network,
-        node.clone(),
     );
     let _handle = collaborative_revert::monitor(
         pool.clone(),
