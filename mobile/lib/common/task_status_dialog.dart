@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get_10101/common/color.dart';
@@ -89,72 +90,80 @@ class _TaskStatusDialog extends State<TaskStatusDialog> {
       });
     }
 
-    Widget closeButton = SizedBox(
-      width: MediaQuery.of(context).size.width * 0.65,
-      child: ElevatedButton(
-          onPressed: () {
-            var goRouter = GoRouter.of(context);
-            if (goRouter.canPop()) {
-              goRouter.pop();
-            }
+    double width = min((MediaQuery.of(context).size.width), 350);
 
-            if (widget.onClose != null) {
-              widget.onClose!();
-            }
-          },
-          style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              padding: EdgeInsets.zero,
-              backgroundColor: tenTenOnePurple),
-          child: const Text("Close")),
-    );
+    Widget closeButton = ElevatedButton(
+        onPressed: () {
+          var goRouter = GoRouter.of(context);
+          if (goRouter.canPop()) {
+            goRouter.pop();
+          }
+
+          if (widget.onClose != null) {
+            widget.onClose!();
+          }
+        },
+        style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: EdgeInsets.zero,
+            backgroundColor: tenTenOnePurple),
+        child: const Text("Close"));
 
     AlertDialog dialog = AlertDialog(
       contentPadding: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      backgroundColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18.0),
       ),
-      content: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18.0),
-        ),
-        clipBehavior: Clip.antiAlias,
-        width: MediaQuery.of(context).size.shortestSide,
+      content: SizedBox(
+        width: width,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 110,
-              clipBehavior: Clip.antiAlias,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
               child: coverImage,
             ),
-            const SizedBox(height: 15),
-            if (widget.showSuccessTitle) buildTitle(widget.task.status),
-            Padding(
-                padding: EdgeInsets.only(
-                    top: 10.0, left: 15.0, right: 15.0, bottom: isPending ? 25.0 : 0.0),
-                child: widget.content),
-            if (widget.task.status == TaskStatus.failed && widget.task.error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
-                child: ErrorDetails(details: widget.task.error!),
+            Container(
+              decoration: const BoxDecoration(color: Colors.white),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 15),
+                  if (widget.showSuccessTitle) buildTitle(widget.task.status),
+                  Padding(
+                      padding: EdgeInsets.only(
+                          top: 10.0, left: 15.0, right: 15.0, bottom: isPending ? 25.0 : 0.0),
+                      child: widget.content),
+                  if (widget.task.status == TaskStatus.failed && widget.task.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10.0, left: 15.0, right: 15.0),
+                      child: ErrorDetails(details: widget.task.error!),
+                    ),
+                  if (!isPending || timeout)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: width * 0.65,
+                      ),
+                      child: Padding(
+                        padding:
+                            const EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0, bottom: 15.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Expanded(child: closeButton),
+                          ],
+                        ),
+                      ),
+                    )
+                ],
               ),
-            if (!isPending || timeout)
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0, left: 15.0, right: 15.0, bottom: 15.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    closeButton,
-                  ],
-                ),
-              )
+            )
           ],
         ),
       ),
