@@ -72,43 +72,44 @@ class _WalletScreenState extends State<WalletScreen> {
           await walletChangeNotifier.waitForSyncToComplete();
           await pollChangeNotifier.refresh();
         },
-        child: Container(
-          margin: const EdgeInsets.only(top: 7.0),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Balance(),
-              const SizedBox(height: 10.0),
-              Container(
-                  margin: const EdgeInsets.only(left: 0, right: 0),
-                  child: Row(children: [
-                    Expanded(
-                      child: SecondaryActionButton(
-                        onPressed: () => context.go(ReceiveScreen.route),
-                        icon: FontAwesomeIcons.arrowDown,
-                        title: 'Receive',
-                      ),
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: PointerDeviceKind.values.toSet(),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints.expand(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Container(
+                margin: const EdgeInsets.only(top: 7.0),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Balance(),
+                    const SizedBox(height: 10.0),
+                    Container(
+                        margin: const EdgeInsets.only(left: 0, right: 0),
+                        child: Row(children: [
+                          Expanded(
+                            child: SecondaryActionButton(
+                              onPressed: () => context.go(ReceiveScreen.route),
+                              icon: FontAwesomeIcons.arrowDown,
+                              title: 'Receive',
+                            ),
+                          ),
+                          const SizedBox(width: 10.0),
+                          Expanded(
+                              child: SecondaryActionButton(
+                            onPressed: () => GoRouter.of(context).go(ScannerScreen.route),
+                            icon: FontAwesomeIcons.arrowUp,
+                            title: 'Send',
+                          ))
+                        ])),
+                    const SizedBox(
+                      height: 10,
                     ),
-                    const SizedBox(width: 10.0),
-                    Expanded(
-                        child: SecondaryActionButton(
-                      onPressed: () => GoRouter.of(context).go(ScannerScreen.route),
-                      icon: FontAwesomeIcons.arrowUp,
-                      title: 'Send',
-                    ))
-                  ])),
-              const SizedBox(
-                height: 10,
-              ),
-              Expanded(
-                child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context).copyWith(
-                    dragDevices: PointerDeviceKind.values.toSet(),
-                  ),
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
+                    Column(
                       children: [
                         const Padding(
                           padding: EdgeInsets.only(bottom: 8.0),
@@ -125,10 +126,10 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                       ],
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
