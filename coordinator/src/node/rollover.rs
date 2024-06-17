@@ -180,6 +180,14 @@ impl Node {
     ) -> Result<()> {
         let trader_pubkey = position.trader;
 
+        if !self
+            .inner
+            .check_if_signed_channel_is_confirmed(trader_pubkey)
+            .await?
+        {
+            bail!("Cannot rollover a contract that is not confirmed");
+        }
+
         let next_expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
 
         let (oracle_pk, contract_tx_fee_rate) = {
