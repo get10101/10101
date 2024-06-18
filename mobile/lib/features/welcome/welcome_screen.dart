@@ -206,8 +206,11 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                         _formKey.currentState!.save();
                                         if (_formKey.currentState != null &&
                                             _formKey.currentState!.validate()) {
-                                          GoRouter.of(context)
-                                              .go(LoadingScreen.route, extra: setupWallet());
+                                          final task = LoadingScreenTask(
+                                              future: setupWallet(),
+                                              error: (_) => "Failed to register for beta program",
+                                              skipBetaRegistrationOnFail: true);
+                                          GoRouter.of(context).go(LoadingScreen.route, extra: task);
                                         }
                                       },
                                 style: ButtonStyle(
@@ -255,7 +258,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     logger.i("Successfully stored the contact: $_contact .");
     await api.initNewMnemonic(targetSeedFilePath: seedPath);
     logger.d("Registering user with $_contact & $_referralCode");
+
+    await Preferences.instance.setReferralCode(_referralCode);
     await api.registerBeta(contact: _contact, referralCode: _referralCode);
+    await Preferences.instance.setRegisteredForBeta();
   }
 
   @override
@@ -272,4 +278,12 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           logger.i("retrieved stored contact from the preferences: $_contact.");
         }));
   }
+}
+
+/// Resume a previously incomplete onboarding flow by registering for beta
+Future<void> resumeRegisterForBeta() async {
+  await api.registerBeta(
+      contact: await Preferences.instance.getContactDetails(),
+      referralCode: await Preferences.instance.getReferralCode());
+  await Preferences.instance.setRegisteredForBeta();
 }

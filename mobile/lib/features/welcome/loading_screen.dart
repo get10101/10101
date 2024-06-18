@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:get_10101/common/global_keys.dart';
 import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/snack_bar.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get_10101/backend.dart';
 import 'package:get_10101/features/welcome/error_screen.dart';
 import 'package:get_10101/features/welcome/onboarding.dart';
 import 'package:get_10101/features/trade/trade_screen.dart';
 import 'package:get_10101/features/wallet/wallet_screen.dart';
+import 'package:get_10101/features/welcome/welcome_screen.dart';
 import 'package:get_10101/logger/logger.dart';
 import 'package:get_10101/util/preferences.dart';
 import 'package:get_10101/util/file.dart';
@@ -16,9 +18,9 @@ import 'package:go_router/go_router.dart';
 class LoadingScreen extends StatefulWidget {
   static const route = "/loading";
 
-  final Future<void>? future;
+  final LoadingScreenTask? task;
 
-  const LoadingScreen({super.key, this.future});
+  const LoadingScreen({super.key, this.task});
 
   @override
   State<LoadingScreen> createState() => _LoadingScreenState();
@@ -29,42 +31,66 @@ class _LoadingScreenState extends State<LoadingScreen> {
 
   @override
   void initState() {
-    // Wait for the future to complete sequentially before running other futures concurrently
-    (widget.future ?? Future.value()).then((value) {
-      return Future.wait<dynamic>([
-        Preferences.instance.getOpenPosition(),
-        isSeedFilePresent(),
-        Preferences.instance.isFullBackupRequired(),
-      ]);
-    }).then((value) {
-      final position = value[0];
-      final isSeedFilePresent = value[1];
-      final isFullBackupRequired = value[2];
-      FlutterNativeSplash.remove();
-
-      if (isSeedFilePresent) {
-        if (isFullBackupRequired) {
-          setState(() => message = "Creating initial backup!");
-          fullBackup().then((value) {
-            Preferences.instance.setFullBackupRequired(false).then((value) {
-              start(context, position);
-            });
-          }).catchError((error) {
-            logger.e("Failed to run full backup. $error");
-            showSnackBar(ScaffoldMessenger.of(context), "Failed to start 10101!");
-          });
-        } else {
-          start(context, position);
-        }
-      } else {
-        // No seed file: let the user choose whether they want to create a new
-        // wallet or import their old one
-        Preferences.instance.setFullBackupRequired(false).then((value) {
-          GoRouter.of(context).go(Onboarding.route);
-        });
-      }
-    });
+    initAsync();
     super.initState();
+  }
+
+  Future<void> initAsync() async {
+    var skipBetaRegistration = false;
+    try {
+      await widget.task?.future;
+    } catch (err, stackTrace) {
+      final task = widget.task!;
+      final taskErr = task.error(err);
+      skipBetaRegistration = task.skipBetaRegistrationOnFail;
+      logger.e(taskErr, error: err, stackTrace: stackTrace);
+      showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!), taskErr);
+    }
+
+    final [position, seedPresent, backupRequired, registeredForBeta] = await Future.wait<dynamic>([
+      Preferences.instance.getOpenPosition(),
+      isSeedFilePresent(),
+      Preferences.instance.isFullBackupRequired(),
+      Preferences.instance.isRegisteredForBeta(),
+    ]);
+    FlutterNativeSplash.remove();
+
+    if (seedPresent) {
+      if (!registeredForBeta && !skipBetaRegistration) {
+        logger.w("Registering for beta program despite having a seed; "
+            "onboarding flow was probably previously interrupted");
+        setState(() => message = "Registering for beta program");
+
+        try {
+          await resumeRegisterForBeta();
+        } catch (err, stackTrace) {
+          const failed = "Failed to register for beta program";
+          showSnackBar(ScaffoldMessenger.of(rootNavigatorKey.currentContext!), "$failed.");
+          logger.e(failed, error: err, stackTrace: stackTrace);
+        }
+      }
+
+      if (backupRequired) {
+        setState(() => message = "Creating initial backup!");
+        fullBackup().then((value) {
+          Preferences.instance.setFullBackupRequired(false).then((value) {
+            start(rootNavigatorKey.currentContext!, position);
+          });
+        }).catchError((error) {
+          logger.e("Failed to run full backup. $error");
+          showSnackBar(
+              ScaffoldMessenger.of(rootNavigatorKey.currentContext!), "Failed to start 10101!");
+        });
+      } else {
+        start(rootNavigatorKey.currentContext!, position);
+      }
+    } else {
+      // No seed file: let the user choose whether they want to create a new
+      // wallet or import their old one
+      Preferences.instance.setFullBackupRequired(false).then((value) {
+        GoRouter.of(context).go(Onboarding.route);
+      });
+    }
   }
 
   void start(BuildContext context, String? position) {
@@ -105,4 +131,21 @@ class _LoadingScreenState extends State<LoadingScreen> {
               ],
             ))));
   }
+}
+
+/// Some operation carried out whilst the loading screen is displayed
+class LoadingScreenTask {
+  /// The future of the task itself
+  final Future<void> future;
+
+  /// Create the snackbar text error to display if the task fails
+  final String Function(dynamic) error;
+
+  /// Whether to skip the beta registration if this task fails. This should
+  /// be `true` if the task's `future` did itself try to register the user for
+  /// beta.
+  final bool skipBetaRegistrationOnFail;
+
+  LoadingScreenTask(
+      {required this.future, required this.error, this.skipBetaRegistrationOnFail = false});
 }

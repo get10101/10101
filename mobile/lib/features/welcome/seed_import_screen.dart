@@ -141,12 +141,10 @@ class SeedPhraseImporterState extends State<SeedPhraseImporter> {
                               getSeedFilePath().then((seedPath) {
                                 logger.i("Restoring seed into $seedPath");
 
-                                final restore = api
-                                    .restoreFromSeedPhrase(
-                                        seedPhrase: seedPhrase, targetSeedFilePath: seedPath)
-                                    .catchError((error) => showSnackBar(
-                                        ScaffoldMessenger.of(context),
-                                        "Failed to import from seed. $error"));
+                                final restore = LoadingScreenTask(
+                                    future: api.restoreFromSeedPhrase(
+                                        seedPhrase: seedPhrase, targetSeedFilePath: seedPath),
+                                    error: (err) => "Failed to import from seed. $err");
                                 // TODO(holzeis): Backup preferences and restore email from there.
                                 Preferences.instance.setContactDetails("restored");
                                 GoRouter.of(context).go(LoadingScreen.route, extra: restore);
