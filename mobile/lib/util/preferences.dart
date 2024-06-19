@@ -13,6 +13,10 @@ class Preferences {
   static const fullBackup = "fullBackup";
   static const logLevelTrace = "logLevelTrace";
   static const _hasSeenReferralDialogTimePassed = "hasSeenReferralDialogTimePassed";
+  static const registeredForBeta = "registeredForBeta";
+
+  /// The referral code that the user signed up with
+  static const referralCode = "referralCode";
 
   Future<bool> setLogLevelTrace(bool trace) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
@@ -52,6 +56,26 @@ class Preferences {
   unsetOpenPosition() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.remove(openPosition);
+  }
+
+  Future<bool> setRegisteredForBeta() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.setBool(registeredForBeta, true);
+  }
+
+  Future<bool> isRegisteredForBeta() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(registeredForBeta) ?? false;
+  }
+
+  Future<bool> setReferralCode(String code) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.setString(referralCode, code);
+  }
+
+  Future<String> getReferralCode() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    return preferences.getString(referralCode) ?? "";
   }
 
   Future<bool> setContactDetails(String value) async {
