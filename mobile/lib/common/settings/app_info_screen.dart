@@ -60,169 +60,161 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       body: Container(
           padding: const EdgeInsets.only(top: 20, left: 10, right: 10),
           child: SafeArea(
-            child: Column(
+            child: SingleChildScrollView(
+                child: Column(
               children: [
-                SingleChildScrollView(
-                    child: Column(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Stack(
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          GestureDetector(
+                            child: Container(
+                                alignment: AlignmentDirectional.topStart,
+                                decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10)),
+                                width: 70,
+                                child: const Icon(
+                                  Icons.arrow_back_ios_new_rounded,
+                                  size: 22,
+                                )),
+                            onTap: () {
+                              GoRouter.of(context).pop();
+                            },
+                          ),
+                          const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              GestureDetector(
-                                child: Container(
-                                    alignment: AlignmentDirectional.topStart,
-                                    decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        borderRadius: BorderRadius.circular(10)),
-                                    width: 70,
-                                    child: const Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      size: 22,
-                                    )),
-                                onTap: () {
-                                  GoRouter.of(context).pop();
-                                },
-                              ),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    "App Info",
-                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
-                                  ),
-                                ],
+                              Text(
+                                "App Info",
+                                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 20),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      margin: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "NODE INFO",
-                            style: TextStyle(color: Colors.grey, fontSize: 17),
-                          ),
-                          const SizedBox(
-                            height: 10,
-                          ),
-                          Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                              child: Column(
-                                children: [
-                                  moreInfo(context,
-                                      title: "Node Id", info: _nodeId, showCopyButton: true)
-                                ],
-                              ))
-                        ],
-                      ),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.all(10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "BUILD INFO",
-                            style: TextStyle(color: Colors.grey, fontSize: 18),
-                          ),
-                          const SizedBox(
-                            height: 10,
-                          ),
-                          Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.white, borderRadius: BorderRadius.circular(15)),
-                              child: Column(
-                                children: [
-                                  moreInfo(context, title: "Number", info: _buildNumber),
-                                  moreInfo(context, title: "Version", info: _version),
-                                  moreInfo(context,
-                                      title: "Commit Hash", info: commit, showCopyButton: true),
-                                  moreInfo(context,
-                                      title: "Branch", info: branch, showCopyButton: kDebugMode)
-                                ],
-                              ))
                         ],
                       ),
                     ),
                   ],
-                )),
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                ),
+                Container(
+                  margin: const EdgeInsets.only(top: 20, left: 10, right: 10, bottom: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.twitter),
-                        iconSize: 22,
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri = Uri(scheme: "https", host: "x.com", path: "get10101");
-                          if (await canLaunchUrl(httpsUri)) {
-                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                          } else {
-                            showSnackBar(messenger, "Failed to open link");
-                          }
-                        },
+                      const Text(
+                        "NODE INFO",
+                        style: TextStyle(color: Colors.grey, fontSize: 17),
                       ),
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.github, size: 22),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri =
-                              Uri(scheme: "https", host: "github.com", path: "get10101");
-                          if (await canLaunchUrl(httpsUri)) {
-                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                          } else {
-                            showSnackBar(messenger, "Failed to open link");
-                          }
-                        },
+                      const SizedBox(
+                        height: 10,
                       ),
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.telegram, size: 22),
-                        onPressed: () async {
-                          await openTelegram(context);
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.earthEurope, size: 22),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri =
-                              Uri(scheme: "https", host: "10101.finance", path: "blog");
-                          if (await canLaunchUrl(httpsUri)) {
-                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                          } else {
-                            showSnackBar(messenger, "Failed to open link");
-                          }
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(FontAwesomeIcons.question, size: 22),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final httpsUri =
-                              Uri(scheme: "https", host: "10101.finance", path: "docs/faq");
-                          if (await canLaunchUrl(httpsUri)) {
-                            await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
-                          } else {
-                            showSnackBar(messenger, "Failed to open link");
-                          }
-                        },
-                      )
+                      Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                          child: Column(
+                            children: [
+                              moreInfo(context,
+                                  title: "Node Id", info: _nodeId, showCopyButton: true)
+                            ],
+                          ))
                     ],
                   ),
                 ),
+                Container(
+                  margin: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "BUILD INFO",
+                        style: TextStyle(color: Colors.grey, fontSize: 18),
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white, borderRadius: BorderRadius.circular(15)),
+                          child: Column(
+                            children: [
+                              moreInfo(context, title: "Number", info: _buildNumber),
+                              moreInfo(context, title: "Version", info: _version),
+                              moreInfo(context,
+                                  title: "Commit Hash", info: commit, showCopyButton: true),
+                              moreInfo(context,
+                                  title: "Branch", info: branch, showCopyButton: kDebugMode)
+                            ],
+                          ))
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(FontAwesomeIcons.twitter),
+                      iconSize: 22,
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final httpsUri = Uri(scheme: "https", host: "x.com", path: "get10101");
+                        if (await canLaunchUrl(httpsUri)) {
+                          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          showSnackBar(messenger, "Failed to open link");
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(FontAwesomeIcons.github, size: 22),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final httpsUri = Uri(scheme: "https", host: "github.com", path: "get10101");
+                        if (await canLaunchUrl(httpsUri)) {
+                          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          showSnackBar(messenger, "Failed to open link");
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(FontAwesomeIcons.telegram, size: 22),
+                      onPressed: () async {
+                        await openTelegram(context);
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(FontAwesomeIcons.earthEurope, size: 22),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final httpsUri = Uri(scheme: "https", host: "10101.finance", path: "blog");
+                        if (await canLaunchUrl(httpsUri)) {
+                          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          showSnackBar(messenger, "Failed to open link");
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(FontAwesomeIcons.question, size: 22),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final httpsUri =
+                            Uri(scheme: "https", host: "10101.finance", path: "docs/faq");
+                        if (await canLaunchUrl(httpsUri)) {
+                          await launchUrl(httpsUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          showSnackBar(messenger, "Failed to open link");
+                        }
+                      },
+                    )
+                  ],
+                ),
                 const SizedBox(height: 10)
               ],
-            ),
+            )),
           )),
     );
   }

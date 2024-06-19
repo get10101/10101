@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get_10101/common/application/tentenone_config_change_notifier.dart';
 import 'package:get_10101/common/color.dart';
 import 'package:get_10101/common/domain/referral_status.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/common/settings/settings_screen.dart';
 import 'package:get_10101/common/snack_bar.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +27,7 @@ class _UserSettingsState extends State<UserSettings> {
     final referralStatus = context.read<TenTenOneConfigChangeNotifier>().referralStatus;
 
     return Scaffold(
-      body: SafeArea(
+      body: ScrollableSafeArea(
           child: Padding(
         padding: const EdgeInsets.only(top: 20, left: 18, right: 18),
         child: Column(

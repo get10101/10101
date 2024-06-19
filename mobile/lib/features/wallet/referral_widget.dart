@@ -37,98 +37,100 @@ class _ShareReferralWidgetState extends State<ShareReferralWidget> {
         "Enjoying 10101?",
         textAlign: TextAlign.center,
       ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Center(
-            child: RichText(
-              textAlign: TextAlign.center,
-              text: const TextSpan(
-                text: "Invite your friends to join ",
-                children: [
-                  TextSpan(
-                      text: "10101",
-                      style: TextStyle(fontWeight: FontWeight.bold, color: tenTenOnePurple),
-                      children: [
-                        TextSpan(
-                            text: " and we’ll reduce your order matching fee.",
-                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.black))
-                      ])
-                ],
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.black,
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Center(
+              child: RichText(
+                textAlign: TextAlign.center,
+                text: const TextSpan(
+                  text: "Invite your friends to join ",
+                  children: [
+                    TextSpan(
+                        text: "10101",
+                        style: TextStyle(fontWeight: FontWeight.bold, color: tenTenOnePurple),
+                        children: [
+                          TextSpan(
+                              text: " and we’ll reduce your order matching fee.",
+                              style: TextStyle(fontWeight: FontWeight.normal, color: Colors.black))
+                        ])
+                  ],
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(
-            height: 10,
-          ),
-          const Text("Your referral code is "),
-          const SizedBox(
-            height: 10,
-          ),
-          Stack(
-            children: [
-              SizedBox(
-                height: 50,
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                            text: referralCode,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: tenTenOnePurple,
-                              fontSize: 18,
-                            ),
-                            recognizer: TapGestureRecognizer()
-                              ..onTap = () {
-                                Clipboard.setData(ClipboardData(text: referralCode));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Copied to clipboard'),
-                                  ),
-                                );
-                              }),
-                      ),
-                    ],
+            const SizedBox(
+              height: 10,
+            ),
+            const Text("Your referral code is "),
+            const SizedBox(
+              height: 10,
+            ),
+            Stack(
+              children: [
+                SizedBox(
+                  height: 50,
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        RichText(
+                          text: TextSpan(
+                              text: referralCode,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: tenTenOnePurple,
+                                fontSize: 18,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Clipboard.setData(ClipboardData(text: referralCode));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Copied to clipboard'),
+                                    ),
+                                  );
+                                }),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(
-                height: 50,
-                child: Center(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      IconButton(
-                          onPressed: () => Share.share(
-                              "Join me and trade without counter-party risk. https://referral.10101.finance?referral=$referralCode"),
-                          icon: const Icon(Icons.share, size: 18))
-                    ],
+                SizedBox(
+                  height: 50,
+                  child: Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                            onPressed: () => Share.share(
+                                "Join me and trade without counter-party risk. https://referral.10101.finance?referral=$referralCode"),
+                            icon: const Icon(Icons.share, size: 18))
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          Screenshot(
-              controller: widget.screenShotController,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: SizedBox(
-                  width: 600,
-                  height: 800,
-                  child: ReferralWidget(
-                    referralCode: referralCode,
+              ],
+            ),
+            Screenshot(
+                controller: widget.screenShotController,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: SizedBox(
+                    width: 600,
+                    height: 800,
+                    child: ReferralWidget(
+                      referralCode: referralCode,
+                    ),
                   ),
-                ),
-              ))
-        ],
+                ))
+          ],
+        ),
       ),
       actions: <Widget>[
         TextButton(

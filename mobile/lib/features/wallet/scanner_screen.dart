@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get_10101/common/color.dart';
+import 'package:get_10101/common/scrollable_safe_area.dart';
 import 'package:get_10101/features/wallet/domain/destination.dart';
 import 'package:get_10101/features/wallet/domain/wallet_type.dart';
 import 'package:get_10101/features/wallet/send/send_onchain_screen.dart';
@@ -55,7 +56,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final walletService = context.read<WalletChangeNotifier>().service;
 
     return Scaffold(
-        body: SafeArea(
+        body: ScrollableSafeArea(
       child: Container(
         margin: const EdgeInsets.only(top: 10),
         child: Column(children: [

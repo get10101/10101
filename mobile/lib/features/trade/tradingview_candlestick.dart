@@ -119,9 +119,11 @@ class _TradingViewCandlestickState extends State<TradingViewCandlestick> {
                   return NavigationActionPolicy.ALLOW;
                 },
                 onProgressChanged: (controller, progress) {
-                  setState(() {
-                    this.progress = progress / 100;
-                  });
+                  if (mounted) {
+                    setState(() {
+                      this.progress = progress / 100;
+                    });
+                  }
                 },
               ),
               progress < 1.0 ? LinearProgressIndicator(value: progress) : Container(),

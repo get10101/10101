@@ -330,7 +330,7 @@ class _SendOnChainScreenState extends State<SendOnChainScreen> {
                             await calculateCustomFee(feeConfig);
                           }
                         }),
-                    const Spacer(),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
                       child: ElevatedButton(
