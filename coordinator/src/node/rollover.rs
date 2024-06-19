@@ -200,14 +200,6 @@ impl Node {
                 .first()
                 .context("oracle announcement to exist on signed contract")?;
 
-            let expiry_timestamp = OffsetDateTime::from_unix_timestamp(
-                oracle_announcement.oracle_event.event_maturity_epoch as i64,
-            )?;
-
-            if expiry_timestamp < OffsetDateTime::now_utc() {
-                bail!("Cannot rollover an expired position");
-            }
-
             (
                 oracle_announcement.oracle_public_key,
                 old_offered_contract.fee_rate_per_vb,
