@@ -9,17 +9,6 @@ use serde::Serialize;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TradeAndChannelParams {
-    pub trade_params: TradeParams,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub trader_reserve: Option<Amount>,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub coordinator_reserve: Option<Amount>,
-    #[serde(with = "bitcoin::amount::serde::as_sat::opt")]
-    pub external_funding: Option<Amount>,
-}
-
 /// The trade parameters defining the trade execution.
 ///
 /// Emitted by the orderbook when a match is found.
@@ -54,7 +43,7 @@ pub struct TradeParams {
     /// The filling information from the orderbook
     ///
     /// This is used by the coordinator to be able to make sure both trading parties are acting.
-    /// The `quantity` has to match the cummed up quantities of the matches in `filled_with`.
+    /// The `quantity` has to match the summed up quantities of the matches in `filled_with`.
     pub filled_with: FilledWith,
 }
 
@@ -187,12 +176,14 @@ pub fn average_execution_price(matches: Vec<Match>) -> Decimal {
     sum_quantity / nominal_prices
 }
 
+#[derive(Clone, Copy)]
 pub enum MatchState {
     Pending,
     Filled,
     Failed,
 }
 
+#[derive(Clone, Copy)]
 pub struct Matches {
     pub id: Uuid,
     pub match_state: MatchState,

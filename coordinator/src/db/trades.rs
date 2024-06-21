@@ -7,6 +7,7 @@ use bitcoin::Amount;
 use diesel::prelude::*;
 use std::str::FromStr;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 #[derive(Queryable, Debug, Clone)]
 #[diesel(table_name = trades)]
@@ -22,6 +23,7 @@ struct Trade {
     timestamp: OffsetDateTime,
     order_matching_fee_sat: i64,
     trader_realized_pnl_sat: Option<i64>,
+    order_id: Option<Uuid>,
 }
 
 #[derive(Insertable, Debug, Clone)]
@@ -36,6 +38,7 @@ struct NewTrade {
     average_price: f32,
     order_matching_fee_sat: i64,
     trader_realized_pnl_sat: Option<i64>,
+    order_id: Option<Uuid>,
 }
 
 pub fn insert(
@@ -90,6 +93,7 @@ impl From<crate::trade::models::NewTrade> for NewTrade {
             average_price: value.average_price,
             order_matching_fee_sat: value.order_matching_fee.to_sat() as i64,
             trader_realized_pnl_sat: value.trader_realized_pnl_sat,
+            order_id: value.order_id,
         }
     }
 }
@@ -100,8 +104,7 @@ impl From<Trade> for crate::trade::models::Trade {
             id: value.id,
             position_id: value.position_id,
             contract_symbol: value.contract_symbol.into(),
-            trader_pubkey: PublicKey::from_str(value.trader_pubkey.as_str())
-                .expect("public key to decode"),
+            trader_pubkey: PublicKey::from_str(value.trader_pubkey.as_str()).expect("to fit"),
             quantity: value.quantity,
             trader_leverage: value.trader_leverage,
             direction: value.direction.into(),
@@ -109,6 +112,7 @@ impl From<Trade> for crate::trade::models::Trade {
             timestamp: value.timestamp,
             order_matching_fee: Amount::from_sat(value.order_matching_fee_sat as u64),
             trader_realized_pnl_sat: value.trader_realized_pnl_sat,
+            order_id: value.order_id,
         }
     }
 }

@@ -1,8 +1,5 @@
 use crate::orderbook::db::custom_types::MatchState;
-use crate::orderbook::trading::TraderMatchParams;
 use crate::schema::matches;
-use anyhow::ensure;
-use anyhow::Result;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use diesel::ExpressionMethods;
@@ -37,16 +34,37 @@ struct Matches {
     pub matching_fee_sats: i64,
 }
 
-pub fn insert(conn: &mut PgConnection, match_params: &TraderMatchParams) -> Result<()> {
-    for record in Matches::new(match_params, MatchState::Pending) {
-        let affected_rows = diesel::insert_into(matches::table)
-            .values(record.clone())
-            .execute(conn)?;
+pub fn insert(
+    conn: &mut PgConnection,
+    order: &commons::Order,
+    matched_order: &commons::Order,
+    matching_fee: Amount,
+    match_state: commons::MatchState,
+    quantity: Decimal,
+) -> QueryResult<commons::Matches> {
+    let match_ = Matches {
+        id: Uuid::new_v4(),
+        match_state: match_state.into(),
+        order_id: order.id,
+        trader_id: order.trader_id.to_string(),
+        match_order_id: matched_order.id,
+        match_trader_id: matched_order.trader_id.to_string(),
+        execution_price: matched_order.price.to_f32().expect("to fit into f32"),
+        quantity: quantity.to_f32().expect("to fit into f32"),
+        created_at: OffsetDateTime::now_utc(),
+        updated_at: OffsetDateTime::now_utc(),
+        matching_fee_sats: matching_fee.to_sat() as i64,
+    };
 
-        ensure!(affected_rows > 0, "Could not insert matches");
+    let affected_rows = diesel::insert_into(matches::table)
+        .values(match_.clone())
+        .execute(conn)?;
+
+    if affected_rows == 0 {
+        return Err(diesel::NotFound);
     }
 
-    Ok(())
+    Ok(match_.into())
 }
 
 pub fn set_match_state(
@@ -62,6 +80,20 @@ pub fn set_match_state(
     Ok(())
 }
 
+pub fn get_pending_matches_by_trader(
+    conn: &mut PgConnection,
+    trader: PublicKey,
+) -> QueryResult<Vec<commons::Matches>> {
+    let matches: Vec<Matches> = matches::table
+        .filter(matches::trader_id.eq(trader.to_string()))
+        .filter(matches::match_state.eq(MatchState::Pending))
+        .load(conn)?;
+
+    let matches = matches.into_iter().map(commons::Matches::from).collect();
+
+    Ok(matches)
+}
+
 pub fn get_matches_by_order_id(
     conn: &mut PgConnection,
     order_id: Uuid,
@@ -73,47 +105,6 @@ pub fn get_matches_by_order_id(
     let matches = matches.into_iter().map(commons::Matches::from).collect();
 
     Ok(matches)
-}
-
-pub fn set_match_state_by_order_id(
-    conn: &mut PgConnection,
-    order_id: Uuid,
-    match_state: commons::MatchState,
-) -> Result<()> {
-    let affected_rows = diesel::update(matches::table)
-        .filter(matches::order_id.eq(order_id))
-        .set(matches::match_state.eq(MatchState::from(match_state)))
-        .execute(conn)?;
-
-    ensure!(affected_rows > 0, "Could not update matches");
-    Ok(())
-}
-
-impl Matches {
-    pub fn new(match_params: &TraderMatchParams, match_state: MatchState) -> Vec<Matches> {
-        let order_id = match_params.filled_with.order_id;
-        let updated_at = OffsetDateTime::now_utc();
-        let trader_id = match_params.trader_id;
-
-        match_params
-            .filled_with
-            .matches
-            .iter()
-            .map(|m| Matches {
-                id: m.id,
-                match_state,
-                order_id,
-                trader_id: trader_id.to_string(),
-                match_order_id: m.order_id,
-                match_trader_id: m.pubkey.to_string(),
-                execution_price: m.execution_price.to_f32().expect("to fit into f32"),
-                quantity: m.quantity.to_f32().expect("to fit into f32"),
-                created_at: updated_at,
-                updated_at,
-                matching_fee_sats: m.matching_fee.to_sat() as i64,
-            })
-            .collect()
-    }
 }
 
 impl From<commons::Matches> for Matches {

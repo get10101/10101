@@ -1,5 +1,5 @@
 use crate::decimal_from_f32;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::FundingFee;
 use anyhow::bail;
 use anyhow::Context;
@@ -71,7 +71,7 @@ pub enum IndexPriceSource {
 pub async fn generate_funding_fee_events_periodically(
     scheduler: &JobScheduler,
     pool: Pool<ConnectionManager<PgConnection>>,
-    auth_users_notifier: tokio::sync::mpsc::Sender<OrderbookMessage>,
+    auth_users_notifier: tokio::sync::mpsc::Sender<TraderMessage>,
     schedule: String,
     index_price_source: IndexPriceSource,
 ) -> Result<()> {
@@ -124,7 +124,7 @@ pub async fn generate_funding_fee_events_periodically(
 fn generate_funding_fee_events(
     pool: &Pool<ConnectionManager<PgConnection>>,
     index_price_source: IndexPriceSource,
-    auth_users_notifier: tokio::sync::mpsc::Sender<OrderbookMessage>,
+    auth_users_notifier: tokio::sync::mpsc::Sender<TraderMessage>,
 ) -> Result<()> {
     let mut conn = pool.get()?;
 
@@ -189,7 +189,7 @@ fn generate_funding_fee_events(
         {
             block_in_place(|| {
                 auth_users_notifier
-                    .blocking_send(OrderbookMessage::TraderMessage {
+                    .blocking_send(TraderMessage {
                         trader_id: position.trader,
                         message: Message::FundingFeeEvent(xxi_node::FundingFeeEvent {
                             contract_symbol,

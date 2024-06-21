@@ -217,23 +217,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    use diesel::sql_types::*;
-    use super::sql_types::InvoiceStateType;
-
-    hodl_invoices (id) {
-        id -> Int4,
-        trader_pubkey -> Text,
-        r_hash -> Text,
-        amount_sats -> Int8,
-        pre_image -> Nullable<Text>,
-        created_at -> Timestamptz,
-        updated_at -> Nullable<Timestamptz>,
-        invoice_state -> InvoiceStateType,
-        order_id -> Nullable<Uuid>,
-    }
-}
-
-diesel::table! {
     funding_fee_events (id) {
         id -> Int4,
         amount_sats -> Int8,
@@ -254,6 +237,23 @@ diesel::table! {
         end_date -> Timestamptz,
         rate -> Float4,
         timestamp -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use super::sql_types::InvoiceStateType;
+
+    hodl_invoices (id) {
+        id -> Int4,
+        trader_pubkey -> Text,
+        r_hash -> Text,
+        amount_sats -> Int8,
+        pre_image -> Nullable<Text>,
+        created_at -> Timestamptz,
+        updated_at -> Nullable<Timestamptz>,
+        invoice_state -> InvoiceStateType,
+        order_id -> Nullable<Uuid>,
     }
 }
 
@@ -346,9 +346,9 @@ diesel::table! {
 
     orders (id) {
         id -> Int4,
-        trader_order_id -> Uuid,
+        order_id -> Uuid,
         price -> Float4,
-        trader_id -> Text,
+        trader_pubkey -> Text,
         direction -> DirectionType,
         quantity -> Float4,
         timestamp -> Timestamptz,
@@ -505,6 +505,7 @@ diesel::table! {
         direction -> DirectionType,
         matching_fee -> Int8,
         trader_pnl_sat -> Nullable<Int8>,
+        order_id -> Nullable<Uuid>,
     }
 }
 
@@ -525,6 +526,7 @@ diesel::table! {
         timestamp -> Timestamptz,
         order_matching_fee_sat -> Int8,
         trader_realized_pnl_sat -> Nullable<Int8>,
+        order_id -> Nullable<Uuid>,
     }
 }
 

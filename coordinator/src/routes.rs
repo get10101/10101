@@ -9,11 +9,11 @@ use crate::leaderboard::LeaderBoard;
 use crate::leaderboard::LeaderBoardCategory;
 use crate::leaderboard::LeaderBoardQueryParams;
 use crate::message::NewUserMessage;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::invoice;
 use crate::node::Node;
 use crate::notifications::Notification;
-use crate::orderbook::trading::NewOrderMessage;
+use crate::orderbook::trading::OrderbookMessage;
 use crate::parse_dlc_channel_id;
 use crate::routes::admin::post_funding_rates;
 use crate::settings::Settings;
@@ -99,16 +99,16 @@ mod orderbook;
 
 pub struct AppState {
     pub node: Node,
+    pub orderbook_sender: mpsc::Sender<OrderbookMessage>,
     // Channel used to send messages to all connected clients.
     pub tx_orderbook_feed: broadcast::Sender<Message>,
     /// A channel used to send messages about position updates
     pub tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     pub tx_user_feed: broadcast::Sender<NewUserMessage>,
-    pub trading_sender: mpsc::Sender<NewOrderMessage>,
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: RwLock<Settings>,
     pub node_alias: String,
-    pub auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    pub auth_users_notifier: mpsc::Sender<TraderMessage>,
     pub notification_sender: mpsc::Sender<Notification>,
     pub user_backup: SledBackup,
     pub secp: Secp256k1<VerifyOnly>,
@@ -121,11 +121,11 @@ pub fn router(
     pool: Pool<ConnectionManager<PgConnection>>,
     settings: Settings,
     node_alias: &str,
-    trading_sender: mpsc::Sender<NewOrderMessage>,
+    orderbook_sender: mpsc::Sender<OrderbookMessage>,
     tx_orderbook_feed: broadcast::Sender<Message>,
     tx_position_feed: broadcast::Sender<InternalPositionUpdateMessage>,
     tx_user_feed: broadcast::Sender<NewUserMessage>,
-    auth_users_notifier: mpsc::Sender<OrderbookMessage>,
+    auth_users_notifier: mpsc::Sender<TraderMessage>,
     notification_sender: mpsc::Sender<Notification>,
     user_backup: SledBackup,
     lnd_bridge: LndBridge,
@@ -139,7 +139,7 @@ pub fn router(
         tx_orderbook_feed,
         tx_position_feed,
         tx_user_feed,
-        trading_sender,
+        orderbook_sender,
         node_alias: node_alias.to_string(),
         auth_users_notifier,
         notification_sender,

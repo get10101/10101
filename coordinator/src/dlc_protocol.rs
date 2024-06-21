@@ -21,6 +21,7 @@ use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 use time::OffsetDateTime;
 use tokio::sync::broadcast::Sender;
+use uuid::Uuid;
 use xxi_node::cfd::calculate_pnl;
 use xxi_node::commons;
 use xxi_node::commons::Direction;
@@ -48,6 +49,7 @@ pub struct TradeParams {
     pub direction: Direction,
     pub matching_fee: Amount,
     pub trader_pnl: Option<SignedAmount>,
+    pub order_id: Option<Uuid>,
 }
 
 impl TradeParams {
@@ -68,6 +70,7 @@ impl TradeParams {
             direction: trade_params.direction,
             matching_fee: trade_params.order_matching_fee(),
             trader_pnl,
+            order_id: Some(trade_params.filled_with.order_id),
         }
     }
 }
@@ -519,6 +522,7 @@ impl DlcProtocolExecutor {
             average_price: trade_params.average_price,
             order_matching_fee,
             trader_realized_pnl_sat: Some(trader_realized_pnl_sat),
+            order_id: trade_params.order_id,
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -573,6 +577,7 @@ impl DlcProtocolExecutor {
             average_price: trade_params.average_price,
             order_matching_fee,
             trader_realized_pnl_sat: None,
+            order_id: trade_params.order_id,
         };
 
         db::trades::insert(conn, new_trade)?;
@@ -619,6 +624,7 @@ impl DlcProtocolExecutor {
             average_price: trade_params.average_price,
             order_matching_fee,
             trader_realized_pnl_sat: trade_params.trader_pnl.map(|pnl| pnl.to_sat()),
+            order_id: trade_params.order_id,
         };
 
         db::trades::insert(conn, new_trade)?;

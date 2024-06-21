@@ -1,6 +1,6 @@
 use crate::db;
 use crate::dlc_protocol;
-use crate::message::OrderbookMessage;
+use crate::message::TraderMessage;
 use crate::node::storage::NodeStorage;
 use crate::position::models::PositionState;
 use crate::storage::CoordinatorTenTenOneStorage;
@@ -77,7 +77,7 @@ pub struct Node {
     pub pool: Pool<ConnectionManager<PgConnection>>,
     pub settings: Arc<RwLock<NodeSettings>>,
     pub tx_position_feed: Sender<InternalPositionUpdateMessage>,
-    trade_notifier: mpsc::Sender<OrderbookMessage>,
+    trade_notifier: mpsc::Sender<TraderMessage>,
     pub lnd_bridge: LndBridge,
 }
 
@@ -94,7 +94,7 @@ impl Node {
         pool: Pool<ConnectionManager<PgConnection>>,
         settings: NodeSettings,
         tx_position_feed: Sender<InternalPositionUpdateMessage>,
-        trade_notifier: mpsc::Sender<OrderbookMessage>,
+        trade_notifier: mpsc::Sender<TraderMessage>,
         lnd_bridge: LndBridge,
     ) -> Self {
         Self {
@@ -150,7 +150,7 @@ impl Node {
                             | TenTenOneMessageType::Expire
                             | TenTenOneMessageType::Liquidate => {
                                 if let Some(order_id) = msg.get_order_id() {
-                                    OrderbookMessage::TraderMessage {
+                                    TraderMessage {
                                         trader_id: to_secp_pk_30(node_id),
                                         message: TradeError { order_id, error },
                                         notification: None,
@@ -160,7 +160,7 @@ impl Node {
                                     return;
                                 }
                             }
-                            TenTenOneMessageType::Rollover => OrderbookMessage::TraderMessage {
+                            TenTenOneMessageType::Rollover => TraderMessage {
                                 trader_id: to_secp_pk_30(node_id),
                                 message: RolloverError { error },
                                 notification: None,

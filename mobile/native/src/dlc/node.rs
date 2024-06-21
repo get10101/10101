@@ -607,7 +607,7 @@ impl Node {
     #[instrument(fields(channel_id = hex::encode(offer.settle_offer.channel_id)),skip_all, err(Debug))]
     pub fn process_settle_offer(&self, offer: &TenTenOneSettleOffer) -> Result<()> {
         // TODO(holzeis): We should check if the offered amounts are expected.
-        let order_reason = offer.order.clone().order_reason;
+        let order_reason = offer.order.order_reason;
         let order_id = offer.order.id;
 
         match order_reason {

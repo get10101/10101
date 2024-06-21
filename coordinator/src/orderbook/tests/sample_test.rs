@@ -32,8 +32,7 @@ async fn crud_test() {
     )
     .unwrap();
 
-    let order = orders::set_is_taken(&mut conn, order.id, true).unwrap();
-    assert_eq!(order.order_state, OrderState::Taken);
+    assert_eq!(order.order_state, OrderState::Open);
 }
 
 #[tokio::test]

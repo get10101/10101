@@ -587,7 +587,7 @@ async fn open_channel_and_position_and_settle_position(
     let order = dummy_order();
     coordinator
         .propose_dlc_channel_collaborative_settlement(
-            order.clone(),
+            order,
             filled_with.clone(),
             &coordinator_signed_channel.channel_id,
             coordinator_dlc_collateral.to_sat() / 2,

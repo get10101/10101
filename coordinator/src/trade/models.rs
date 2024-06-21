@@ -1,6 +1,7 @@
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Amount;
 use time::OffsetDateTime;
+use uuid::Uuid;
 use xxi_node::commons::ContractSymbol;
 use xxi_node::commons::Direction;
 
@@ -15,6 +16,7 @@ pub struct NewTrade {
     pub average_price: f32,
     pub order_matching_fee: Amount,
     pub trader_realized_pnl_sat: Option<i64>,
+    pub order_id: Option<Uuid>,
 }
 
 #[derive(Debug)]
@@ -30,4 +32,5 @@ pub struct Trade {
     pub timestamp: OffsetDateTime,
     pub order_matching_fee: Amount,
     pub trader_realized_pnl_sat: Option<i64>,
+    pub order_id: Option<Uuid>,
 }

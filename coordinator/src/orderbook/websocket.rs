@@ -4,7 +4,7 @@ use crate::funding_fee::get_funding_fee_events_for_active_trader_positions;
 use crate::funding_fee::get_next_funding_rate;
 use crate::message::NewUserMessage;
 use crate::orderbook::db::orders;
-use crate::orderbook::trading::NewOrderMessage;
+use crate::orderbook::trading::OrderbookMessage;
 use crate::referrals;
 use crate::routes::AppState;
 use anyhow::bail;
@@ -18,11 +18,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::mpsc;
-use tokio::task::spawn_blocking;
 use uuid::Uuid;
 use xxi_node::commons::create_sign_message;
 use xxi_node::commons::Message;
 use xxi_node::commons::NewLimitOrder;
+use xxi_node::commons::NewOrder;
 use xxi_node::commons::OrderReason;
 use xxi_node::commons::OrderbookRequest;
 use xxi_node::commons::ReferralStatus;
@@ -40,23 +40,10 @@ async fn handle_insert_order(
         bail!("Maker {trader_id} tried to trade on behalf of someone else: {order:?}");
     }
 
-    tracing::trace!(?order, "Inserting order");
-
-    let order = spawn_blocking({
-        let mut conn = state.pool.clone().get()?;
-        move || {
-            let order = orders::insert_limit_order(&mut conn, order, OrderReason::Manual)?;
-
-            anyhow::Ok(order)
-        }
-    })
-    .await??;
-
     let _ = state
-        .trading_sender
-        .send(NewOrderMessage {
-            order,
-            channel_opening_params: None,
+        .orderbook_sender
+        .send(OrderbookMessage::NewOrder {
+            new_order: NewOrder::Limit(order),
             order_reason: OrderReason::Manual,
         })
         .await;
@@ -66,22 +53,15 @@ async fn handle_insert_order(
 
 async fn handle_delete_order(
     state: Arc<AppState>,
-    trader_id: PublicKey,
+    trader_pubkey: PublicKey,
     order_id: Uuid,
 ) -> Result<()> {
-    tracing::trace!(%order_id, "Deleting order");
+    tracing::trace!(%trader_pubkey, %order_id, "Deleting order");
 
-    spawn_blocking({
-        let mut conn = state.pool.clone().get()?;
-        move || {
-            orders::delete_trader_order(&mut conn, order_id, trader_id)?;
-
-            anyhow::Ok(())
-        }
-    })
-    .await??;
-
-    let _ = state.tx_orderbook_feed.send(Message::DeleteOrder(order_id));
+    state
+        .orderbook_sender
+        .send(OrderbookMessage::DeleteOrder(order_id))
+        .await?;
 
     Ok(())
 }

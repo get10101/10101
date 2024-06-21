@@ -1,12 +1,10 @@
 use crate::check_version::check_version;
 use crate::db;
 use crate::orderbook;
-use crate::orderbook::db::orders;
-use crate::orderbook::trading::NewOrderMessage;
+use crate::orderbook::trading::OrderbookMessage;
 use crate::orderbook::websocket::websocket_connection;
 use crate::routes::AppState;
 use crate::AppError;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use axum::extract::ws::WebSocketUpgrade;
@@ -19,12 +17,10 @@ use diesel::r2d2::PooledConnection;
 use diesel::PgConnection;
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use tokio::sync::broadcast::Sender;
 use tokio::task::spawn_blocking;
 use tracing::instrument;
 use uuid::Uuid;
 use xxi_node::commons;
-use xxi_node::commons::Message;
 use xxi_node::commons::NewOrder;
 use xxi_node::commons::NewOrderRequest;
 use xxi_node::commons::Order;
@@ -79,32 +75,44 @@ pub async fn post_order(
     let new_order = new_order_request.value;
     let order_id = new_order.id();
 
-    // TODO(holzeis): We should add a similar check eventually for limit orders (makers).
-    if let NewOrder::Market(new_order) = &new_order {
-        let mut conn = state
-            .pool
-            .get()
-            .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-        check_version(&mut conn, &new_order.trader_id)
+    match new_order {
+        NewOrder::Market(new_order) => {
+            spawn_blocking({
+                let pool = state.pool.clone();
+                move || {
+                    let mut conn = pool
+                        .get()
+                        .context("Could not acquire database connection")?;
+                    // TODO(holzeis): We should add a similar check eventually for limit orders
+                    // (makers).
+                    check_version(&mut conn, &new_order.trader_id)
+                }
+            })
+            .await
+            .expect("task to finish")
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
-    }
-
-    let settings = state.settings.read().await;
-
-    if let NewOrder::Limit(new_order) = &new_order {
-        if settings.whitelist_enabled && !settings.whitelisted_makers.contains(&new_order.trader_id)
-        {
-            tracing::warn!(
-                trader_id = %new_order.trader_id,
-                "Trader tried to post limit order but was not whitelisted"
-            );
-            return Err(AppError::Unauthorized);
         }
+        NewOrder::Limit(new_order) => {
+            if new_order.price == Decimal::ZERO {
+                return Err(AppError::BadRequest(
+                    "Limit orders with zero price are not allowed".to_string(),
+                ));
+            }
 
-        if new_order.price == Decimal::ZERO {
-            return Err(AppError::BadRequest(
-                "Limit orders with zero price are not allowed".to_string(),
-            ));
+            let (whitelist_enabled, whitelisted_makers) = {
+                let settings = state.settings.read().await;
+                (
+                    settings.whitelist_enabled,
+                    settings.whitelisted_makers.clone(),
+                )
+            };
+            if whitelist_enabled && !whitelisted_makers.contains(&new_order.trader_id) {
+                tracing::warn!(
+                    trader_id = %new_order.trader_id,
+                    "Trader tried to post limit order but was not whitelisted"
+                );
+                return Err(AppError::Unauthorized);
+            }
         }
     }
 
@@ -149,70 +157,59 @@ pub async fn post_order(
         None => None,
     };
 
-    let pool = state.pool.clone();
-    let new_order = new_order.clone();
-    let order = spawn_blocking(move || {
-        let mut conn = pool.get()?;
-
-        let order = match new_order {
-            NewOrder::Market(o) => {
-                orders::insert_market_order(&mut conn, o.clone(), OrderReason::Manual)
+    // FIXME(holzeis): We shouldn't blindly trust the user about the coordinator reserve. Note,
+    // we already ignore the trader reserve parameter when the channel is externally
+    // funded.
+    if let Some(channel_opening_params) = new_order_request.channel_opening_params {
+        spawn_blocking({
+            let pool = state.pool.clone();
+            move || {
+                let mut conn = pool.get()?;
+                db::channel_opening_params::insert(
+                    &mut conn,
+                    order_id,
+                    crate::ChannelOpeningParams {
+                        trader_reserve: channel_opening_params.trader_reserve,
+                        coordinator_reserve: channel_opening_params.coordinator_reserve,
+                        external_funding,
+                    },
+                )?;
+                anyhow::Ok(())
             }
-            NewOrder::Limit(o) => orders::insert_limit_order(&mut conn, o, OrderReason::Manual),
-        }
-        .map_err(|e| anyhow!(e))
-        .context("Failed to insert new order into DB")?;
+        })
+        .await
+        .expect("task to complete")
+        .map_err(|e| {
+            AppError::InternalServerError(format!("Failed to store channel opening params: {e:#}"))
+        })?;
+    }
 
-        anyhow::Ok(order)
-    })
-    .await
-    .expect("task to complete")
-    .map_err(|e| AppError::InternalServerError(e.to_string()))?;
-
-    // FIXME(holzeis): We shouldn't blindly trust the user about the coordinator reserve. Note, we
-    // already ignore the trader reserve parameter when the channel is externally funded.
-    let message = NewOrderMessage {
-        order,
-        channel_opening_params: new_order_request.channel_opening_params.map(|params| {
-            crate::ChannelOpeningParams {
-                trader_reserve: params.trader_reserve,
-                coordinator_reserve: params.coordinator_reserve,
-                external_funding,
-            }
-        }),
+    let message = OrderbookMessage::NewOrder {
+        new_order,
         order_reason: OrderReason::Manual,
     };
 
-    state.trading_sender.send(message).await.map_err(|e| {
+    state.orderbook_sender.send(message).await.map_err(|e| {
         AppError::InternalServerError(format!("Failed to send new order message: {e:#}"))
     })?;
 
     Ok(())
 }
 
-fn update_pricefeed(pricefeed_msg: Message, sender: Sender<Message>) {
-    match sender.send(pricefeed_msg) {
-        Ok(_) => {
-            tracing::trace!("Pricefeed updated")
-        }
-        Err(error) => {
-            tracing::warn!("Could not update pricefeed due to '{error}'")
-        }
-    }
-}
-
 #[instrument(skip_all, err(Debug))]
 pub async fn delete_order(
     Path(order_id): Path<Uuid>,
     State(state): State<Arc<AppState>>,
-) -> Result<Json<Order>, AppError> {
-    let mut conn = get_db_connection(&state)?;
-    let order = orderbook::db::orders::delete(&mut conn, order_id)
-        .map_err(|e| AppError::InternalServerError(format!("Failed to delete order: {e:#}")))?;
-    let sender = state.tx_orderbook_feed.clone();
-    update_pricefeed(Message::DeleteOrder(order_id), sender);
+) -> Result<(), AppError> {
+    state
+        .orderbook_sender
+        .send(OrderbookMessage::DeleteOrder(order_id))
+        .await
+        .map_err(|e| {
+            AppError::InternalServerError(format!("Failed to send delete order message: {e:#}"))
+        })?;
 
-    Ok(Json(order))
+    Ok(())
 }
 
 pub async fn websocket_handler(

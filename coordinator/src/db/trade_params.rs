@@ -28,6 +28,7 @@ pub(crate) struct TradeParams {
     pub direction: Direction,
     pub matching_fee: i64,
     pub trader_pnl: Option<i64>,
+    pub order_id: Option<Uuid>,
 }
 
 pub(crate) fn insert(
@@ -44,6 +45,7 @@ pub(crate) fn insert(
             trade_params::average_price.eq(params.average_price),
             trade_params::matching_fee.eq(params.matching_fee.to_sat() as i64),
             trade_params::trader_pnl_sat.eq(params.trader_pnl.map(|pnl| pnl.to_sat())),
+            trade_params::order_id.eq(params.order_id),
         ))
         .execute(conn)?;
 
@@ -76,6 +78,7 @@ impl From<TradeParams> for dlc_protocol::TradeParams {
             direction: commons::Direction::from(value.direction),
             matching_fee: Amount::from_sat(value.matching_fee as u64),
             trader_pnl: value.trader_pnl.map(SignedAmount::from_sat),
+            order_id: value.order_id,
         }
     }
 }
