@@ -208,14 +208,6 @@ fn build_rollover_notification_job(
 ) -> Result<Job, JobSchedulerError> {
     Job::new_async(schedule, move |_, _| {
         let notifier = notifier.clone();
-        let mut conn = match pool.get() {
-            Ok(conn) => conn,
-            Err(e) => {
-                return Box::pin(async move {
-                    tracing::error!("Failed to get connection. Error: {e:#}")
-                });
-            }
-        };
 
         if !commons::is_eligible_for_rollover(OffsetDateTime::now_utc(), network) {
             return Box::pin(async move {
@@ -226,8 +218,21 @@ fn build_rollover_notification_job(
         // calculates the expiry of the next rollover window. positions which have an
         // expiry before that haven't rolled over yet, and need to be reminded.
         let expiry = commons::calculate_next_expiry(OffsetDateTime::now_utc(), network);
-        match db::positions::Position::get_all_open_positions_with_expiry_before(&mut conn, expiry)
-        {
+
+        let positions = {
+            let mut conn = match pool.get() {
+                Ok(conn) => conn,
+                Err(e) => {
+                    return Box::pin(async move {
+                        tracing::error!("Failed to get connection. Error: {e:#}")
+                    });
+                }
+            };
+
+            db::positions::Position::get_all_open_positions_with_expiry_before(&mut conn, expiry)
+        };
+
+        match positions {
             Ok(positions) => Box::pin({
                 tracing::debug!(
                     nr_of_positions = positions.len(),
@@ -239,7 +244,6 @@ fn build_rollover_notification_job(
                     for position in positions {
                         if let Err(e) = node
                             .check_rollover(
-                                &mut conn,
                                 position,
                                 node.inner.network,
                                 &notifier,
