@@ -235,8 +235,9 @@ class FeeRate implements Formattable {
     _feeRate = feeRate;
   }
 
-  FeeRate.parse(String value) {
-    FeeRate(double.parse(value));
+  factory FeeRate.parse(String feeRateString) {
+    double parsedRate = double.tryParse(feeRateString) ?? 1.0;
+    return FeeRate(parsedRate);
   }
 
   double get feeRate => _feeRate;
