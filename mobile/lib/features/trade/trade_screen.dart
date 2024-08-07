@@ -348,7 +348,7 @@ class FundingRateWidget extends StatelessWidget {
               style: DefaultTextStyle.of(context).style,
               children: [
                 TextSpan(
-                  text: " ${(rate!.rate.abs() * 100).toStringAsFixed(2)}% ",
+                  text: " ${(rate!.rate.abs() * 100).toStringAsFixed(4)}% ",
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextSpan(
