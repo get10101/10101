@@ -1,4 +1,4 @@
-git_url("git@github.com:bonomat/fastlane-10101-match.git")
+git_url("https://github.com/bonomat/fastlane-10101-match.git")
 
 storage_mode("git")
 
