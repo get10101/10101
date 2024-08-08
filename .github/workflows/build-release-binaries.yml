@@ -34,7 +34,7 @@ jobs:
       oracle_endpoint: http://oracle.10101.finance
       oracle_pubkey: 93051f54feefdb4765492a85139c436d4857e2e331a360c89a16d6bc02ba9cd0
       fastlane_developer_app_identifier: finance.get10101.app
-      fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app 1692208014
+      fastlane_provisioning_profile_specifier: match AppStore finance.get10101.app
       app_scheme: Runner
       meme_endpoint: http://api.10101.finance/memes/
 
