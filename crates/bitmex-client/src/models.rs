@@ -219,3 +219,43 @@ pub struct Position {
     #[serde(with = "time::serde::rfc3339::option")]
     pub timestamp: Option<OffsetDateTime>,
 }
+
+#[derive(Clone, Debug, Serialize)]
+pub struct GetInstrumentRequest {
+    pub symbol: Option<ContractSymbol>,
+    /// Number of results to fetch.
+    pub count: Option<u64>,
+    /// If true, will sort results newest first.
+    pub reverse: Option<bool>,
+    /// Starting date filter for results.
+    #[serde(with = "time::serde::rfc3339::option", rename = "startTime")]
+    pub start_time: Option<OffsetDateTime>,
+    /// Ending date filter for results.
+    #[serde(with = "time::serde::rfc3339::option", rename = "endTime")]
+    pub end_time: Option<OffsetDateTime>,
+}
+
+impl Request for GetInstrumentRequest {
+    const METHOD: Method = Method::GET;
+    const SIGNED: bool = false;
+    const ENDPOINT: &'static str = "/instrument";
+    const HAS_PAYLOAD: bool = true;
+    type Response = Vec<Instrument>;
+}
+
+/// Note: only relevant fields have been added
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Instrument {
+    pub symbol: ContractSymbol,
+    #[serde(rename = "fundingTimestamp", with = "time::serde::rfc3339")]
+    pub funding_timestamp: OffsetDateTime,
+    #[serde(rename = "fundingInterval", with = "time::serde::rfc3339")]
+    pub funding_interval: OffsetDateTime,
+    #[serde(rename = "fundingRate")]
+    pub funding_rate: f64,
+    /// Predicted funding rate for the the next interval after funding_timestamp
+    #[serde(rename = "indicativeFundingRate")]
+    pub indicative_funding_rate: f64,
+    #[serde(with = "time::serde::rfc3339")]
+    pub timestamp: OffsetDateTime,
+}
