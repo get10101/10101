@@ -27,7 +27,7 @@ jobs:
     secrets: inherit
     with:
       electrs_endpoint: http://api.10101.finance:3000
-      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
+      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@66.248.204.223:9045
       coordinator_port_http: 80
       network: mainnet
       tag: ${{ github.ref_name }}
@@ -47,7 +47,7 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
       electrs_endpoint: http://api.10101.finance:3000
-      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@46.17.98.29:9045
+      coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@66.248.204.223:9045
       coordinator_port_http: 80
       network: mainnet
       oracle_endpoint: http://oracle.10101.finance
