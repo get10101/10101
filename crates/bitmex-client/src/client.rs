@@ -1,5 +1,8 @@
 use crate::models::ContractSymbol;
+use crate::models::ContractSymbol::XbtUsd;
+use crate::models::GetInstrumentRequest;
 use crate::models::GetPositionRequest;
+use crate::models::Instrument;
 use crate::models::Network;
 use crate::models::OrdType;
 use crate::models::Order;
@@ -8,6 +11,7 @@ use crate::models::PostOrderRequest;
 use crate::models::Request;
 use crate::models::Side;
 use anyhow::bail;
+use anyhow::Context;
 use anyhow::Result;
 use hex::encode as hexify;
 use reqwest;
@@ -76,6 +80,25 @@ impl Client {
     pub async fn positions(&self) -> Result<Vec<Position>> {
         let positions = self.send_request(GetPositionRequest).await?;
         Ok(positions)
+    }
+
+    /// Returns the latest instrument
+    pub async fn latest_instrument(&self) -> Result<Instrument> {
+        let instruments = self
+            .send_request(GetInstrumentRequest {
+                symbol: Some(XbtUsd),
+                count: Some(1),
+                end_time: None,
+                start_time: None,
+                reverse: Some(true),
+            })
+            .await?
+            .first()
+            .cloned();
+
+        let instrument = instruments.context("No instrument found")?;
+
+        Ok(instrument)
     }
 
     async fn send_request<R>(&self, req: R) -> Result<R::Response>
