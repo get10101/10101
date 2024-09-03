@@ -81,7 +81,7 @@ jobs:
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Download RUST FFI bindings
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: rust_bridge_generated
           path: mobile/native/src/bridge_generated
@@ -102,12 +102,12 @@ jobs:
           cache-key: flutter-${{ env.FLUTTER_VERSION }}
           cache-path: ${{ runner.tool_cache }}/flutter
       - name: Download Dart mocks directory
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: dart_mocks_generated
           path: mobile/test
       - name: Download Dart bridge_generated directory
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: dart_bridge_generated
           path: mobile/lib/bridge_generated
@@ -135,7 +135,7 @@ jobs:
           cache-key: flutter-${{ env.FLUTTER_VERSION }}
           cache-path: ${{ runner.tool_cache }}/flutter
       - name: Download Rust generated FFI flutter bindings
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: rust_bridge_generated
           path: mobile/native/src/bridge_generated
@@ -143,7 +143,7 @@ jobs:
         run: RUST_BACKTRACE=1 cargo test
         # Flutter tests run `build_runner`, so no need to download mocks
       - name: Download Dart bridge_generated directory
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: dart_bridge_generated
           path: mobile/lib/bridge_generated
@@ -212,7 +212,7 @@ jobs:
             target/debug/coordinator
           key: test-cache-${{ github.run_id }}-${{ github.run_number }}
       - name: Download RUST FFI bindings
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: rust_bridge_generated
           path: mobile/native/src/bridge_generated
@@ -333,7 +333,7 @@ jobs:
         run: rustup show
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Download RUST FFI bindings
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: rust_bridge_generated
           path: mobile/native/src/bridge_generated
