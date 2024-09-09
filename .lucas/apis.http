@@ -1,0 +1,60 @@
+# -*- mode: restclient -*-
+
+# Get positions
+
+GET http://localhost:3002/positions
+
+# Modify position `creation_timestamp`. Set before a funding rate `end_date` to generate a funding fee event
+
+PATCH http://localhost:3002/positions?id=eq.1
+Content-Type: application/json
+
+{ "creation_timestamp": "2024-08-05T01:00:00" }
+
+# Get funding rates
+
+GET http://localhost:3002/funding_rates
+
+# Add funding rate. Usually, you want to set `end_date` to <1 hour in the past
+
+POST http://localhost:8000/api/admin/funding-rates
+Content-Type: application/json
+
+[{
+  "rate": "0.0005",
+  "start_date": "2024-08-07T04:00:00Z",
+  "end_date": "2024-08-07T12:00:00Z"
+}]
+
+# Get funding fee events
+
+GET http://localhost:3002/funding_fee_events
+
+# Get DLC channels
+
+GET http://localhost:8000/api/admin/dlc_channels
+
+# Get DLC protocols
+
+GET http://localhost:3002/dlc_protocols
+
+# To rollover a channel
+
+POST http://localhost:8000/api/admin/rollover/6c949ef7d1822a5f5a97bc22dcc84ce2828bb5cc0b9455e7c6674af029110885
+
+# Get funding rates from BitMEX
+
+GET https://www.bitmex.com/api/v1/instrument?symbol=XBTUSD
+
+# Get invoice
+
+POST http://localhost:18080/v2/invoices/hodl
+Content-Type: application/json
+Grpc-Metadata-macaroon: lol
+
+{
+  "value": 100000,
+  "memo": "",
+  "expiry": 1720311446,
+  "hash": "9f80bfa9ec64e3aa69a3049507f6d043e2b6f6e8aef451509425f19c4312a9f5"
+}

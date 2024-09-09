@@ -1,0 +1,128 @@
+coordinator_log_file := "./coordinator.log"
+
+bins-dir := "../test-binaries/"
+
+coordinator-old := "coordinator-2.4.7"
+coordinator-new := "coordinator-main"
+
+app-old := "app-bundle-2.4.7/10101"
+app-new := "app-bundle-main/10101"
+
+mine blocks:
+    #!/usr/bin/env bash
+    docker exec -it bitcoin bitcoin-cli -rpcuser="admin1" -rpcpassword="123" -regtest generatetoaddress {{blocks}} bcrt1qr5e804tw58pv0k2n29tamdm2qzsq79f0mjtckh
+
+# Must tag the coordinator binary afterwards!
+build-coordinator:
+    #!/usr/bin/env bash
+    cargo build --bin coordinator --target-dir={{bins-dir}}
+
+# Must tag the app bundle afterwards!
+#
+# FIXME: Doesn't work because `flutter build linux` doesn't actually
+# rebuild with the new Rust code (also some env variables are
+# missing).
+build-app:
+    #!/usr/bin/env bash
+    just ../gen
+    cd ../mobile/
+
+    flutter build linux
+    cp -r ./build/linux/x64/debug/bundle {{bins-dir}}"app-bundle"
+
+# Must ensure that the app was built, probably via `just gen run`.
+copy-app-binary:
+    cp -r ../mobile/build/linux/x64/debug/bundle {{bins-dir}}"app-bundle"
+
+run-coordinator-old:
+    #!/usr/bin/env bash
+    cd {{bins-dir}}
+
+    set -euxo pipefail
+
+    just ../wait-for-electrs-to-be-ready
+
+    echo "Starting coordinator"
+    {{bins-dir}}{{coordinator-old}} &> {{coordinator_log_file}} &
+    just wait-for-coordinator-to-be-ready
+    echo "Coordinator started. Logs found at {{coordinator_log_file}}"
+
+# TODO: Avoid duplication.
+run-coordinator-new:
+    #!/usr/bin/env bash
+    cd {{bins-dir}}
+
+    set -euxo pipefail
+
+    just ../wait-for-electrs-to-be-ready
+
+    echo "Starting coordinator"
+    {{bins-dir}}{{coordinator-new}} &> {{coordinator_log_file}} &
+    just wait-for-coordinator-to-be-ready
+    echo "Coordinator started. Logs found at {{coordinator_log_file}}"
+
+services-old:
+    #!/usr/bin/env bash
+
+    set -euxo pipefail
+
+    just ../docker
+    just run-coordinator-old
+    just ../run-maker-detached
+    just ../fund
+
+services-new:
+    #!/usr/bin/env bash
+
+    set -euxo pipefail
+
+    just ../docker
+    just run-coordinator-new
+    just ../run-maker-detached
+
+wipe-docker-and-maker:
+    #!/usr/bin/env bash
+    just ../wipe-docker
+    just ../wipe-maker
+
+stop-coordinator:
+    #!/usr/bin/env bash
+    pkill -9 coordinator
+
+wipe-coordinator:
+    #!/usr/bin/env bash
+    rm -rf {{bins-dir}}data
+    mkdir -p {{bins-dir}}data/coordinator/regtest
+    cp {{bins-dir}}coordinator-settings.toml {{bins-dir}}data/coordinator/regtest/
+    cp {{bins-dir}}seed {{bins-dir}}data/coordinator/regtest/
+
+run-app-old:
+    #!/usr/bin/env bash
+    cd {{bins-dir}}
+    ./{{app-old}}
+
+# TODO: Avoid duplication.
+run-app-new:
+    #!/usr/bin/env bash
+    cd {{bins-dir}}
+    ./{{app-new}}
+
+# DEPRECATED: Copy the coordinator, maker and 10101 app binaries to a temporary
+# directory to quickly switch between multiple versions to test
+# changes.
+copy-binaries:
+    #!/usr/bin/env bash
+    set -euxo pipefail
+
+    tempdir=$(mktemp -d)
+
+    echo "Created temporary directory: $tempdir"
+
+    # Copy the 10101 app Linux bundle.
+    cp -r ../mobile/build/linux/x64/debug/bundle/* $tempdir/
+
+    # Copy the coordinator binary.
+    cp ../target/debug/coordinator $tempdir/
+
+    # Copy the maker binary.
+    cp ../target/debug/maker $tempdir/
