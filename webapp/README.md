@@ -68,7 +68,7 @@ services:
     container_name: webapp
     command: |
       --coordinator-endpoint=022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@66.248.204.223:9045
-      --esplora=http://api.10101.finance:3000
+      --esplora=https://blockstream.info/api
       --password=super_secret_password_please_change_before_use
       --coordinator-http-port=80
       --cert-dir=webapp/certs
