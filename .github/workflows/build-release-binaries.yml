@@ -26,7 +26,7 @@ jobs:
     uses: ./.github/workflows/ios-fastlane.yml
     secrets: inherit
     with:
-      electrs_endpoint: http://api.10101.finance:3000
+      electrs_endpoint: https://blockstream.info/api
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@66.248.204.223:9045
       coordinator_port_http: 80
       network: mainnet
@@ -46,7 +46,7 @@ jobs:
     secrets: inherit
     with:
       tag: ${{ github.ref_name }}
-      electrs_endpoint: http://api.10101.finance:3000
+      electrs_endpoint: https://blockstream.info/api
       coordinator_p2p_endpoint: 022ae8dbec1caa4dac93f07f2ebf5ad7a5dd08d375b79f11095e81b065c2155156@66.248.204.223:9045
       coordinator_port_http: 80
       network: mainnet
